@@ -132,6 +132,9 @@ function buildManifest(template, ctx) {
 
   return {
     id: `${template.id}-${ctx.topic}`,
+    // 용지(1급 속성): 템플릿이 지정할 때만 전파. 없으면 키 자체를 만들지 않는다
+    // (paper-absent = 현행 A4 기본, 주입 0 — 하위호환).
+    ...(template.paper ? { paper: template.paper } : {}),
     subject: template.subject,
     dataSubject: template.dataSubject,
     theme: template.theme,

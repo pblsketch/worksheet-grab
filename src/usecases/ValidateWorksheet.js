@@ -1,5 +1,6 @@
 import { collectTextInside, textOutside, stripRootBlocks } from './html-scan.js';
 import { ANSWER_CLASSES } from './BuildVariants.js';
+import { resolvePaper, paperMargins, paperMarginMinMm } from './paper.js';
 
 // ValidateWorksheet — 활동지 HTML 정적 검사(순수). Chrome 불필요.
 //  1) 정답 누출: .answer/.plot-ans 밖으로 정답 텍스트가 새면 error(FAIL). (수용기준 3)
@@ -14,12 +15,15 @@ const SLICE_LEN = 20;
 
 export class ValidateWorksheet {
   /**
-   * @param {{knownSubjectHexes?:string[], minFontPt?:number, minMarginMm?:number}} opts
+   * @param {{knownSubjectHexes?:string[], minFontPt?:number, minMarginMm?:number,
+   *          paper?:{size?:string,orientation?:string,margins?:string,columns?:number}|null}} opts
+   *   paper: manifest.paper — 지정 시 여백 판정을 선택 용지 기준(paperMarginMinMm)으로 한다.
    */
-  constructor({ knownSubjectHexes = [], minFontPt = 8, minMarginMm = 8 } = {}) {
+  constructor({ knownSubjectHexes = [], minFontPt = 8, minMarginMm = 8, paper = null } = {}) {
     this.knownSubjectHexes = new Set(knownSubjectHexes.map((h) => h.toLowerCase()));
     this.minFontPt = minFontPt;
     this.minMarginMm = minMarginMm;
+    this.paper = resolvePaper(paper);
   }
 
   /** @param {string} html @returns {{ok:boolean, findings:object[]}} */
@@ -113,13 +117,31 @@ export class ValidateWorksheet {
     }
   }
 
-  // 인쇄 여백: .sheet 의 padding(mm) 중 최소값이 안전 여백 미만이면 경고.
+  // 인쇄 여백: 선택 용지(manifest.paper)가 있으면 그 여백을 1차 기준으로 판정하고,
+  // 없으면 .sheet 의 padding(mm) CSS 파싱으로 판정한다(현행 동작 유지).
   #checkMargin(html, findings) {
-    const m = /\.sheet\s*\{[^}]*padding\s*:\s*([^;]+);/i.exec(html);
-    if (!m) return;
-    const mmVals = (m[1].match(/([0-9.]+)mm/g) || []).map((v) => parseFloat(v));
-    if (mmVals.length === 0) return;
-    const minMm = Math.min(...mmVals);
+    let minMm = null;
+    if (this.paper) {
+      minMm = paperMarginMinMm(this.paper);
+      const m = paperMargins(this.paper);
+      if (m.left !== m.right) {
+        // 좌·우 비대칭 여백: run-head(right)/mode-badge(left)/run-foot 오프셋이 양쪽에서
+        // 달라진다. E0 은 지원하되 인쇄틀 확인을 요구한다(§3.3 고급 자유조합 대비).
+        findings.push({
+          rule: 'h-margin-asymmetry',
+          severity: 'warning',
+          message: `좌(${m.left}mm)·우(${m.right}mm) 여백이 다릅니다. 러닝헤더/푸터 오프셋과 제본 여백 의도를 확인하세요.`,
+          evidence: `${m.left}mm != ${m.right}mm`,
+        });
+      }
+    } else {
+      const m = /\.sheet\s*\{[^}]*padding\s*:\s*([^;]+);/i.exec(html);
+      if (!m) return;
+      // var(--sheet-pad, 12mm 15mm 10mm 15mm) 표현에서도 mm 토큰이 그대로 추출된다.
+      const mmVals = (m[1].match(/([0-9.]+)mm/g) || []).map((v) => parseFloat(v));
+      if (mmVals.length === 0) return;
+      minMm = Math.min(...mmVals);
+    }
     if (minMm < this.minMarginMm) {
       findings.push({
         rule: 'print-margin',

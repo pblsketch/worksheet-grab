@@ -10,18 +10,26 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 
 목표: 교사의 한 문장 요청("중2 과학 옴의 법칙 활동지")을 학생용/교사용 A4 PDF 2벌로. 사용자 구독 AI가 엔진(무API). 성취기준 원문은 gepai에서만, 저작권 지문은 슬롯.
 
-## 엔진 배선 (worksheet-grab CLI — M1~M6 코어)
-결정적 조립·검증·렌더는 코어 엔진 CLI가 담당한다. 루트: `E:/github/worksheet-grab`. 두 경로:
-- **빠른 경로(fast path)**: `node bin/worksheet-grab.js pipeline <학년교과> <주제> --out out/`
-  — 한 명령이 성취기준 조회→조립→2벌→검수 게이트(fail-closed)→렌더를 종단 수행. 표준 주제·1차시에 적합.
+## 엔진 배선 (worksheet-grab CLI — M1~M6 코어 + 동적 조립)
+결정적 조립·검증·렌더는 코어 엔진 CLI가 담당한다. 루트: `E:/github/worksheet-grab`. 세 경로:
+- **빠른 경로(fast/preset path)**: `node bin/worksheet-grab.js pipeline <학년교과> <주제> --out out/`
+  — 한 명령이 성취기준 조회→조립→2벌→검수 게이트(fail-closed)→렌더를 종단 수행. **표준 주제·1차시**에 적합.
+  구조는 교과 **프리셋 템플릿**(`templates/*.json`, few-shot 시드로 강등)에서 온다.
   단계별 명령: `generate`(조회+조립+2벌, `--pdf`/`--png` 렌더) · `validate`(검수 게이트: 정답누출·하드코딩색·인쇄안전) · `render`(A4 `--out` PDF / `--png` 미리보기) · `assemble`(블록 재조립).
   - pipeline/generate 는 재편집용 `<base>.manifest.json` 을 함께 산출한다.
+- **동적 조립 경로(dynamic path)**: `node bin/worksheet-grab.js compose <학년교과> <주제> [--archetype <id>] --out out/`
+  — **주제에 맞는 아키타입(구조)** 을 골라(키워드 추천 또는 `--archetype` 지정) 성취기준·제목을 채운
+  "저작 대기 스캐폴드" 매니페스트 + **블록별 저작 브리프**를 낸다. 엔진은 구조만(결정적), 교육적 본문은
+  **designer 가 인라인 html 을 저작**(무API). 저작 후 `assemble`/`pipeline` 로 렌더(검수 게이트).
+  같은 교과라도 주제에 따라 구조가 달라진다(예: 실험 주제=변인표+그래프, 비실험=비교표+구조표 — 강제 없음).
+  참고 명령: `list-archetypes [--subject]`(구조 패턴 6종) · `list-vocab [--subject]`(타입 어휘+계약). **맞춤 구조가 필요한 비표준 주제**에 1차.
 - **편집 경로(M4)**: `node bin/worksheet-grab.js edit <base>.manifest.json "3번 문항 빼고 성찰 추가" --out out/`
   — 매니페스트에 편집을 왕복 반영(문항 제거·성찰 추가)한 뒤 2벌 재조립·재렌더. `--remove <N>`/`--add reflection` 플래그도 가능.
   부분 수정 요청("3번 문항 빼줘")은 이 경로가 1차. 5-에이전트 재실행은 맞춤 저작이 필요할 때만.
 - **교과 범위(M5)**: 국어(korean)·과학(science)·사회(social: 지도·연표)·영어(english: 어휘·대화문). 교과색은 `themes/*.css` 토큰만.
 - **풍부한 경로(rich path)**: 아래 5-에이전트 팀 — 맞춤 콘텐츠 저작·부분 재실행·다회 검수 루프가 필요할 때.
-  각 에이전트는 자기 산출물을 위 엔진 명령으로 실행/검증한다(curriculum→search, design→generate/assemble, review→validate, export→build-variants/render).
+  각 에이전트는 자기 산출물을 위 엔진 명령으로 실행/검증한다(curriculum→search, **designer→compose 스캐폴드 저작 후 assemble**, review→validate, export→build-variants/render).
+  designer 는 `compose` 가 낸 아키타입 스캐폴드 + 저작 브리프를 받아 인라인 html 을 주제에 맞게 저작한다(엔진 무API 준수).
 - 두 경로 모두 **검수 PASS 후 HITL**(교사 검토) 게이트를 지키고, student 정답은 엔진이 물리 제거한다.
 
 ## Phase 0: 컨텍스트 확인

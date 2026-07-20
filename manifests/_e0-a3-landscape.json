@@ -1,0 +1,20 @@
+{
+  "id": "_e0-a3-landscape",
+  "subject": "science",
+  "dataSubject": "science",
+  "theme": "sci",
+  "lang": "ko",
+  "docTitle": "E0 검증 — A3 가로",
+  "head": { "katex": false },
+  "runHead": "E0 용지 검증 · A3 landscape",
+  "runFoot": { "left": "E0 용지 검증", "rightPrefix": "A3 가로" },
+  "standards": [],
+  "standardsText": {},
+  "paper": { "size": "A3", "orientation": "landscape" },
+  "pages": [
+    [
+      { "type": "directive", "html": "<div class=\"direct\">A3 가로(420×297mm) 용지 검증용 최소 활동지. 연표·포스터·모둠판 포맷의 기반.</div>\n" },
+      { "type": "answer-line", "html": "<div class=\"ans-line\"></div>\n" }
+    ]
+  ]
+}

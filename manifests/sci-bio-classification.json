@@ -1,0 +1,90 @@
+{
+  "id": "sci-bio-classification",
+  "subject": "science",
+  "dataSubject": "science",
+  "theme": "sci",
+  "lang": "ko",
+  "docTitle": "생물 다양성과 분류",
+  "head": {
+    "katex": false
+  },
+  "runHead": "2022 개정 교육과정 · 과학 · 개념 정리 활동지",
+  "runFoot": {
+    "left": "2022 개정 교육과정 연계 과학 활동지",
+    "rightPrefix": "생물 다양성과 분류"
+  },
+  "standards": [
+    "[9과02-04]",
+    "[9과02-05]"
+  ],
+  "standardsText": {
+    "[9과02-04]": "종의 개념과 분류 체계를 이해하고, 생물을 계 수준에서 분류할 수 있다.",
+    "[9과02-05]": "생물다양성 보전의 필요성을 이해하고, 생물다양성 유지를 위한 방안을 조사하고 실천할 수 있다."
+  },
+  "pages": [
+    [
+      {
+        "type": "header",
+        "html": "<div class=\"title-wrap\">\n    <span class=\"pill\">개념 정리</span>\n    <span class=\"corner-ref\">중학교 과학 · 생물 다양성과 분류</span>\n    <div class=\"title-box\"><h1>생물 다양성과 분류</h1></div>\n    <div class=\"unit-line\">\n      <div class=\"unit\"><b>단원</b>　생물의 다양성 · 분류 체계와 생물다양성 보전</div>\n      <div class=\"namefield\">학년<span></span> 반<span></span> 이름<span></span></div>\n    </div>\n  </div>"
+      },
+      {
+        "type": "standard-label",
+        "gen": "standard-label"
+      },
+      {
+        "type": "directive",
+        "html": "<div class=\"direct\">여러 생물의 공통점과 차이점을 비교하며 계 수준에서 분류하고, 생물다양성 보전의 필요성을 정리해 보자.</div>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">1</span>핵심 개념을 확인해 보자.</p>"
+      },
+      {
+        "type": "resource-box",
+        "html": "<div class=\"qbox\">\n    <span class=\"lab\">핵심 개념</span>\n    <div><b>종(種)</b>은 자연 상태에서 짝짓기하여 생식 능력이 있는 자손을 낳을 수 있는 무리다. 생물은 공통 특징에 따라 <b>계(界)</b> 수준에서 크게 다섯 무리 — 원핵생물계·원생생물계·균계·식물계·동물계 — 로 분류한다.</div>\n  </div>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">2</span>두 무리의 특징을 비교하며 분류 기준을 찾아보자.</p>"
+      },
+      {
+        "type": "comparison-table",
+        "html": "<table class=\"cmp\">\n    <tr><th class=\"lab\">비교 기준</th><th class=\"c\">식물계</th><th class=\"c\">동물계</th></tr>\n    <tr><td class=\"lab\">세포벽</td><td><span class=\"answer inline\">있음</span></td><td><span class=\"answer inline\">없음</span></td></tr>\n    <tr><td class=\"lab\">양분 획득</td><td><span class=\"answer inline\">광합성으로 스스로 만듦</span></td><td><span class=\"answer inline\">다른 생물을 먹어서 얻음</span></td></tr>\n    <tr><td class=\"lab\">이동 능력</td><td><span class=\"answer inline\">대부분 이동하지 못함</span></td><td><span class=\"answer inline\">대부분 스스로 이동함</span></td></tr>\n  </table>"
+      }
+    ],
+    [
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">3</span>생물 다섯 계를 특징에 따라 구조화해 보자.</p>"
+      },
+      {
+        "type": "label-value",
+        "html": "<table class=\"lv-table\">\n    <tr><td class=\"label\">원핵생물계</td><td><span class=\"answer inline\">핵이 없는 단세포 생물 (예: 세균, 대장균)</span></td></tr>\n    <tr><td class=\"label gray\">원생생물계</td><td><span class=\"answer inline\">핵이 있으나 다른 계에 속하지 않는 생물 (예: 아메바, 미역)</span></td></tr>\n    <tr><td class=\"label\">균계</td><td><span class=\"answer inline\">균사로 이루어지고 양분을 흡수 (예: 버섯, 곰팡이)</span></td></tr>\n    <tr><td class=\"label gray\">식물계</td><td><span class=\"answer inline\">광합성을 하는 다세포 생물 (예: 소나무, 고사리)</span></td></tr>\n    <tr><td class=\"label\">동물계</td><td><span class=\"answer inline\">다른 생물을 먹는 다세포 생물 (예: 개구리, 사람)</span></td></tr>\n  </table>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">4</span>분류와 생물다양성 보전을 연결지어 생각해 보자.</p>"
+      },
+      {
+        "type": "question",
+        "html": "<div class=\"q\">(1) 생물을 분류하면 어떤 점이 좋을까? 생물다양성 보전의 필요성과 연결지어 설명해 보자.</div>"
+      },
+      {
+        "type": "answer-line",
+        "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div><div class=\"ans-line\"></div>"
+      },
+      {
+        "type": "section-heading",
+        "html": "<h2 class=\"sec\"><span class=\"n\">5</span>점검표를 작성하며 활동을 정리해 보자.</h2>"
+      },
+      {
+        "type": "rubric",
+        "html": "<table class=\"rubric\">\n    <tr><th>점검 요소</th><th style=\"width:22%\">점검 결과</th></tr>\n    <tr><td>공통점과 차이점을 근거로 생물을 비교·분류할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>생물을 계 수준의 분류 체계로 구조화할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>생물다양성 보전의 필요성을 설명할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n  </table>"
+      },
+      {
+        "type": "reflection",
+        "html": "<div class=\"q\">생물다양성 보전을 위해 내가 생활 속에서 실천할 수 있는 일을 정리해 보자.</div>\n  <div class=\"princ\"><div class=\"dot\"></div><div class=\"dot\"></div><div class=\"dot\"></div></div>"
+      }
+    ]
+  ]
+}

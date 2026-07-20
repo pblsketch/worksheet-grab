@@ -7,11 +7,14 @@ import { ChromeRenderer } from '../adapters/ChromeRenderer.js';
 import { BuildVariants } from '../usecases/BuildVariants.js';
 import { ValidateWorksheet } from '../usecases/ValidateWorksheet.js';
 import { AssembleWorksheet } from '../usecases/AssembleWorksheet.js';
+import { ArchetypeLibrary } from '../usecases/ArchetypeLibrary.js';
 import { GenerateWorksheet, parseGradeSubject } from '../usecases/GenerateWorksheet.js';
+import { ComposeWorksheet } from '../usecases/ComposeWorksheet.js';
 import { RunPipeline } from '../usecases/RunPipeline.js';
 import { EditWorksheet } from '../usecases/EditWorksheet.js';
 import { RenderPdf, DEFAULT_VIRTUAL_TIME_BUDGET } from '../usecases/RenderPdf.js';
 import { RenderImage } from '../usecases/RenderImage.js';
+import { resolvePaper, paperToPx } from '../usecases/paper.js';
 
 const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
 
@@ -32,12 +35,24 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
   worksheet-grab pipeline <학년교과> <주제> [--out <dir>] [--no-render] [--standards <코드,..>] [--limit <N>]
       종단 파이프라인: 조회→조립→2벌→검수 게이트→(통과 시) 렌더. 검수 실패 시 렌더 중단(fail-closed).
       HITL: 산출 후 교사 검토를 거쳐 인쇄하도록 안내.
+  worksheet-grab compose <학년교과> <주제> [--archetype <id>] [--standards <코드,..>] [--out <dir>] [--render]
+      동적 조립: 주제에 맞는 아키타입(구조)을 골라 성취기준·제목을 채운 "저작 대기 스캐폴드" 매니페스트 +
+      블록별 저작 브리프를 만든다. 콘텐츠(교육적 본문)는 designer AI/교사가 인라인 html 을 저작해 채운다(무API).
+      --archetype 로 아키타입을 직접 지정(미지정 시 주제 키워드로 추천). --render 로 스캐폴드 자리표시 미리보기.
+      예: compose 중2과학 광합성 --archetype experimental-inquiry
   worksheet-grab edit <manifest.json> "<지시>" [--out <dir>] [--no-render] [--in-place]
       대화형 편집 루프: 기존 매니페스트에 편집 지시를 반영해 매니페스트·HTML 을 왕복 갱신 후 재렌더.
       기본은 원본 보존(-v2, -v3 … 접미사로 저장). --in-place 지정 시에만 원본을 덮어쓴다.
       예: edit out/science-광합성.manifest.json "3번 문항 빼고 성찰 추가"
       지시 대신 플래그도 가능: --remove <N> (반복 가능) · --add reflection
   worksheet-grab list-blocks
+      블록 타입 exemplar 파일 목록(core/*, pack-*/*). 재사용 부품·폴백·few-shot 시드.
+  worksheet-grab list-vocab [--subject <교과>] [--json]
+      블록 타입 어휘 + 계약(blocks/vocabulary.json): 타입별 코어/교과팩·허용 교과·슬롯.
+      --subject science 로 해당 교과에서 쓸 수 있는 타입만(코어 + 그 교과팩) 필터.
+  worksheet-grab list-archetypes [--subject <교과>] [--json]
+      아키타입(교과 초월 구조 패턴, blocks/archetypes.json): 어느 타입을 어떤 순서로.
+      --subject science 로 해당 교과에 바인딩된 구체 블록 시퀀스까지 표시.
   worksheet-grab list-themes
 
 공통 옵션:
@@ -85,6 +100,12 @@ function parseLimitFlag(flags, fallback = 6) {
   return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
+/** 산출물 용지 추적 로그 1줄(관측성): size/orientation/margins. */
+function paperLine(paper) {
+  const p = resolvePaper(paper);
+  return `${p.size} ${p.orientation === 'landscape' ? '가로' : '세로'} · 여백 ${p.margins}`;
+}
+
 /** 안전한 출력 파일명 베이스(subject-topic, 비허용 문자는 _). */
 function worksheetBase(subject, topic) {
   return `${subject}-${topic}`.replace(/[^\p{L}\p{N}_-]+/gu, '_');
@@ -126,11 +147,13 @@ async function writeManifest(outDir, base, manifest) {
  * 로깅은 호출부가 담당(명령별 문구 차이 보존).
  * @returns {Promise<Array<{mode:string, pdf?:string, png?:string}>>}
  */
-async function renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf = true, png = false } = {}) {
+async function renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf = true, png = false, paper = null } = {}) {
   const renderer = new ChromeRenderer({ chromePath: flags.chrome || null });
   const rp = pdf ? new RenderPdf({ renderer }) : null;
   const ri = png ? new RenderImage({ renderer }) : null;
   const vtb = flags['virtual-time-budget'] ? Number(flags['virtual-time-budget']) : DEFAULT_VIRTUAL_TIME_BUDGET;
+  // PNG 뷰포트: manifest.paper 가 있으면 용지 픽셀 치수로(PDF 는 @page CSS 가 지배하므로 무관).
+  const px = paper ? paperToPx(resolvePaper(paper)) : null;
   const dir = resolve(outDir);
   const results = [];
   for (const [mode, inPath] of [['student', sPath], ['teacher', tPath]]) {
@@ -141,7 +164,10 @@ async function renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf =
     }
     if (ri) {
       entry.png = join(dir, `${base}-${mode}.png`);
-      await ri.execute({ inputPath: inPath, outputPath: entry.png, virtualTimeBudget: vtb });
+      await ri.execute({
+        inputPath: inPath, outputPath: entry.png, virtualTimeBudget: vtb,
+        ...(px ? { width: px.width, height: px.height } : {}),
+      });
     }
     results.push(entry);
   }
@@ -166,8 +192,14 @@ export async function run(argv, { root, log = console.log, err = console.error }
       const { gradeSubject, topic } = gradeTopicArgs(positionals);
       return cmdPipeline(gradeSubject, topic, flags, repo, { log, err });
     }
+    case 'compose': {
+      const { gradeSubject, topic } = gradeTopicArgs(positionals);
+      return cmdCompose(gradeSubject, topic, flags, repo, { log, err });
+    }
     case 'edit': return cmdEdit(positionals[1], positionals[2], flags, repo, { log, err });
     case 'list-blocks': return cmdListBlocks(repo, { log });
+    case 'list-vocab': return cmdListVocab(flags, repo, { log, err });
+    case 'list-archetypes': return cmdListArchetypes(flags, repo, { log, err });
     case 'list-themes': return cmdListThemes(repo, { log });
     case 'help': case undefined: log(USAGE); return 0;
     default: err(`알 수 없는 명령: ${command}\n\n${USAGE}`); return 2;
@@ -254,13 +286,15 @@ async function cmdGenerate(gradeSubject, topic, flags, repo, { log }) {
   const mPath = await writeManifest(outDir, base, manifest);
 
   log(`✔ generate: ${grade} ${subject} "${topic}" (${worksheet.pageCount()}쪽, 성취기준 ${standards.map((s) => s.code).join(', ')})`);
+  if (manifest.paper) log(`  용지: ${paperLine(manifest.paper)}`);
   log(`  ${htmlPath}`);
   log(`  ${sPath}`);
   log(`  ${tPath}`);
   log(`  ${mPath} (재편집용 매니페스트 — edit 명령 입력)`);
 
   if (flags.pdf || flags.png) {
-    const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: !!flags.pdf, png: !!flags.png });
+    const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags,
+      { pdf: !!flags.pdf, png: !!flags.png, paper: manifest.paper });
     for (const e of rendered) {
       if (e.pdf) log(`  ✔ render(pdf) → ${e.pdf}`);
       if (e.png) log(`  ✔ render(png) → ${e.png} (첫 페이지 미리보기)`);
@@ -281,6 +315,7 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   log(`▶ 파이프라인: ${grade} ${subject} "${topic}"`);
   log(`  1) 성취기준 조회: ${standards.map((s) => s.code).join(', ')}`);
   log(`  2) 조립 + 2벌 분기: ${worksheet.pageCount()}쪽 (student/teacher)`);
+  if (manifest.paper) log(`     용지: ${paperLine(manifest.paper)}`);
 
   const base = worksheetBase(worksheet.subject, topic);
   const { sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher });
@@ -305,10 +340,53 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   if (flags['no-render']) {
     log('  4) 렌더 생략(--no-render). HITL: 교사 검토 후 render 로 인쇄하세요.');
   } else {
-    const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: true });
+    const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: true, paper: manifest.paper });
     for (const e of rendered) log(`  4) 렌더 → ${e.pdf}`);
   }
   log('  ✔ HITL: 산출물을 교사가 검토한 뒤 인쇄/배포하세요(성취기준·정답 토글·저작권 지문 확인).');
+  return 0;
+}
+
+async function cmdCompose(gradeSubject, topic, flags, repo, { log, err }) {
+  if (!gradeSubject || !topic) throw new Error('compose: <학년교과> <주제> 가 필요합니다. 예: compose 중2과학 광합성');
+  const outDir = flags.out || 'out';
+  const { grade, subject } = parseGradeSubject(gradeSubject);
+  const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
+  const compose = new ComposeWorksheet({ blockRepository: repo, curriculum });
+  const { manifest, brief, archetype, archetypeReason, standards } = await compose.execute({
+    grade, subject, topic,
+    archetype: typeof flags.archetype === 'string' ? flags.archetype : null,
+    codes: parseStandardsFlag(flags),
+    limit: parseLimitFlag(flags),
+  });
+
+  const base = worksheetBase(manifest.subject, topic) + '.scaffold';
+  const mPath = await writeManifest(outDir, base, manifest);
+
+  log(`▶ compose: ${grade} ${subject} "${topic}"`);
+  log(`  1) 성취기준: ${standards.map((s) => s.code).join(', ')}`);
+  log(`  2) 아키타입: ${archetype} · ${brief.name} (${archetypeReason})`);
+  log(`  3) 스캐폴드: ${mPath} (${manifest.pages.length}쪽 · 인라인 저작 대기)`);
+  log('  4) 저작 브리프 — designer AI/교사가 각 블록의 인라인 html 을 주제에 맞게 저작:');
+  brief.pages.forEach((pg, i) => {
+    log(`     · p${i + 1}`);
+    for (const b of pg) {
+      const tag = b.packRole ? `${b.type}*` : b.type;
+      log(`        [${b.role}] ${tag} — ${b.authoring}`);
+    }
+  });
+  log('  ── HITL: 스캐폴드를 designer 에이전트/교사가 저작한 뒤 pipeline/assemble 로 렌더하세요.');
+  log('     검수 게이트(fail-closed)가 정답 누출·미기입 슬롯을 점검합니다. 성취기준 원문·저작권 지문은 그대로 두세요.');
+
+  if (flags.render) {
+    const asm = new AssembleWorksheet({ blockRepository: repo, curriculum });
+    const { html } = await asm.execute(manifest);
+    const { student, teacher } = new BuildVariants().execute(html);
+    const { sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher });
+    log(`  5) 스캐폴드 미리보기(자리표시): ${sPath} / ${tPath}`);
+    const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: false, png: true });
+    for (const e of rendered) if (e.png) log(`     ✔ render(png) → ${e.png}`);
+  }
   return 0;
 }
 
@@ -360,7 +438,7 @@ async function cmdEdit(manifestPath, instruction, flags, repo, { log }) {
   if (flags['no-render']) {
     log('  렌더 생략(--no-render). HITL: 교사 검토 후 render 로 인쇄하세요.');
   } else {
-    const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: true });
+    const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: true, paper: edited.paper });
     for (const e of rendered) log(`  ✔ render → ${e.pdf}`);
   }
   log('  ✔ HITL: 편집 결과를 교사가 검토한 뒤 인쇄/배포하세요.');
@@ -371,6 +449,86 @@ async function cmdListBlocks(repo, { log }) {
   const blocks = await repo.listBlocks();
   log(`블록 ${blocks.length}개:`);
   for (const b of blocks) log(`  ${b}`);
+  return 0;
+}
+
+async function cmdListVocab(flags, repo, { log, err }) {
+  const vocab = await repo.readVocabulary();
+  if (!vocab || !vocab.types) {
+    err('list-vocab: blocks/vocabulary.json 을 찾지 못했습니다.');
+    return 1;
+  }
+  const subject = typeof flags.subject === 'string' ? flags.subject.trim() : null;
+  const entries = Object.entries(vocab.types).filter(([, t]) => {
+    if (!subject) return true;
+    // 코어(모든 교과) + 지정 교과의 교과팩만.
+    return t.subjects.includes('*') || t.subjects.includes(subject);
+  });
+
+  if (flags.json) {
+    log(JSON.stringify(subject ? Object.fromEntries(entries) : vocab, null, 2));
+    return 0;
+  }
+
+  const core = entries.filter(([, t]) => t.category === 'core');
+  const pack = entries.filter(([, t]) => t.category === 'pack');
+  const title = subject ? `블록 어휘 — ${subject}에서 사용 가능` : '블록 어휘(vocabulary.json)';
+  log(`${title}: 코어 ${core.length} · 교과팩 ${pack.length} (전체 등록 ${vocab.counts?.total ?? Object.keys(vocab.types).length})`);
+  const fmt = ([type, t]) => {
+    const tags = [];
+    if (t.gen) tags.push('gen');
+    if (t.keepTogether) tags.push('keep');
+    if (t.requiresKatex) tags.push('katex');
+    if (t.copyrightSlot) tags.push('저작권슬롯');
+    const slots = t.slots && t.slots.length ? ` {${t.slots.join(',')}}` : '';
+    const tagStr = tags.length ? ` [${tags.join(',')}]` : '';
+    return `  ${type.padEnd(18)} ${t.desc}${slots}${tagStr}`;
+  };
+  log('■ 코어(≥2교과, var(--*)만):');
+  for (const e of core) log(fmt(e));
+  log(`■ 교과팩(${subject || '전체'} 전용):`);
+  for (const e of pack) log(`  [${(e[1].subjects.join('/'))}] ${fmt(e).trimStart()}`);
+  return 0;
+}
+
+async function cmdListArchetypes(flags, repo, { log, err }) {
+  const [archetypes, vocabulary] = await Promise.all([repo.readArchetypes(), repo.readVocabulary()]);
+  if (!archetypes || !archetypes.archetypes) {
+    err('list-archetypes: blocks/archetypes.json 을 찾지 못했습니다.');
+    return 1;
+  }
+  const lib = new ArchetypeLibrary({ archetypes, vocabulary });
+  const subject = typeof flags.subject === 'string' ? flags.subject.trim() : null;
+
+  if (flags.json) {
+    if (subject) {
+      const out = lib.list()
+        .filter((a) => lib.subjectsFor(a.id).includes(subject))
+        .map((a) => lib.resolve(a.id, subject));
+      log(JSON.stringify(out, null, 2));
+    } else {
+      log(JSON.stringify(archetypes, null, 2));
+    }
+    return 0;
+  }
+
+  const items = lib.list();
+  log(`아키타입 ${items.length}개 (교과 초월 구조 패턴)${subject ? ` — ${subject} 바인딩` : ''}:`);
+  for (const a of items) {
+    const applies = lib.subjectsFor(a.id).includes(subject);
+    if (subject && !applies) continue;
+    const subjTag = a.subjects.includes('*') ? '전교과' : a.subjects.join('/');
+    log(`\n■ ${a.id} · ${a.name} [${subjTag}] — ${a.pages}쪽/${a.blocks}블록`);
+    log(`  ${a.desc}`);
+    if (subject) {
+      const r = lib.resolve(a.id, subject);
+      r.pages.forEach((pg, i) => {
+        const seq = pg.map((b) => (b.packRole ? `${b.type}*` : b.type)).join(' → ');
+        log(`  p${i + 1}: ${seq}`);
+      });
+      log('  (* = packRole 바인딩, 교과별로 달라지는 자리)');
+    }
+  }
   return 0;
 }
 

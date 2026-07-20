@@ -25,7 +25,7 @@
     [
       {
         "type": "header",
-        "file": "ko/p1-01-header.html"
+        "html": "<div class=\"wsheet-title-wrap\">\n    <span class=\"pill\">선풍기 토론</span>\n    <span class=\"corner-ref\">교과서 12~23쪽</span>\n    <div class=\"title-box\"><h1>생성형 AI와 읽기-쓰기의 미래</h1></div>\n    <div class=\"unit-line\">\n      <div class=\"unit\"><b>1. 단원</b>　(1) 독서와 작문의 이해 – 디지털 백과사전 만들기 활동</div>\n      <div class=\"namefield\">학년<span></span> 반<span></span> 이름<span></span></div>\n    </div>\n  </div>\n"
       },
       {
         "type": "standard-label",
@@ -33,187 +33,187 @@
       },
       {
         "type": "directive",
-        "file": "ko/p1-03-directive.html"
+        "html": "<div class=\"direct\">포토 스탠딩 토론을 하며 생성형 AI를 활용하여 글을 읽거나 써 본 경험을 모둠원과 공유해 보자.</div>\n"
       },
       {
         "type": "label-value",
-        "file": "ko/p1-04-label-value.html"
+        "html": "<table class=\"lv-table\">\n    <tr><td class=\"label\">내가 선택한<br>이미지 카드</td><td class=\"blank\"></td></tr>\n    <tr><td class=\"label\">선택한 이유</td><td class=\"blank\"></td></tr>\n    <tr>\n      <td class=\"label\">나의 생성형 AI<br>활용 경험</td>\n      <td>\n        <ul>\n          <li>생성형 AI를 활용하여 글을 읽거나 쓴 경험</li>\n          <li>생성형 AI를 활용하며 느낀 점</li>\n          <li>문어 의사소통 과정에서 AI를 활용하는 것의 장단점</li>\n        </ul>\n      </td>\n    </tr>\n  </table>\n"
       },
       {
         "type": "emphasis-box",
-        "file": "ko/p1-05-emphasis-box.html"
+        "html": "<div class=\"dash-box\">\n    <span class=\"dh\">▷ 인상 깊은 생성형 AI 활용 경험</span>\n    <div class=\"db\"></div>\n  </div>\n"
       }
     ],
     [
       {
         "type": "directive",
-        "file": "ko/p2-01-directive.html"
+        "html": "<div class=\"direct\">모둠원과 함께 생성형 AI를 활용하여 『독서와 작문』 교과서 21쪽에 제시된 ‘미래 직업’ 디지털 백과사전 만들기 활동을 해 보자.</div>\n"
       },
       {
         "type": "subq",
-        "file": "ko/p2-02-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">1</span>다음 자료를 참고하여 ‘미래 직업’ 디지털 백과사전을 제작해 보자.</p>\n"
       },
       {
         "type": "example-strip",
-        "file": "ko/p2-03-example-strip.html"
+        "html": "<div class=\"strip\"><div class=\"sh\">1단계: 미래직업 탐색하기 프롬프트 예시</div>\n    <div class=\"sb\"><p>[관심 분야]와 관련하여 2040년에 새롭게 등장할 것으로 예상되는 직업들을 알려주세요.</p>\n    <p>(관심 분야 예시: 기후 변화, 생물 다양성 감소, 우주 개발, 메타버스 기술, 인공지능 로봇 기술 등)</p></div></div>\n"
       },
       {
         "type": "example-strip",
-        "file": "ko/p2-04-example-strip.html"
+        "html": "<div class=\"strip\"><div class=\"sh\">2단계: 직업 선택을 위한 정보 요청하기 프롬프트 예시</div>\n    <div class=\"sb\"><p>[관심 있는 직업명]에 대해 더 자세히 알고 싶습니다.</p>\n    <p>1. 이 직업이 필요하게 된 사회적 배경　2. 현재 관련 기술의 발전 상황</p>\n    <p>3. 예상되는 근무 환경과 조건　4. 필요한 지식과 기술</p></div></div>\n"
       },
       {
         "type": "example-strip",
-        "file": "ko/p2-05-example-strip.html"
+        "html": "<div class=\"strip\"><div class=\"sh\">3단계: 디지털 백과사전 작성하기 프롬프트 예시</div>\n    <div class=\"sb\"><p>[직업명]에 대한 디지털 백과사전 항목을 작성하려고 합니다. 다음 항목들에 대해 설명해 주세요.</p>\n    <p>– 정의　– 하는 일　– 필요한 자격/능력　– 관련 문헌 및 출처</p></div></div>\n"
       },
       {
         "type": "subq",
-        "file": "ko/p2-06-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">2</span>AI를 활용하여 백과사전을 제작한 과정을 정리해 보자.</p>\n"
       },
       {
         "type": "comparison-table",
-        "file": "ko/p2-07-comparison-table.html"
+        "html": "<table class=\"cmp\">\n    <tr><th>제작 단계</th><th class=\"c\">모둠이 작성한 프롬프트</th><th class=\"c\">AI 응답의 특징</th><th class=\"c\">모둠의 생각과 느낌</th></tr>\n    <tr><td class=\"lab\">1단계: 직업 탐색</td><td></td><td></td><td></td></tr>\n    <tr><td class=\"lab\">2단계: 정보 요청</td><td></td><td></td><td></td></tr>\n    <tr><td class=\"lab\">3단계: 백과사전 작성</td><td></td><td></td><td></td></tr>\n    <tr><td class=\"lab\">4단계: 평가 및 수정</td><td></td><td></td><td></td></tr>\n  </table>\n"
       }
     ],
     [
       {
         "type": "directive",
-        "file": "ko/p3-01-directive.html"
+        "html": "<div class=\"direct\">다음 글을 읽고, 생성형 AI가 가져올 문어 의사소통의 변화에 대해 토론해 보자.</div>\n"
       },
       {
         "type": "passage",
-        "file": "ko/p3-02-passage.html"
+        "html": "<div class=\"passage keep\">\n    <h3>생성 없는 생성을 경계하며</h3>\n    <div class=\"slot\">［지문 삽입 슬롯］ 저작권 보호 대상 지문은 교사가 원문(김성우, 『인공지능은 나의 읽기-쓰기를 어떻게 바꿀까』)을 이 영역에 붙여 넣습니다. 아래는 레이아웃 확인용 요약 예시입니다.</div>\n    <p>생성형 인공지능은 언어 생산 과정에서 쓰기와 사고의 명백한 분리를 야기한다는 점에서 종래의 쓰기 보조 도구와는 질적으로 다르다. 우리는 글을 쓰면서 그 글과 연관된 사고를 수행했고, 생각을 조응*하는 언어를 생산했다.</p>\n    <p>하지만 생성형 인공지능의 사용은 이런 순환 고리를 끊어 버린다. 필자가 생각하지 못한 것들이 인공지능에 의해 생성되고, 자신의 지식이나 경험과 무관하게 생산된 산출물이 읽고 쓰는 과정에 영향을 끼친다. 기술이 인간과 상호 작용하는 방식을 면밀히 파고들어 그 기술이 우리를 어떤 존재로 만드는지 표상*해 이해해야 한다.</p>\n    <div class=\"src\">– 김성우, 『인공지능은 나의 읽기-쓰기를 어떻게 바꿀까』 (요약 예시)</div>\n    <div class=\"fn\">\n      <p>★조응: 둘 이상의 사물이나 현상 또는 말과 글의 앞뒤 따위가 서로 일치하게 대응함.</p>\n      <p>★표상: 추상적이거나 드러나지 아니한 것을 구체적인 형상으로 드러내어 나타냄.</p>\n    </div>\n  </div>\n"
       },
       {
         "type": "subq",
-        "file": "ko/p3-03-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">1</span>다음 질문에 답하며 위 글의 내용을 이해해 보자.</p>\n"
       },
       {
         "type": "question",
-        "file": "ko/p3-04-question.html"
+        "html": "<div class=\"q\">(1) 글쓴이는 기존의 글쓰기에서는 ‘사고’와 ‘쓰기’가 어떤 관계를 맺고 있다고 주장하나요?</div>\n"
       },
       {
         "type": "content",
-        "file": "ko/p3-05-content.html"
+        "html": "<div class=\"answer\">기존의 글쓰기에서는 사고와 쓰기가 서로 순환하는 관계를 맺고 있다. 글을 쓰면서 생각이 정리·발전되고, 사고하는 과정에서 다시 글이 수정·보완된다. 둘은 분리된 것이 아니라 유기적으로 조응한다.</div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p3-06-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p3-07-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "question",
-        "file": "ko/p3-08-question.html"
+        "html": "<div class=\"q\">(2) 글쓴이는 생성형 AI가 글을 생성할 때, 인간의 사고 과정은 어떻게 달라진다고 주장하나요?</div>\n"
       },
       {
         "type": "content",
-        "file": "ko/p3-09-content.html"
+        "html": "<div class=\"answer\">AI가 사고 과정 없이 글을 완성하므로 쓰기와 사고의 순환 고리가 끊어진다고 본다. 필자가 생각하지 못한 내용이 생성되어, 자신의 지식·경험과 무관한 산출물을 수동적으로 받아들이는 태도가 형성될 수 있다.</div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p3-10-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p3-11-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "question",
-        "file": "ko/p3-12-question.html"
+        "html": "<div class=\"q\">(3) 글쓴이가 생성형 AI를 무조건 긍정적으로 받아들이기보다 비판적으로 접근해야 한다고 보는 이유는 무엇인가요?</div>\n"
       },
       {
         "type": "content",
-        "file": "ko/p3-13-content.html"
+        "html": "<div class=\"answer\">AI가 인간의 사고력과 글쓰기 능력에 부정적 영향을 미칠 수 있고, 제공하는 정보가 항상 정확·공정하지 않을 수 있기 때문이다. 따라서 그 영향력을 비판적으로 분석하며 주체적으로 활용해야 한다.</div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p3-14-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p3-15-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       }
     ],
     [
       {
         "type": "subq",
-        "file": "ko/p4-01-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">2</span>다음 논제에 대해 찬반 논거를 준비해 보자.</p>\n"
       },
       {
         "type": "emphasis-box",
-        "file": "ko/p4-02-emphasis-box.html"
+        "html": "<div class=\"dash-box\" style=\"border-style:solid;border-color:#cbd5c0;\">\n    <div class=\"db\" style=\"min-height:0;padding:8px 12px;text-align:center;font-weight:600;\">\n      논제: 생성형 AI를 활용한 읽기–쓰기는 기존의 읽기–쓰기보다 더 효과적인 문어 의사소통 방식이다.\n    </div>\n  </div>\n"
       },
       {
         "type": "pro-con",
-        "file": "ko/p4-03-pro-con.html"
+        "html": "<table class=\"pc\">\n    <tr><th class=\"pro\">찬성</th><th class=\"con\">반대</th></tr>\n    <tr>\n      <td><span class=\"rc\">＊이유:</span><div class=\"dv\"></div><span class=\"rc\">＊근거:</span></td>\n      <td><span class=\"rc\">＊이유:</span><div class=\"dv\"></div><span class=\"rc\">＊근거:</span></td>\n    </tr>\n    <tr>\n      <td><span class=\"rc\">＊이유:</span><div class=\"dv\"></div><span class=\"rc\">＊근거:</span></td>\n      <td><span class=\"rc\">＊이유:</span><div class=\"dv\"></div><span class=\"rc\">＊근거:</span></td>\n    </tr>\n    <tr>\n      <td><span class=\"rc\">＊이유:</span><div class=\"dv\"></div><span class=\"rc\">＊근거:</span></td>\n      <td><span class=\"rc\">＊이유:</span><div class=\"dv\"></div><span class=\"rc\">＊근거:</span></td>\n    </tr>\n  </table>\n"
       }
     ],
     [
       {
         "type": "subq",
-        "file": "ko/p5-01-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">3</span>입장에 따른 논거를 활용하여 친구들과 선풍기 토론을 해 보자.</p>\n"
       },
       {
         "type": "memo-table",
-        "file": "ko/p5-02-memo-table.html"
+        "html": "<div class=\"memo\">\n  <table class=\"memo\">\n    <tr><th colspan=\"4\">[선풍기 토론 내용 메모하기]</th></tr>\n    <tr><th style=\"width:12%\">　</th><th>찬성</th><th style=\"width:12%\">　</th><th>반대</th></tr>\n    <tr><td class=\"k\">이름</td><td class=\"blank\"></td><td class=\"k\">이름</td><td class=\"blank\"></td></tr>\n    <tr><td class=\"k\">이유와<br>근거</td><td style=\"height:70px\"></td><td class=\"k\">이유와<br>근거</td><td></td></tr>\n    <tr><td class=\"k\">이름</td><td class=\"blank\"></td><td class=\"k\">이름</td><td class=\"blank\"></td></tr>\n    <tr><td class=\"k\">이유와<br>근거</td><td style=\"height:70px\"></td><td class=\"k\">이유와<br>근거</td><td></td></tr>\n  </table>\n  </div>\n"
       },
       {
         "type": "subq",
-        "file": "ko/p5-03-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">4</span>다음 질문에 답하며 토론을 정리하고, 그 내용을 반 친구들과 공유해 보자.</p>\n"
       },
       {
         "type": "question",
-        "file": "ko/p5-04-question.html"
+        "html": "<div class=\"q\">(1) 토론 과정에서 새롭게 알게 된 점은 무엇인가요?</div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p5-05-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p5-06-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "question",
-        "file": "ko/p5-07-question.html"
+        "html": "<div class=\"q\">(2) 토론 후 생성형 AI를 활용한 문어 의사소통에 대한 나의 생각은 어떻게 변화하였나요?</div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p5-08-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "answer-line",
-        "file": "ko/p5-09-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "question",
-        "file": "ko/p5-10-question.html"
+        "html": "<div class=\"q\">(3) 생성형 AI를 활용한 문어 의사소통에 주체적으로 참여하기 위한 나만의 원칙 3가지를 만들어 본다면?</div>\n"
       },
       {
         "type": "reflection-principles",
-        "file": "ko/p5-11-reflection-principles.html"
+        "html": "<div class=\"princ\"><div class=\"dot\"></div><div class=\"dot\"></div><div class=\"dot\"></div></div>\n"
       },
       {
         "type": "section-heading",
-        "file": "ko/p5-12-section-heading.html"
+        "html": "<h2 class=\"sec\"><span class=\"n\">5</span>점검표를 작성하며 활동을 정리해 보자.</h2>\n"
       },
       {
         "type": "rubric",
-        "file": "ko/p5-13-rubric.html"
+        "html": "<table class=\"rubric\">\n    <tr><th>점검 요소</th><th style=\"width:22%\">점검 결과</th></tr>\n    <tr><td>기존의 문어 의사소통과 생성형 AI를 활용한 문어 의사소통을 비교하여 설명할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>생성형 AI가 문어 의사소통에 미치는 영향을 다양한 측면에서 분석할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>주체적인 태도로 생성형 AI를 활용한 문어 의사소통에 참여하는 방법을 설명할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n  </table>\n"
       },
       {
         "type": "content",
-        "file": "ko/p5-14-content.html"
+        "html": "<p style=\"margin:4mm 0 0;font-size:9pt;\">• 활동을 하며 새롭게 배우고 느낀 점을 작성해 보자.</p>\n"
       },
       {
         "type": "note",
-        "file": "ko/p5-15-note.html"
+        "html": "<div class=\"note-under\"></div>\n"
       },
       {
         "type": "note",
-        "file": "ko/p5-16-note.html"
+        "html": "<div class=\"note-under\"></div>\n"
       }
     ]
   ]

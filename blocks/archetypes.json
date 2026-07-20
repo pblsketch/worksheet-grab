@@ -1,0 +1,597 @@
+{
+  "version": 1,
+  "note": "교과 초월 구조 패턴(아키타입). step.type=고정 코어, step.packRole=교과가 packRoles 바인딩에서 채움(기본 코어, pack 블록은 해당 교과에서만). 콘텐츠는 Phase 4 compose 가 요청·성취기준으로 저작. subjects=[\"*\"] 는 전 교과.",
+  "subjectTheme": {
+    "science": "sci",
+    "korean": "ko",
+    "social": "social",
+    "english": "english"
+  },
+  "packRoles": {
+    "prediction": {
+      "desc": "예상/가설",
+      "default": "content",
+      "bindings": {
+        "science": "hypothesis-box"
+      }
+    },
+    "conditions": {
+      "desc": "조건/설계 정리",
+      "default": "memo-table",
+      "bindings": {
+        "science": "variable-table",
+        "korean": "label-value"
+      }
+    },
+    "evidence": {
+      "desc": "증거/자료 기록",
+      "default": "comparison-table",
+      "bindings": {
+        "science": "data-table",
+        "english": "vocab"
+      }
+    },
+    "visualization": {
+      "desc": "시각화",
+      "default": "resource-box",
+      "bindings": {
+        "science": "svg-graph",
+        "social": "map"
+      }
+    },
+    "chronology": {
+      "desc": "시간 흐름",
+      "default": "example-strip",
+      "bindings": {
+        "social": "timeline"
+      }
+    },
+    "source": {
+      "desc": "자료/지문 제시",
+      "default": "resource-box",
+      "bindings": {
+        "korean": "passage",
+        "english": "dialogue",
+        "social": "map"
+      }
+    },
+    "debate": {
+      "desc": "찬반 구조",
+      "default": "comparison-table",
+      "bindings": {
+        "korean": "pro-con"
+      }
+    }
+  },
+  "count": 6,
+  "archetypes": {
+    "experimental-inquiry": {
+      "name": "실험탐구",
+      "pill": "탐구 실험",
+      "desc": "문제 → 예상 → 조건·변인 설계 → 관찰·측정·기록 → 시각화 → 해석 → 정리. 과학의 실험 탐구, 사회의 자료 기반 탐구에 공통.",
+      "subjects": [
+        "science",
+        "social"
+      ],
+      "pages": [
+        [
+          {
+            "role": "제목",
+            "type": "header"
+          },
+          {
+            "role": "성취기준",
+            "type": "standard-label"
+          },
+          {
+            "role": "안내",
+            "type": "directive"
+          },
+          {
+            "role": "탐구문제",
+            "type": "subq"
+          },
+          {
+            "role": "문제제시",
+            "type": "resource-box"
+          },
+          {
+            "role": "예상라벨",
+            "type": "content"
+          },
+          {
+            "role": "예상",
+            "packRole": "prediction"
+          },
+          {
+            "role": "설계",
+            "type": "subq"
+          },
+          {
+            "role": "조건정리",
+            "packRole": "conditions"
+          }
+        ],
+        [
+          {
+            "role": "수행",
+            "type": "subq"
+          },
+          {
+            "role": "과정",
+            "type": "example-strip"
+          },
+          {
+            "role": "측정결과",
+            "type": "subq"
+          },
+          {
+            "role": "기록",
+            "packRole": "evidence"
+          },
+          {
+            "role": "시각화안내",
+            "type": "subq"
+          },
+          {
+            "role": "시각화",
+            "packRole": "visualization"
+          }
+        ],
+        [
+          {
+            "role": "해석",
+            "type": "subq"
+          },
+          {
+            "role": "해석문항1",
+            "type": "question"
+          },
+          {
+            "role": "해석답1",
+            "type": "content"
+          },
+          {
+            "role": "답줄1",
+            "type": "answer-line"
+          },
+          {
+            "role": "해석문항2",
+            "type": "question"
+          },
+          {
+            "role": "해석답2",
+            "type": "content"
+          },
+          {
+            "role": "답줄2",
+            "type": "answer-line"
+          },
+          {
+            "role": "정리",
+            "type": "section-heading"
+          },
+          {
+            "role": "점검",
+            "type": "rubric"
+          },
+          {
+            "role": "성찰",
+            "type": "reflection"
+          }
+        ]
+      ]
+    },
+    "data-interpretation": {
+      "name": "자료해석",
+      "pill": "자료 분석",
+      "desc": "자료 제시 → 관찰 → 정리·비교 → 시간/공간 시각화 → 해석 → 정리. 사회 자료 분석, 과학 데이터 해석에 공통.",
+      "subjects": [
+        "social",
+        "science"
+      ],
+      "pages": [
+        [
+          {
+            "role": "제목",
+            "type": "header"
+          },
+          {
+            "role": "성취기준",
+            "type": "standard-label"
+          },
+          {
+            "role": "안내",
+            "type": "directive"
+          },
+          {
+            "role": "자료읽기",
+            "type": "subq"
+          },
+          {
+            "role": "자료안내",
+            "type": "resource-box"
+          },
+          {
+            "role": "자료",
+            "packRole": "source"
+          },
+          {
+            "role": "정리비교",
+            "type": "subq"
+          },
+          {
+            "role": "기록",
+            "packRole": "evidence"
+          }
+        ],
+        [
+          {
+            "role": "추세",
+            "type": "subq"
+          },
+          {
+            "role": "시간흐름",
+            "packRole": "chronology"
+          },
+          {
+            "role": "해석",
+            "type": "subq"
+          },
+          {
+            "role": "해석문항1",
+            "type": "question"
+          },
+          {
+            "role": "답줄1",
+            "type": "answer-line"
+          },
+          {
+            "role": "해석문항2",
+            "type": "question"
+          },
+          {
+            "role": "답줄2",
+            "type": "answer-line"
+          },
+          {
+            "role": "정리",
+            "type": "section-heading"
+          },
+          {
+            "role": "점검",
+            "type": "rubric"
+          },
+          {
+            "role": "성찰",
+            "type": "reflection"
+          }
+        ]
+      ]
+    },
+    "reading-comprehension": {
+      "name": "읽기·독해",
+      "pill": "읽기·독해",
+      "desc": "지문/대화 제시 → 내용 이해 → 어휘·표현 정리 → 추론·적용 → 정리. 국어 독해, 영어 읽기에 공통.",
+      "subjects": [
+        "korean",
+        "english"
+      ],
+      "pages": [
+        [
+          {
+            "role": "제목",
+            "type": "header"
+          },
+          {
+            "role": "성취기준",
+            "type": "standard-label"
+          },
+          {
+            "role": "안내",
+            "type": "directive"
+          },
+          {
+            "role": "읽기",
+            "type": "subq"
+          },
+          {
+            "role": "지문",
+            "packRole": "source"
+          },
+          {
+            "role": "내용이해",
+            "type": "subq"
+          },
+          {
+            "role": "이해문항1",
+            "type": "question"
+          },
+          {
+            "role": "이해답1",
+            "type": "content"
+          },
+          {
+            "role": "답줄1",
+            "type": "answer-line"
+          },
+          {
+            "role": "이해문항2",
+            "type": "question"
+          },
+          {
+            "role": "이해답2",
+            "type": "content"
+          },
+          {
+            "role": "답줄2",
+            "type": "answer-line"
+          }
+        ],
+        [
+          {
+            "role": "어휘정리",
+            "type": "subq"
+          },
+          {
+            "role": "어휘표현",
+            "packRole": "evidence"
+          },
+          {
+            "role": "추론적용",
+            "type": "subq"
+          },
+          {
+            "role": "적용문항",
+            "type": "question"
+          },
+          {
+            "role": "답줄3",
+            "type": "answer-line"
+          },
+          {
+            "role": "정리",
+            "type": "section-heading"
+          },
+          {
+            "role": "점검",
+            "type": "rubric"
+          },
+          {
+            "role": "성찰",
+            "type": "reflection"
+          }
+        ]
+      ]
+    },
+    "discussion-decision": {
+      "name": "토론·의사결정",
+      "pill": "토의·토론",
+      "desc": "논제 확인 → 찬반 근거 → 상호 반박 → 합의·의사결정 → 성찰·정리. 국어 토론, 사회 쟁점 의사결정에 공통.",
+      "subjects": [
+        "korean",
+        "social"
+      ],
+      "pages": [
+        [
+          {
+            "role": "제목",
+            "type": "header"
+          },
+          {
+            "role": "성취기준",
+            "type": "standard-label"
+          },
+          {
+            "role": "안내",
+            "type": "directive"
+          },
+          {
+            "role": "논제확인",
+            "type": "subq"
+          },
+          {
+            "role": "논제",
+            "type": "emphasis-box"
+          },
+          {
+            "role": "근거준비",
+            "type": "subq"
+          },
+          {
+            "role": "찬반",
+            "packRole": "debate"
+          }
+        ],
+        [
+          {
+            "role": "상호반박",
+            "type": "subq"
+          },
+          {
+            "role": "반박문항",
+            "type": "question"
+          },
+          {
+            "role": "답줄1",
+            "type": "answer-line"
+          },
+          {
+            "role": "합의문항",
+            "type": "question"
+          },
+          {
+            "role": "답줄2",
+            "type": "answer-line"
+          },
+          {
+            "role": "성찰",
+            "type": "reflection"
+          },
+          {
+            "role": "정리",
+            "type": "section-heading"
+          },
+          {
+            "role": "점검",
+            "type": "rubric"
+          }
+        ]
+      ]
+    },
+    "concept-structuring": {
+      "name": "개념구조화",
+      "pill": "개념 정리",
+      "desc": "핵심 개념 확인 → 비교·분류 → 관계 구조화 → 적용 → 정리. 과학 개념, 사회 개념, 국어 어휘·개념에 공통.",
+      "subjects": [
+        "science",
+        "social",
+        "korean"
+      ],
+      "pages": [
+        [
+          {
+            "role": "제목",
+            "type": "header"
+          },
+          {
+            "role": "성취기준",
+            "type": "standard-label"
+          },
+          {
+            "role": "안내",
+            "type": "directive"
+          },
+          {
+            "role": "개념확인",
+            "type": "subq"
+          },
+          {
+            "role": "개념제시",
+            "type": "resource-box"
+          },
+          {
+            "role": "비교분류",
+            "type": "subq"
+          },
+          {
+            "role": "비교표",
+            "type": "comparison-table"
+          }
+        ],
+        [
+          {
+            "role": "구조화",
+            "type": "subq"
+          },
+          {
+            "role": "구조표",
+            "type": "label-value"
+          },
+          {
+            "role": "적용",
+            "type": "subq"
+          },
+          {
+            "role": "적용문항",
+            "type": "question"
+          },
+          {
+            "role": "답줄1",
+            "type": "answer-line"
+          },
+          {
+            "role": "정리",
+            "type": "section-heading"
+          },
+          {
+            "role": "점검",
+            "type": "rubric"
+          },
+          {
+            "role": "성찰",
+            "type": "reflection"
+          }
+        ]
+      ]
+    },
+    "project-making": {
+      "name": "프로젝트·제작",
+      "pill": "프로젝트",
+      "desc": "목표 → 계획 → 자료 수집·제작 → 발표·평가 → 성찰. 전 교과 공통(범교과 프로젝트).",
+      "subjects": [
+        "*"
+      ],
+      "pages": [
+        [
+          {
+            "role": "제목",
+            "type": "header"
+          },
+          {
+            "role": "성취기준",
+            "type": "standard-label"
+          },
+          {
+            "role": "안내",
+            "type": "directive"
+          },
+          {
+            "role": "목표",
+            "type": "subq"
+          },
+          {
+            "role": "목표제시",
+            "type": "resource-box"
+          },
+          {
+            "role": "계획",
+            "type": "subq"
+          },
+          {
+            "role": "계획표",
+            "type": "memo-table"
+          }
+        ],
+        [
+          {
+            "role": "제작",
+            "type": "subq"
+          },
+          {
+            "role": "제작과정",
+            "type": "example-strip"
+          },
+          {
+            "role": "산출기록",
+            "packRole": "evidence"
+          },
+          {
+            "role": "발표평가",
+            "type": "subq"
+          },
+          {
+            "role": "평가문항",
+            "type": "question"
+          },
+          {
+            "role": "답줄1",
+            "type": "answer-line"
+          },
+          {
+            "role": "정리",
+            "type": "section-heading"
+          },
+          {
+            "role": "점검",
+            "type": "rubric"
+          },
+          {
+            "role": "성찰",
+            "type": "reflection"
+          }
+        ]
+      ]
+    }
+  }
+}

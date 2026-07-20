@@ -1,0 +1,130 @@
+{
+  "id": "sci-photosynthesis",
+  "subject": "science",
+  "dataSubject": "science",
+  "theme": "sci",
+  "lang": "ko",
+  "docTitle": "과학 탐구 활동지 — 빛의 세기와 광합성",
+  "head": {
+    "katex": false
+  },
+  "runHead": "2022 개정 교육과정 · 과학 · 탐구 실험 활동지",
+  "runFoot": {
+    "left": "2022 개정 교육과정 연계 과학 탐구 활동지",
+    "rightPrefix": "빛의 세기와 광합성"
+  },
+  "standards": [
+    "[9과12-01]"
+  ],
+  "standardsText": {
+    "[9과12-01]": "광합성 과정을 이해하고, 환경 요인과 광합성의 관계를 탐구하는 실험을 설계할 수 있다."
+  },
+  "pages": [
+    [
+      {
+        "type": "header",
+        "html": "<div class=\"title-wrap\">\n    <span class=\"pill\">탐구 실험</span>\n    <span class=\"corner-ref\">중학교 과학 · 광합성</span>\n    <div class=\"title-box\"><h1>빛의 세기와 광합성 — 검정말 기포 발생 탐구</h1></div>\n    <div class=\"unit-line\">\n      <div class=\"unit\"><b>단원</b>　생물의 구조와 에너지 · 환경 요인과 광합성의 관계</div>\n      <div class=\"namefield\">학년<span></span> 반<span></span> 이름<span></span></div>\n    </div>\n  </div>"
+      },
+      {
+        "type": "standard-label",
+        "gen": "standard-label"
+      },
+      {
+        "type": "directive",
+        "html": "<div class=\"direct\">빛의 세기를 바꾸며 검정말의 광합성량(기포 수)을 측정하는 실험을 설계하고, 환경 요인과 광합성의 관계를 스스로 이끌어내 보자.</div>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">1</span>탐구 문제와 가설을 세워 보자.</p>"
+      },
+      {
+        "type": "resource-box",
+        "html": "<div class=\"qbox\">\n    <span class=\"lab\">탐구 문제</span>\n    <div>빛의 세기가 달라지면 검정말의 광합성량(1분당 기포 발생 수)은 어떻게 변할까?</div>\n  </div>"
+      },
+      {
+        "type": "content",
+        "html": "<div style=\"margin-top:3mm;font-weight:600;\">▷ 나의 가설</div>"
+      },
+      {
+        "type": "hypothesis-box",
+        "html": "<div class=\"hbox\"><span class=\"answer\">빛이 셀수록 광합성량(기포 수)이 많아지지만, 일정 세기 이상에서는 더 이상 늘지 않고 일정해질 것이다.</span></div>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">2</span>실험을 설계하며 변인을 정리해 보자.</p>"
+      },
+      {
+        "type": "variable-table",
+        "html": "<table class=\"vartable\">\n    <tr><td class=\"k\">준비물</td><td>검정말, 비커, 탄산수소나트륨 수용액, 전등(스탠드), 자, 초시계, 깔때기·시험관</td></tr>\n    <tr><td class=\"k\">조작 변인<br>(바꾸는 것)</td><td><span class=\"answer\">전등과 검정말 사이의 거리로 조절하는 <b>빛의 세기</b></span></td></tr>\n    <tr><td class=\"k\">통제 변인<br>(같게 하는 것)</td><td><span class=\"answer\">물의 온도, 탄산수소나트륨(이산화탄소) 농도, 검정말의 양과 종류, 측정 시간</span></td></tr>\n    <tr><td class=\"k\">종속 변인<br>(측정하는 것)</td><td><span class=\"answer\">1분 동안 검정말에서 발생하는 <b>기포의 수</b></span></td></tr>\n  </table>"
+      }
+    ],
+    [
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">3</span>실험 과정에 따라 측정하고, 결과를 표에 기록해 보자.</p>"
+      },
+      {
+        "type": "example-strip",
+        "html": "<div class=\"strip\"><div class=\"sh\">실험 과정</div>\n    <div class=\"sb\"><p>① 검정말을 탄산수소나트륨 수용액이 든 비커에 넣는다. ② 전등을 일정 거리에 두어 빛의 세기를 정한다. ③ 1분 동안 발생하는 기포 수를 센다. ④ 거리를 바꿔(빛의 세기를 바꿔) ②~③을 반복한다.</p></div>\n  </div>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">4</span>측정 결과</p>"
+      },
+      {
+        "type": "data-table",
+        "html": "<table class=\"data\">\n    <tr><th style=\"width:34%\">빛의 세기(상대값)</th><th style=\"width:33%\">1분당 기포 수(개)</th><th style=\"width:33%\">비고</th></tr>\n    <tr><td class=\"n\">1 (가장 약함)</td><td><span class=\"a answer\">8</span></td><td></td></tr>\n    <tr><td class=\"n\">2</td><td><span class=\"a answer\">18</span></td><td></td></tr>\n    <tr><td class=\"n\">3</td><td><span class=\"a answer\">28</span></td><td></td></tr>\n    <tr><td class=\"n\">4</td><td><span class=\"a answer\">33</span></td><td></td></tr>\n    <tr><td class=\"n\">5 (가장 강함)</td><td><span class=\"a answer\">35</span></td><td><span class=\"a answer\">거의 일정</span></td></tr>\n  </table>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">5</span>측정한 값을 그래프로 나타내 보자.</p>"
+      },
+      {
+        "type": "svg-graph",
+        "html": "<div class=\"graphwrap keep\">\n    <svg width=\"360\" height=\"300\" viewBox=\"0 0 360 300\" xmlns=\"http://www.w3.org/2000/svg\">\n      <rect x=\"0\" y=\"0\" width=\"360\" height=\"300\" fill=\"#ffffff\"/>\n      <!-- grid -->\n      <g stroke=\"#d8ece9\" stroke-width=\"1\">\n        <line x1=\"102\" y1=\"20\" x2=\"102\" y2=\"260\"/><line x1=\"154\" y1=\"20\" x2=\"154\" y2=\"260\"/>\n        <line x1=\"206\" y1=\"20\" x2=\"206\" y2=\"260\"/><line x1=\"258\" y1=\"20\" x2=\"258\" y2=\"260\"/>\n        <line x1=\"310\" y1=\"20\" x2=\"310\" y2=\"260\"/>\n        <line x1=\"50\" y1=\"212\" x2=\"330\" y2=\"212\"/><line x1=\"50\" y1=\"164\" x2=\"330\" y2=\"164\"/>\n        <line x1=\"50\" y1=\"116\" x2=\"330\" y2=\"116\"/><line x1=\"50\" y1=\"68\" x2=\"330\" y2=\"68\"/>\n      </g>\n      <!-- axes -->\n      <line x1=\"50\" y1=\"260\" x2=\"335\" y2=\"260\" stroke=\"#333\" stroke-width=\"1.6\"/>\n      <line x1=\"50\" y1=\"260\" x2=\"50\" y2=\"15\" stroke=\"#333\" stroke-width=\"1.6\"/>\n      <!-- ticks + labels -->\n      <g font-size=\"9\" fill=\"#555\" text-anchor=\"middle\" font-family=\"Pretendard,sans-serif\">\n        <text x=\"102\" y=\"274\">1</text><text x=\"154\" y=\"274\">2</text>\n        <text x=\"206\" y=\"274\">3</text><text x=\"258\" y=\"274\">4</text><text x=\"310\" y=\"274\">5</text>\n        <text x=\"190\" y=\"292\">빛의 세기(상대값)</text>\n        <text x=\"44\" y=\"264\" text-anchor=\"end\">0</text>\n        <text x=\"44\" y=\"216\" text-anchor=\"end\">10</text><text x=\"44\" y=\"168\" text-anchor=\"end\">20</text>\n        <text x=\"44\" y=\"120\" text-anchor=\"end\">30</text><text x=\"44\" y=\"72\" text-anchor=\"end\">40</text>\n        <text x=\"30\" y=\"30\" text-anchor=\"middle\">기포 수</text>\n      </g>\n      <!-- teacher: sample points + saturating best-fit curve -->\n      <g class=\"plot-ans\">\n        <polyline points=\"102,222 154,174 206,126 258,102 310,92\" fill=\"none\" stroke=\"#1a5fb4\" stroke-width=\"2\"/>\n        <circle cx=\"102\" cy=\"222\" r=\"3.5\" fill=\"#c0392b\"/><circle cx=\"154\" cy=\"174\" r=\"3.5\" fill=\"#c0392b\"/>\n        <circle cx=\"206\" cy=\"126\" r=\"3.5\" fill=\"#c0392b\"/><circle cx=\"258\" cy=\"102\" r=\"3.5\" fill=\"#c0392b\"/>\n        <circle cx=\"310\" cy=\"92\" r=\"3.5\" fill=\"#c0392b\"/>\n      </g>\n    </svg>\n    <div class=\"gcap\">빛의 세기–기포 수 그래프 (모눈에 점을 찍고 곡선으로 이어 보자)</div>\n  </div>"
+      }
+    ],
+    [
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">6</span>결과를 해석하며 개념을 정리해 보자.</p>"
+      },
+      {
+        "type": "question",
+        "html": "<div class=\"q\">(1) 빛의 세기와 광합성량의 관계를 그래프 모양과 함께 설명해 보자.</div>"
+      },
+      {
+        "type": "content",
+        "html": "<div class=\"answer\">빛이 셀수록 기포 수(광합성량)가 늘지만, 그래프가 오른쪽에서 완만해지듯 일정 세기 이상에서는 거의 늘지 않는다(포화).</div>"
+      },
+      {
+        "type": "answer-line",
+        "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div>"
+      },
+      {
+        "type": "question",
+        "html": "<div class=\"q\">(2) 빛을 더 세게 해도 광합성량이 늘지 않는 구간이 생기는 까닭은 무엇일까?</div>"
+      },
+      {
+        "type": "content",
+        "html": "<div class=\"answer\">빛 이외의 요인(이산화탄소 농도, 온도)이 광합성 속도를 제한하기 때문이다. 이때는 그 요인이 한정 요인으로 작용한다.</div>"
+      },
+      {
+        "type": "answer-line",
+        "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div>"
+      },
+      {
+        "type": "section-heading",
+        "html": "<h2 class=\"sec\"><span class=\"n\">7</span>점검표를 작성하며 탐구를 정리해 보자.</h2>"
+      },
+      {
+        "type": "rubric",
+        "html": "<table class=\"rubric\">\n    <tr><th>점검 요소</th><th style=\"width:22%\">점검 결과</th></tr>\n    <tr><td>변인을 통제하며 빛의 세기–광합성량 실험을 설계할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>측정 결과를 표와 그래프로 나타낼 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>환경 요인(빛)과 광합성의 관계를 실험 결과로 설명할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n  </table>"
+      },
+      {
+        "type": "note",
+        "html": "<p style=\"margin:4mm 0 0;font-size:9pt;\">• 탐구를 하며 새롭게 알게 되거나 궁금해진 점을 적어 보자.</p>\n  <div class=\"note-under\"></div><div class=\"note-under\"></div>"
+      }
+    ]
+  ]
+}

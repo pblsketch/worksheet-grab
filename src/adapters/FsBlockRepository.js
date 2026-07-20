@@ -79,6 +79,20 @@ export class FsBlockRepository extends BlockRepository {
     const p = existsSync(resolve(file)) ? resolve(file) : this.#safe(this.manifestsDir, file);
     return JSON.parse(await readFile(p, 'utf8'));
   }
+
+  /** 블록 타입 어휘 + 계약(blocks/vocabulary.json). 파일이 없으면 null(하위호환). */
+  async readVocabulary() {
+    const p = join(this.blocksDir, 'vocabulary.json');
+    if (!existsSync(p)) return null;
+    return JSON.parse(await readFile(p, 'utf8'));
+  }
+
+  /** 아키타입 레지스트리(blocks/archetypes.json). 파일이 없으면 null(하위호환). */
+  async readArchetypes() {
+    const p = join(this.blocksDir, 'archetypes.json');
+    if (!existsSync(p)) return null;
+    return JSON.parse(await readFile(p, 'utf8'));
+  }
 }
 
 /** :root { --c: #...; } 에서 토큰값 추출. */

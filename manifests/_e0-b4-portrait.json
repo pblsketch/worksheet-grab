@@ -1,0 +1,20 @@
+{
+  "id": "_e0-b4-portrait",
+  "subject": "science",
+  "dataSubject": "science",
+  "theme": "sci",
+  "lang": "ko",
+  "docTitle": "E0 검증 — B4 세로",
+  "head": { "katex": false },
+  "runHead": "E0 용지 검증 · B4(JIS) portrait",
+  "runFoot": { "left": "E0 용지 검증", "rightPrefix": "B4 세로" },
+  "standards": [],
+  "standardsText": {},
+  "paper": { "size": "B4", "orientation": "portrait" },
+  "pages": [
+    [
+      { "type": "directive", "html": "<div class=\"direct\">B4 세로(JIS 257×364mm) 용지 검증용 최소 활동지. 시험지·평가지 포맷의 기반.</div>\n" },
+      { "type": "answer-line", "html": "<div class=\"ans-line\"></div>\n" }
+    ]
+  ]
+}

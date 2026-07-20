@@ -1,13 +1,15 @@
 import { Worksheet, Block, Standard } from '../domain/index.js';
+import { resolvePaper, paperCss } from './paper.js';
 
 // AssembleWorksheet — 매니페스트 + 블록 라이브러리 + 테마 + 성취기준(CSV) → 활동지 HTML.
 // 겸 Presenter: 도메인 Worksheet 를 HTML(MODE_TOKEN 포함) 로 직렬화한다.
 // 포트(BlockRepository, CurriculumProvider)에만 의존. Chrome 무지.
 
+// 교과 특수 블록 타입(해당 교과에서만). 범용 표(memo/comparison/label-value)는
+// Phase 3 에서 코어로 재분류(교과 무관·var(--*)만) — 여기서 제외. 단일 진실원천은 blocks/vocabulary.json.
 const SUBJECT_PACK_TYPES = new Set([
-  'passage', 'pro-con', 'memo-table', 'variable-table', 'data-table',
-  'svg-graph', 'formula', 'label-value', 'resource-box', 'hypothesis-box',
-  'comparison-table', 'example-strip',
+  'passage', 'pro-con', 'variable-table', 'data-table',
+  'svg-graph', 'formula', 'hypothesis-box',
   'map', 'timeline', 'vocab', 'dialogue',
 ]);
 
@@ -109,7 +111,11 @@ ${lis}
   }
 
   async #serialize(worksheet, manifest) {
-    const paper = await this.repo.readAsset('paper.css');
+    let paper = await this.repo.readAsset('paper.css');
+    // manifest.paper(1급 속성) → @page 숫자 리터럴 + --sheet-* 변수를 paper.css 바로 뒤에
+    // 인라인해 캐스케이드로 덮어쓴다. 미지정이면 스니펫 없음 = 현행 산출 그대로(하위호환).
+    const paperOverride = paperCss(resolvePaper(manifest.paper));
+    if (paperOverride) paper = `${paper}\n${paperOverride}`;
     const blocksCss = await this.repo.readAsset('blocks.css');
     const themeCss = await this.repo.loadThemeCss(worksheet.themeName);
     const lang = manifest.lang || 'ko';

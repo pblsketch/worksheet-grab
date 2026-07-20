@@ -1,0 +1,416 @@
+{
+  "version": 1,
+  "note": "블록 타입 어휘 + 계약. 코어=≥2교과 사용·var(--*)만 참조(인쇄안전). 교과팩=해당 교과 전용. gen 타입(standard-label)은 파일 없이 엔진이 성취기준 원문으로 렌더. 콘텐츠는 요청마다 manifest 에 인라인 저작(동적 조립), exemplar 는 재사용 시드/폴백.",
+  "counts": {
+    "total": 28,
+    "core": 17,
+    "pack": 11
+  },
+  "types": {
+    "header": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "PILL",
+        "REF",
+        "TITLE",
+        "UNIT"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "단원 헤더(활동유형 pill·제목·단원·이름칸)",
+      "cssClass": "title-wrap",
+      "file": "core/header.html"
+    },
+    "standard-label": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "gen 블록 — 조회된 성취기준 원문을 렌더(파일 없음, manifest 는 {gen:\"standard-label\"}).",
+      "gen": true,
+      "file": null
+    },
+    "directive": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "TEXT"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "활동 지시문(교과별 글리프는 data-subject 로 분기)",
+      "cssClass": "direct",
+      "file": "core/directive.html"
+    },
+    "subq": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "N",
+        "TEXT"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "번호 붙은 소질문/활동 단계 머리",
+      "cssClass": "subq",
+      "file": "core/subq.html"
+    },
+    "question": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "TEXT"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "학생이 답할 세부 문항",
+      "cssClass": "q",
+      "file": "core/question.html"
+    },
+    "content": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "TEXT"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "자유 콘텐츠 또는 교사용 예시 답안(.answer, 학생 빌드에서 제거)",
+      "cssClass": "answer",
+      "file": "core/content.html"
+    },
+    "answer-line": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "학생 서술 답 줄",
+      "cssClass": "ans-line",
+      "file": "core/answer-line.html"
+    },
+    "resource-box": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "LABEL",
+        "BODY"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "자료/탐구문제 제시 박스",
+      "cssClass": "qbox",
+      "file": "core/resource-box.html"
+    },
+    "example-strip": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "HEAD",
+        "BODY"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "과정/예시 스트립",
+      "cssClass": "strip",
+      "file": "core/example-strip.html"
+    },
+    "section-heading": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "N",
+        "TEXT"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "번호 붙은 섹션 제목",
+      "cssClass": "sec",
+      "file": "core/section-heading.html"
+    },
+    "rubric": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "R1",
+        "R2",
+        "R3"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "자기점검 루브릭(별점 체크)",
+      "cssClass": "rubric",
+      "file": "core/rubric.html"
+    },
+    "reflection": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "PROMPT"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "성찰 원칙 박스(원칙 3가지)",
+      "cssClass": "princ",
+      "file": "core/reflection.html"
+    },
+    "note": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "TEXT"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "메모/추가 기록 줄",
+      "cssClass": "note-under",
+      "file": "core/note.html"
+    },
+    "emphasis-box": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "HEAD",
+        "BODY"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "점선 강조 박스",
+      "cssClass": "dash-box",
+      "file": "core/emphasis-box.html"
+    },
+    "memo-table": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "ROWS"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "메모/항목 기록 표",
+      "cssClass": "memo",
+      "file": "core/memo-table.html"
+    },
+    "comparison-table": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "ROWS"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "비교/분류 표",
+      "cssClass": "cmp",
+      "file": "core/comparison-table.html"
+    },
+    "label-value": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [
+        "ROWS"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "라벨-값 표",
+      "cssClass": "lv-table",
+      "file": "core/label-value.html"
+    },
+    "hypothesis-box": {
+      "category": "pack",
+      "subjects": [
+        "science"
+      ],
+      "slots": [
+        "ANSWER"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "가설 박스(교사 예시=.answer)",
+      "cssClass": "hbox",
+      "file": "pack-science/hypothesis-box.html"
+    },
+    "variable-table": {
+      "category": "pack",
+      "subjects": [
+        "science"
+      ],
+      "slots": [
+        "PREP",
+        "IV",
+        "CV",
+        "DV"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "변인 통제표(조작·통제·종속)",
+      "cssClass": "vartable",
+      "file": "pack-science/variable-table.html"
+    },
+    "data-table": {
+      "category": "pack",
+      "subjects": [
+        "science"
+      ],
+      "slots": [
+        "ROWS"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "측정 데이터 기록표(교사 예시값=.answer)",
+      "cssClass": "data",
+      "file": "pack-science/data-table.html"
+    },
+    "svg-graph": {
+      "category": "pack",
+      "subjects": [
+        "science"
+      ],
+      "slots": [
+        "SVG",
+        "CAPTION"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "SVG 모눈 그래프(교사 표본점·추세선=.plot-ans)",
+      "cssClass": "graphwrap",
+      "file": "pack-science/svg-graph.html"
+    },
+    "formula": {
+      "category": "pack",
+      "subjects": [
+        "science"
+      ],
+      "slots": [
+        "TEX"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "KaTeX 수식 박스($…$)",
+      "cssClass": "formula",
+      "requiresKatex": true,
+      "file": "pack-science/formula.html"
+    },
+    "passage": {
+      "category": "pack",
+      "subjects": [
+        "korean"
+      ],
+      "slots": [
+        "TITLE",
+        "SLOT"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "읽기 지문(저작권 지문은 .slot 유지 — 실제 텍스트 채우지 않음)",
+      "cssClass": "passage",
+      "copyrightSlot": true,
+      "file": "pack-korean/passage.html"
+    },
+    "pro-con": {
+      "category": "pack",
+      "subjects": [
+        "korean"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "찬반 논거 표(찬반 의미색 고정 허용)",
+      "cssClass": "pc",
+      "file": "pack-korean/pro-con.html"
+    },
+    "map": {
+      "category": "pack",
+      "subjects": [
+        "social"
+      ],
+      "slots": [
+        "HEAD",
+        "SVG",
+        "CAPTION"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "지도 활동(백지도/주석)",
+      "cssClass": "mapbox",
+      "file": "pack-social/map.html"
+    },
+    "timeline": {
+      "category": "pack",
+      "subjects": [
+        "social"
+      ],
+      "slots": [
+        "NODES"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "연표(타임라인)",
+      "cssClass": "timeline",
+      "file": "pack-social/timeline.html"
+    },
+    "vocab": {
+      "category": "pack",
+      "subjects": [
+        "english"
+      ],
+      "slots": [
+        "ROWS"
+      ],
+      "printSafe": true,
+      "keepTogether": false,
+      "desc": "어휘 표(Word·뜻·예문)",
+      "cssClass": "vocab",
+      "file": "pack-english/vocab.html"
+    },
+    "dialogue": {
+      "category": "pack",
+      "subjects": [
+        "english"
+      ],
+      "slots": [
+        "TURNS"
+      ],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "대화문(빈칸 채우기)",
+      "cssClass": "dialogue",
+      "file": "pack-english/dialogue.html"
+    }
+  }
+}

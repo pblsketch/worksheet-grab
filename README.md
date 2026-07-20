@@ -86,6 +86,13 @@ node bin/worksheet-grab.js generate <학년교과> <주제> [--out <dir>] [--pdf
 node bin/worksheet-grab.js pipeline <학년교과> <주제> [--out <dir>] [--no-render]
 #   검수(정답 누출·하드코딩색) 실패 시 렌더 중단(fail-closed). HITL: 교사 검토 후 인쇄.
 
+# 6.5) 동적 조립(Phase 4) — 주제에 맞는 아키타입으로 "저작 대기 스캐폴드" + 저작 브리프
+node bin/worksheet-grab.js compose <학년교과> <주제> [--archetype <id>] [--standards <코드,..>] [--out <dir>] [--render]
+#   예: compose 중2과학 광합성            → 실험탐구 아키타입(변인표·그래프)
+#       compose 중2과학 "생물 분류"        → 개념구조화 아키타입(비교표·구조표, 변인표/그래프 강제 안 됨)
+#   주제 키워드로 아키타입을 추천(‑‑archetype 로 직접 지정). 성취기준·제목은 결정적으로 채우고,
+#   교육적 본문은 designer AI/교사가 인라인 html 을 저작(무API). 이후 assemble/pipeline 로 렌더(검수 게이트).
+
 # 7) 대화형 편집(M4) — 매니페스트에 지시 반영 → 재조립·재렌더
 node bin/worksheet-grab.js edit <base>.manifest.json "3번 문항 빼고 성찰 추가" [--out <dir>] [--no-render] [--in-place]
 #   pipeline/generate 가 산출한 <base>.manifest.json 을 입력. --remove <N> / --add reflection 플래그도 가능.
@@ -98,7 +105,11 @@ node bin/worksheet-grab.js render <in.html> --png <out.png>
 node bin/worksheet-grab.js generate 중2영어 감정 --out out/ --png   # 2벌 PNG 동시 산출
 
 # 9) 라이브러리 나열
-node bin/worksheet-grab.js list-blocks
+node bin/worksheet-grab.js list-blocks                    # 타입 exemplar 파일(core/*, pack-*/*)
+node bin/worksheet-grab.js list-vocab                     # 블록 타입 어휘 + 계약(코어/교과팩·슬롯)
+node bin/worksheet-grab.js list-vocab --subject science  # 과학에서 쓸 수 있는 타입만
+node bin/worksheet-grab.js list-archetypes               # 교과 초월 구조 패턴 6개(동적 조립용)
+node bin/worksheet-grab.js list-archetypes --subject science  # 아키타입을 교과에 바인딩한 시퀀스
 node bin/worksheet-grab.js list-themes
 ```
 
@@ -155,17 +166,26 @@ src/
   adapters/    포트 구현: ChromeRenderer, FsBlockRepository, GepaiCurriculum(CSV 1차·MCP 옵션)
   cli/         커맨드 파서
 bin/worksheet-grab.js  엔트리
-blocks/        poc 에서 추출한 블록 HTML 파셜(공통 코어 + 교과 팩)
+blocks/        타입 어휘: vocabulary.json(계약 레지스트리) + archetypes.json(구조 패턴 6) + core/*·pack-*/*(exemplar)
 themes/        교과 테마 토큰 CSS(ko=green, sci=teal). 교과색은 여기 :root 변수로만.
 assets/        paper.css(인쇄 베이스) + blocks.css(블록 스타일, var(--*)만 참조)
-manifests/     재조립 명세(ko.json, sci.json)
-templates/     교과 템플릿(science.json·korean.json) — generate 가 성취기준·주제로 채운다(M2)
-tools/         extract-blocks.js(poc → 블록·매니페스트 추출기)
+manifests/     재조립 명세(ko.json, sci.json) — 인라인 html 콘텐츠(동적 조립 모델)
+templates/     교과 프리셋/few-shot 시드(강등) — generate 빠른 경로용. 상세: templates/README.md
+tools/         extract-blocks.js(poc → 인라인 매니페스트 추출기)
 test/          unit/(Chrome 불필요) + render/(실물 Chrome, 페이지수 검증)
 ```
 
 **의존성 규칙**: 모든 의존성은 안쪽(도메인)으로만 향한다. 도메인은 Chrome·gepai·FS 를 모른다.
 DIP 는 실제로 변하는 3경계(Curriculum·Renderer·ContentAuthor)에만 강하게 적용한다.
+
+### 동적 조립(Dynamic Composition)
+
+주제마다 구조가 달라지도록, 세 층으로 조립한다(상세: [docs/HANDOFF-dynamic-composition.md](docs/HANDOFF-dynamic-composition.md)):
+1. **어휘 + 계약**(`blocks/vocabulary.json`): 타입별 재사용 부품·인쇄안전 계약(코어 17·교과팩 11). 코어는 `var(--*)`만.
+2. **아키타입**(`blocks/archetypes.json`): 교과 초월 구조 패턴 6종(실험탐구·자료해석·읽기독해·토론의사결정·개념구조화·프로젝트제작). "어느 타입을 어떤 순서로" + packRole 교과 바인딩.
+3. **compose**(`ComposeWorksheet`): 요청+성취기준+아키타입 → 저작 대기 스캐폴드 + 저작 브리프. 엔진은 구조만(결정적), 교육적 본문은 designer AI/교사가 저작(무API).
+
+같은 교과라도 주제가 다르면 구조가 다르다 — `compose 중2과학 광합성`(실험탐구: 변인표+그래프) vs `compose 중2과학 "생물 분류"`(개념구조화: 비교표+구조표). 비실험 주제가 실험 구조에 강제되지 않는다. 템플릿(`templates/*.json`)은 빠른 경로용 프리셋/시드로 강등.
 
 ### 블록 재조립 & 페이지 정형화
 
@@ -180,7 +200,7 @@ DIP 는 실제로 변하는 3경계(Curriculum·Renderer·ContentAuthor)에만 �
 npm test            # 전체(단위 + 실물 렌더). Chrome 없으면 렌더 테스트는 스킵.
 npm run test:unit   # Chrome 불필요 단위/수용 테스트
 npm run test:render # 실물 Chrome 렌더로 국어=5쪽·과학=3쪽 검증
-npm run extract     # poc → blocks/·manifests/ 재생성
+npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각은 만들지 않음)
 ```
 
 ## M1 수용 기준 (전부 통과)

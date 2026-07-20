@@ -92,6 +92,12 @@ DIP는 **변하는 3경계**(Curriculum, Renderer, ContentAuthor)에만 강하�
   - *수용(통과)*: `generate 중2사회|중2영어` 가 각 블록·테마로 A4 렌더(2쪽), 하드코딩색 0. 공통 코어 블록(header·std-box·h2.sec·rubric)이 국어·과학·사회·영어 4교과에서 존재+검증 통과. 인쇄안전 위반 픽스처 FAIL/정상 PASS. `node --test`.
 - **M6 — 패키징 ✅ (완료 2026-07-21)**: 설치형(`package.json` bin/files, 의존성 0), PNG/카드 export(`render --png` / `generate|pipeline --png`, `RenderImage`+`renderToPng`), 문서(README quickstart·M4~M6 예시), `.claude/skills` 오케스트레이터를 M1~M6 CLI로 배선.
   - *수용(통과)*: 임의 CWD(새 환경 모사)에서 `pipeline 중2과학 광합성` 한 문장 생성 스모크 성공(root=bin 기준 해결, CWD 무관). PNG 유효 시그니처 산출. `node --test`.
+- **M7 — 동적 조립(Dynamic Composition) ✅ (완료 2026-07-21)**: "교과당 고정 템플릿 1개" 의존을 걷어내고 "요청마다 AI가 어휘로 manifest를 조립"하는 경로를 완성. 4단계로 진행(상세: `docs/HANDOFF-dynamic-composition.md`).
+  - **Phase 1(실증)**: 템플릿 없이 손저작 manifest(광합성)로 `assemble→2벌→validate→render` 실증 — 엔진의 동적 조립 능력 실물 증명.
+  - **Phase 2(어휘)**: 위치기반 81조각 → 타입기반 어휘 28종(`blocks/vocabulary.json` 계약 레지스트리 + `core/`·`pack-*/` exemplar). 두 PoC 매니페스트를 인라인으로 무손실 마이그레이션(재조립 바이트 동일).
+  - **Phase 3(아키타입)**: 교과 초월 구조 패턴 6종(`blocks/archetypes.json`: 실험탐구·자료해석·읽기독해·토론의사결정·개념구조화·프로젝트제작) + `ArchetypeLibrary`(role→교과 바인딩, 누출 0). 실험탐구가 과학·사회 ≥2교과에서 성립.
+  - **Phase 4(배선, DoD)**: `compose`(요청+성취기준+아키타입+어휘 → 저작 대기 스캐폴드 + 브리프) 유스케이스/CLI. 무API: 엔진은 결정적 스캐폴드만, 콘텐츠 저작은 designer AI.
+  - *수용(통과)*: **같은 교과 다른 주제 → 구조적으로 다른 주제 적합 활동지.** `compose 중2과학 광합성`=실험탐구(변인표+포화곡선), `compose 중2과학 "생물 다양성과 분류"`=개념구조화(비교표+5계 구조표, 변인표·그래프 강제 0). 두 데모 validate PASS·A4 렌더. 단위 `node --test` 114/114 pass(렌더 flake는 병렬 Chrome 타임아웃, 직렬 통과). 템플릿은 프리셋/few-shot 시드로 강등(비파괴, `templates/README.md`).
 
 ## 6. 리스크 & 완화
 

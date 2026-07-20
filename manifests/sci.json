@@ -23,7 +23,7 @@
     [
       {
         "type": "header",
-        "file": "sci/p1-01-header.html"
+        "html": "<div class=\"title-wrap\">\n    <span class=\"pill\">탐구 실험</span>\n    <span class=\"corner-ref\">중학교 과학 · 전기와 자기</span>\n    <div class=\"title-box\"><h1>전압과 전류의 관계 탐구 — 옴의 법칙</h1></div>\n    <div class=\"unit-line\">\n      <div class=\"unit\"><b>단원</b>　전기와 자기 · 전기 회로에서 저항·전류·전압의 관계</div>\n      <div class=\"namefield\">학년<span></span> 반<span></span> 이름<span></span></div>\n    </div>\n  </div>\n"
       },
       {
         "type": "standard-label",
@@ -31,147 +31,147 @@
       },
       {
         "type": "directive",
-        "file": "sci/p1-03-directive.html"
+        "html": "<div class=\"direct\">전압을 바꾸며 전류를 측정하는 실험을 설계하고, 저항·전류·전압 사이의 관계를 스스로 이끌어내 보자.</div>\n"
       },
       {
         "type": "subq",
-        "file": "sci/p1-04-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">1</span>탐구 문제와 가설을 세워 보자.</p>\n"
       },
       {
         "type": "resource-box",
-        "file": "sci/p1-05-resource-box.html"
+        "html": "<div class=\"qbox\">\n    <span class=\"lab\">탐구 문제</span>\n    <div>전기 회로에서 저항이 일정할 때, 전압의 크기가 달라지면 전류의 세기는 어떻게 변할까?</div>\n  </div>\n"
       },
       {
         "type": "content",
-        "file": "sci/p1-06-content.html"
+        "html": "<div style=\"margin-top:3mm;font-weight:600;\">▷ 나의 가설</div>\n"
       },
       {
         "type": "hypothesis-box",
-        "file": "sci/p1-07-hypothesis-box.html"
+        "html": "<div class=\"hbox\">\n    <span class=\"answer\">전압이 커질수록 전류의 세기도 일정한 비율로 커질 것이다. (전압 ∝ 전류)</span>\n  </div>\n"
       },
       {
         "type": "subq",
-        "file": "sci/p1-08-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">2</span>실험을 설계하며 변인을 정리해 보자.</p>\n"
       },
       {
         "type": "variable-table",
-        "file": "sci/p1-09-variable-table.html"
+        "html": "<table class=\"vartable\">\n    <tr><td class=\"k\">준비물</td><td>전지(또는 전원 장치), 저항(꼬마전구), 전류계, 전압계, 스위치, 집게 도선</td></tr>\n    <tr><td class=\"k\">조작 변인<br>(바꾸는 것)</td><td><span class=\"answer\">회로에 걸어 주는 <b>전압</b>의 크기</span></td></tr>\n    <tr><td class=\"k\">통제 변인<br>(같게 하는 것)</td><td><span class=\"answer\">저항의 종류와 크기, 회로의 연결 방법, 온도 등</span></td></tr>\n    <tr><td class=\"k\">종속 변인<br>(측정하는 것)</td><td><span class=\"answer\">회로에 흐르는 <b>전류</b>의 세기</span></td></tr>\n  </table>\n"
       }
     ],
     [
       {
         "type": "subq",
-        "file": "sci/p2-01-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">3</span>실험 과정에 따라 전압을 바꾸며 전류를 측정하고, 결과를 표에 기록해 보자.</p>\n"
       },
       {
         "type": "example-strip",
-        "file": "sci/p2-02-example-strip.html"
+        "html": "<div class=\"strip\"><div class=\"sh\">실험 과정</div>\n    <div class=\"sb\">\n      <p>① 전지·저항·전류계·전압계·스위치를 그림과 같이 연결한다. (전류계는 직렬, 전압계는 병렬)</p>\n      <p>② 전압을 1.5 V로 맞추고 스위치를 닫아 전류계 값을 읽는다.</p>\n      <p>③ 전압을 3.0 V, 4.5 V, 6.0 V로 바꾸며 ②를 반복한다.</p>\n    </div>\n  </div>\n"
       },
       {
         "type": "subq",
-        "file": "sci/p2-03-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">4</span>측정 결과 (저항 일정)</p>\n"
       },
       {
         "type": "data-table",
-        "file": "sci/p2-04-data-table.html"
+        "html": "<table class=\"data\">\n    <tr><th style=\"width:34%\">전압 V (V)</th><th style=\"width:33%\">전류 I (A)</th><th style=\"width:33%\">V / I (Ω)</th></tr>\n    <tr><td class=\"n\">1.5</td><td><span class=\"a answer\">0.5</span></td><td><span class=\"a answer\">3.0</span></td></tr>\n    <tr><td class=\"n\">3.0</td><td><span class=\"a answer\">1.0</span></td><td><span class=\"a answer\">3.0</span></td></tr>\n    <tr><td class=\"n\">4.5</td><td><span class=\"a answer\">1.5</span></td><td><span class=\"a answer\">3.0</span></td></tr>\n    <tr><td class=\"n\">6.0</td><td><span class=\"a answer\">2.0</span></td><td><span class=\"a answer\">3.0</span></td></tr>\n  </table>\n"
       },
       {
         "type": "content",
-        "file": "sci/p2-05-content.html"
+        "html": "<p style=\"font-size:8.7pt;color:#666;margin-top:4px;\">＊ 교사용에는 예시 측정값이 채워져 있습니다. 학생용은 실제 측정값을 기록합니다.</p>\n"
       },
       {
         "type": "subq",
-        "file": "sci/p2-06-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">5</span>측정한 값을 그래프로 나타내 보자. (가로축: 전압, 세로축: 전류)</p>\n"
       },
       {
         "type": "svg-graph",
-        "file": "sci/p2-07-svg-graph.html"
+        "html": "<div class=\"graphwrap keep\">\n    <svg width=\"360\" height=\"300\" viewBox=\"0 0 360 300\" xmlns=\"http://www.w3.org/2000/svg\">\n      <rect x=\"0\" y=\"0\" width=\"360\" height=\"300\" fill=\"#ffffff\"/>\n      <!-- grid -->\n      <g stroke=\"#d8ece9\" stroke-width=\"1\">\n        <line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"260\"/><line x1=\"102\" y1=\"20\" x2=\"102\" y2=\"260\"/>\n        <line x1=\"154\" y1=\"20\" x2=\"154\" y2=\"260\"/><line x1=\"206\" y1=\"20\" x2=\"206\" y2=\"260\"/>\n        <line x1=\"258\" y1=\"20\" x2=\"258\" y2=\"260\"/><line x1=\"310\" y1=\"20\" x2=\"310\" y2=\"260\"/>\n        <line x1=\"50\" y1=\"260\" x2=\"330\" y2=\"260\"/><line x1=\"50\" y1=\"212\" x2=\"330\" y2=\"212\"/>\n        <line x1=\"50\" y1=\"164\" x2=\"330\" y2=\"164\"/><line x1=\"50\" y1=\"116\" x2=\"330\" y2=\"116\"/>\n        <line x1=\"50\" y1=\"68\" x2=\"330\" y2=\"68\"/>\n      </g>\n      <!-- axes -->\n      <line x1=\"50\" y1=\"260\" x2=\"335\" y2=\"260\" stroke=\"#333\" stroke-width=\"1.6\"/>\n      <line x1=\"50\" y1=\"260\" x2=\"50\" y2=\"15\" stroke=\"#333\" stroke-width=\"1.6\"/>\n      <!-- x ticks -->\n      <g font-size=\"9\" fill=\"#555\" text-anchor=\"middle\" font-family=\"Pretendard,sans-serif\">\n        <text x=\"102\" y=\"274\">1.5</text><text x=\"154\" y=\"274\">3.0</text>\n        <text x=\"206\" y=\"274\">4.5</text><text x=\"258\" y=\"274\">6.0</text>\n        <text x=\"330\" y=\"277\">전압(V)</text>\n        <text x=\"44\" y=\"264\" text-anchor=\"end\">0</text>\n        <text x=\"44\" y=\"216\" text-anchor=\"end\">0.5</text><text x=\"44\" y=\"168\" text-anchor=\"end\">1.0</text>\n        <text x=\"44\" y=\"120\" text-anchor=\"end\">1.5</text><text x=\"44\" y=\"72\" text-anchor=\"end\">2.0</text>\n        <text x=\"30\" y=\"30\" text-anchor=\"middle\">전류(A)</text>\n      </g>\n      <!-- teacher: sample points + best-fit line -->\n      <g class=\"plot-ans\">\n        <line x1=\"50\" y1=\"260\" x2=\"258\" y2=\"68\" stroke=\"#1a5fb4\" stroke-width=\"2\"/>\n        <circle cx=\"102\" cy=\"212\" r=\"3.5\" fill=\"#c0392b\"/><circle cx=\"154\" cy=\"164\" r=\"3.5\" fill=\"#c0392b\"/>\n        <circle cx=\"206\" cy=\"116\" r=\"3.5\" fill=\"#c0392b\"/><circle cx=\"258\" cy=\"68\" r=\"3.5\" fill=\"#c0392b\"/>\n      </g>\n    </svg>\n    <div class=\"gcap\">전압–전류 그래프 (모눈에 점을 찍고 직선으로 이어 보자)</div>\n  </div>\n"
       }
     ],
     [
       {
         "type": "subq",
-        "file": "sci/p3-01-subq.html"
+        "html": "<p class=\"subq\"><span class=\"qnum\">6</span>결과를 해석하며 저항·전류·전압의 관계를 정리해 보자.</p>\n"
       },
       {
         "type": "question",
-        "file": "sci/p3-02-question.html"
+        "html": "<div class=\"q\">(1) 전압이 커질 때 전류의 세기는 어떻게 변했나요? 그래프의 모양과 함께 설명해 보자.</div>\n"
       },
       {
         "type": "content",
-        "file": "sci/p3-03-content.html"
+        "html": "<div class=\"answer\">전압이 커질수록 전류도 일정한 비율로 커졌다. 그래프는 원점을 지나는 직선(정비례) 모양이다.</div>\n"
       },
       {
         "type": "answer-line",
-        "file": "sci/p3-04-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "answer-line",
-        "file": "sci/p3-05-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "question",
-        "file": "sci/p3-06-question.html"
+        "html": "<div class=\"q\">(2) 표에서 V / I 의 값은 어떤 특징을 보이나요? 이 값은 무엇을 의미할까요?</div>\n"
       },
       {
         "type": "content",
-        "file": "sci/p3-07-content.html"
+        "html": "<div class=\"answer\">V / I 의 값이 3.0 으로 항상 일정하다. 이 일정한 값은 회로의 저항(R)을 의미한다.</div>\n"
       },
       {
         "type": "answer-line",
-        "file": "sci/p3-08-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "answer-line",
-        "file": "sci/p3-09-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "question",
-        "file": "sci/p3-10-question.html"
+        "html": "<div class=\"q\">(3) 위 결과를 바탕으로 전압(V), 전류(I), 저항(R) 사이의 관계식을 완성해 보자.</div>\n"
       },
       {
         "type": "formula",
-        "file": "sci/p3-11-formula.html"
+        "html": "<div class=\"formula keep\">\n    $ R = \\dfrac{V}{I} $ &nbsp;&nbsp;⟹&nbsp;&nbsp; $ V = I \\times R $\n    <div style=\"font-size:9pt;color:#555;margin-top:6px;\">＊ 이 관계를 <b>옴의 법칙</b>이라고 한다.</div>\n  </div>\n"
       },
       {
         "type": "content",
-        "file": "sci/p3-12-content.html"
+        "html": "<div class=\"answer\">저항이 일정할 때 전류는 전압에 정비례한다. 관계식: $V = IR$ (또는 $I = V/R$). 이번 실험에서 $R = 3.0\\,\\Omega$.</div>\n"
       },
       {
         "type": "question",
-        "file": "sci/p3-13-question.html"
+        "html": "<div class=\"q\">(4) 이 실험에서 저항의 크기를 2배로 바꾼다면, 같은 전압에서 전류의 세기는 어떻게 될까요?</div>\n"
       },
       {
         "type": "content",
-        "file": "sci/p3-14-content.html"
+        "html": "<div class=\"answer\">전류는 전압에 정비례하고 저항에 반비례($I = V/R$)하므로, 저항이 2배가 되면 전류는 1/2로 줄어든다.</div>\n"
       },
       {
         "type": "answer-line",
-        "file": "sci/p3-15-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "answer-line",
-        "file": "sci/p3-16-answer-line.html"
+        "html": "<div class=\"ans-line\"></div>\n"
       },
       {
         "type": "section-heading",
-        "file": "sci/p3-17-section-heading.html"
+        "html": "<h2 class=\"sec\"><span class=\"n\">7</span>점검표를 작성하며 탐구를 정리해 보자.</h2>\n"
       },
       {
         "type": "rubric",
-        "file": "sci/p3-18-rubric.html"
+        "html": "<table class=\"rubric\">\n    <tr><th>점검 요소</th><th style=\"width:22%\">점검 결과</th></tr>\n    <tr><td>변인을 통제하며 전압–전류 측정 실험을 설계할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>측정 결과를 표와 그래프로 나타낼 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>저항·전류·전압의 관계(옴의 법칙)를 실험 결과로 설명할 수 있는가?</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n  </table>\n"
       },
       {
         "type": "content",
-        "file": "sci/p3-19-content.html"
+        "html": "<p style=\"margin:4mm 0 0;font-size:9pt;\">• 탐구를 하며 새롭게 알게 되거나 궁금해진 점을 적어 보자.</p>\n"
       },
       {
         "type": "note",
-        "file": "sci/p3-20-note.html"
+        "html": "<div class=\"note-under\"></div>\n"
       },
       {
         "type": "note",
-        "file": "sci/p3-21-note.html"
+        "html": "<div class=\"note-under\"></div>\n"
       }
     ]
   ]

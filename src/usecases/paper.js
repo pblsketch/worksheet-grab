@@ -1,0 +1,114 @@
+// paper — 용지/방향의 단일 소스(순수, Chrome·FS 무지). manifest.paper 에서
+// (CSS 오버라이드 스니펫 · PNG 픽셀 치수 · validate 여백 기준)을 전부 파생한다.
+// 제약: Chrome 의 @page { size: … } 는 CSS 변수(var())를 해석하지 못하므로
+// @page 는 항상 숫자 mm 리터럴로 주입하고, .sheet 치수·여백만 var() 로 흐른다.
+// 두 값 모두 paperDims() 하나에서 파생되어 어긋나지 않는다.
+
+export const PAPER_SIZES = {
+  A4: { w: 210, h: 297 },
+  A3: { w: 297, h: 420 },
+  // 한국 시험지/평가지 관행은 JIS B4. Chrome named 키워드 B4(ISO 250×353)와 무관하게
+  // 숫자 mm 리터럴로 주입하므로 규격 애매성이 없다. ISO 가 필요하면 별도 프리셋으로 추가.
+  B4: { w: 257, h: 364 },
+};
+
+// A4 세로 기본 여백 — assets/paper.css 의 var() 폴백 리터럴과 정확히 일치해야 한다
+// (paper-fallback-equivalence 테스트가 강제). 비대칭 값은 "authored 섹션 수 = 인쇄
+// 페이지 수"가 되도록 튜닝된 현행 인쇄틀이다. 대칭 20mm 등은 명시적 선택지일 뿐
+// 조용한 기본값이 아니다 — paper:{size:"A4"} 만 붙여도 레이아웃이 변하면 안 된다.
+export const DEFAULT_A4_MARGINS = '12mm 15mm 10mm 15mm';
+const DEFAULT_MARGINS = '20mm';
+
+/**
+ * manifest.paper 를 정규화한다. 미지정(null/undefined)이면 null — 현행 A4 기본을
+ * 뜻하며 CSS 를 전혀 주입하지 않는다(하위호환: 주입 0 = 산출 불변).
+ * @param {{size?:string, orientation?:string, margins?:string, columns?:number}|null|undefined} paper
+ * @returns {{size:string, orientation:'portrait'|'landscape', margins:string, columns:number}|null}
+ */
+export function resolvePaper(paper) {
+  if (paper == null) return null;
+  if (typeof paper !== 'object') throw new TypeError('paper 는 객체여야 합니다.');
+
+  const size = String(paper.size ?? 'A4').toUpperCase();
+  if (!PAPER_SIZES[size]) {
+    throw new Error(`지원하지 않는 용지: "${paper.size}". 지원: ${Object.keys(PAPER_SIZES).join(', ')}`);
+  }
+  const orientation = String(paper.orientation ?? 'portrait');
+  if (orientation !== 'portrait' && orientation !== 'landscape') {
+    throw new Error(`orientation 은 portrait|landscape 여야 합니다: "${paper.orientation}"`);
+  }
+  const margins = String(
+    paper.margins ?? (size === 'A4' && orientation === 'portrait' ? DEFAULT_A4_MARGINS : DEFAULT_MARGINS),
+  );
+  parseMarginShorthand(margins); // fail-closed: 잘못된 여백 표기는 여기서 즉시 던진다.
+  const columns = paper.columns ?? 1;
+  if (!Number.isInteger(columns) || columns < 1) {
+    throw new Error(`columns 는 1 이상의 정수여야 합니다: "${paper.columns}"`);
+  }
+  return { size, orientation, margins, columns };
+}
+
+/** orientation 반영 실제 치수(mm). landscape 면 장·단변 swap. @page·.sheet 공통 파생점. */
+export function paperDims(resolved) {
+  const { w, h } = PAPER_SIZES[resolved.size];
+  return resolved.orientation === 'landscape' ? { w: h, h: w } : { w, h };
+}
+
+/** CSS 여백 shorthand(mm) → {top,right,bottom,left} (mm 숫자). 1·2·3·4값 지원. */
+export function paperMargins(resolved) {
+  return parseMarginShorthand(resolved.margins);
+}
+
+function parseMarginShorthand(margins) {
+  const tokens = String(margins).trim().split(/\s+/);
+  const vals = tokens.map((t) => {
+    const m = /^([0-9]+(?:\.[0-9]+)?)mm$/.exec(t);
+    if (!m) throw new Error(`여백은 "12mm" 형식(mm 단위)이어야 합니다: "${t}" (전체: "${margins}")`);
+    return parseFloat(m[1]);
+  });
+  if (vals.length === 1) return { top: vals[0], right: vals[0], bottom: vals[0], left: vals[0] };
+  if (vals.length === 2) return { top: vals[0], right: vals[1], bottom: vals[0], left: vals[1] };
+  if (vals.length === 3) return { top: vals[0], right: vals[1], bottom: vals[2], left: vals[1] };
+  if (vals.length === 4) return { top: vals[0], right: vals[1], bottom: vals[2], left: vals[3] };
+  throw new Error(`여백 값은 1~4개여야 합니다: "${margins}"`);
+}
+
+const mm = (n) => `${Number.isInteger(n) ? n : parseFloat(n.toFixed(3))}mm`;
+
+/**
+ * paper.css 뒤에 인라인할 오버라이드 스니펫. resolved=null 이면 ''(주입 0).
+ * @page 는 숫자 mm 리터럴(캐스케이드로 기본 @page{size:A4} 를 덮음), 나머지는 :root 변수.
+ * --sheet-cols 는 소비하는 CSS 가 없으므로 emit 하지 않는다(다단은 후속 에픽).
+ */
+export function paperCss(resolved) {
+  if (resolved == null) return '';
+  const { w, h } = paperDims(resolved);
+  const m = paperMargins(resolved);
+  return `/* ===== 용지 오버라이드 (manifest.paper: ${resolved.size} ${resolved.orientation}) ===== */
+@page { size: ${mm(w)} ${mm(h)}; margin: 0; }
+:root {
+  --sheet-w: ${mm(w)};
+  --sheet-h: ${mm(h)};
+  --sheet-pad: ${mm(m.top)} ${mm(m.right)} ${mm(m.bottom)} ${mm(m.left)};
+  --sheet-pad-l: ${mm(m.left)};
+  --sheet-pad-r: ${mm(m.right)};
+}`;
+}
+
+/** PNG 렌더용 픽셀 치수. */
+export function paperToPx(resolved, dpi = 96) {
+  const { w, h } = paperDims(resolved);
+  return { width: Math.round((w * dpi) / 25.4), height: Math.round((h * dpi) / 25.4) };
+}
+
+/** PDF MediaBox 기대치(pt). 테스트/검증용. */
+export function paperToPt(resolved) {
+  const { w, h } = paperDims(resolved);
+  return { w: (w * 72) / 25.4, h: (h * 72) / 25.4 };
+}
+
+/** validate 여백 기준: 4방향 여백 중 최소(mm). */
+export function paperMarginMinMm(resolved) {
+  const m = paperMargins(resolved);
+  return Math.min(m.top, m.right, m.bottom, m.left);
+}

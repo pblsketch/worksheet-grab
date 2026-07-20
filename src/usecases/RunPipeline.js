@@ -31,7 +31,7 @@ export class RunPipeline {
     // 3) 검수 게이트(정답 누출·하드코딩 교과색). 교과 팔레트는 테마에서 도출.
     const themes = await this.repo.listThemes();
     const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
-    const validator = new ValidateWorksheet({ knownSubjectHexes });
+    const validator = new ValidateWorksheet({ knownSubjectHexes, paper: manifest.paper });
     const review = {
       student: validator.execute(student),
       teacher: validator.execute(teacher),

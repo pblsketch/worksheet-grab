@@ -19,6 +19,17 @@ export async function countPdfPages(pdfPath) {
   return pageMatches.length;
 }
 
+// PDF 첫 페이지 치수(pt). Chrome print-to-pdf 산출물의 /MediaBox [x0 y0 x1 y1] 를 파싱한다.
+// countPdfPages 와 동일 스타일(바이트→latin1→정규식, 의존성 0).
+export async function pdfPageSizePt(pdfPath) {
+  if (!existsSync(pdfPath)) throw new Error(`PDF 가 없습니다: ${pdfPath}`);
+  const buf = await readFile(pdfPath);
+  const s = buf.toString('latin1');
+  const m = /\/MediaBox\s*\[\s*([\d.]+)\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)\s*\]/.exec(s);
+  if (!m) throw new Error(`/MediaBox 를 찾지 못했습니다: ${pdfPath}`);
+  return { w: parseFloat(m[3]) - parseFloat(m[1]), h: parseFloat(m[4]) - parseFloat(m[2]) };
+}
+
 /** Chrome 사용 가능 여부(렌더 테스트 게이트). */
 export function chromeAvailable() {
   const candidates = [

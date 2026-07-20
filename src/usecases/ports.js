@@ -36,4 +36,8 @@ export class BlockRepository {
   async loadThemeCss(/* name */) { throw new Error('BlockRepository.loadThemeCss 미구현'); }
   async listThemes() { throw new Error('BlockRepository.listThemes 미구현'); }
   async readManifest(/* nameOrPath */) { throw new Error('BlockRepository.readManifest 미구현'); }
+  /** 블록 타입 어휘 + 계약 레지스트리(blocks/vocabulary.json). 없으면 null. */
+  async readVocabulary() { throw new Error('BlockRepository.readVocabulary 미구현'); }
+  /** 아키타입(교과 초월 구조 패턴) 레지스트리(blocks/archetypes.json). 없으면 null. */
+  async readArchetypes() { throw new Error('BlockRepository.readArchetypes 미구현'); }
 }

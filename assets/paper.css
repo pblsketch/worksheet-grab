@@ -10,11 +10,15 @@ body {
   background: #eee; word-break: keep-all;               /* 한글 단어 중간 분리 방지 */
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
+/* 용지 파라미터화: --sheet-* 는 manifest.paper 가 있을 때만 :root 로 주입된다.
+ * 폴백 리터럴 = 현행 A4 인쇄틀이며 src/usecases/paper.js 의 A4 기본값과 정확히
+ * 일치해야 한다(paper-fallback-equivalence 테스트가 강제). @page size 는 var()
+ * 를 못 받으므로 아래 A4 리터럴을 paperCss() 가 숫자 mm 리터럴로 덮어쓴다. */
 .sheet {
-  width: 210mm; min-height: 297mm; box-sizing: border-box;
+  width: var(--sheet-w, 210mm); min-height: var(--sheet-h, 297mm); box-sizing: border-box;
   /* 정형화: 조밀한 섹션(예: 국어 5쪽 메모+성찰+루브릭)이 A4 한 장에 안착하도록
      상·하 여백을 균형 있게 조였다(authored 섹션 수 = 인쇄 페이지 수 보장). */
-  padding: 12mm 15mm 10mm 15mm;
+  padding: var(--sheet-pad, 12mm 15mm 10mm 15mm);
   margin: 0 auto; background: #fff; position: relative;
   page-break-after: always;
 }
@@ -23,12 +27,13 @@ body {
 @media print { body { background: #fff; } .sheet { margin: 0; box-shadow: none; } }
 
 /* running header / footer */
-.run-head { position: absolute; top: 7mm; right: 15mm; font-size: 8pt; color: #8a8f98; }
-.run-foot { position: absolute; bottom: 7mm; left: 0; right: 0; padding: 0 15mm;
+.run-head { position: absolute; top: 7mm; right: var(--sheet-pad-r, 15mm); font-size: 8pt; color: #8a8f98; }
+.run-foot { position: absolute; bottom: 7mm; left: 0; right: 0;
+  padding: 0 var(--sheet-pad-r, 15mm) 0 var(--sheet-pad-l, 15mm);
   display: flex; justify-content: space-between; font-size: 8pt; color: #8a8f98; }
 
 /* 학생/교사 배지 — 모드색(교과 무관 고정) */
-.mode-badge { position: absolute; top: 7mm; left: 15mm; font-size: 8pt; font-weight: 700;
+.mode-badge { position: absolute; top: 7mm; left: var(--sheet-pad-l, 15mm); font-size: 8pt; font-weight: 700;
   padding: 2px 8px; border-radius: 4px; }
 [data-mode="student"] .mode-badge { background: #eef4fc; color: #1a5fb4; }
 [data-mode="teacher"] .mode-badge { background: #fdeaea; color: #c0392b; }

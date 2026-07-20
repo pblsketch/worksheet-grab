@@ -1,13 +1,17 @@
 #!/usr/bin/env node
-// extract-blocks.js — poc/*.html 에서 공통 코어 + 교과 블록을 blocks/*.html 로 추출하고
-// manifests/*.json(재조립 명세)을 생성한다. poc 원본은 읽기만 한다(훼손 금지).
+// extract-blocks.js — poc/*.html 에서 재조립 명세 manifests/*.json 을 생성한다.
+// poc 원본은 읽기만 한다(훼손 금지).
 //
 // 방식: 각 .sheet 의 최상위 요소를 블록으로 분해 → 크롬(run-head/foot/mode-badge) 제거 →
-//       나머지를 블록 파일로 저장. std-box(성취기준)는 verbatim 대신 CSV 조회로 재생성하도록
-//       manifest 에 gen 엔트리로 표기(성취기준 원문 창작 금지 준수).
+//       나머지를 manifest 에 인라인 html 엔트리로 담는다(동적 조립 모델). std-box(성취기준)는
+//       verbatim 대신 CSV 조회로 재생성하도록 gen 엔트리로 표기(성취기준 원문 창작 금지 준수).
 // 안전장치: 추출 블록 합이 원본 콘텐츠와 일치하는지 round-trip 검증(불일치 시 throw).
+//
+// Phase 2 이후: 위치기반 blocks/{ko,sci}/*.html 조각은 더 이상 만들지 않는다. 타입 어휘는
+//   blocks/vocabulary.json + blocks/{core,pack-*}/*.html(재사용 exemplar)이 담당하고,
+//   실제 콘텐츠는 manifest 인라인 html 에 저작한다(assemble 은 html/file/gen 모두 지원).
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tokenizeHtml, extractClasses, normalizeText } from '../src/usecases/html-scan.js';
@@ -114,10 +118,6 @@ function extractOne(cfg) {
   const sections = splitTopLevel(bodyInner(src)).filter((r) => /^<section/i.test(r));
   if (sections.length === 0) throw new Error(`${cfg.src}: .sheet 섹션을 찾지 못했습니다.`);
 
-  const outDir = join(ROOT, 'blocks', cfg.dir);
-  if (existsSync(outDir)) rmSync(outDir, { recursive: true, force: true });
-  mkdirSync(outDir, { recursive: true });
-
   let runHead = '';
   let runFoot = { left: '', rightPrefix: '' };
   let standards = [];
@@ -162,9 +162,8 @@ function extractOne(cfg) {
         pageEntries.push({ type: 'standard-label', gen: 'standard-label' });
         return;
       }
-      const file = `p${pageNo}-${pad2(bi + 1)}-${type}.html`;
-      writeFileSync(join(outDir, file), raw.trim() + '\n', 'utf8');
-      pageEntries.push({ type, file: `${cfg.dir}/${file}` });
+      // 인라인 html 로 담는다(동적 조립 모델). 위치기반 블록 파일은 만들지 않는다.
+      pageEntries.push({ type, html: raw.trim() + '\n' });
     });
     pages.push(pageEntries);
   });
@@ -191,14 +190,14 @@ function extractOne(cfg) {
     'utf8',
   );
 
-  const blockCount = pages.flat().filter((e) => e.file).length;
+  const blockCount = pages.flat().filter((e) => e.html).length;
   return { manifest: cfg.manifest, pages: pages.length, blocks: blockCount, standards };
 }
 
 function main() {
   for (const cfg of CONFIGS) {
     const r = extractOne(cfg);
-    console.log(`✔ ${r.manifest}: ${r.pages}쪽, 블록 ${r.blocks}개, 성취기준 ${r.standards.join(', ')}`);
+    console.log(`✔ ${r.manifest}: ${r.pages}쪽, 인라인 블록 ${r.blocks}개, 성취기준 ${r.standards.join(', ')}`);
   }
 }
 
