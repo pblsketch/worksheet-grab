@@ -1,4 +1,5 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { FsBlockRepository } from '../adapters/FsBlockRepository.js';
 import { GepaiCurriculum } from '../adapters/GepaiCurriculum.js';
@@ -23,18 +24,25 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       정답 누출·하드코딩 교과색·최소폰트 정적 검사. 정답 누출 시 종료코드 1.
   worksheet-grab assemble <manifest> --out <file.html>
       블록 라이브러리 + 테마 + 성취기준(CSV)에서 활동지 HTML 재조립.
-  worksheet-grab generate <학년교과> <주제> [--out <dir>] [--pdf] [--png]
+  worksheet-grab generate <학년교과> <주제> [--out <dir>] [--pdf] [--png] [--standards <코드,..>] [--limit <N>]
       예: generate 중2과학 광합성 — 성취기준을 CSV(MCP 옵션)에서 조회해 교과 템플릿으로
-      활동지 + student/teacher 2벌 생성. --pdf 지정 시 A4 PDF, --png 지정 시 미리보기 PNG 까지 렌더.
-  worksheet-grab pipeline <학년교과> <주제> [--out <dir>] [--no-render]
+      활동지 + student/teacher 2벌 생성. --pdf 지정 시 A4 PDF, --png 지정 시 미리보기 PNG(첫 페이지) 렌더.
+      --standards [9과12-01],[9과12-02] 로 성취기준을 직접 선택, --limit 로 자동 조회 개수 제한(기본 6).
+      "중2 과학 광합성" 처럼 학년·교과를 띄어 써도 된다.
+  worksheet-grab pipeline <학년교과> <주제> [--out <dir>] [--no-render] [--standards <코드,..>] [--limit <N>]
       종단 파이프라인: 조회→조립→2벌→검수 게이트→(통과 시) 렌더. 검수 실패 시 렌더 중단(fail-closed).
       HITL: 산출 후 교사 검토를 거쳐 인쇄하도록 안내.
-  worksheet-grab edit <manifest.json> "<지시>" [--out <dir>] [--no-render]
+  worksheet-grab edit <manifest.json> "<지시>" [--out <dir>] [--no-render] [--in-place]
       대화형 편집 루프: 기존 매니페스트에 편집 지시를 반영해 매니페스트·HTML 을 왕복 갱신 후 재렌더.
+      기본은 원본 보존(-v2, -v3 … 접미사로 저장). --in-place 지정 시에만 원본을 덮어쓴다.
       예: edit out/science-광합성.manifest.json "3번 문항 빼고 성찰 추가"
       지시 대신 플래그도 가능: --remove <N> (반복 가능) · --add reflection
   worksheet-grab list-blocks
   worksheet-grab list-themes
+
+공통 옵션:
+  --csv <경로>     성취기준 CSV 위치(assemble/generate/pipeline/edit). GEPAI_CSV 환경변수로도 지정 가능.
+  --chrome <경로>  Chrome 실행 파일(render 계열). CHROME_PATH 환경변수로도 지정 가능.
 `;
 
 /** 인자 파서: 위치 인자 + --flag value / --flag=value / --bool. */
@@ -51,6 +59,30 @@ function parseArgs(argv) {
     } else positionals.push(a);
   }
   return { positionals, flags };
+}
+
+/**
+ * generate/pipeline 위치 인자 해석. "중2과학 광합성"(2개) 외에
+ * "중2 과학 광합성"(3개, 학년·교과 띄어쓰기)도 재조합해 허용한다.
+ */
+function gradeTopicArgs(positionals) {
+  const [, a, b, c] = positionals;
+  if (c && /^[초중고]\s*\d*$/.test(String(a || '').trim())) {
+    return { gradeSubject: `${a}${b}`, topic: c };
+  }
+  return { gradeSubject: a, topic: b };
+}
+
+/** --standards "[9과12-01],[9과12-02]" → 코드 배열(없으면 null). */
+function parseStandardsFlag(flags) {
+  if (typeof flags.standards !== 'string' || !flags.standards.trim()) return null;
+  return flags.standards.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** --limit N (기본 6). */
+function parseLimitFlag(flags, fallback = 6) {
+  const n = Number(flags.limit);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
 /** 안전한 출력 파일명 베이스(subject-topic, 비허용 문자는 _). */
@@ -71,6 +103,15 @@ async function writeVariantTrio(outDir, base, { html, student, teacher }) {
   return { htmlPath, sPath, tPath };
 }
 
+/** 편집본 저장 베이스: 기존 -vN 접미사는 스템으로 환원하고, 비어 있는 다음 버전을 찾는다. */
+function nextVersionBase(dir, base) {
+  const m = /^(.*)-v(\d+)$/.exec(base);
+  const stem = m ? m[1] : base;
+  let n = m ? Number(m[2]) + 1 : 2;
+  while (existsSync(join(dir, `${stem}-v${n}.manifest.json`))) n++;
+  return `${stem}-v${n}`;
+}
+
 /** 재편집 가능한 매니페스트(inline html 블록 + 성취기준 원문 포함)를 out 에 저장하고 경로 반환. */
 async function writeManifest(outDir, base, manifest) {
   const dir = resolve(outDir);
@@ -89,17 +130,18 @@ async function renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf =
   const renderer = new ChromeRenderer({ chromePath: flags.chrome || null });
   const rp = pdf ? new RenderPdf({ renderer }) : null;
   const ri = png ? new RenderImage({ renderer }) : null;
+  const vtb = flags['virtual-time-budget'] ? Number(flags['virtual-time-budget']) : DEFAULT_VIRTUAL_TIME_BUDGET;
   const dir = resolve(outDir);
   const results = [];
   for (const [mode, inPath] of [['student', sPath], ['teacher', tPath]]) {
     const entry = { mode };
     if (rp) {
       entry.pdf = join(dir, `${base}-${mode}.pdf`);
-      await rp.execute({ inputPath: inPath, outputPath: entry.pdf, virtualTimeBudget: 15000 });
+      await rp.execute({ inputPath: inPath, outputPath: entry.pdf, virtualTimeBudget: vtb });
     }
     if (ri) {
       entry.png = join(dir, `${base}-${mode}.png`);
-      await ri.execute({ inputPath: inPath, outputPath: entry.png, virtualTimeBudget: 15000 });
+      await ri.execute({ inputPath: inPath, outputPath: entry.png, virtualTimeBudget: vtb });
     }
     results.push(entry);
   }
@@ -116,8 +158,14 @@ export async function run(argv, { root, log = console.log, err = console.error }
     case 'render': return cmdRender(positionals[1], flags, { log });
     case 'validate': return cmdValidate(positionals[1], repo, { log, err });
     case 'assemble': return cmdAssemble(positionals[1], flags, repo, { log });
-    case 'generate': return cmdGenerate(positionals[1], positionals[2], flags, repo, { log });
-    case 'pipeline': return cmdPipeline(positionals[1], positionals[2], flags, repo, { log, err });
+    case 'generate': {
+      const { gradeSubject, topic } = gradeTopicArgs(positionals);
+      return cmdGenerate(gradeSubject, topic, flags, repo, { log });
+    }
+    case 'pipeline': {
+      const { gradeSubject, topic } = gradeTopicArgs(positionals);
+      return cmdPipeline(gradeSubject, topic, flags, repo, { log, err });
+    }
     case 'edit': return cmdEdit(positionals[1], positionals[2], flags, repo, { log, err });
     case 'list-blocks': return cmdListBlocks(repo, { log });
     case 'list-themes': return cmdListThemes(repo, { log });
@@ -156,7 +204,7 @@ async function cmdRender(input, flags, { log }) {
     const pngOut = flags.png === true ? input.replace(/\.html?$/i, '.png') : flags.png;
     const { outputPath } = await new RenderImage({ renderer })
       .execute({ inputPath: input, outputPath: pngOut, virtualTimeBudget: vtb });
-    log(`✔ render(png) → ${outputPath}`);
+    log(`✔ render(png) → ${outputPath} (첫 페이지 미리보기)`);
   }
   return 0;
 }
@@ -181,7 +229,7 @@ async function cmdValidate(input, repo, { log, err }) {
 async function cmdAssemble(manifestName, flags, repo, { log }) {
   if (!manifestName) throw new Error('assemble: 매니페스트 이름/경로가 필요합니다.');
   if (!flags.out) throw new Error('assemble: --out <file.html> 가 필요합니다.');
-  const curriculum = new GepaiCurriculum({});
+  const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
   const asm = new AssembleWorksheet({ blockRepository: repo, curriculum });
   const manifest = await repo.readManifest(manifestName);
   const { html, worksheet } = await asm.execute(manifest);
@@ -195,9 +243,10 @@ async function cmdGenerate(gradeSubject, topic, flags, repo, { log }) {
   if (!gradeSubject || !topic) throw new Error('generate: <학년교과> <주제> 가 필요합니다. 예: generate 중2과학 광합성');
   const outDir = flags.out || 'out';
   const { grade, subject } = parseGradeSubject(gradeSubject);
-  const curriculum = new GepaiCurriculum({});
+  const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
   const gen = new GenerateWorksheet({ blockRepository: repo, curriculum });
-  const { html, worksheet, standards, manifest } = await gen.execute({ grade, subject, topic });
+  const { html, worksheet, standards, manifest } =
+    await gen.execute({ grade, subject, topic, limit: parseLimitFlag(flags), codes: parseStandardsFlag(flags) });
 
   const { student, teacher } = new BuildVariants().execute(html);
   const base = worksheetBase(worksheet.subject, topic);
@@ -214,7 +263,7 @@ async function cmdGenerate(gradeSubject, topic, flags, repo, { log }) {
     const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: !!flags.pdf, png: !!flags.png });
     for (const e of rendered) {
       if (e.pdf) log(`  ✔ render(pdf) → ${e.pdf}`);
-      if (e.png) log(`  ✔ render(png) → ${e.png}`);
+      if (e.png) log(`  ✔ render(png) → ${e.png} (첫 페이지 미리보기)`);
     }
   }
   return 0;
@@ -224,9 +273,10 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   if (!gradeSubject || !topic) throw new Error('pipeline: <학년교과> <주제> 가 필요합니다. 예: pipeline 중2과학 광합성');
   const outDir = flags.out || 'out';
   const { grade, subject } = parseGradeSubject(gradeSubject);
-  const curriculum = new GepaiCurriculum({});
+  const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
   const { html, student, teacher, worksheet, standards, review, gate, manifest } =
-    await new RunPipeline({ blockRepository: repo, curriculum }).execute({ grade, subject, topic });
+    await new RunPipeline({ blockRepository: repo, curriculum })
+      .execute({ grade, subject, topic, limit: parseLimitFlag(flags), codes: parseStandardsFlag(flags) });
 
   log(`▶ 파이프라인: ${grade} ${subject} "${topic}"`);
   log(`  1) 성취기준 조회: ${standards.map((s) => s.code).join(', ')}`);
@@ -286,17 +336,23 @@ async function cmdEdit(manifestPath, instruction, flags, repo, { log }) {
   const { manifest: edited, applied } = new EditWorksheet().execute(manifest, ops);
 
   // 편집된 매니페스트로 재조립 + 2벌 분기(왕복).
-  const curriculum = new GepaiCurriculum({});
+  const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
   const asm = new AssembleWorksheet({ blockRepository: repo, curriculum });
   const { html, worksheet } = await asm.execute(edited);
   const { student, teacher } = new BuildVariants().execute(html);
 
-  const base = worksheetBase(edited.subject, edited.docTitle || 'worksheet');
+  // 원본 보존이 기본: 입력 매니페스트와 같은 베이스로 덮어쓰지 않고 -vN 접미사를 붙인다.
+  // 잘못된 편집을 되돌릴 수 없는 인쇄물 특성상 --in-place 는 명시 옵트인.
+  const inputBase = /\.manifest\.json$/i.test(manifestPath)
+    ? basename(manifestPath).replace(/\.manifest\.json$/i, '')
+    : worksheetBase(edited.subject, edited.docTitle || 'worksheet');
+  const base = flags['in-place'] ? inputBase : nextVersionBase(resolve(outDir), inputBase);
   const { sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher });
   const mPath = await writeManifest(outDir, base, edited);
 
   log(`✔ edit: ${manifestPath}`);
   for (const a of applied) log(`  · ${a}`);
+  if (!flags['in-place']) log(`  원본 보존 → 편집본은 "${base}.*" 로 저장(덮어쓰려면 --in-place).`);
   log(`  ${worksheet.pageCount()}쪽 재조립 → ${mPath}`);
   log(`  ${sPath}`);
   log(`  ${tPath}`);

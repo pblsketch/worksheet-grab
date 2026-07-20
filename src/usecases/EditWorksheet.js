@@ -55,14 +55,51 @@ export class EditWorksheet {
     }
     const next = structuredClone(manifest);
     const applied = [];
+    let removed = false;
     for (const op of ops) {
       switch (op.op) {
-        case 'removeItem': applied.push(this.#removeItem(next, op.n)); break;
+        case 'removeItem': applied.push(this.#removeItem(next, op.n)); removed = true; break;
         case 'addSection': applied.push(this.#addSection(next, op.kind)); break;
         default: throw new Error(`EditWorksheet: 알 수 없는 오퍼레이션 "${op.op}"`);
       }
     }
+    // 제거 후 번호 구멍(1,2,4…)이 인쇄물에 남지 않도록 일련번호를 재부여한다.
+    // 모든 removeItem 은 원본 번호 기준으로 적용을 마친 뒤 한 번만 수행.
+    if (removed) {
+      const msg = this.#renumber(next);
+      if (msg) applied.push(msg);
+    }
     return { manifest: next, applied };
+  }
+
+  /**
+   * 번호 있는 항목(subq/section-heading)을 문서 순서대로 1..N 재부여.
+   * 원본 번호가 순증가 수열일 때만 수행 — 번호가 중복/재시작하는 다중 수열
+   * 문서(예: PoC 국어 활동별 번호)는 의미가 다르므로 건드리지 않는다.
+   * @returns {string|null} applied 메시지(재부여 시) 또는 null(건너뜀/변화 없음)
+   */
+  #renumber(manifest) {
+    const items = [];
+    for (const page of manifest.pages) {
+      for (const block of page) {
+        if (itemNumber(block) != null) items.push(block);
+      }
+    }
+    const nums = items.map(itemNumber);
+    const strictlyIncreasing = nums.every((n, i) => i === 0 || n > nums[i - 1]);
+    if (!strictlyIncreasing) return null;
+    let n = 0;
+    let changed = 0;
+    for (const block of items) {
+      n++;
+      if (itemNumber(block) === n) continue;
+      const before = block.html;
+      block.html = /class="qnum">\s*\d+/.test(before)
+        ? before.replace(/(class="qnum">\s*)\d+/, `$1${n}`)
+        : before.replace(/(class="n">\s*)\d+/, `$1${n}`);
+      changed++;
+    }
+    return changed > 0 ? `renumber: 문항 번호 1..${n} 재부여(${changed}개 갱신)` : null;
   }
 
   /** 번호 N 문항 블록 + 다음 번호 문항 직전까지의 종속 블록을 제거. */
@@ -111,6 +148,11 @@ export class EditWorksheet {
   /**
    * 교사 지시문(한국어)을 편집 오퍼레이션으로 파싱.
    * 예: "3번 문항 빼고 성찰 추가" → [{op:'removeItem',n:3},{op:'addSection',kind:'reflection'}]
+   *
+   * 부분 적용 방지(fail-closed): 지시문을 왼쪽부터 스캔하며 숫자 토큰("N번",
+   * "1, 2번"·"1번과 2번" 열거 포함)을 누적하고, 제거 동사가 나오면 누적분을 removeItem 으로,
+   * 유지 동사("그대로 두고" 등)가 나오면 no-op 으로 소비한다. 어떤 동사에도 소비되지 않은
+   * 숫자가 남으면 일부만 적용하는 대신 오류를 던진다(인쇄물 무결성 우선).
    * @param {string} text
    * @returns {Array<object>}
    */
@@ -118,18 +160,36 @@ export class EditWorksheet {
     const src = String(text || '');
     const ops = [];
 
-    // 제거: "3번 문항 빼/제거/삭제/없애" (여러 번 등장 가능)
-    const removeRe = /(\d+)\s*번(?:\s*(?:문항|문제|항목|질문))?\s*(?:을|를|은|는)?\s*(?:빼|제거|삭제|없애|지워|빼고|빼줘|제외)/g;
+    // 토큰: [1] 숫자 열거("1, 2번"/"1번") · [2] 유지 동사 · [3] 제거 동사.
+    const tokenRe =
+      /(\d+(?:\s*(?:,|·|하고|이랑|와|과|랑|및)\s*\d+)*)\s*번|(그대로\s*두|유지|남기|남겨|놔둬|놔두)|(빼|제거|삭제|없애|지워|제외)/g;
+    const pending = [];
+    const removeSet = new Set();
     let m;
-    while ((m = removeRe.exec(src)) !== null) {
-      ops.push({ op: 'removeItem', n: Number(m[1]) });
+    while ((m = tokenRe.exec(src)) !== null) {
+      if (m[1] != null) {
+        for (const d of m[1].match(/\d+/g)) pending.push(Number(d));
+      } else if (m[2] != null) {
+        pending.length = 0; // 유지 지시: 해당 번호는 건드리지 않는다.
+      } else if (m[3] != null) {
+        for (const n of pending) removeSet.add(n);
+        pending.length = 0;
+      }
     }
+    for (const n of removeSet) ops.push({ op: 'removeItem', n });
 
     // 추가: 성찰/되돌아보기/reflection … 추가/넣/더해/삽입
     if (/(성찰|되돌아|돌아보|reflection)/i.test(src) && /(추가|넣|더해|삽입|붙여|달아)/.test(src)) {
       ops.push({ op: 'addSection', kind: 'reflection' });
     }
 
+    if (pending.length > 0) {
+      throw new Error(
+        `편집 지시 중 ${[...new Set(pending)].join(', ')}번에 적용할 동작을 이해하지 못했습니다` +
+        `(부분 적용 방지를 위해 전체를 중단합니다): "${text}". ` +
+        '지원: N번 문항 제거(예: "1번과 2번 문항 빼줘"), 성찰 섹션 추가.',
+      );
+    }
     if (ops.length === 0) {
       throw new Error(
         `편집 지시를 이해하지 못했습니다: "${text}". ` +

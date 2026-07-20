@@ -4,10 +4,15 @@
   "dataSubject": "science",
   "theme": "sci",
   "lang": "ko",
-  "head": { "katex": true },
+  "head": {
+    "katex": true
+  },
   "pillDefault": "탐구 실험",
   "runHeadTemplate": "2022 개정 교육과정 · {subjectLabel} · 탐구 활동지",
-  "runFootTemplate": { "left": "2022 개정 교육과정 연계 {subjectLabel} 탐구 활동지", "rightPrefix": "{topic} 탐구" },
+  "runFootTemplate": {
+    "left": "2022 개정 교육과정 연계 {subjectLabel} 탐구 활동지",
+    "rightPrefix": "{topic} 탐구"
+  },
   "slots": {
     "DIRECTIVE": "탐구 문제를 확인하고, 변인을 통제하여 실험을 설계한 뒤 결과로부터 관계를 이끌어내 보자.",
     "REF": "중학교 {subjectLabel}",
@@ -29,35 +34,110 @@
   },
   "pages": [
     [
-      { "type": "header", "html": "<div class=\"title-wrap\">\n    <span class=\"pill\">{{PILL}}</span>\n    <span class=\"corner-ref\">{{REF}}</span>\n    <div class=\"title-box\"><h1>{{TITLE}}</h1></div>\n    <div class=\"unit-line\">\n      <div class=\"unit\"><b>단원</b>　{{UNIT}}</div>\n      <div class=\"namefield\">학년<span></span> 반<span></span> 이름<span></span></div>\n    </div>\n  </div>" },
-      { "type": "standard-label", "gen": "standard-label" },
-      { "type": "directive", "html": "<div class=\"direct\">{{DIRECTIVE}}</div>" },
-      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">1</span>탐구 문제와 가설을 세워 보자.</p>" },
-      { "type": "resource-box", "html": "<div class=\"qbox\">\n    <span class=\"lab\">탐구 문제</span>\n    <div>{{PROBLEM}}</div>\n  </div>" },
-      { "type": "content", "html": "<div style=\"margin-top:3mm;font-weight:600;\">▷ 나의 가설</div>" },
-      { "type": "hypothesis-box", "html": "<div class=\"hbox\"><span class=\"answer\">{{HYPOTHESIS}}</span></div>" },
-      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">2</span>실험을 설계하며 변인을 정리해 보자.</p>" },
-      { "type": "variable-table", "html": "<table class=\"vartable\">\n    <tr><td class=\"k\">준비물</td><td>{{PREP}}</td></tr>\n    <tr><td class=\"k\">조작 변인<br>(바꾸는 것)</td><td><span class=\"answer\">{{IV}}</span></td></tr>\n    <tr><td class=\"k\">통제 변인<br>(같게 하는 것)</td><td><span class=\"answer\">{{CV}}</span></td></tr>\n    <tr><td class=\"k\">종속 변인<br>(측정하는 것)</td><td><span class=\"answer\">{{DV}}</span></td></tr>\n  </table>" }
+      {
+        "type": "header",
+        "html": "<div class=\"title-wrap\">\n    <span class=\"pill\">{{PILL}}</span>\n    <span class=\"corner-ref\">{{REF}}</span>\n    <div class=\"title-box\"><h1>{{TITLE}}</h1></div>\n    <div class=\"unit-line\">\n      <div class=\"unit\"><b>단원</b>　{{UNIT}}</div>\n      <div class=\"namefield\">학년<span></span> 반<span></span> 이름<span></span></div>\n    </div>\n  </div>"
+      },
+      {
+        "type": "standard-label",
+        "gen": "standard-label"
+      },
+      {
+        "type": "directive",
+        "html": "<div class=\"direct\">{{DIRECTIVE}}</div>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">1</span>탐구 문제와 가설을 세워 보자.</p>"
+      },
+      {
+        "type": "resource-box",
+        "html": "<div class=\"qbox\">\n    <span class=\"lab\">탐구 문제</span>\n    <div>{{PROBLEM}}</div>\n  </div>"
+      },
+      {
+        "type": "content",
+        "html": "<div style=\"margin-top:3mm;font-weight:600;\">▷ 나의 가설</div>"
+      },
+      {
+        "type": "hypothesis-box",
+        "html": "<div class=\"hbox\"><span class=\"answer\">{{HYPOTHESIS}}</span></div>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">2</span>실험을 설계하며 변인을 정리해 보자.</p>"
+      },
+      {
+        "type": "variable-table",
+        "html": "<table class=\"vartable\">\n    <tr><td class=\"k\">준비물</td><td>{{PREP}}</td></tr>\n    <tr><td class=\"k\">조작 변인<br>(바꾸는 것)</td><td><span class=\"answer\">{{IV}}</span></td></tr>\n    <tr><td class=\"k\">통제 변인<br>(같게 하는 것)</td><td><span class=\"answer\">{{CV}}</span></td></tr>\n    <tr><td class=\"k\">종속 변인<br>(측정하는 것)</td><td><span class=\"answer\">{{DV}}</span></td></tr>\n  </table>"
+      }
     ],
     [
-      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">3</span>실험 과정에 따라 측정하고, 결과를 표에 기록해 보자.</p>" },
-      { "type": "example-strip", "html": "<div class=\"strip\"><div class=\"sh\">실험 과정</div>\n    <div class=\"sb\"><p>{{PROCEDURE}}</p></div>\n  </div>" },
-      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">4</span>측정 결과</p>" },
-      { "type": "data-table", "html": "<table class=\"data\">\n    <tr><th style=\"width:34%\">측정 조건</th><th style=\"width:33%\">측정값 1</th><th style=\"width:33%\">측정값 2</th></tr>\n    <tr><td class=\"n\">1</td><td></td><td></td></tr>\n    <tr><td class=\"n\">2</td><td></td><td></td></tr>\n    <tr><td class=\"n\">3</td><td></td><td></td></tr>\n    <tr><td class=\"n\">4</td><td></td><td></td></tr>\n  </table>" },
-      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">5</span>측정한 값을 그래프로 나타내 보자.</p>" },
-      { "type": "svg-graph", "html": "<div class=\"graphwrap keep\">\n    <svg width=\"360\" height=\"280\" viewBox=\"0 0 360 280\" xmlns=\"http://www.w3.org/2000/svg\">\n      <rect x=\"0\" y=\"0\" width=\"360\" height=\"280\" fill=\"#ffffff\"/>\n      <g stroke=\"#d8ece9\" stroke-width=\"1\">\n        <line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"240\"/><line x1=\"110\" y1=\"20\" x2=\"110\" y2=\"240\"/>\n        <line x1=\"170\" y1=\"20\" x2=\"170\" y2=\"240\"/><line x1=\"230\" y1=\"20\" x2=\"230\" y2=\"240\"/>\n        <line x1=\"290\" y1=\"20\" x2=\"290\" y2=\"240\"/>\n        <line x1=\"50\" y1=\"240\" x2=\"330\" y2=\"240\"/><line x1=\"50\" y1=\"190\" x2=\"330\" y2=\"190\"/>\n        <line x1=\"50\" y1=\"140\" x2=\"330\" y2=\"140\"/><line x1=\"50\" y1=\"90\" x2=\"330\" y2=\"90\"/>\n      </g>\n      <line x1=\"50\" y1=\"240\" x2=\"335\" y2=\"240\" stroke=\"#333\" stroke-width=\"1.6\"/>\n      <line x1=\"50\" y1=\"240\" x2=\"50\" y2=\"15\" stroke=\"#333\" stroke-width=\"1.6\"/>\n      <g font-size=\"9\" fill=\"#555\" text-anchor=\"middle\" font-family=\"Pretendard,sans-serif\">\n        <text x=\"330\" y=\"256\">가로축</text><text x=\"28\" y=\"28\">세로축</text>\n      </g>\n    </svg>\n    <div class=\"gcap\">모눈에 점을 찍고 직선(또는 곡선)으로 이어 보자.</div>\n  </div>" }
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">3</span>실험 과정에 따라 측정하고, 결과를 표에 기록해 보자.</p>"
+      },
+      {
+        "type": "example-strip",
+        "html": "<div class=\"strip\"><div class=\"sh\">실험 과정</div>\n    <div class=\"sb\"><p>{{PROCEDURE}}</p></div>\n  </div>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">4</span>측정 결과</p>"
+      },
+      {
+        "type": "data-table",
+        "html": "<table class=\"data\">\n    <tr><th style=\"width:34%\">측정 조건</th><th style=\"width:33%\">측정값 1</th><th style=\"width:33%\">측정값 2</th></tr>\n    <tr><td class=\"n\">1</td><td></td><td></td></tr>\n    <tr><td class=\"n\">2</td><td></td><td></td></tr>\n    <tr><td class=\"n\">3</td><td></td><td></td></tr>\n    <tr><td class=\"n\">4</td><td></td><td></td></tr>\n  </table>"
+      },
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">5</span>측정한 값을 그래프로 나타내 보자.</p>"
+      },
+      {
+        "type": "svg-graph",
+        "html": "<div class=\"graphwrap keep\">\n    <svg width=\"360\" height=\"280\" viewBox=\"0 0 360 280\" xmlns=\"http://www.w3.org/2000/svg\">\n      <rect x=\"0\" y=\"0\" width=\"360\" height=\"280\" fill=\"#ffffff\"/>\n      <g stroke=\"#d8ece9\" stroke-width=\"1\"><line x1=\"50\" y1=\"20\" x2=\"50\" y2=\"240\"/><line x1=\"80\" y1=\"20\" x2=\"80\" y2=\"240\"/><line x1=\"110\" y1=\"20\" x2=\"110\" y2=\"240\"/><line x1=\"140\" y1=\"20\" x2=\"140\" y2=\"240\"/><line x1=\"170\" y1=\"20\" x2=\"170\" y2=\"240\"/><line x1=\"200\" y1=\"20\" x2=\"200\" y2=\"240\"/><line x1=\"230\" y1=\"20\" x2=\"230\" y2=\"240\"/><line x1=\"260\" y1=\"20\" x2=\"260\" y2=\"240\"/><line x1=\"290\" y1=\"20\" x2=\"290\" y2=\"240\"/><line x1=\"320\" y1=\"20\" x2=\"320\" y2=\"240\"/><line x1=\"50\" y1=\"240\" x2=\"330\" y2=\"240\"/><line x1=\"50\" y1=\"215\" x2=\"330\" y2=\"215\"/><line x1=\"50\" y1=\"190\" x2=\"330\" y2=\"190\"/><line x1=\"50\" y1=\"165\" x2=\"330\" y2=\"165\"/><line x1=\"50\" y1=\"140\" x2=\"330\" y2=\"140\"/><line x1=\"50\" y1=\"115\" x2=\"330\" y2=\"115\"/><line x1=\"50\" y1=\"90\" x2=\"330\" y2=\"90\"/><line x1=\"50\" y1=\"65\" x2=\"330\" y2=\"65\"/><line x1=\"50\" y1=\"40\" x2=\"330\" y2=\"40\"/></g>\n      <line x1=\"50\" y1=\"240\" x2=\"335\" y2=\"240\" stroke=\"#333\" stroke-width=\"1.6\"/>\n      <line x1=\"50\" y1=\"240\" x2=\"50\" y2=\"15\" stroke=\"#333\" stroke-width=\"1.6\"/>\n      <g font-size=\"9\" fill=\"#555\" text-anchor=\"middle\" font-family=\"Pretendard,sans-serif\">\n        <text x=\"330\" y=\"256\">가로축</text><text x=\"28\" y=\"28\">세로축</text>\n      </g>\n    </svg>\n    <div class=\"gcap\">모눈에 점을 찍고 직선(또는 곡선)으로 이어 보자.</div>\n  </div>"
+      }
     ],
     [
-      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">6</span>결과를 해석하며 개념을 정리해 보자.</p>" },
-      { "type": "question", "html": "<div class=\"q\">(1) {{IQ1}}</div>" },
-      { "type": "content", "html": "<div class=\"answer\">{{IA1}}</div>" },
-      { "type": "answer-line", "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div>" },
-      { "type": "question", "html": "<div class=\"q\">(2) {{IQ2}}</div>" },
-      { "type": "content", "html": "<div class=\"answer\">{{IA2}}</div>" },
-      { "type": "answer-line", "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div>" },
-      { "type": "section-heading", "html": "<h2 class=\"sec\"><span class=\"n\">7</span>점검표를 작성하며 탐구를 정리해 보자.</h2>" },
-      { "type": "rubric", "html": "<table class=\"rubric\">\n    <tr><th>점검 요소</th><th style=\"width:22%\">점검 결과</th></tr>\n    <tr><td>{{RUBRIC1}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>{{RUBRIC2}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>{{RUBRIC3}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n  </table>" },
-      { "type": "note", "html": "<p style=\"margin:4mm 0 0;font-size:9pt;\">• 탐구를 하며 새롭게 알게 되거나 궁금해진 점을 적어 보자.</p>\n  <div class=\"note-under\"></div><div class=\"note-under\"></div>" }
+      {
+        "type": "subq",
+        "html": "<p class=\"subq\"><span class=\"qnum\">6</span>결과를 해석하며 개념을 정리해 보자.</p>"
+      },
+      {
+        "type": "question",
+        "html": "<div class=\"q\">(1) {{IQ1}}</div>"
+      },
+      {
+        "type": "content",
+        "html": "<div class=\"answer\">{{IA1}}</div>"
+      },
+      {
+        "type": "answer-line",
+        "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div>"
+      },
+      {
+        "type": "question",
+        "html": "<div class=\"q\">(2) {{IQ2}}</div>"
+      },
+      {
+        "type": "content",
+        "html": "<div class=\"answer\">{{IA2}}</div>"
+      },
+      {
+        "type": "answer-line",
+        "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div>"
+      },
+      {
+        "type": "section-heading",
+        "html": "<h2 class=\"sec\"><span class=\"n\">7</span>점검표를 작성하며 탐구를 정리해 보자.</h2>"
+      },
+      {
+        "type": "rubric",
+        "html": "<table class=\"rubric\">\n    <tr><th>점검 요소</th><th style=\"width:22%\">점검 결과</th></tr>\n    <tr><td>{{RUBRIC1}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>{{RUBRIC2}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>{{RUBRIC3}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n  </table>"
+      },
+      {
+        "type": "note",
+        "html": "<p style=\"margin:4mm 0 0;font-size:9pt;\">• 탐구를 하며 새롭게 알게 되거나 궁금해진 점을 적어 보자.</p>\n  <div class=\"note-under\"></div><div class=\"note-under\"></div>"
+      }
     ]
   ]
 }

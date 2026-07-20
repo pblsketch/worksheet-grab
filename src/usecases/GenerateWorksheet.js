@@ -60,17 +60,38 @@ export class GenerateWorksheet {
   }
 
   /**
-   * @param {{grade:string, subject:string, topic:string, limit?:number}} args
+   * @param {{grade:string, subject:string, topic:string, limit?:number, codes?:string[]}} args
+   *   codes 지정 시 키워드 검색 대신 해당 성취기준 코드들을 직접 조회한다(교사 선택권).
    * @returns {Promise<{html:string, worksheet, standards, manifest}>}
    */
-  async execute({ grade, subject, topic, limit = 6 }) {
+  async execute({ grade, subject, topic, limit = 6, codes = null }) {
     if (!topic) throw new Error('generate: 주제(topic)가 필요합니다.');
     const spec = resolveSubject(subject);
     const { school } = parseGrade(grade);
 
-    const found = await this.curriculum.search({ school, subject: spec.label, keyword: topic, limit });
+    let found;
+    if (Array.isArray(codes) && codes.length > 0) {
+      found = [];
+      for (const code of codes) {
+        const hit = await this.curriculum.resolve(code);
+        if (!hit) throw new Error(`성취기준 코드를 찾지 못했습니다: ${code}. 원문 창작 금지.`);
+        found.push(hit);
+      }
+    } else {
+      found = await this.curriculum.search({ school, subject: spec.label, keyword: topic, limit });
+    }
     if (!found || found.length === 0) {
       throw new Error(`성취기준을 찾지 못했습니다(${school ?? '전체'} · ${spec.label} · "${topic}"). 원문 창작 금지.`);
+    }
+
+    // 학교급 혼합 방지: 학년을 생략하면 중학교 [9과…]와 고교 [10통과…]가 한 활동지에
+    // 조용히 섞일 수 있다. 활동지는 단일 학교급 대상이므로 fail-closed 로 막는다.
+    const schools = [...new Set(found.map((s) => s.school).filter(Boolean))];
+    if (schools.length > 1) {
+      throw new Error(
+        `학교급이 섞인 성취기준이 조회되었습니다(${schools.join(', ')}). ` +
+        `학년을 붙여 학교급을 지정하세요. 예: "중2${subject} ${topic}"`,
+      );
     }
 
     const template = await this.repo.readTemplate(spec.template);

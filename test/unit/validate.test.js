@@ -38,3 +38,19 @@ test('테마 var + :root 정의는 하드코딩으로 보지 않는다(오탐 �
   const { findings } = v.execute(themed);
   assert.ok(!findings.some((f) => f.rule === 'hardcoded-subject-color'), ':root/주석/var 는 위반이 아님');
 });
+
+test('unfilled-slot: ［…슬롯］ 마커 잔존 시 warning(스캐폴드 상태 안내)', () => {
+  const html = '<div class="qbox">［탐구 문제 슬롯］ 이 단원의 핵심 탐구 질문</div><p>［교사 예시 답안 슬롯］</p>';
+  const { ok, findings } = new ValidateWorksheet().execute(html);
+  const f = findings.find((x) => x.rule === 'unfilled-slot');
+  assert.ok(f, 'unfilled-slot 경고 존재');
+  assert.equal(f.severity, 'warning');
+  assert.match(f.message, /2개/);
+  assert.equal(ok, true, '경고는 게이트를 막지 않는다(fail 은 아님)');
+});
+
+test('unfilled-slot: 슬롯이 모두 채워지면 경고 없음', () => {
+  const html = '<div class="qbox">빛의 세기에 따라 광합성량은 어떻게 달라질까?</div>';
+  const { findings } = new ValidateWorksheet().execute(html);
+  assert.ok(!findings.some((x) => x.rule === 'unfilled-slot'));
+});

@@ -29,13 +29,13 @@ test('US-M4-3: edit → 재렌더가 유효 PDF 산출(페이지 잘림 없음)'
   );
   assert.equal(code, 0, 'edit(재렌더 포함) 성공');
 
-  // PDF 산출 확인
+  // PDF 산출 확인 — G4: 편집본은 원본 보존을 위해 -v2 베이스로 산출된다.
   const files = await readdir(dir);
   const pdfs = files.filter((f) => f.endsWith('.pdf'));
-  assert.ok(pdfs.includes('science-광합성-student.pdf'), 'student PDF 재렌더');
-  assert.ok(pdfs.includes('science-광합성-teacher.pdf'), 'teacher PDF 재렌더');
+  assert.ok(pdfs.includes('science-광합성-v2-student.pdf'), 'student PDF 재렌더(-v2)');
+  assert.ok(pdfs.includes('science-광합성-v2-teacher.pdf'), 'teacher PDF 재렌더(-v2)');
 
-  for (const pdf of ['science-광합성-student.pdf', 'science-광합성-teacher.pdf']) {
+  for (const pdf of ['science-광합성-v2-student.pdf', 'science-광합성-v2-teacher.pdf']) {
     const pages = await countPdfPages(join(dir, pdf));
     assert.ok(pages >= 2 && pages <= 4, `${pdf} 페이지수 정상(2~4): ${pages}`);
   }

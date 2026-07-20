@@ -49,3 +49,25 @@ test('G1: search 는 MCP 실패 시 CSV 폴백(포트 계약)', { skip: !existsS
   const r = await cur.search({ school: '중학교', subject: '과학', keyword: '광합성' });
   assert.ok(r.length >= 1, 'MCP off 여도 CSV 로 검색 성공');
 });
+
+test('CSV 경로 설정: 생성자 csvPath > GEPAI_CSV 환경변수 > 기본 경로', async () => {
+  const { resolveCsvPath, DEFAULT_CSV_PATH } = await import('../../src/adapters/GepaiCurriculum.js');
+  const prev = process.env.GEPAI_CSV;
+  try {
+    delete process.env.GEPAI_CSV;
+    assert.equal(resolveCsvPath(null), DEFAULT_CSV_PATH);
+    process.env.GEPAI_CSV = 'X:/custom/standards.csv';
+    assert.equal(resolveCsvPath(null), 'X:/custom/standards.csv');
+    assert.equal(resolveCsvPath('Y:/explicit.csv'), 'Y:/explicit.csv', '명시 경로가 환경변수보다 우선');
+  } finally {
+    if (prev === undefined) delete process.env.GEPAI_CSV; else process.env.GEPAI_CSV = prev;
+  }
+});
+
+test('CSV 미존재 시 search 는 "0건"이 아니라 경로 안내 오류를 낸다', async () => {
+  const cur = new GepaiCurriculum({ csvPath: 'Z:/no/such/standards.csv' });
+  await assert.rejects(
+    () => cur.search({ subject: '과학', keyword: '광합성' }),
+    /성취기준 CSV 를 찾을 수 없습니다[\s\S]*GEPAI_CSV/,
+  );
+});

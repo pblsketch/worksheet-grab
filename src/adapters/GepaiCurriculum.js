@@ -8,14 +8,19 @@ import { CurriculumProvider } from '../usecases/ports.js';
 //   - 미주입(CLI 기본): CSV 만 사용.
 // 성취기준 원문은 조회만 한다(창작 금지).
 
-// HANDOFF 2장: gepai MCP 대체 폴백 CSV
+// HANDOFF 2장: gepai MCP 대체 폴백 CSV.
+// 경로 우선순위: 생성자 csvPath(CLI --csv) > GEPAI_CSV 환경변수 > 기본 경로.
 export const DEFAULT_CSV_PATH = 'E:/github/gepai-mcp/data/source/achievement-standards.csv';
+
+export function resolveCsvPath(csvPath = null) {
+  return csvPath || process.env.GEPAI_CSV || DEFAULT_CSV_PATH;
+}
 
 export class GepaiCurriculum extends CurriculumProvider {
   /** @param {{csvPath?:string, mcpClient?:object|null}} opts */
-  constructor({ csvPath = DEFAULT_CSV_PATH, mcpClient = null } = {}) {
+  constructor({ csvPath = null, mcpClient = null } = {}) {
     super();
-    this.csvPath = csvPath;
+    this.csvPath = resolveCsvPath(csvPath);
     this.mcpClient = mcpClient;
     this._map = null; // lazy code → {text, subject, school, grade}
   }
@@ -80,6 +85,13 @@ export class GepaiCurriculum extends CurriculumProvider {
       } catch { /* MCP 끊김 → CSV 폴백 */ }
     }
 
+    // CSV 자체가 없으면 "검색 결과 0건"과 구분되는 명확한 오류를 낸다(이식성 안내).
+    if (!existsSync(this.csvPath)) {
+      throw new Error(
+        `성취기준 CSV 를 찾을 수 없습니다: ${this.csvPath}\n` +
+        '  --csv <경로> 플래그 또는 GEPAI_CSV 환경변수로 achievement-standards.csv 위치를 지정하세요.',
+      );
+    }
     const map = await this.#ensureCsv();
     const results = [];
     for (const [code, v] of map) {

@@ -17,13 +17,13 @@ export class RunPipeline {
   }
 
   /**
-   * @param {{grade:string, subject:string, topic:string, limit?:number}} args
+   * @param {{grade:string, subject:string, topic:string, limit?:number, codes?:string[]}} args
    * @returns {Promise<{html,student,teacher,worksheet,standards,review,gate,manifest}>}
    */
-  async execute({ grade, subject, topic, limit = 6 }) {
+  async execute({ grade, subject, topic, limit = 6, codes = null }) {
     // 1) 성취기준 조회 + 조립
     const gen = new GenerateWorksheet({ blockRepository: this.repo, curriculum: this.curriculum });
-    const { html, worksheet, standards, manifest } = await gen.execute({ grade, subject, topic, limit });
+    const { html, worksheet, standards, manifest } = await gen.execute({ grade, subject, topic, limit, codes });
 
     // 2) 학생용/교사용 2벌
     const { student, teacher } = new BuildVariants().execute(html);

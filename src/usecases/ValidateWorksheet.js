@@ -5,6 +5,7 @@ import { ANSWER_CLASSES } from './BuildVariants.js';
 //  1) 정답 누출: .answer/.plot-ans 밖으로 정답 텍스트가 새면 error(FAIL). (수용기준 3)
 //  2) 하드코딩 교과색: 교과 팔레트 hex 가 :root 밖에서 쓰이면 warning. (수용기준 4)
 //  3) 인쇄 안전(권고, M5): 최소 글자 크기·최소 여백·keep-together 미지원이면 warning. (HANDOFF 3.2)
+//  4) 미기입 슬롯: ［…슬롯］ 마커가 남아 있으면 warning(스캐폴드 상태 — 인쇄 전 저작 필요).
 //
 // 결과: { ok, findings:[{rule, severity, message, evidence}] }. ok = error 없음.
 
@@ -27,6 +28,7 @@ export class ValidateWorksheet {
     const findings = [];
 
     this.#checkAnswerLeak(html, findings);
+    this.#checkUnfilledSlots(html, findings);
     this.#checkHardcodedSubjectColor(html, findings);
     this.#checkMinFont(html, findings);
     this.#checkMargin(html, findings);
@@ -55,6 +57,20 @@ export class ValidateWorksheet {
         });
       }
     }
+  }
+
+  // 미기입 슬롯: 템플릿 슬롯 마커(전각 대괄호 ［…슬롯］)가 그대로 남아 있으면
+  // 아직 콘텐츠가 저작되지 않은 스캐폴드다. 게이트 PASS 가 "완성본" 착각을 주지 않도록 경고.
+  #checkUnfilledSlots(html, findings) {
+    const slots = html.match(/［[^［］]*슬롯[^［］]*］/g) || [];
+    if (slots.length === 0) return;
+    const uniq = [...new Set(slots)];
+    findings.push({
+      rule: 'unfilled-slot',
+      severity: 'warning',
+      message: `미기입 슬롯 ${slots.length}개가 남아 있습니다. 인쇄 전에 교사/AI가 콘텐츠를 채워야 합니다.`,
+      evidence: uniq.slice(0, 4).join(' ') + (uniq.length > 4 ? ` 외 ${uniq.length - 4}종` : ''),
+    });
   }
 
   #checkHardcodedSubjectColor(html, findings) {

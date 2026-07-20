@@ -16,6 +16,11 @@
     "W1": "［단어 1 슬롯］",
     "W2": "［단어 2 슬롯］",
     "W3": "［단어 3 슬롯］",
+    "W4": "［단어 4 슬롯］",
+    "W5": "［단어 5 슬롯］",
+    "W6": "［단어 6 슬롯］",
+    "W7": "［단어 7 슬롯］",
+    "W8": "［단어 8 슬롯］",
     "DIALOGUE_TASK": "빈칸에 알맞은 표현을 넣어 대화를 완성해 보자.",
     "DLG_A1": "［A 대사 슬롯］",
     "DLG_B1": "［B 대사 슬롯 — 빈칸 포함］",
@@ -33,7 +38,7 @@
       { "type": "standard-label", "gen": "standard-label" },
       { "type": "directive", "html": "<div class=\"direct\">{{DIRECTIVE}}</div>" },
       { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">1</span>{{VOCAB_TASK}}</p>" },
-      { "type": "vocab", "html": "<table class=\"vocab\">\n    <tr><th style=\"width:26%\">Word</th><th style=\"width:30%\">뜻</th><th>예문 (Example)</th></tr>\n    <tr><td class=\"w\">{{W1}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W2}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W3}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n  </table>" }
+      { "type": "vocab", "html": "<table class=\"vocab\">\n    <tr><th style=\"width:26%\">Word</th><th style=\"width:30%\">뜻</th><th>예문 (Example)</th></tr>\n    <tr><td class=\"w\">{{W1}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W2}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W3}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W4}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W5}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W6}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W7}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W8}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n  </table>" }
     ],
     [
       { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">2</span>{{DIALOGUE_TASK}}</p>" },

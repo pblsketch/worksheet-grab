@@ -70,3 +70,34 @@ test('성취기준 미발견 시 창작하지 않고 오류', async () => {
     /찾지 못했습니다/,
   );
 });
+
+// G6: 학교급 혼합 방지 -------------------------------------------------------
+test('G6: 학년 생략으로 학교급이 섞이면 fail-closed 오류(안내 포함)', async () => {
+  const repo = new FsBlockRepository({ root: ROOT });
+  const mixed = [
+    { code: '[9과12-01]', text: '광합성 과정을 이해한다.', subject: '과학', school: '중학교' },
+    { code: '[10통과2-01-03]', text: '산화와 환원을 이해한다.', subject: '통합과학', school: '고등학교' },
+  ];
+  const gen = new GenerateWorksheet({
+    blockRepository: repo,
+    curriculum: { async search() { return mixed; }, async resolve() { return null; } },
+  });
+  await assert.rejects(
+    () => gen.execute({ grade: '', subject: '과학', topic: '광합성' }),
+    /학교급이 섞인 성취기준[\s\S]*중학교, 고등학교[\s\S]*중2과학 광합성/,
+  );
+});
+
+test('G6: 단일 학교급이면 학년 표기가 없어도 통과', async () => {
+  const repo = new FsBlockRepository({ root: ROOT });
+  const single = [
+    { code: '[9과12-01]', text: '광합성 과정을 이해한다.', subject: '과학', school: '중학교' },
+    { code: '[9과12-02]', text: '광합성 산물을 설명한다.', subject: '과학', school: '중학교' },
+  ];
+  const gen = new GenerateWorksheet({
+    blockRepository: repo,
+    curriculum: { async search() { return single; }, async resolve() { return null; } },
+  });
+  const { standards } = await gen.execute({ grade: '', subject: '과학', topic: '광합성' });
+  assert.equal(standards.length, 2);
+});
