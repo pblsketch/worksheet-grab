@@ -1,0 +1,34 @@
+<div class="graphwrap keep">
+    <svg width="360" height="300" viewBox="0 0 360 300" xmlns="http://www.w3.org/2000/svg">
+      <rect x="0" y="0" width="360" height="300" fill="#ffffff"/>
+      <!-- grid -->
+      <g stroke="#d8ece9" stroke-width="1">
+        <line x1="50" y1="20" x2="50" y2="260"/><line x1="102" y1="20" x2="102" y2="260"/>
+        <line x1="154" y1="20" x2="154" y2="260"/><line x1="206" y1="20" x2="206" y2="260"/>
+        <line x1="258" y1="20" x2="258" y2="260"/><line x1="310" y1="20" x2="310" y2="260"/>
+        <line x1="50" y1="260" x2="330" y2="260"/><line x1="50" y1="212" x2="330" y2="212"/>
+        <line x1="50" y1="164" x2="330" y2="164"/><line x1="50" y1="116" x2="330" y2="116"/>
+        <line x1="50" y1="68" x2="330" y2="68"/>
+      </g>
+      <!-- axes -->
+      <line x1="50" y1="260" x2="335" y2="260" stroke="#333" stroke-width="1.6"/>
+      <line x1="50" y1="260" x2="50" y2="15" stroke="#333" stroke-width="1.6"/>
+      <!-- x ticks -->
+      <g font-size="9" fill="#555" text-anchor="middle" font-family="Pretendard,sans-serif">
+        <text x="102" y="274">1.5</text><text x="154" y="274">3.0</text>
+        <text x="206" y="274">4.5</text><text x="258" y="274">6.0</text>
+        <text x="330" y="277">전압(V)</text>
+        <text x="44" y="264" text-anchor="end">0</text>
+        <text x="44" y="216" text-anchor="end">0.5</text><text x="44" y="168" text-anchor="end">1.0</text>
+        <text x="44" y="120" text-anchor="end">1.5</text><text x="44" y="72" text-anchor="end">2.0</text>
+        <text x="30" y="30" text-anchor="middle">전류(A)</text>
+      </g>
+      <!-- teacher: sample points + best-fit line -->
+      <g class="plot-ans">
+        <line x1="50" y1="260" x2="258" y2="68" stroke="#1a5fb4" stroke-width="2"/>
+        <circle cx="102" cy="212" r="3.5" fill="#c0392b"/><circle cx="154" cy="164" r="3.5" fill="#c0392b"/>
+        <circle cx="206" cy="116" r="3.5" fill="#c0392b"/><circle cx="258" cy="68" r="3.5" fill="#c0392b"/>
+      </g>
+    </svg>
+    <div class="gcap">전압–전류 그래프 (모눈에 점을 찍고 직선으로 이어 보자)</div>
+  </div>

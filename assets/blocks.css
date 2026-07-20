@@ -1,0 +1,184 @@
+/* ===== 블록 컴포넌트 스타일 (전 교과 공유) =====
+ * 규칙: 교과색은 반드시 var(--c/--c2/--clite/--cstrip/--clabel/--cink) 로만 참조.
+ *       이 파일에는 교과 팔레트 hex(7cb342 등)를 절대 쓰지 않는다.
+ * 예외(교과 무관 고정색): 정답 하이라이트(#1a5fb4), 찬반 의미색(핑크/블루),
+ *       별점 골드(#f0a500), 슬롯 오렌지 — themes.md 규정.
+ * 교과별로 달라지는 아이콘/글리프는 body[data-subject="..."] 로 분기.
+ */
+
+/* ---- header (단원 헤더) ---- */
+.wsheet-title-wrap, .title-wrap { position: relative; margin-bottom: 6mm; }
+.pill { display: inline-block; background: var(--c); color: #fff; font-weight: 700;
+  font-size: 10.5pt; padding: 3px 16px; border-radius: 20px; margin-bottom: 5px; }
+.corner-ref { position: absolute; top: 2px; right: 0; font-size: 8.5pt; color: #555;
+  background: var(--clite); padding: 2px 8px; border-radius: 4px; }
+.title-box { border: 2.2px solid var(--c2); border-radius: 14px; padding: 12px 18px;
+  text-align: center; background: var(--clite); }
+.title-box h1 { margin: 0; font-size: 20pt; font-weight: 800; letter-spacing: -.5px; color: var(--cink); }
+.unit-line { display: flex; align-items: center; gap: 10px; margin-top: 5mm; font-size: 9.5pt; }
+.unit-line .unit { flex: 1; }
+.unit-line .unit b { color: var(--cink); }
+.namefield { color: #555; white-space: nowrap; }
+.namefield span { display: inline-block; border-bottom: 1px solid #999; width: 46px; margin: 0 2px; }
+
+/* ---- standard-label (성취기준 라벨) ---- */
+.std-box { margin: 4mm 0 0; border: 1px solid #cbd5c0; border-radius: 8px; overflow: hidden; }
+.std-box .std-head { background: var(--clite); color: var(--cink); font-weight: 700; font-size: 9pt;
+  padding: 4px 12px; border-bottom: 1px solid #cbd5c0; }
+.std-box ul { margin: 0; padding: 7px 14px 7px 30px; }
+.std-box li { font-size: 9pt; margin: 2px 0; color: #333; }
+.std-box li b { color: var(--c); margin-right: 4px; }
+
+/* ---- directive (활동 지시문) ---- 교과별 글리프는 data-subject 분기 ---- */
+.direct { display: flex; gap: 8px; align-items: flex-start; margin: 7mm 0 3mm; font-weight: 700; font-size: 11pt; }
+.direct::before { content: "◐"; color: var(--c); font-size: 13pt; line-height: 1; margin-top: 1px; }
+body[data-subject="science"] .direct::before,
+body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font-size: 12pt; margin-top: 0; }
+.qnum { display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 17px; background: var(--c); color: #fff; border-radius: 50%;
+  font-size: 9pt; font-weight: 700; margin-right: 6px; }
+.subq { margin: 2mm 0 1mm; font-weight: 600; }
+
+/* ---- label-value table (국어) ---- */
+.lv-table td { border: 1px solid #cbd5c0; vertical-align: top; padding: 8px 10px; font-size: 9.5pt; }
+.lv-table td.label { background: var(--clabel); font-weight: 700; text-align: center; width: 26%; color: var(--cink); }
+.lv-table td.label.gray { background: #ededed; color: #444; }
+.lv-table td.blank { height: 42px; }
+.lv-table ul { margin: 0; padding-left: 16px; }
+.lv-table ul li { margin: 4px 0; }
+
+/* ---- dashed emphasis box (국어) ---- */
+.dash-box { border: 1.6px dashed var(--c2); border-radius: 8px; margin-top: 3mm; }
+.dash-box .dh { background: var(--clite); display: inline-block; margin: 8px 0 0 10px;
+  padding: 2px 10px; border-radius: 4px; font-weight: 700; color: var(--cink); font-size: 9.5pt; }
+.dash-box .db { min-height: 46px; padding: 8px 12px 12px; }
+
+/* ---- example strip (공통) ---- */
+.strip { margin-top: 3mm; border: 1px solid #cbd5c0; border-radius: 6px; overflow: hidden; }
+.strip .sh { background: var(--cstrip); color: #fff; font-weight: 700; text-align: center;
+  padding: 4px 10px; font-size: 9.5pt; }
+.strip .sb { padding: 8px 12px; font-size: 9pt; background: #fbfcfb; }
+.strip .sb p { margin: 3px 0; }
+
+/* ---- comparison table (국어) ---- */
+.cmp { margin-top: 3mm; }
+.cmp th { background: #ededed; font-weight: 700; padding: 6px; font-size: 9.5pt; border: 1px solid #ccc; }
+.cmp th.c { background: var(--clabel); color: var(--cink); }
+.cmp td { border: 1px solid #ccc; padding: 8px 10px; vertical-align: top; height: 44px; font-size: 9.5pt; }
+.cmp .hl { background: #efe6f7; padding: 2px 4px; border-radius: 3px; }
+.cmp td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 18%; }
+
+/* ---- reading passage box (국어) — 저작권 지문은 .slot 유지 ---- */
+.passage { border: 1.5px solid #bbb; border-radius: 8px; padding: 14px 18px; margin-top: 3mm; background: #fcfcfa; }
+.passage h3 { text-align: center; margin: 0 0 8px; font-size: 12pt; }
+.passage p { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
+.passage .slot { color: #b06a00; background: #fff5e6; border: 1px dashed #e0a94f;
+  border-radius: 5px; padding: 6px 10px; font-size: 8.7pt; margin: 6px 0; }
+.passage .src { text-align: right; font-size: 8.7pt; color: #555; margin-top: 6px; }
+.passage .fn { border-top: 1px dotted #ccc; margin-top: 8px; padding-top: 5px; font-size: 8.3pt; color: #555; }
+.passage .fn p { margin: 1px 0; text-indent: 0; }
+
+/* ---- question + answer slot (공통) ---- */
+.q { margin: 2.5mm 0 1.5mm; font-weight: 600; }
+.ans-line { border-bottom: 1px solid #ccc; height: 20px; margin: 8px 0; }
+.ans-line.tall { height: 34px; }
+.ansbox { border: 1px solid #ccc; border-radius: 6px; min-height: 50px; margin-top: 5px; padding: 8px 10px; }
+
+/* ---- teacher answer (교과 무관 고정 블루) ---- */
+.answer { display: none; }
+[data-mode="teacher"] .answer { display: block; color: #1a5fb4; font-weight: 500; font-size: 9.3pt;
+  background: #eef4fc; border-left: 3px solid #6aa3e0; padding: 5px 9px; margin: 5px 0; border-radius: 0 4px 4px 0; }
+[data-mode="teacher"] .answer.inline { display: inline; background: none; border: none; padding: 0; }
+
+/* ---- pro/con table (국어) — 찬반 의미색 고정 허용 ---- */
+.pc { margin-top: 3mm; }
+.pc th { padding: 5px; border: 1px solid #cbd5c0; font-size: 10pt; }
+.pc th.pro { background: #f7d9df; color: #a03a52; }
+.pc th.con { background: #dfe6f2; color: #35507e; }
+.pc td { border: 1px solid #cbd5c0; width: 50%; vertical-align: top; padding: 8px 10px; height: 70px; }
+.pc td .rc { color: #777; font-weight: 700; font-size: 8.7pt; }
+.pc td .dv { border-top: 1px dashed #c9c9c9; margin: 10px 0; }
+
+/* ---- memo table (국어) ---- */
+.memo th { background: var(--cstrip); color: #fff; padding: 4px; border: 1px solid #cbd5c0; font-size: 9.5pt; }
+.memo td { border: 1px solid #cbd5c0; padding: 5px 9px; vertical-align: top; font-size: 9pt; }
+.memo td.k { background: #f2f2f2; font-weight: 700; text-align: center; width: 12%; }
+.memo td.blank { height: 30px; }
+
+/* ---- reflection principles box (공통) ---- */
+.princ { border: 1.6px solid #cbd5c0; border-radius: 10px; padding: 8px 14px; margin-top: 2px; min-height: 46px; }
+.princ .dot { margin: 6px 0; padding-left: 4px; }
+.princ .dot::before { content: "•"; color: var(--c); font-weight: 700; margin-right: 8px; }
+
+/* ---- rubric checklist (공통) ---- */
+.rubric { margin-top: 3mm; }
+.rubric th { background: var(--cstrip); color: #fff; padding: 5px; border: 1px solid #cbd5c0; font-size: 9.5pt; }
+.rubric td { border: 1px solid #cbd5c0; padding: 5px 10px; font-size: 9.3pt; }
+.rubric td.stars { text-align: center; width: 22%; color: #f0a500; font-size: 12pt; letter-spacing: 2px; }
+.note-under { border-bottom: 1px solid #ccc; height: 14px; margin-top: 4px; }
+
+/* ---- numbered section heading (공통) ---- */
+h2.sec { display: flex; align-items: center; gap: 8px; font-size: 12pt; margin: 3mm 0 1.5mm; }
+h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 10pt; }
+
+/* ===== 자료 제시 박스 (과학·공통) ===== */
+.qbox { border: 1.5px solid #cbd5c0; border-radius: 8px; background: #fbfcfb; padding: 10px 14px; margin-top: 2mm; }
+.qbox .lab { display: inline-block; background: var(--clite); color: var(--cink); font-weight: 700;
+  padding: 2px 10px; border-radius: 4px; font-size: 9pt; margin-bottom: 4px; }
+.hbox { border: 1.6px dashed var(--c2); border-radius: 8px; min-height: 40px; margin-top: 2mm; padding: 8px 12px; }
+
+/* ===== 과학 특수 블록 ① 변인 통제표 ===== */
+.vartable td { border: 1px solid #cbd5c0; padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+.vartable td.k { background: var(--clabel); font-weight: 700; text-align: center; width: 24%; color: var(--cink); }
+.vartable td.blank { height: 34px; }
+
+/* ===== 과학 특수 블록 ② 데이터 기록표 ===== */
+.data { margin-top: 2mm; }
+.data th { background: var(--cstrip); color: #fff; padding: 6px; border: 1px solid #cbd5c0; font-size: 9.5pt; }
+.data td { border: 1px solid #cbd5c0; text-align: center; height: 30px; font-size: 9.5pt; }
+.data td.n { background: #fbfcfb; font-weight: 700; }
+.data td .a { color: #1a5fb4; font-weight: 600; }
+
+/* ===== 과학 특수 블록 ③ 수식 박스 (KaTeX) ===== */
+.formula { text-align: center; background: #fbfcfb; border: 1px solid #cbd5c0; border-radius: 8px;
+  padding: 10px; margin-top: 2mm; font-size: 12pt; }
+
+/* ===== 과학/수학 특수 블록 ④ SVG 모눈 그래프 ===== */
+.graphwrap { text-align: center; margin-top: 2mm; }
+.gcap { font-size: 9pt; color: #555; margin-top: 3px; }
+.plot-ans { display: none; }
+[data-mode="teacher"] .plot-ans { display: inline; }
+
+/* ===== 사회 특수 블록 ① 지도 활동(백지도/주석) ===== */
+.mapbox { border: 1.5px solid var(--c2); border-radius: 8px; background: var(--clite);
+  padding: 10px 14px; margin-top: 2mm; }
+.mapbox .maphead { display: inline-block; background: var(--c); color: #fff; font-weight: 700;
+  font-size: 9pt; padding: 2px 12px; border-radius: 4px; margin-bottom: 6px; }
+.mapbox .mapcanvas { background: #fff; border: 1px dashed #b9b9b9; border-radius: 6px;
+  min-height: 128px; display: flex; align-items: center; justify-content: center; }
+.mapbox .mapcap { font-size: 9pt; color: #555; margin-top: 4px; }
+
+/* ===== 사회 특수 블록 ② 연표(타임라인) ===== */
+.timeline { margin-top: 3mm; border-top: 3px solid var(--c); padding-top: 4px; }
+.timeline .tl-row { display: flex; gap: 6px; }
+.timeline .tl-node { flex: 1; text-align: center; }
+.timeline .tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c);
+  margin: -11px auto 6px; border: 2px solid #fff; }
+.timeline .tl-year { font-weight: 700; color: var(--cink); font-size: 9.3pt; }
+.timeline .tl-box { border: 1px solid #cbd5c0; border-radius: 6px; min-height: 44px;
+  margin-top: 4px; padding: 5px 7px; font-size: 8.7pt; background: #fbfcfb; }
+
+/* ===== 영어 특수 블록 ① 어휘 표 ===== */
+.vocab { margin-top: 3mm; }
+.vocab th { background: var(--cstrip); color: #fff; padding: 5px; border: 1px solid #cbd5c0; font-size: 9.5pt; }
+.vocab td { border: 1px solid #cbd5c0; padding: 6px 9px; vertical-align: top; font-size: 9.3pt; }
+.vocab td.w { background: var(--clabel); font-weight: 700; color: var(--cink); width: 26%; }
+.vocab td.blank { height: 26px; }
+
+/* ===== 영어 특수 블록 ② 대화문(다이얼로그) ===== */
+.dialogue { margin-top: 3mm; border: 1.4px solid var(--c2); border-radius: 8px;
+  background: var(--clite); padding: 10px 14px; }
+.dialogue .turn { display: flex; gap: 8px; margin: 5px 0; font-size: 9.5pt; }
+.dialogue .spk { font-weight: 700; color: var(--cink); min-width: 34px; }
+.dialogue .blank { border-bottom: 1px solid #bbb; flex: 1; min-height: 16px; }

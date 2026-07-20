@@ -1,0 +1,49 @@
+---
+name: worksheet-plan
+description: 활동지 아웃라인(블록 순서·문항 유형·활동 흐름·교과 테마)을 설계한다. 활동지·워크시트를 새로 기획할 때, "활동지 만들어줘/기획해줘", 성취기준으로 활동 흐름을 짤 때 사용. HTML은 만들지 않고 구조만 설계. 범교과 공통 코어를 기본 골격으로 삼는다.
+---
+
+# worksheet-plan (활동지 아웃라인 설계)
+
+HTML 저작 전에 **구조**를 확정한다. 좋은 아웃라인이 있어야 디자이너가 흔들리지 않는다.
+
+## 엔진 배선 (worksheet-grab CLI)
+아웃라인은 엔진의 **교과 템플릿**(`templates/science.json`·`korean.json`)으로 구체화된다. 루트: `E:/github/worksheet-grab`.
+- 표준 흐름이면 기존 템플릿을 그대로 쓰고(=`generate`), 블록 순서를 바꾸려면 아웃라인을 `manifests/*.json` 형태(페이지별 블록 배열 + `standards` 코드)로 기술해 `assemble` 에 넘긴다.
+- 사용 가능한 블록 타입은 `node bin/worksheet-grab.js list-blocks`, 테마는 `list-themes` 로 확인.
+
+## 골격 원칙 — 공통 코어 우선(범교과)
+모든 교과에 공통인 코어 블록을 기본 골격으로 배치하고, 교과 특수 블록은 필요한 것만 얹는다. 국어 관습(지문·찬반)을 기본값으로 강요하지 않는다.
+
+**공통 코어 블록:** 헤더(pill+제목박스+학년/반/이름) · 성취기준 라벨 · 활동 지시문 · 자료 제시 박스 · 답란(단답/서술/표) · 루브릭(점검표) · 성찰 문항.
+
+**교과 블록 팩(필요 시):**
+- 국어: 지문 박스+각주 · 찬반 논거표 · 토론 메모표
+- 과학: 변인 통제표 · 데이터 기록표 · SVG 모눈 그래프 · KaTeX 수식
+- 사회: 지도 · 연표 · 자료 해석표
+- 영어: 어휘 박스 · 대화문 · 빈칸(문법)
+
+## 설계 절차
+1. `01_curriculum_standards.json`에서 성취기준·suggestedFlow를 읽는다.
+2. 활동 흐름을 정한다(참고 리듬: 도입 지시문→활동 표→자료/지문→문항→토의/성찰→점검표). 교과·차시에 맞게 조정.
+3. 각 블록에 **목적·문항유형·교사용 정답 계획**을 붙인다. 각 활동이 어떤 성취기준을 달성하는지 한 줄로 연결.
+4. 교과 테마(색 토큰)를 지정한다: 국어=green, 과학=teal, 사회=amber, 영어=indigo(예시 — themes 참조).
+
+## 출력
+`_workspace/02_outline.json`
+```json
+{ "subject":"과학", "theme":"teal",
+  "standards":[{"code":"[9과14-02]"}],
+  "blocks":[
+    {"type":"header","purpose":"..."},
+    {"type":"standard-label"},
+    {"type":"directive","purpose":"탐구 문제 제시"},
+    {"type":"variable-table","questionType":"표","teacherAnswerPlan":"조작/통제/종속 예시"},
+    {"type":"data-table"},{"type":"svg-graph"},{"type":"formula"},
+    {"type":"rubric"},{"type":"reflection"}],
+  "notes":"1차시 분량으로 한정" }
+```
+
+## 경계
+- 문항 유형·블록만 결정한다. 실제 문구/HTML은 designer가 만든다.
+- 주제가 넓으면 1차시로 좁히고 근거를 남긴다.

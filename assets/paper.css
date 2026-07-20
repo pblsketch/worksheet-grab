@@ -1,0 +1,40 @@
+/* ===== paper-css core (A4) — 공통 코어(교과 무관) =====
+ * 인쇄가 진실의 원천. 교과색은 이 파일에 절대 하드코딩하지 않는다.
+ * 색은 themes/{subject}.css 의 :root 변수(var(--c) 등)로만 주입된다.
+ */
+@page { size: A4; margin: 0; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Pretendard", "Malgun Gothic", "맑은 고딕", sans-serif;
+  color: #222; font-size: 10.5pt; line-height: 1.42;
+  background: #eee; word-break: keep-all;               /* 한글 단어 중간 분리 방지 */
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.sheet {
+  width: 210mm; min-height: 297mm; box-sizing: border-box;
+  /* 정형화: 조밀한 섹션(예: 국어 5쪽 메모+성찰+루브릭)이 A4 한 장에 안착하도록
+     상·하 여백을 균형 있게 조였다(authored 섹션 수 = 인쇄 페이지 수 보장). */
+  padding: 12mm 15mm 10mm 15mm;
+  margin: 0 auto; background: #fff; position: relative;
+  page-break-after: always;
+}
+.sheet:last-child { page-break-after: auto; }
+@media screen { .sheet { margin: 6mm auto; box-shadow: 0 1px 6px rgba(0,0,0,.25); } }
+@media print { body { background: #fff; } .sheet { margin: 0; box-shadow: none; } }
+
+/* running header / footer */
+.run-head { position: absolute; top: 7mm; right: 15mm; font-size: 8pt; color: #8a8f98; }
+.run-foot { position: absolute; bottom: 7mm; left: 0; right: 0; padding: 0 15mm;
+  display: flex; justify-content: space-between; font-size: 8pt; color: #8a8f98; }
+
+/* 학생/교사 배지 — 모드색(교과 무관 고정) */
+.mode-badge { position: absolute; top: 7mm; left: 15mm; font-size: 8pt; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px; }
+[data-mode="student"] .mode-badge { background: #eef4fc; color: #1a5fb4; }
+[data-mode="teacher"] .mode-badge { background: #fdeaea; color: #c0392b; }
+[data-mode="student"] .mode-badge::after { content: "학생용"; }
+[data-mode="teacher"] .mode-badge::after { content: "교사용 (정답 포함)"; }
+
+/* 인쇄 안전: 문항/블록 페이지 잘림 방지 */
+.keep { page-break-inside: avoid; }
+table { border-collapse: collapse; width: 100%; }

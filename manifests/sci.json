@@ -1,0 +1,178 @@
+{
+  "id": "sci",
+  "subject": "science",
+  "dataSubject": "science",
+  "theme": "sci",
+  "lang": "ko",
+  "docTitle": "과학 탐구 활동지 — 전압과 전류의 관계",
+  "head": {
+    "katex": true
+  },
+  "runHead": "2022 개정 교육과정 · 과학 · 탐구 실험 활동지",
+  "runFoot": {
+    "left": "2022 개정 교육과정 연계 과학 탐구 활동지",
+    "rightPrefix": "옴의 법칙 탐구"
+  },
+  "standards": [
+    "[9과14-02]"
+  ],
+  "standardsText": {
+    "[9과14-02]": "전기 회로에서 전류를 모형으로 설명하고, 실험을 통해 저항, 전류, 전압 사이의 관계를 이끌어낼 수 있다."
+  },
+  "pages": [
+    [
+      {
+        "type": "header",
+        "file": "sci/p1-01-header.html"
+      },
+      {
+        "type": "standard-label",
+        "gen": "standard-label"
+      },
+      {
+        "type": "directive",
+        "file": "sci/p1-03-directive.html"
+      },
+      {
+        "type": "subq",
+        "file": "sci/p1-04-subq.html"
+      },
+      {
+        "type": "resource-box",
+        "file": "sci/p1-05-resource-box.html"
+      },
+      {
+        "type": "content",
+        "file": "sci/p1-06-content.html"
+      },
+      {
+        "type": "hypothesis-box",
+        "file": "sci/p1-07-hypothesis-box.html"
+      },
+      {
+        "type": "subq",
+        "file": "sci/p1-08-subq.html"
+      },
+      {
+        "type": "variable-table",
+        "file": "sci/p1-09-variable-table.html"
+      }
+    ],
+    [
+      {
+        "type": "subq",
+        "file": "sci/p2-01-subq.html"
+      },
+      {
+        "type": "example-strip",
+        "file": "sci/p2-02-example-strip.html"
+      },
+      {
+        "type": "subq",
+        "file": "sci/p2-03-subq.html"
+      },
+      {
+        "type": "data-table",
+        "file": "sci/p2-04-data-table.html"
+      },
+      {
+        "type": "content",
+        "file": "sci/p2-05-content.html"
+      },
+      {
+        "type": "subq",
+        "file": "sci/p2-06-subq.html"
+      },
+      {
+        "type": "svg-graph",
+        "file": "sci/p2-07-svg-graph.html"
+      }
+    ],
+    [
+      {
+        "type": "subq",
+        "file": "sci/p3-01-subq.html"
+      },
+      {
+        "type": "question",
+        "file": "sci/p3-02-question.html"
+      },
+      {
+        "type": "content",
+        "file": "sci/p3-03-content.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "sci/p3-04-answer-line.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "sci/p3-05-answer-line.html"
+      },
+      {
+        "type": "question",
+        "file": "sci/p3-06-question.html"
+      },
+      {
+        "type": "content",
+        "file": "sci/p3-07-content.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "sci/p3-08-answer-line.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "sci/p3-09-answer-line.html"
+      },
+      {
+        "type": "question",
+        "file": "sci/p3-10-question.html"
+      },
+      {
+        "type": "formula",
+        "file": "sci/p3-11-formula.html"
+      },
+      {
+        "type": "content",
+        "file": "sci/p3-12-content.html"
+      },
+      {
+        "type": "question",
+        "file": "sci/p3-13-question.html"
+      },
+      {
+        "type": "content",
+        "file": "sci/p3-14-content.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "sci/p3-15-answer-line.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "sci/p3-16-answer-line.html"
+      },
+      {
+        "type": "section-heading",
+        "file": "sci/p3-17-section-heading.html"
+      },
+      {
+        "type": "rubric",
+        "file": "sci/p3-18-rubric.html"
+      },
+      {
+        "type": "content",
+        "file": "sci/p3-19-content.html"
+      },
+      {
+        "type": "note",
+        "file": "sci/p3-20-note.html"
+      },
+      {
+        "type": "note",
+        "file": "sci/p3-21-note.html"
+      }
+    ]
+  ]
+}

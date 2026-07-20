@@ -1,0 +1,48 @@
+{
+  "id": "social-template",
+  "subject": "social",
+  "dataSubject": "social",
+  "theme": "social",
+  "lang": "ko",
+  "head": { "katex": false },
+  "pillDefault": "탐구·자료 분석",
+  "runHeadTemplate": "2022 개정 교육과정 · {subjectLabel} · 탐구 활동지",
+  "runFootTemplate": { "left": "2022 개정 교육과정 연계 {subjectLabel} 탐구 활동지", "rightPrefix": "{topic}" },
+  "slots": {
+    "DIRECTIVE": "자료를 읽고 지도와 연표로 정리하며, 사회 현상의 원인과 변화를 탐구해 보자.",
+    "REF": "중학교 {subjectLabel}",
+    "UNIT": "{topic}",
+    "MAP_TASK": "［지도 과제 슬롯］ 관련 지역·분포·이동을 지도에 표시할 과제를 교사가 입력합니다.",
+    "MAP_CAP": "지도에 위치를 표시하고, 범례를 만들어 설명해 보자.",
+    "TL_TASK": "주요 사건을 시간 순서대로 연표에 정리해 보자.",
+    "TL1": "시기 ①",
+    "TL2": "시기 ②",
+    "TL3": "시기 ③",
+    "IQ1": "지도와 연표에서 드러난 변화의 원인은 무엇인가요?",
+    "IA1": "［교사 예시 답안 슬롯］",
+    "REFLECT": "이 단원에서 새롭게 알게 된 점과 사회 현상을 보는 나의 관점을 정리해 보자.",
+    "RUBRIC1": "자료(지도·연표)를 바탕으로 사회 현상을 설명할 수 있는가?",
+    "RUBRIC2": "변화의 원인과 결과를 근거를 들어 분석할 수 있는가?",
+    "RUBRIC3": "다양한 관점을 존중하며 탐구에 참여할 수 있는가?"
+  },
+  "pages": [
+    [
+      { "type": "header", "html": "<div class=\"wsheet-title-wrap\">\n    <span class=\"pill\">{{PILL}}</span>\n    <span class=\"corner-ref\">{{REF}}</span>\n    <div class=\"title-box\"><h1>{{TITLE}}</h1></div>\n    <div class=\"unit-line\">\n      <div class=\"unit\"><b>단원</b>　{{UNIT}}</div>\n      <div class=\"namefield\">학년<span></span> 반<span></span> 이름<span></span></div>\n    </div>\n  </div>" },
+      { "type": "standard-label", "gen": "standard-label" },
+      { "type": "directive", "html": "<div class=\"direct\">{{DIRECTIVE}}</div>" },
+      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">1</span>자료를 읽고 지도에 나타내 보자.</p>" },
+      { "type": "resource-box", "html": "<div class=\"qbox\">\n    <span class=\"lab\">탐구 과제</span>\n    <div>{{MAP_TASK}}</div>\n  </div>" },
+      { "type": "map", "html": "<div class=\"mapbox\">\n    <span class=\"maphead\">지도 활동</span>\n    <div class=\"mapcanvas\">\n      <svg width=\"300\" height=\"120\" viewBox=\"0 0 300 120\" xmlns=\"http://www.w3.org/2000/svg\">\n        <rect x=\"1\" y=\"1\" width=\"298\" height=\"118\" fill=\"none\" stroke=\"#cccccc\"/>\n        <path d=\"M40 30 L110 20 L150 55 L120 95 L55 90 Z\" fill=\"#f5f5f5\" stroke=\"#999999\"/>\n        <path d=\"M175 35 L245 28 L262 75 L205 100 L172 70 Z\" fill=\"#f5f5f5\" stroke=\"#999999\"/>\n      </svg>\n    </div>\n    <div class=\"mapcap\">{{MAP_CAP}}</div>\n  </div>" }
+    ],
+    [
+      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">2</span>{{TL_TASK}}</p>" },
+      { "type": "timeline", "html": "<div class=\"timeline\">\n    <div class=\"tl-row\">\n      <div class=\"tl-node\"><div class=\"tl-dot\"></div><div class=\"tl-year\">{{TL1}}</div><div class=\"tl-box\"></div></div>\n      <div class=\"tl-node\"><div class=\"tl-dot\"></div><div class=\"tl-year\">{{TL2}}</div><div class=\"tl-box\"></div></div>\n      <div class=\"tl-node\"><div class=\"tl-dot\"></div><div class=\"tl-year\">{{TL3}}</div><div class=\"tl-box\"></div></div>\n    </div>\n  </div>" },
+      { "type": "question", "html": "<div class=\"q\">(1) {{IQ1}}</div>" },
+      { "type": "content", "html": "<div class=\"answer\">{{IA1}}</div>" },
+      { "type": "answer-line", "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div>" },
+      { "type": "section-heading", "html": "<h2 class=\"sec\"><span class=\"n\">3</span>탐구를 돌아보며 정리해 보자.</h2>" },
+      { "type": "reflection", "html": "<div class=\"q\">{{REFLECT}}</div>\n  <div class=\"princ\"><div class=\"dot\"></div><div class=\"dot\"></div><div class=\"dot\"></div></div>" },
+      { "type": "rubric", "html": "<table class=\"rubric\">\n    <tr><th>점검 요소</th><th style=\"width:22%\">점검 결과</th></tr>\n    <tr><td>{{RUBRIC1}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>{{RUBRIC2}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>{{RUBRIC3}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n  </table>" }
+    ]
+  ]
+}

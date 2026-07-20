@@ -1,0 +1,11 @@
+/* 국어 테마 — green (themes.md 기준값)
+ * 교과색은 여기 :root 변수로만 정의한다. 블록 CSS는 var(--*)만 참조한다.
+ */
+:root {
+  --c:      #7cb342;  /* primary (pill·강조) */
+  --c2:     #8bc34a;  /* border/title */
+  --clite:  #f6faf0;  /* 아주 옅은 배경 */
+  --cstrip: #9ccc65;  /* 표 헤더 스트립 */
+  --clabel: #dcedc8;  /* 라벨 셀 배경 */
+  --cink:   #558b2e;  /* 진한 텍스트 강조 */
+}

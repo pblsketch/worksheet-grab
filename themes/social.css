@@ -1,0 +1,11 @@
+/* 사회 테마 — amber/brown (범교과: 교과색은 여기 :root 변수로만 정의)
+ * 블록 CSS 는 var(--*) 만 참조한다. 하드코딩 금지.
+ */
+:root {
+  --c:      #b26a00;  /* primary (pill·강조) */
+  --c2:     #cc7a1a;  /* border/title */
+  --clite:  #fbf1e2;  /* 아주 옅은 배경 */
+  --cstrip: #dd9a4a;  /* 표 헤더 스트립 */
+  --clabel: #f0d9b5;  /* 라벨 셀 배경 */
+  --cink:   #8a5200;  /* 진한 텍스트 강조 */
+}

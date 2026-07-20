@@ -1,0 +1,11 @@
+/* 영어 테마 — indigo/violet (범교과: 교과색은 여기 :root 변수로만 정의)
+ * 블록 CSS 는 var(--*) 만 참조한다. 하드코딩 금지.
+ */
+:root {
+  --c:      #3949ab;  /* primary (pill·강조) */
+  --c2:     #5c6bc0;  /* border/title */
+  --clite:  #e8eaf6;  /* 아주 옅은 배경 */
+  --cstrip: #7986cb;  /* 표 헤더 스트립 */
+  --clabel: #c5cae9;  /* 라벨 셀 배경 */
+  --cink:   #283593;  /* 진한 텍스트 강조 */
+}

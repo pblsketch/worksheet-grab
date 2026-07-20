@@ -1,0 +1,49 @@
+{
+  "id": "english-template",
+  "subject": "english",
+  "dataSubject": "english",
+  "theme": "english",
+  "lang": "ko",
+  "head": { "katex": false },
+  "pillDefault": "어휘·의사소통",
+  "runHeadTemplate": "2022 개정 교육과정 · {subjectLabel} · 활동지",
+  "runFootTemplate": { "left": "2022 개정 교육과정 연계 {subjectLabel} 활동지", "rightPrefix": "{topic}" },
+  "slots": {
+    "DIRECTIVE": "핵심 어휘를 익히고, 대화문을 완성하며 실제 상황에서 의사소통해 보자.",
+    "REF": "중학교 {subjectLabel}",
+    "UNIT": "{topic}",
+    "VOCAB_TASK": "이 단원의 핵심 어휘를 정리하고, 뜻과 예문을 완성해 보자.",
+    "W1": "［단어 1 슬롯］",
+    "W2": "［단어 2 슬롯］",
+    "W3": "［단어 3 슬롯］",
+    "DIALOGUE_TASK": "빈칸에 알맞은 표현을 넣어 대화를 완성해 보자.",
+    "DLG_A1": "［A 대사 슬롯］",
+    "DLG_B1": "［B 대사 슬롯 — 빈칸 포함］",
+    "DLG_A2": "［A 대사 슬롯］",
+    "IQ1": "위 대화에서 배운 표현을 활용해 나만의 문장을 만들어 보자.",
+    "IA1": "［교사 예시 답안 슬롯］",
+    "REFLECT": "이 단원에서 새로 익힌 표현과 더 연습하고 싶은 부분을 정리해 보자.",
+    "RUBRIC1": "핵심 어휘의 의미를 파악하고 활용할 수 있는가?",
+    "RUBRIC2": "상황에 맞는 표현으로 대화를 완성할 수 있는가?",
+    "RUBRIC3": "배운 표현으로 자신의 생각을 표현할 수 있는가?"
+  },
+  "pages": [
+    [
+      { "type": "header", "html": "<div class=\"wsheet-title-wrap\">\n    <span class=\"pill\">{{PILL}}</span>\n    <span class=\"corner-ref\">{{REF}}</span>\n    <div class=\"title-box\"><h1>{{TITLE}}</h1></div>\n    <div class=\"unit-line\">\n      <div class=\"unit\"><b>단원</b>　{{UNIT}}</div>\n      <div class=\"namefield\">학년<span></span> 반<span></span> 이름<span></span></div>\n    </div>\n  </div>" },
+      { "type": "standard-label", "gen": "standard-label" },
+      { "type": "directive", "html": "<div class=\"direct\">{{DIRECTIVE}}</div>" },
+      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">1</span>{{VOCAB_TASK}}</p>" },
+      { "type": "vocab", "html": "<table class=\"vocab\">\n    <tr><th style=\"width:26%\">Word</th><th style=\"width:30%\">뜻</th><th>예문 (Example)</th></tr>\n    <tr><td class=\"w\">{{W1}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W2}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n    <tr><td class=\"w\">{{W3}}</td><td class=\"blank\"></td><td class=\"blank\"></td></tr>\n  </table>" }
+    ],
+    [
+      { "type": "subq", "html": "<p class=\"subq\"><span class=\"qnum\">2</span>{{DIALOGUE_TASK}}</p>" },
+      { "type": "dialogue", "html": "<div class=\"dialogue\">\n    <div class=\"turn\"><span class=\"spk\">A:</span><span>{{DLG_A1}}</span></div>\n    <div class=\"turn\"><span class=\"spk\">B:</span><span class=\"blank\"></span></div>\n    <div class=\"turn\"><span class=\"spk\">A:</span><span>{{DLG_A2}}</span></div>\n  </div>" },
+      { "type": "question", "html": "<div class=\"q\">(1) {{IQ1}}</div>" },
+      { "type": "content", "html": "<div class=\"answer\">{{IA1}}</div>" },
+      { "type": "answer-line", "html": "<div class=\"ans-line\"></div><div class=\"ans-line\"></div>" },
+      { "type": "section-heading", "html": "<h2 class=\"sec\"><span class=\"n\">3</span>학습을 돌아보며 정리해 보자.</h2>" },
+      { "type": "reflection", "html": "<div class=\"q\">{{REFLECT}}</div>\n  <div class=\"princ\"><div class=\"dot\"></div><div class=\"dot\"></div><div class=\"dot\"></div></div>" },
+      { "type": "rubric", "html": "<table class=\"rubric\">\n    <tr><th>점검 요소</th><th style=\"width:22%\">점검 결과</th></tr>\n    <tr><td>{{RUBRIC1}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>{{RUBRIC2}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n    <tr><td>{{RUBRIC3}}</td><td class=\"stars\">☆☆☆☆☆</td></tr>\n  </table>" }
+    ]
+  ]
+}

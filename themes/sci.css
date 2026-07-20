@@ -1,0 +1,11 @@
+/* 과학 테마 — teal (themes.md 기준값)
+ * 교과색은 여기 :root 변수로만 정의한다. 블록 CSS는 var(--*)만 참조한다.
+ */
+:root {
+  --c:      #00838f;  /* primary (pill·강조) */
+  --c2:     #26a69a;  /* border/title */
+  --clite:  #e0f2f1;  /* 아주 옅은 배경 */
+  --cstrip: #4db6ac;  /* 표 헤더 스트립 */
+  --clabel: #b2dfdb;  /* 라벨 셀 배경 */
+  --cink:   #00695c;  /* 진한 텍스트 강조 */
+}

@@ -1,0 +1,220 @@
+{
+  "id": "ko",
+  "subject": "korean",
+  "dataSubject": "ko",
+  "theme": "ko",
+  "lang": "ko",
+  "docTitle": "선풍기 토론 활동지 — 생성형 AI와 읽기-쓰기의 미래",
+  "head": {
+    "katex": false
+  },
+  "runHead": "2022 개정 교육과정 · 독서와 작문 · 토의토론 활동지",
+  "runFoot": {
+    "left": "2022 개정 교육과정 연계 토의토론 자료",
+    "rightPrefix": "선풍기 토론"
+  },
+  "standards": [
+    "[12독작01-01]",
+    "[12독작01-14]"
+  ],
+  "standardsText": {
+    "[12독작01-01]": "독서와 작문의 의사소통 방법과 특성을 이해하고 문어 의사소통 생활을 주도적으로 실천하고 성찰한다.",
+    "[12독작01-14]": "매체의 유형과 특성을 고려하며 글이나 자료를 읽고 쓴다."
+  },
+  "pages": [
+    [
+      {
+        "type": "header",
+        "file": "ko/p1-01-header.html"
+      },
+      {
+        "type": "standard-label",
+        "gen": "standard-label"
+      },
+      {
+        "type": "directive",
+        "file": "ko/p1-03-directive.html"
+      },
+      {
+        "type": "label-value",
+        "file": "ko/p1-04-label-value.html"
+      },
+      {
+        "type": "emphasis-box",
+        "file": "ko/p1-05-emphasis-box.html"
+      }
+    ],
+    [
+      {
+        "type": "directive",
+        "file": "ko/p2-01-directive.html"
+      },
+      {
+        "type": "subq",
+        "file": "ko/p2-02-subq.html"
+      },
+      {
+        "type": "example-strip",
+        "file": "ko/p2-03-example-strip.html"
+      },
+      {
+        "type": "example-strip",
+        "file": "ko/p2-04-example-strip.html"
+      },
+      {
+        "type": "example-strip",
+        "file": "ko/p2-05-example-strip.html"
+      },
+      {
+        "type": "subq",
+        "file": "ko/p2-06-subq.html"
+      },
+      {
+        "type": "comparison-table",
+        "file": "ko/p2-07-comparison-table.html"
+      }
+    ],
+    [
+      {
+        "type": "directive",
+        "file": "ko/p3-01-directive.html"
+      },
+      {
+        "type": "passage",
+        "file": "ko/p3-02-passage.html"
+      },
+      {
+        "type": "subq",
+        "file": "ko/p3-03-subq.html"
+      },
+      {
+        "type": "question",
+        "file": "ko/p3-04-question.html"
+      },
+      {
+        "type": "content",
+        "file": "ko/p3-05-content.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p3-06-answer-line.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p3-07-answer-line.html"
+      },
+      {
+        "type": "question",
+        "file": "ko/p3-08-question.html"
+      },
+      {
+        "type": "content",
+        "file": "ko/p3-09-content.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p3-10-answer-line.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p3-11-answer-line.html"
+      },
+      {
+        "type": "question",
+        "file": "ko/p3-12-question.html"
+      },
+      {
+        "type": "content",
+        "file": "ko/p3-13-content.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p3-14-answer-line.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p3-15-answer-line.html"
+      }
+    ],
+    [
+      {
+        "type": "subq",
+        "file": "ko/p4-01-subq.html"
+      },
+      {
+        "type": "emphasis-box",
+        "file": "ko/p4-02-emphasis-box.html"
+      },
+      {
+        "type": "pro-con",
+        "file": "ko/p4-03-pro-con.html"
+      }
+    ],
+    [
+      {
+        "type": "subq",
+        "file": "ko/p5-01-subq.html"
+      },
+      {
+        "type": "memo-table",
+        "file": "ko/p5-02-memo-table.html"
+      },
+      {
+        "type": "subq",
+        "file": "ko/p5-03-subq.html"
+      },
+      {
+        "type": "question",
+        "file": "ko/p5-04-question.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p5-05-answer-line.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p5-06-answer-line.html"
+      },
+      {
+        "type": "question",
+        "file": "ko/p5-07-question.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p5-08-answer-line.html"
+      },
+      {
+        "type": "answer-line",
+        "file": "ko/p5-09-answer-line.html"
+      },
+      {
+        "type": "question",
+        "file": "ko/p5-10-question.html"
+      },
+      {
+        "type": "reflection-principles",
+        "file": "ko/p5-11-reflection-principles.html"
+      },
+      {
+        "type": "section-heading",
+        "file": "ko/p5-12-section-heading.html"
+      },
+      {
+        "type": "rubric",
+        "file": "ko/p5-13-rubric.html"
+      },
+      {
+        "type": "content",
+        "file": "ko/p5-14-content.html"
+      },
+      {
+        "type": "note",
+        "file": "ko/p5-15-note.html"
+      },
+      {
+        "type": "note",
+        "file": "ko/p5-16-note.html"
+      }
+    ]
+  ]
+}

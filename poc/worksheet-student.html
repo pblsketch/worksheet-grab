@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko" data-mode="student">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>선풍기 토론 활동지 — 생성형 AI와 읽기-쓰기의 미래</title>
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+/* ===== paper-css core (A4) ===== */
+@page { size: A4; margin: 0; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Pretendard", "Malgun Gothic", "맑은 고딕", sans-serif;
+  color: #222; font-size: 10.5pt; line-height: 1.5;
+  background: #eee; word-break: keep-all;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.sheet {
+  width: 210mm; min-height: 297mm; box-sizing: border-box;
+  padding: 16mm 15mm 14mm 15mm;
+  margin: 0 auto; background: #fff; position: relative;
+  page-break-after: always;
+}
+.sheet:last-child { page-break-after: auto; }
+@media screen { .sheet { margin: 6mm auto; box-shadow: 0 1px 6px rgba(0,0,0,.25); } }
+@media print { body { background: #fff; } .sheet { margin: 0; box-shadow: none; } }
+
+/* ===== running header / footer ===== */
+.run-head { position: absolute; top: 7mm; right: 15mm; font-size: 8pt; color: #8a8f98; }
+.run-foot { position: absolute; bottom: 7mm; left: 0; right: 0; padding: 0 15mm;
+  display: flex; justify-content: space-between; font-size: 8pt; color: #8a8f98; }
+
+/* ===== unit header block ===== */
+.wsheet-title-wrap { position: relative; margin-bottom: 6mm; }
+.pill {
+  display: inline-block; background: #7cb342; color: #fff; font-weight: 700;
+  font-size: 10.5pt; padding: 3px 16px; border-radius: 20px; margin-bottom: 5px;
+}
+.corner-ref { position: absolute; top: 2px; right: 0; font-size: 8.5pt; color: #555;
+  background: #eef3e6; padding: 2px 8px; border-radius: 4px; }
+.title-box {
+  border: 2.2px solid #8bc34a; border-radius: 14px; padding: 12px 18px;
+  text-align: center; background: #f6faf0;
+}
+.title-box h1 { margin: 0; font-size: 20pt; font-weight: 800; letter-spacing: -.5px; color: #2f3b16; }
+.unit-line {
+  display: flex; align-items: center; gap: 10px; margin-top: 5mm; font-size: 9.5pt;
+}
+.unit-line .unit { flex: 1; }
+.unit-line .unit b { color: #558b2e; }
+.namefield { color: #555; white-space: nowrap; }
+.namefield span { display: inline-block; border-bottom: 1px solid #999; width: 46px; margin: 0 2px; }
+
+/* ===== 성취기준 label (gepai) ===== */
+.std-box { margin: 4mm 0 0; border: 1px solid #cddbb6; border-radius: 8px; overflow: hidden; }
+.std-box .std-head { background: #eef3e6; color: #557a2b; font-weight: 700; font-size: 9pt;
+  padding: 4px 12px; border-bottom: 1px solid #cddbb6; }
+.std-box ul { margin: 0; padding: 7px 14px 7px 30px; }
+.std-box li { font-size: 9pt; margin: 2px 0; color: #333; }
+.std-box li b { color: #4a7020; margin-right: 4px; }
+
+/* ===== activity directive ===== */
+.direct { display: flex; gap: 8px; align-items: flex-start; margin: 7mm 0 3mm; font-weight: 700; font-size: 11pt; }
+.direct::before { content: "◐"; color: #7cb342; font-size: 13pt; line-height: 1; margin-top: 1px; }
+.qnum { display: inline-flex; align-items: center; justify-content: center;
+  min-width: 17px; height: 17px; background: #7cb342; color: #fff; border-radius: 50%;
+  font-size: 9pt; font-weight: 700; margin-right: 6px; }
+.subq { margin: 3mm 0 2mm; font-weight: 600; }
+
+/* ===== label-value table ===== */
+table { border-collapse: collapse; width: 100%; }
+.lv-table td { border: 1px solid #cfd6c2; vertical-align: top; padding: 8px 10px; font-size: 9.5pt; }
+.lv-table td.label { background: #dcedc8; font-weight: 700; text-align: center; width: 26%; color: #3f5121; }
+.lv-table td.label.gray { background: #ededed; color: #444; }
+.lv-table td.blank { height: 42px; }
+.lv-table ul { margin: 0; padding-left: 16px; }
+.lv-table ul li { margin: 4px 0; }
+
+/* ===== dashed emphasis box ===== */
+.dash-box { border: 1.6px dashed #9ccc65; border-radius: 8px; margin-top: 3mm; }
+.dash-box .dh { background: #eef3e6; display: inline-block; margin: 8px 0 0 10px;
+  padding: 2px 10px; border-radius: 4px; font-weight: 700; color: #4a7020; font-size: 9.5pt; }
+.dash-box .db { min-height: 46px; padding: 8px 12px 12px; }
+
+/* ===== green header strip example boxes ===== */
+.strip { margin-top: 3mm; border: 1px solid #d5e6bf; border-radius: 6px; overflow: hidden; }
+.strip .sh { background: #9ccc65; color: #fff; font-weight: 700; text-align: center;
+  padding: 4px 10px; font-size: 9.5pt; }
+.strip .sb { padding: 8px 12px; font-size: 9pt; background: #fbfdf7; }
+.strip .sb p { margin: 3px 0; }
+
+/* ===== comparison table ===== */
+.cmp { margin-top: 3mm; }
+.cmp th { background: #ededed; font-weight: 700; padding: 6px; font-size: 9.5pt; border: 1px solid #ccc; }
+.cmp th.c { background: #dcedc8; color: #3f5121; }
+.cmp td { border: 1px solid #ccc; padding: 8px 10px; vertical-align: top; height: 44px; font-size: 9.5pt; }
+.cmp .hl { background: #efe6f7; padding: 2px 4px; border-radius: 3px; }
+.cmp td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 18%; }
+
+/* ===== reading passage box ===== */
+.passage { border: 1.5px solid #bbb; border-radius: 8px; padding: 14px 18px; margin-top: 3mm; background: #fcfcfa; }
+.passage h3 { text-align: center; margin: 0 0 8px; font-size: 12pt; }
+.passage p { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
+.passage .slot { color: #b06a00; background: #fff5e6; border: 1px dashed #e0a94f;
+  border-radius: 5px; padding: 6px 10px; font-size: 8.7pt; margin: 6px 0; }
+.passage .src { text-align: right; font-size: 8.7pt; color: #555; margin-top: 6px; }
+.passage .fn { border-top: 1px dotted #ccc; margin-top: 8px; padding-top: 5px; font-size: 8.3pt; color: #555; }
+.passage .fn p { margin: 1px 0; text-indent: 0; }
+
+/* ===== question + answer slot ===== */
+.q { margin: 4mm 0 2mm; font-weight: 600; }
+.ans-line { border-bottom: 1px solid #ccc; height: 20px; margin: 8px 0; }
+.ans-line.tall { height: 34px; }
+.ansbox { border: 1px solid #ccc; border-radius: 6px; min-height: 50px; margin-top: 5px; padding: 8px 10px; }
+
+/* teacher answer */
+.answer { display: none; }
+[data-mode="teacher"] .answer { display: block; color: #1a5fb4; font-weight: 500; font-size: 9.3pt;
+  background: #eef4fc; border-left: 3px solid #6aa3e0; padding: 5px 9px; margin: 5px 0; border-radius: 0 4px 4px 0; }
+[data-mode="teacher"] .answer.inline { display: inline; background: none; border: none; padding: 0; }
+
+/* ===== pro/con table ===== */
+.pc { margin-top: 3mm; }
+.pc th { padding: 5px; border: 1px solid #cbd5c0; font-size: 10pt; }
+.pc th.pro { background: #f7d9df; color: #a03a52; }
+.pc th.con { background: #dfe6f2; color: #35507e; }
+.pc td { border: 1px solid #cbd5c0; width: 50%; vertical-align: top; padding: 8px 10px; height: 70px; }
+.pc td .rc { color: #777; font-weight: 700; font-size: 8.7pt; }
+.pc td .dv { border-top: 1px dashed #c9c9c9; margin: 10px 0; }
+
+/* ===== memo table ===== */
+.memo th { background: #9ccc65; color: #fff; padding: 5px; border: 1px solid #cbd5c0; font-size: 9.5pt; }
+.memo td { border: 1px solid #cbd5c0; padding: 7px 9px; vertical-align: top; font-size: 9pt; }
+.memo td.k { background: #f2f2f2; font-weight: 700; text-align: center; width: 12%; }
+.memo td.blank { height: 40px; }
+
+/* ===== reflection principles box ===== */
+.princ { border: 1.6px solid #cbd5c0; border-radius: 10px; padding: 10px 14px; margin-top: 4px; min-height: 70px; }
+.princ .dot { margin: 8px 0; padding-left: 4px; }
+.princ .dot::before { content: "•"; color: #7cb342; font-weight: 700; margin-right: 8px; }
+
+/* ===== rubric checklist ===== */
+.rubric { margin-top: 3mm; }
+.rubric th { background: #9ccc65; color: #fff; padding: 6px; border: 1px solid #cbd5c0; font-size: 9.5pt; }
+.rubric td { border: 1px solid #cbd5c0; padding: 7px 10px; font-size: 9.3pt; }
+.rubric td.stars { text-align: center; width: 22%; color: #f0a500; font-size: 12pt; letter-spacing: 2px; }
+.note-under { border-bottom: 1px solid #ccc; height: 18px; margin-top: 6px; }
+
+.keep { page-break-inside: avoid; }
+h2.sec { display:flex; align-items:center; gap:8px; font-size: 12pt; margin: 6mm 0 2mm; }
+h2.sec .n { background:#7cb342;color:#fff;width:20px;height:20px;border-radius:4px;
+  display:inline-flex;align-items:center;justify-content:center;font-size:10pt;}
+.mode-badge{ position:absolute; top:7mm; left:15mm; font-size:8pt; font-weight:700;
+  padding:2px 8px; border-radius:4px; }
+[data-mode="student"] .mode-badge{ background:#eef4fc; color:#1a5fb4; }
+[data-mode="teacher"] .mode-badge{ background:#fdeaea; color:#c0392b; }
+[data-mode="student"] .mode-badge::after{ content:"학생용"; }
+[data-mode="teacher"] .mode-badge::after{ content:"교사용 (정답 포함)"; }
+</style>
+</head>
+<body data-mode="student">
+
+<!-- ============ PAGE 1 ============ -->
+<section class="sheet">
+  <span class="mode-badge"></span>
+  <div class="run-head">2022 개정 교육과정 · 독서와 작문 · 토의토론 활동지</div>
+
+  <div class="wsheet-title-wrap">
+    <span class="pill">선풍기 토론</span>
+    <span class="corner-ref">교과서 12~23쪽</span>
+    <div class="title-box"><h1>생성형 AI와 읽기-쓰기의 미래</h1></div>
+    <div class="unit-line">
+      <div class="unit"><b>1. 단원</b>　(1) 독서와 작문의 이해 – 디지털 백과사전 만들기 활동</div>
+      <div class="namefield">학년<span></span> 반<span></span> 이름<span></span></div>
+    </div>
+  </div>
+
+  <div class="std-box">
+    <div class="std-head">▣ 관련 성취기준 (2022 개정 교육과정)</div>
+    <ul>
+      <li><b>[12독작01-01]</b> 독서와 작문의 의사소통 방법과 특성을 이해하고 문어 의사소통 생활을 주도적으로 실천하고 성찰한다.</li>
+      <li><b>[12독작01-14]</b> 매체의 유형과 특성을 고려하며 글이나 자료를 읽고 쓴다.</li>
+    </ul>
+  </div>
+
+  <div class="direct">포토 스탠딩 토론을 하며 생성형 AI를 활용하여 글을 읽거나 써 본 경험을 모둠원과 공유해 보자.</div>
+
+  <table class="lv-table">
+    <tr><td class="label">내가 선택한<br>이미지 카드</td><td class="blank"></td></tr>
+    <tr><td class="label">선택한 이유</td><td class="blank"></td></tr>
+    <tr>
+      <td class="label">나의 생성형 AI<br>활용 경험</td>
+      <td>
+        <ul>
+          <li>생성형 AI를 활용하여 글을 읽거나 쓴 경험</li>
+          <li>생성형 AI를 활용하며 느낀 점</li>
+          <li>문어 의사소통 과정에서 AI를 활용하는 것의 장단점</li>
+        </ul>
+      </td>
+    </tr>
+  </table>
+
+  <div class="dash-box">
+    <span class="dh">▷ 인상 깊은 생성형 AI 활용 경험</span>
+    <div class="db"></div>
+  </div>
+
+  <div class="run-foot"><span>2022 개정 교육과정 연계 토의토론 자료</span><span>선풍기 토론　1</span></div>
+</section>
+
+<!-- ============ PAGE 2 ============ -->
+<section class="sheet">
+  <span class="mode-badge"></span>
+  <div class="run-head">2022 개정 교육과정 · 독서와 작문 · 토의토론 활동지</div>
+
+  <div class="direct">모둠원과 함께 생성형 AI를 활용하여 『독서와 작문』 교과서 21쪽에 제시된 ‘미래 직업’ 디지털 백과사전 만들기 활동을 해 보자.</div>
+
+  <p class="subq"><span class="qnum">1</span>다음 자료를 참고하여 ‘미래 직업’ 디지털 백과사전을 제작해 보자.</p>
+
+  <div class="strip"><div class="sh">1단계: 미래직업 탐색하기 프롬프트 예시</div>
+    <div class="sb"><p>[관심 분야]와 관련하여 2040년에 새롭게 등장할 것으로 예상되는 직업들을 알려주세요.</p>
+    <p>(관심 분야 예시: 기후 변화, 생물 다양성 감소, 우주 개발, 메타버스 기술, 인공지능 로봇 기술 등)</p></div></div>
+
+  <div class="strip"><div class="sh">2단계: 직업 선택을 위한 정보 요청하기 프롬프트 예시</div>
+    <div class="sb"><p>[관심 있는 직업명]에 대해 더 자세히 알고 싶습니다.</p>
+    <p>1. 이 직업이 필요하게 된 사회적 배경　2. 현재 관련 기술의 발전 상황</p>
+    <p>3. 예상되는 근무 환경과 조건　4. 필요한 지식과 기술</p></div></div>
+
+  <div class="strip"><div class="sh">3단계: 디지털 백과사전 작성하기 프롬프트 예시</div>
+    <div class="sb"><p>[직업명]에 대한 디지털 백과사전 항목을 작성하려고 합니다. 다음 항목들에 대해 설명해 주세요.</p>
+    <p>– 정의　– 하는 일　– 필요한 자격/능력　– 관련 문헌 및 출처</p></div></div>
+
+  <p class="subq"><span class="qnum">2</span>AI를 활용하여 백과사전을 제작한 과정을 정리해 보자.</p>
+  <table class="cmp">
+    <tr><th>제작 단계</th><th class="c">모둠이 작성한 프롬프트</th><th class="c">AI 응답의 특징</th><th class="c">모둠의 생각과 느낌</th></tr>
+    <tr><td class="lab">1단계: 직업 탐색</td><td></td><td></td><td></td></tr>
+    <tr><td class="lab">2단계: 정보 요청</td><td></td><td></td><td></td></tr>
+    <tr><td class="lab">3단계: 백과사전 작성</td><td></td><td></td><td></td></tr>
+    <tr><td class="lab">4단계: 평가 및 수정</td><td></td><td></td><td></td></tr>
+  </table>
+
+  <div class="run-foot"><span>2022 개정 교육과정 연계 토의토론 자료</span><span>선풍기 토론　2</span></div>
+</section>
+
+<!-- ============ PAGE 3 ============ -->
+<section class="sheet">
+  <span class="mode-badge"></span>
+  <div class="run-head">2022 개정 교육과정 · 독서와 작문 · 토의토론 활동지</div>
+
+  <div class="direct">다음 글을 읽고, 생성형 AI가 가져올 문어 의사소통의 변화에 대해 토론해 보자.</div>
+
+  <div class="passage keep">
+    <h3>생성 없는 생성을 경계하며</h3>
+    <div class="slot">［지문 삽입 슬롯］ 저작권 보호 대상 지문은 교사가 원문(김성우, 『인공지능은 나의 읽기-쓰기를 어떻게 바꿀까』)을 이 영역에 붙여 넣습니다. 아래는 레이아웃 확인용 요약 예시입니다.</div>
+    <p>생성형 인공지능은 언어 생산 과정에서 쓰기와 사고의 명백한 분리를 야기한다는 점에서 종래의 쓰기 보조 도구와는 질적으로 다르다. 우리는 글을 쓰면서 그 글과 연관된 사고를 수행했고, 생각을 조응*하는 언어를 생산했다.</p>
+    <p>하지만 생성형 인공지능의 사용은 이런 순환 고리를 끊어 버린다. 필자가 생각하지 못한 것들이 인공지능에 의해 생성되고, 자신의 지식이나 경험과 무관하게 생산된 산출물이 읽고 쓰는 과정에 영향을 끼친다. 기술이 인간과 상호 작용하는 방식을 면밀히 파고들어 그 기술이 우리를 어떤 존재로 만드는지 표상*해 이해해야 한다.</p>
+    <div class="src">– 김성우, 『인공지능은 나의 읽기-쓰기를 어떻게 바꿀까』 (요약 예시)</div>
+    <div class="fn">
+      <p>★조응: 둘 이상의 사물이나 현상 또는 말과 글의 앞뒤 따위가 서로 일치하게 대응함.</p>
+      <p>★표상: 추상적이거나 드러나지 아니한 것을 구체적인 형상으로 드러내어 나타냄.</p>
+    </div>
+  </div>
+
+  <p class="subq"><span class="qnum">1</span>다음 질문에 답하며 위 글의 내용을 이해해 보자.</p>
+
+  <div class="q">(1) 글쓴이는 기존의 글쓰기에서는 ‘사고’와 ‘쓰기’가 어떤 관계를 맺고 있다고 주장하나요?</div>
+  <div class="answer">기존의 글쓰기에서는 사고와 쓰기가 서로 순환하는 관계를 맺고 있다. 글을 쓰면서 생각이 정리·발전되고, 사고하는 과정에서 다시 글이 수정·보완된다. 둘은 분리된 것이 아니라 유기적으로 조응한다.</div>
+  <div class="ans-line"></div><div class="ans-line"></div>
+
+  <div class="q">(2) 글쓴이는 생성형 AI가 글을 생성할 때, 인간의 사고 과정은 어떻게 달라진다고 주장하나요?</div>
+  <div class="answer">AI가 사고 과정 없이 글을 완성하므로 쓰기와 사고의 순환 고리가 끊어진다고 본다. 필자가 생각하지 못한 내용이 생성되어, 자신의 지식·경험과 무관한 산출물을 수동적으로 받아들이는 태도가 형성될 수 있다.</div>
+  <div class="ans-line"></div><div class="ans-line"></div>
+
+  <div class="q">(3) 글쓴이가 생성형 AI를 무조건 긍정적으로 받아들이기보다 비판적으로 접근해야 한다고 보는 이유는 무엇인가요?</div>
+  <div class="answer">AI가 인간의 사고력과 글쓰기 능력에 부정적 영향을 미칠 수 있고, 제공하는 정보가 항상 정확·공정하지 않을 수 있기 때문이다. 따라서 그 영향력을 비판적으로 분석하며 주체적으로 활용해야 한다.</div>
+  <div class="ans-line"></div><div class="ans-line"></div>
+
+  <div class="run-foot"><span>2022 개정 교육과정 연계 토의토론 자료</span><span>선풍기 토론　3</span></div>
+</section>
+
+<!-- ============ PAGE 4 ============ -->
+<section class="sheet">
+  <span class="mode-badge"></span>
+  <div class="run-head">2022 개정 교육과정 · 독서와 작문 · 토의토론 활동지</div>
+
+  <p class="subq"><span class="qnum">2</span>다음 논제에 대해 찬반 논거를 준비해 보자.</p>
+  <div class="dash-box" style="border-style:solid;border-color:#cbd5c0;">
+    <div class="db" style="min-height:0;padding:8px 12px;text-align:center;font-weight:600;">
+      논제: 생성형 AI를 활용한 읽기–쓰기는 기존의 읽기–쓰기보다 더 효과적인 문어 의사소통 방식이다.
+    </div>
+  </div>
+
+  <table class="pc">
+    <tr><th class="pro">찬성</th><th class="con">반대</th></tr>
+    <tr>
+      <td><span class="rc">＊이유:</span><div class="dv"></div><span class="rc">＊근거:</span></td>
+      <td><span class="rc">＊이유:</span><div class="dv"></div><span class="rc">＊근거:</span></td>
+    </tr>
+    <tr>
+      <td><span class="rc">＊이유:</span><div class="dv"></div><span class="rc">＊근거:</span></td>
+      <td><span class="rc">＊이유:</span><div class="dv"></div><span class="rc">＊근거:</span></td>
+    </tr>
+    <tr>
+      <td><span class="rc">＊이유:</span><div class="dv"></div><span class="rc">＊근거:</span></td>
+      <td><span class="rc">＊이유:</span><div class="dv"></div><span class="rc">＊근거:</span></td>
+    </tr>
+  </table>
+
+  <div class="run-foot"><span>2022 개정 교육과정 연계 토의토론 자료</span><span>선풍기 토론　4</span></div>
+</section>
+
+<!-- ============ PAGE 5 ============ -->
+<section class="sheet">
+  <span class="mode-badge"></span>
+  <div class="run-head">2022 개정 교육과정 · 독서와 작문 · 토의토론 활동지</div>
+
+  <p class="subq"><span class="qnum">3</span>입장에 따른 논거를 활용하여 친구들과 선풍기 토론을 해 보자.</p>
+  <div class="memo">
+  <table class="memo">
+    <tr><th colspan="4">[선풍기 토론 내용 메모하기]</th></tr>
+    <tr><th style="width:12%">　</th><th>찬성</th><th style="width:12%">　</th><th>반대</th></tr>
+    <tr><td class="k">이름</td><td class="blank"></td><td class="k">이름</td><td class="blank"></td></tr>
+    <tr><td class="k">이유와<br>근거</td><td style="height:70px"></td><td class="k">이유와<br>근거</td><td></td></tr>
+    <tr><td class="k">이름</td><td class="blank"></td><td class="k">이름</td><td class="blank"></td></tr>
+    <tr><td class="k">이유와<br>근거</td><td style="height:70px"></td><td class="k">이유와<br>근거</td><td></td></tr>
+  </table>
+  </div>
+
+  <p class="subq"><span class="qnum">4</span>다음 질문에 답하며 토론을 정리하고, 그 내용을 반 친구들과 공유해 보자.</p>
+
+  <div class="q">(1) 토론 과정에서 새롭게 알게 된 점은 무엇인가요?</div>
+  <div class="ans-line"></div><div class="ans-line"></div>
+
+  <div class="q">(2) 토론 후 생성형 AI를 활용한 문어 의사소통에 대한 나의 생각은 어떻게 변화하였나요?</div>
+  <div class="ans-line"></div><div class="ans-line"></div>
+
+  <div class="q">(3) 생성형 AI를 활용한 문어 의사소통에 주체적으로 참여하기 위한 나만의 원칙 3가지를 만들어 본다면?</div>
+  <div class="princ"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+
+  <h2 class="sec"><span class="n">5</span>점검표를 작성하며 활동을 정리해 보자.</h2>
+  <table class="rubric">
+    <tr><th>점검 요소</th><th style="width:22%">점검 결과</th></tr>
+    <tr><td>기존의 문어 의사소통과 생성형 AI를 활용한 문어 의사소통을 비교하여 설명할 수 있는가?</td><td class="stars">☆☆☆☆☆</td></tr>
+    <tr><td>생성형 AI가 문어 의사소통에 미치는 영향을 다양한 측면에서 분석할 수 있는가?</td><td class="stars">☆☆☆☆☆</td></tr>
+    <tr><td>주체적인 태도로 생성형 AI를 활용한 문어 의사소통에 참여하는 방법을 설명할 수 있는가?</td><td class="stars">☆☆☆☆☆</td></tr>
+  </table>
+  <p style="margin:4mm 0 0;font-size:9pt;">• 활동을 하며 새롭게 배우고 느낀 점을 작성해 보자.</p>
+  <div class="note-under"></div><div class="note-under"></div>
+
+  <div class="run-foot"><span>2022 개정 교육과정 연계 토의토론 자료</span><span>선풍기 토론　5</span></div>
+</section>
+
+</body>
+</html>

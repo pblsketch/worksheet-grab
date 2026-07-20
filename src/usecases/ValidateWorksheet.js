@@ -1,0 +1,140 @@
+import { collectTextInside, textOutside, stripRootBlocks } from './html-scan.js';
+import { ANSWER_CLASSES } from './BuildVariants.js';
+
+// ValidateWorksheet — 활동지 HTML 정적 검사(순수). Chrome 불필요.
+//  1) 정답 누출: .answer/.plot-ans 밖으로 정답 텍스트가 새면 error(FAIL). (수용기준 3)
+//  2) 하드코딩 교과색: 교과 팔레트 hex 가 :root 밖에서 쓰이면 warning. (수용기준 4)
+//  3) 인쇄 안전(권고, M5): 최소 글자 크기·최소 여백·keep-together 미지원이면 warning. (HANDOFF 3.2)
+//
+// 결과: { ok, findings:[{rule, severity, message, evidence}] }. ok = error 없음.
+
+const MIN_ANSWER_LEN = 8;   // 짧은 숫자("0.5") 오탐 방지
+const SLICE_LEN = 20;
+
+export class ValidateWorksheet {
+  /**
+   * @param {{knownSubjectHexes?:string[], minFontPt?:number, minMarginMm?:number}} opts
+   */
+  constructor({ knownSubjectHexes = [], minFontPt = 8, minMarginMm = 8 } = {}) {
+    this.knownSubjectHexes = new Set(knownSubjectHexes.map((h) => h.toLowerCase()));
+    this.minFontPt = minFontPt;
+    this.minMarginMm = minMarginMm;
+  }
+
+  /** @param {string} html @returns {{ok:boolean, findings:object[]}} */
+  execute(html) {
+    if (typeof html !== 'string') throw new TypeError('ValidateWorksheet 는 HTML 문자열이 필요합니다.');
+    const findings = [];
+
+    this.#checkAnswerLeak(html, findings);
+    this.#checkHardcodedSubjectColor(html, findings);
+    this.#checkMinFont(html, findings);
+    this.#checkMargin(html, findings);
+    this.#checkKeepTogether(html, findings);
+
+    const ok = !findings.some((f) => f.severity === 'error');
+    return { ok, findings };
+  }
+
+  #checkAnswerLeak(html, findings) {
+    const answers = collectTextInside(html, ANSWER_CLASSES);
+    if (answers.length === 0) return;
+    const outside = textOutside(html, ANSWER_CLASSES);
+    for (const ans of answers) {
+      if (ans.length < MIN_ANSWER_LEN) continue;
+      let leaked = outside.includes(ans);
+      if (!leaked && ans.length >= SLICE_LEN) {
+        leaked = outside.includes(ans.slice(0, SLICE_LEN));
+      }
+      if (leaked) {
+        findings.push({
+          rule: 'answer-leak',
+          severity: 'error',
+          message: '정답 텍스트가 .answer/.plot-ans 밖으로 노출되었습니다(정답 누출).',
+          evidence: ans.length > 60 ? ans.slice(0, 60) + '…' : ans,
+        });
+      }
+    }
+  }
+
+  #checkHardcodedSubjectColor(html, findings) {
+    if (this.knownSubjectHexes.size === 0) return;
+    // 주석(문서/설명용 hex)은 실제 사용이 아니므로 제외 → 그다음 :root 테마 정의 제외.
+    const noComments = html.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
+    const scanTarget = stripRootBlocks(noComments);
+    const hexes = scanTarget.match(/#[0-9a-fA-F]{6}\b/g) || [];
+    const seen = new Set();
+    for (const raw of hexes) {
+      const hex = raw.toLowerCase();
+      if (this.knownSubjectHexes.has(hex) && !seen.has(hex)) {
+        seen.add(hex);
+        findings.push({
+          rule: 'hardcoded-subject-color',
+          severity: 'warning',
+          message: `교과 팔레트색 ${hex} 가 :root 테마 밖에서 하드코딩되었습니다(범교과 위반). var(--*) + themes/*.css 로 옮기세요.`,
+          evidence: hex,
+        });
+      }
+    }
+  }
+
+  #checkMinFont(html, findings) {
+    const styleText = (html.match(/<style[\s\S]*?<\/style>/gi) || []).join('\n')
+      + '\n' + (html.match(/style\s*=\s*"[^"]*"/gi) || []).join('\n');
+    const sizes = styleText.match(/font-size\s*:\s*([0-9.]+)pt/gi) || [];
+    let minSeen = Infinity;
+    for (const s of sizes) {
+      const m = /([0-9.]+)pt/i.exec(s);
+      if (m) minSeen = Math.min(minSeen, parseFloat(m[1]));
+    }
+    if (minSeen < this.minFontPt) {
+      findings.push({
+        rule: 'min-font',
+        severity: 'warning',
+        message: `최소 글자 크기 ${this.minFontPt}pt 미만(${minSeen}pt) 이 있습니다. 인쇄 가독성을 확인하세요.`,
+        evidence: `${minSeen}pt`,
+      });
+    }
+  }
+
+  // 인쇄 여백: .sheet 의 padding(mm) 중 최소값이 안전 여백 미만이면 경고.
+  #checkMargin(html, findings) {
+    const m = /\.sheet\s*\{[^}]*padding\s*:\s*([^;]+);/i.exec(html);
+    if (!m) return;
+    const mmVals = (m[1].match(/([0-9.]+)mm/g) || []).map((v) => parseFloat(v));
+    if (mmVals.length === 0) return;
+    const minMm = Math.min(...mmVals);
+    if (minMm < this.minMarginMm) {
+      findings.push({
+        rule: 'print-margin',
+        severity: 'warning',
+        message: `인쇄 여백이 안전 최소치 ${this.minMarginMm}mm 미만(${minMm}mm)입니다. 프린터 잘림 위험을 확인하세요.`,
+        evidence: `${minMm}mm`,
+      });
+    }
+  }
+
+  // keep-together: 분리 취약 블록(다행 표·지문)이 있는데 page-break-inside:avoid(.keep) 지원이 없으면 경고.
+  #checkKeepTogether(html, findings) {
+    const styles = (html.match(/<style[\s\S]*?<\/style>/gi) || []).join('\n');
+    const hasKeepSupport = /page-break-inside\s*:\s*avoid/i.test(styles) || /class="[^"]*\bkeep\b/.test(html);
+    if (hasKeepSupport) return;
+
+    let breakProne = /class="[^"]*\bpassage\b/.test(html);
+    if (!breakProne) {
+      const tableRe = /<table[\s\S]*?<\/table>/gi;
+      let t;
+      while ((t = tableRe.exec(html)) !== null) {
+        if ((t[0].match(/<tr\b/gi) || []).length >= 4) { breakProne = true; break; }
+      }
+    }
+    if (breakProne) {
+      findings.push({
+        rule: 'keep-together',
+        severity: 'warning',
+        message: '분리 취약 블록(다행 표/지문)이 있으나 keep-together(page-break-inside:avoid / .keep) 지원이 없습니다. 블록이 페이지 경계에서 잘릴 수 있습니다.',
+        evidence: 'no page-break-inside:avoid',
+      });
+    }
+  }
+}
