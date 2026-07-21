@@ -72,6 +72,9 @@ export class GepaiCurriculum extends CurriculumProvider {
 
   /**
    * 조건 검색: 학교급·과목·학년군·키워드로 성취기준을 조회한다(원문은 조회만, 창작 금지).
+   * 다단어 키워드("광합성 작용")는 공백 토큰으로 분해해 하나라도 원문에 닿으면 후보로
+   * 삼고, 매칭 토큰 총 길이(특이도)로 랭킹한다 — 전 토큰 일치 > 긴 토큰 일치 > 짧은
+   * 토큰 일치, 동점은 CSV 순서. 단일 키워드는 기존 부분일치 동작 그대로다.
    * @param {{school?:string, subject?:string, grade?:string, keyword?:string, limit?:number}} query
    * @returns {Promise<Array<{code,text,subject,school,grade}>>}
    */
@@ -93,14 +96,28 @@ export class GepaiCurriculum extends CurriculumProvider {
       );
     }
     const map = await this.#ensureCsv();
+    const tokens = keyword == null ? [] : String(keyword).split(/\s+/).filter(Boolean);
+    const multiToken = tokens.length > 1;
     const results = [];
+    const scored = [];
     for (const [code, v] of map) {
       if (school && !contains(v.school, school)) continue;
       if (subject && !contains(v.subject, subject)) continue;
       if (grade && !contains(v.grade, grade)) continue;
+      const entry = { code, text: v.text, subject: v.subject, school: v.school, grade: v.grade };
+      if (multiToken) {
+        const matched = tokens.filter((t) => contains(v.text, t));
+        if (matched.length === 0) continue;
+        scored.push({ entry, score: matched.reduce((n, t) => n + t.length, 0) });
+        continue; // 랭킹 후 절단 — 전량 스캔 필요(조기 종료 금지)
+      }
       if (keyword && !contains(v.text, keyword)) continue;
-      results.push({ code, text: v.text, subject: v.subject, school: v.school, grade: v.grade });
+      results.push(entry);
       if (results.length >= limit) break;
+    }
+    if (multiToken) {
+      scored.sort((a, b) => b.score - a.score); // 안정 정렬 — 동점은 CSV 순서 보존
+      return scored.slice(0, limit).map((s) => s.entry);
     }
     return results;
   }

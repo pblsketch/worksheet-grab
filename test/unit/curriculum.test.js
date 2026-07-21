@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
+import { writeFile, mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { parseCsv, normalizeCode, GepaiCurriculum, DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
 
 test('normalizeCode: 대괄호 유무 무관하게 [코드] 정규화', () => {
@@ -62,6 +65,29 @@ test('CSV 경로 설정: 생성자 csvPath > GEPAI_CSV 환경변수 > 기본 경
   } finally {
     if (prev === undefined) delete process.env.GEPAI_CSV; else process.env.GEPAI_CSV = prev;
   }
+});
+
+test('search 다단어 키워드: 토큰 분해 + 특이도(매칭 토큰 총 길이) 랭킹', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'wsg-cur-'));
+  const csv = join(dir, 'std.csv');
+  await writeFile(csv, [
+    '학교,과목,학년,성취기준 코드,성취기준 내용',
+    '중학교,과학,중2,[9과00-01],빛의 작용을 설명한다',            // "작용"(2)만
+    '중학교,과학,중2,[9과00-02],광합성 산물을 설명한다',          // "광합성"(3)만
+    '중학교,과학,중2,[9과00-03],광합성 작용의 원리를 설명한다',   // 양토큰(5)
+    '중학교,과학,중2,[9과00-04],소화 과정을 설명한다',            // 무관 — 제외
+    '',
+  ].join('\n'), 'utf8');
+  const cur = new GepaiCurriculum({ csvPath: csv });
+  const r = await cur.search({ subject: '과학', keyword: '광합성 작용', limit: 10 });
+  assert.deepEqual(
+    r.map((s) => s.code),
+    ['[9과00-03]', '[9과00-02]', '[9과00-01]'],
+    '전 토큰 일치 > 긴 토큰(광합성) > 짧은 토큰(작용), 무관 행 제외',
+  );
+  // 단일 키워드 동작 불변: 구문 전체 부분일치만
+  const single = await cur.search({ subject: '과학', keyword: '광합성', limit: 10 });
+  assert.deepEqual(single.map((s) => s.code), ['[9과00-02]', '[9과00-03]']);
 });
 
 test('CSV 미존재 시 search 는 "0건"이 아니라 경로 안내 오류를 낸다', async () => {

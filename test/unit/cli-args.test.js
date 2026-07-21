@@ -32,22 +32,19 @@ test('값 필수 플래그: --doc 도 동일 정책(bare --doc 이 조용히 out
   assert.match(io.lines.join('\n'), /--doc 플래그에 값이 필요합니다/);
 });
 
-test('다단어 주제: 뒷 토큰이 조용히 잘리지 않고 주제로 흡수된다(fail-open 방지)', { skip: !CSV_READY }, async () => {
+test('다단어 주제: 뒷 토큰이 조용히 잘리지 않고 주제로 흡수·생성된다(토큰화 매칭)', { skip: !CSV_READY }, async () => {
   const dir = await mkdtemp(join(tmpdir(), 'wsg-cliargs-'));
   const io = capture();
-  // "광합성 작용" 전체가 주제로 전달됐음을 성취기준 조회 오류 메시지로 계측
-  // (과거: "작용" 유실 + exit 0 오생성).
-  await assert.rejects(
-    run(['generate', '중2과학', '광합성', '작용', '--no-render', '--out', dir], { root: ROOT, ...io }),
-    /광합성 작용/,
-  );
+  // 과거: "작용" 유실 + exit 0 오생성 → 현재: 전체 주제로 토큰화 조회·정상 생성.
+  const code = await run(['generate', '중2과학', '광합성', '작용', '--no-render', '--out', dir], { root: ROOT, ...io });
+  assert.equal(code, 0, io.lines.join('\n'));
+  assert.match(io.lines.join('\n'), /"광합성 작용"/, '전체 주제가 생성 로그에 나타난다');
 });
 
 test('다단어 주제 + 띄어 쓴 학년교과("중2 과학") 조합도 동일하게 흡수된다', { skip: !CSV_READY }, async () => {
   const dir = await mkdtemp(join(tmpdir(), 'wsg-cliargs-'));
   const io = capture();
-  await assert.rejects(
-    run(['generate', '중2', '과학', '광합성', '작용', '--no-render', '--out', dir], { root: ROOT, ...io }),
-    /광합성 작용/,
-  );
+  const code = await run(['generate', '중2', '과학', '광합성', '작용', '--no-render', '--out', dir], { root: ROOT, ...io });
+  assert.equal(code, 0, io.lines.join('\n'));
+  assert.match(io.lines.join('\n'), /"광합성 작용"/);
 });

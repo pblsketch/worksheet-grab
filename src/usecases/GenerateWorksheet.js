@@ -81,7 +81,7 @@ export class GenerateWorksheet {
       found = await this.curriculum.search({ school, subject: spec.label, keyword: topic, limit });
     }
     if (!found || found.length === 0) {
-      throw new Error(`성취기준을 찾지 못했습니다(${school ?? '전체'} · ${spec.label} · "${topic}"). 원문 창작 금지.`);
+      throw new Error(`성취기준을 찾지 못했습니다(${school ?? '전체'} · ${spec.label} · "${topic}"). 원문 창작 금지. --standards <코드,..> 로 직접 지정할 수 있습니다.`);
     }
 
     // 학교급 혼합 방지: 학년을 생략하면 중학교 [9과…]와 고교 [10통과…]가 한 활동지에
