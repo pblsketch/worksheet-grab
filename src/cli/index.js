@@ -97,7 +97,7 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
   worksheet-grab list-themes
 
 공통 옵션:
-  --csv <경로>     성취기준 CSV 위치(assemble/generate/pipeline/edit). GEPAI_CSV 환경변수로도 지정 가능.
+  --csv <경로>     성취기준 CSV 위치(기본: data/achievement-standards.csv 번들). GEPAI_CSV 환경변수로도 지정 가능.
   --chrome <경로>  Chrome 실행 파일(render 계열). CHROME_PATH 환경변수로도 지정 가능.
   --workspaces-dir <경로>  문서 워크스페이스 루트(doc/--doc). 기본 <현재 디렉토리>/worksheets.
 `;

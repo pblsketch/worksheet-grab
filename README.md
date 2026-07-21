@@ -1,6 +1,6 @@
 # worksheet-grab
 
-한국 K-12 교사용 **활동지 제작 엔진 + 브라우저 에디터**(코어 M1~M6 · 에디터 로드맵 E0~E6 완결). Clean Architecture(Ports & Adapters)로 만든 Node CLI — 의존성 0·빌드 0.
+한국 초중고 교사용 **활동지 제작 엔진 + 브라우저 에디터**(코어 M1~M6 · 에디터 로드맵 E0~E6 완결). Clean Architecture(Ports & Adapters)로 만든 Node CLI — 의존성 0·빌드 0.
 문서는 HTML/CSS, **인쇄가 진실의 원천**(paper-css, A4/A3/B4 다중페이지). 교과색은 CSS 변수로만 주입하는 **범교과** 설계(국어·과학·사회·영어).
 한 문장 생성(`pipeline`/`generate`) → 문서 워크스페이스(`doc`) → 브라우저 에디터(`edit-ui`: 편집·정답 마크·프리셋·AI 재작성·정밀 미리보기) → PDF/PNG 내보내기(`doc export`)까지 종단 지원.
 
@@ -14,7 +14,9 @@
 - **Node ≥ 24** (의존성 0 — 표준 라이브러리만 사용)
 - 렌더에 **Google Chrome** 필요. 자동 탐색 경로:
   `C:/Program Files/Google/Chrome/Application/chrome.exe` (또는 `CHROME_PATH` 환경변수)
-- (선택) 성취기준 CSV: `E:/github/gepai-mcp/data/source/achievement-standards.csv`
+- 성취기준 CSV(2022 개정 교육과정, 교육부 고시)는 `data/achievement-standards.csv` 로 저장소에
+  번들되어 있다 — 별도 설치·경로 지정 불필요. 다른 CSV를 쓰려면 `--csv <경로>` 또는
+  `GEPAI_CSV` 환경변수로 덮어쓸 수 있다.
 
 ## 설치
 
@@ -33,7 +35,7 @@ npm link          # 이후 `worksheet-grab <command>` 로 실행
 
 ## 빠른 시작 — 새 환경에서 한 문장으로 (M6)
 
-의존성 0이라 클론만 하면 바로 한 문장으로 활동지가 나온다(Chrome·성취기준 CSV는 아래 요구 환경 참고).
+의존성 0에 성취기준 CSV까지 번들이라 클론만 하면 바로 한 문장으로 활동지가 나온다(Chrome은 아래 요구 환경 참고).
 
 ```bash
 git clone <repo> worksheet-grab && cd worksheet-grab
@@ -87,7 +89,7 @@ node bin/worksheet-grab.js generate <학년교과> <주제> [--out <dir>] [--pdf
 #     활동지 + student/teacher 2벌 생성. --pdf 지정 시 A4 PDF까지 렌더.
 #   --standards [9과12-01],[9과12-02] 로 성취기준 직접 선택, --limit 로 자동 조회 개수 제한(기본 6).
 #   학년을 생략해 학교급(중/고)이 섞이면 fail-closed 오류로 막는다.
-#   CSV 위치는 --csv <경로> 또는 GEPAI_CSV 환경변수로 지정(기본: E:/github/gepai-mcp/...).
+#   CSV는 data/achievement-standards.csv 가 기본(번들) — 다른 CSV는 --csv <경로> 또는 GEPAI_CSV 로 지정.
 
 # 6) 종단 파이프라인(M3) — 조회→조립→2벌→검수 게이트→렌더
 node bin/worksheet-grab.js pipeline <학년교과> <주제> [--out <dir>] [--no-render]

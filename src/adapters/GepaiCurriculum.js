@@ -1,5 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { resolve, dirname } from 'node:path';
 import { CurriculumProvider } from '../usecases/ports.js';
 
 // GepaiCurriculum — 성취기준 코드 → 원문. CurriculumProvider 포트 구현.
@@ -9,8 +11,10 @@ import { CurriculumProvider } from '../usecases/ports.js';
 // 성취기준 원문은 조회만 한다(창작 금지).
 
 // HANDOFF 2장: gepai MCP 대체 폴백 CSV.
-// 경로 우선순위: 생성자 csvPath(CLI --csv) > GEPAI_CSV 환경변수 > 기본 경로.
-export const DEFAULT_CSV_PATH = 'E:/github/gepai-mcp/data/source/achievement-standards.csv';
+// 출처: 2022 개정 교육과정(교육부 고시) — data/achievement-standards.csv 로 저장소에 번들.
+// 경로 우선순위: 생성자 csvPath(CLI --csv) > GEPAI_CSV 환경변수 > 기본 경로(리포 상대,
+// import.meta.url 기준 — 클론 위치·CWD·다른 사용자 환경과 무관하게 항상 해석된다).
+export const DEFAULT_CSV_PATH = resolve(dirname(fileURLToPath(import.meta.url)), '../../data/achievement-standards.csv');
 
 export function resolveCsvPath(csvPath = null) {
   return csvPath || process.env.GEPAI_CSV || DEFAULT_CSV_PATH;
