@@ -1,12 +1,13 @@
 # worksheet-grab
 
-한국 K-12 교사용 **활동지 제작 코어 엔진**(Milestone M1~M6 완료). Clean Architecture(Ports & Adapters)로 만든 Node CLI.
-문서는 HTML/CSS, **인쇄가 진실의 원천**(paper-css, A4 다중페이지). 교과색은 CSS 변수로만 주입하는 **범교과** 설계(국어·과학·사회·영어).
-한 문장 생성(`pipeline`/`generate`) → 대화형 편집(`edit`) → PDF/PNG 내보내기까지 종단 지원.
+한국 K-12 교사용 **활동지 제작 엔진 + 브라우저 에디터**(코어 M1~M6 · 에디터 로드맵 E0~E6 완결). Clean Architecture(Ports & Adapters)로 만든 Node CLI — 의존성 0·빌드 0.
+문서는 HTML/CSS, **인쇄가 진실의 원천**(paper-css, A4/A3/B4 다중페이지). 교과색은 CSS 변수로만 주입하는 **범교과** 설계(국어·과학·사회·영어).
+한 문장 생성(`pipeline`/`generate`) → 문서 워크스페이스(`doc`) → 브라우저 에디터(`edit-ui`: 편집·정답 마크·프리셋·AI 재작성·정밀 미리보기) → PDF/PNG 내보내기(`doc export`)까지 종단 지원.
 
-- API 키 없음 — 콘텐츠는 사용자 구독 AI가 저작.
+- API 키 없음 — 콘텐츠는 사용자 구독 AI가 저작(에디터의 AI 재작성도 파일 큐 브리지로 무API).
 - 성취기준 원문은 gepai CSV/MCP **조회만**(창작 금지). 저작권 지문은 슬롯 유지.
-- 학생용/교사용 2벌은 단일 HTML의 `data-mode` 토글 + 정답 제거로 생성.
+- 학생용/교사용 2벌은 단일 HTML의 `data-mode` 토글 + 정답 물리 제거로 생성.
+  정답 누출이 감지된 문서는 학생용 산출(HTML·PDF)이 fail-closed 로 차단된다.
 
 ## 요구 환경
 
@@ -48,6 +49,11 @@ node bin/worksheet-grab.js edit out/science-광합성.manifest.json "3번 문항
 
 # 미리보기 PNG(카드)까지
 node bin/worksheet-grab.js generate 중2영어 감정 --out out/ --png
+
+# 문서 워크스페이스 + 브라우저 에디터로 이어서 다듬기 (E1~E6)
+node bin/worksheet-grab.js generate 중2과학 광합성 --doc 광합성탐구   # out/ 대신 문서로 생성
+node bin/worksheet-grab.js edit-ui 광합성탐구    # 127.0.0.1 에디터: 편집·정답 마크·프리셋·AI·정밀 미리보기
+node bin/worksheet-grab.js doc export 광합성탐구 # 저장본 → 학생/교사 PDF 2벌(누출 시 학생용 차단)
 ```
 
 `npm link`(또는 `npm pack` 후 설치) 하면 `worksheet-grab pipeline …` 처럼 어디서나 실행된다.
@@ -201,9 +207,15 @@ node bin/worksheet-grab.js render out/ko-teacher.html --out out/ko-teacher.pdf
 ```
 src/
   domain/      순수 엔티티(프레임워크 의존 0): Worksheet, Block, BlockContent, Variant, Standard, Theme
-  usecases/    애플리케이션 규칙(포트에만 의존): AssembleWorksheet, BuildVariants, ValidateWorksheet, RenderPdf
+  usecases/    애플리케이션 규칙(포트에만 의존): AssembleWorksheet, BuildVariants, ValidateWorksheet,
+                 RenderPdf/RenderImage, ComposeWorksheet(동적 조립), EditWorksheet,
+                 SaveDocument/OpenDocument/ExportDocument(워크스페이스 저장·로드·unsafe fail-closed 내보내기),
+                 RenderEditorShell(에디터 합성), paper.js(용지 단일 소스), workspace.js·presets.js·aiBridge.js(순수 정책)
                  + ports.js(Renderer·CurriculumProvider·BlockRepository) + html-scan.js(순수 HTML 스캐너)
-  adapters/    포트 구현: ChromeRenderer, FsBlockRepository, GepaiCurriculum(CSV 1차·MCP 옵션)
+  adapters/    포트 구현: ChromeRenderer, FsBlockRepository, GepaiCurriculum(CSV 1차·MCP 옵션),
+                 EditorHttpServer(127.0.0.1 에디터 서버), FsWorkspaceRepository, FsPresetRepository, FsAiBridgeRepository
+  editor/      브라우저 에디터 클라이언트(바닐라 ESM, 빌드 0): editor.js·toolbar·marks·presets·ai·resync
+                 + browserGraph.js(검수 체인 화이트리스트 — 브라우저가 원본 ValidateWorksheet 를 그대로 실행)
   cli/         커맨드 파서
 bin/worksheet-grab.js  엔트리
 blocks/        타입 어휘: vocabulary.json(계약 레지스트리) + archetypes.json(구조 패턴 6) + core/*·pack-*/*(exemplar)
@@ -211,8 +223,10 @@ themes/        교과 테마 토큰 CSS(ko=green, sci=teal). 교과색은 여기
 assets/        paper.css(인쇄 베이스) + blocks.css(블록 스타일, var(--*)만 참조)
 manifests/     재조립 명세(ko.json, sci.json) — 인라인 html 콘텐츠(동적 조립 모델)
 templates/     교과 프리셋/few-shot 시드(강등) — generate 빠른 경로용. 상세: templates/README.md
+docs/          PLAN.md(설계) + HANDOFF-*(동적 조립·에디터 워크스페이스 상세 이력)
 tools/         extract-blocks.js(poc → 인라인 매니페스트 추출기)
-test/          unit/(Chrome 불필요) + render/(실물 Chrome, 페이지수 검증)
+test/          unit/(Chrome 불필요) + render/(실물 Chrome — 페이지수·PDF MediaBox·에디터 계측)
+worksheets/    (런타임 생성, gitignore) 문서 워크스페이스 — manifest·2벌 HTML/PDF·meta·history
 ```
 
 **의존성 규칙**: 모든 의존성은 안쪽(도메인)으로만 향한다. 도메인은 Chrome·gepai·FS 를 모른다.
@@ -237,11 +251,14 @@ DIP 는 실제로 변하는 3경계(Curriculum·Renderer·ContentAuthor)에만 �
 ## 검증
 
 ```bash
-npm test            # 전체(단위 + 실물 렌더). Chrome 없으면 렌더 테스트는 스킵.
+npm test            # 전체 241 테스트(단위 207 + 실물 렌더 34). Chrome 없으면 렌더 테스트는 스킵.
 npm run test:unit   # Chrome 불필요 단위/수용 테스트
-npm run test:render # 실물 Chrome 렌더로 국어=5쪽·과학=3쪽 검증
+npm run test:render # 실물 Chrome — 페이지수(국어 5·과학 3)·PDF MediaBox(A4/A3/B4)·에디터 계측(dump-dom)
 npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각은 만들지 않음)
 ```
+
+다코어 머신에서 전 병렬 실행 시 Chrome 동시 spawn 경합으로 렌더 테스트가 드물게 타임아웃할 수
+있다 — `node --test --test-concurrency=8 "test/**/*.test.js"` 로 묶으면 안정적으로 green.
 
 ## M1 수용 기준 (전부 통과)
 
@@ -252,7 +269,9 @@ npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각�
 5. 블록 라이브러리에서 재조립한 국어·과학이 원본 PoC 와 페이지수 일치 + 주요 컴포넌트 존재.
 6. 도메인/유스케이스가 Chrome 없이 단위 테스트(Renderer 목).
 
-## 로드맵 진행 (M1~M6 완료)
+## 로드맵 진행
+
+**코어 엔진 M1~M6 완료:**
 
 - **M1 코어 엔진** — build-variants·render·validate·assemble, 블록/테마 추출.
 - **M2 교과 팩 + 커리큘럼** — 템플릿·gepai 어댑터·`generate`.
@@ -260,6 +279,18 @@ npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각�
 - **M4 편집** — `edit`(매니페스트↔HTML 왕복: 문항 제거·성찰 추가·재렌더).
 - **M5 교과 확장 + 검증 룰** — 사회(지도·연표)·영어(어휘·대화문) 팩 + 인쇄안전(여백·최소폰트·keep-together). 공통 코어 블록 4교과 통과.
 - **M6 패키징** — 설치형(bin/files), PNG/카드 export, 새 환경 한 문장 생성 문서.
+
+**에디터/워크스페이스 E0~E6 완료** (상세: [docs/HANDOFF-editor-workspace.md](docs/HANDOFF-editor-workspace.md) §12):
+
+- **E0 용지/방향** — manifest `paper` 1급 속성(A4/A3/B4×방향×여백), `paper.js` 단일 소스, PDF MediaBox 실측.
+- **E1 문서 워크스페이스** — `worksheets/<문서명>/` + meta 리비전 + history 스냅샷(무료 undo). 저장은 `SaveDocument` 단일 게이트(누출 시 student.html 보류·`meta.unsafe`).
+- **E2 에디터 셸** — `edit-ui` 로컬 서버(127.0.0.1) + 인쇄정밀 캔버스 + 라이브 검수 바("같은 규칙, 두 런타임").
+- **E3 편집** — contenteditable 툴바 + ⭐ 정답 마크(3중 방어) + ✏️ 답란 → manifest 역동기화 저장.
+- **E4 사용자 프리셋** — 블록을 이름 붙여 저장·라이브러리·삽입 재사용(워크스페이스 공유 자산).
+- **E5 AI 액션(무API)** — 🤖 재작성/✨ 예시 채우기를 `.ai-bridge/` 파일 큐로 구독 AI 세션과 왕복. 성취기준·저작권 슬롯은 타입 가드로 제외.
+- **E6 내보내기 통합** — 에디터/CLI PDF export(`meta.unsafe` fail-closed), 정밀 미리보기(백그라운드 Chrome), 포맷 프리셋 UI(A4 세로·A3 접이·A4 가로·B4 세로 + 고급).
+
+후속 후보(범위 밖 명시): A3→A4 4쪽 소책자 imposition · 페이지별 정밀 미리보기 · columns 다단 리플로우 · export `--out` override.
 
 세부 수용·함정 기록은 `progress.txt`(로컬 작업 로그 — 저장소에는 포함되지 않음), 마일스톤 원장은 `.omc/ultragoal/`.
 `.claude/`(하네스)와 `poc/` 원본은 참고·복사만 하며 훼손하지 않는다.
