@@ -5,6 +5,8 @@ import { resolveBrowserGraph } from '../editor/browserGraph.js';
 import { RenderEditorShell } from '../usecases/RenderEditorShell.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
+import { PresetLibrary } from '../usecases/PresetLibrary.js';
+import { FsPresetRepository } from './FsPresetRepository.js';
 
 const MAX_SAVE_BODY = 20 * 1024 * 1024; // 로컬 편집 도구의 안전 상한
 
@@ -55,6 +57,10 @@ export function createEditorServer({ root, docName, workspace, blockRepository, 
   const shellRenderer = new RenderEditorShell({ blockRepository, curriculum });
   const opener = new OpenDocument({ workspace });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum });
+  const presetLibrary = new PresetLibrary({
+    presetRepository: new FsPresetRepository({ baseDir: workspace.baseDir }),
+    blockRepository,
+  });
 
   return createServer(async (req, res) => {
     try {
@@ -78,6 +84,45 @@ export function createEditorServer({ root, docName, workspace, blockRepository, 
           meta: result.meta,
           structureWarning: body.structureWarning === true,
         }));
+      }
+      // E4 프리셋(자산): SaveDocument 게이트 미경유 — 프리셋은 문서가 아니라 재사용 상용구다
+      // (§3.2 "아무거나 저장"). 정답 포함 프리셋도 허용하며, 문서 불변식은 삽입되어
+      // 문서로 저장될 때 SaveDocument 가, 미리보기 안전은 클라이언트 물리 제거본이 맡는다.
+      if (path === '/presets') {
+        if (req.method === 'GET') {
+          return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(await presetLibrary.list()));
+        }
+        if (req.method === 'POST') {
+          let body;
+          try {
+            body = await readJsonBody(req);
+          } catch (e) {
+            return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+          }
+          if (!body || typeof body.name !== 'string' || typeof body.html !== 'string') {
+            return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: 'name·html 이 필요합니다.' }));
+          }
+          try {
+            const preset = await presetLibrary.save({ name: body.name, type: body.type, html: body.html, desc: body.desc });
+            return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(preset));
+          } catch (e) {
+            return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+          }
+        }
+      }
+      if (path.startsWith('/presets/')) {
+        const rest = path.slice('/presets/'.length);
+        try {
+          if (req.method === 'DELETE') {
+            return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(await presetLibrary.delete(rest)));
+          }
+          if (req.method === 'POST' && rest.startsWith('restore/')) {
+            return send(res, 200, 'application/json; charset=utf-8',
+              JSON.stringify(await presetLibrary.restore(rest.slice('restore/'.length))));
+          }
+        } catch (e) {
+          return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
       }
       if (req.method !== 'GET') return send(res, 405, 'text/plain; charset=utf-8', 'GET only');
 

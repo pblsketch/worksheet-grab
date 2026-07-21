@@ -188,3 +188,14 @@ ralplan 합의 계획 v2.1(Planner→Architect 8건→Critic 4건→APPROVE) 기
 **실시간 예고(§3.4):** input 디바운스 250ms → 페이지 바닥 초과 **빨강 넘침 배지**(부모 오버레이) · 8pt 미만 **즉시 min-font 경고** · 라이브 검수 바(`recompute` 입력을 편집 DOM 직렬화로 확장 — E2 훅 승계). student 토글은 편집 불가 **즉석 파생 미리보기**(`stripElementsByClass` 동일 원시 — 저장 없이 마크의 2벌 효과 체감, contenteditable·편집 하이라이트는 파생 시 제거).
 
 **실물 실증:** 실 Chrome 시드 게이트(`--test-seed` 서버에서만 `?seed=` 활성 — 프로덕션 자동저장 오염 차단 실측): ② 마킹→저장→manifest `.answer` 반영·태깅 제거·student.html 물리 부재 ③ 답란 5줄 manifest 반영 ④ 6pt→min-font 즉시 경고 ⑤ 대량 답란→넘침 배지, + M1 높이 등가. Playwright 관찰: ① 자유 타이핑(insertText) 편집, ⭐마킹→학생 토글 즉석 반영, 기존 마크 confirm 발화·거절 보존, 저장 후 iframe 유지(rev 2, `__liveMarker` 생존 = 커서 컨텍스트 보존), `doc open` 재확인(rev 2·히스토리 2 = E1 저장 왕복).
+
+### 2026-07-21 — E4 완료 (사용자 프리셋 — 재사용 블록)
+ralplan 합의 계획 v2(Planner→Architect 7건→APPROVE) 기준 구현.
+
+**§3.2 실현(개발자 타입이 아니라 사용자 프리셋):** 에디터에서 아무 블록이나 선택 → **⧉ 내 블록으로 저장**(`window.prompt` 이름, 취소 미저장) → **📁 프리셋 라이브러리**에서 삽입. 프리셋은 문서 밖 공유 자산 `<워크스페이스>/.presets/presets.json` **단일 인덱스**(userPresets + hiddenBuiltins 오버레이) — 쓰기는 tmp→`.bak` 보존→rename **원자 교체**, 읽기는 정합 실패 시 백업 폴백(자산 손상 폭발 반경 방어). 기본 제공(발문·답란·표·루브릭 등 6종)은 `blocks/vocabulary.json`+`core/*.html` 에서 **런타임 파생한 읽기전용 빌트인**(§8: 동적 조립과 같은 substrate, exemplar 부재 시 개별 스킵) — 삭제=숨김 툼스톤·복원 소액션·동명 사용자 shadow 로 §3.2 "편집·삭제·추가 자유"를 비파괴로 이행.
+
+**아키텍처:** `presets.js`(순수 정책) / `FsPresetRepository`(원자 IO) / `PresetLibrary`(자산 오케스트레이션 — **SaveDocument 미경유**: 프리셋은 문서가 아니라 상용구, 정답 포함 저장 허용). 서버 `GET/POST /presets`·`DELETE /presets/:id`·`POST /presets/restore/:id`. 삽입 = 커서 블록 뒤 `wg-block` 래퍼 추가뿐 — **E3 역동기화(serializeSheets→resync→SaveDocument) 무변경**으로 문서 게이트(누출·마크 소멸 감지)가 프리셋 삽입분에도 그대로 발동.
+
+**§3.1 사각지대 봉합:** 라이브러리 미리보기는 **sandbox iframe(`sandbox=""` — 부모 접근·스크립트 차단 실측)** + 기본 **물리 제거본**(`stripElementsByClass` 동일 원시) 렌더, "정답 보기" 토글로만 원본. 정답 포함 상용구를 저장해도 학생 앞 화면에 정답이 새지 않는다.
+
+**실물 실증:** 시드 dump-dom(저장→목록 등장·아티팩트 정제 / 삽입→저장→manifest +1) + Playwright 관찰: 과학 문서A에서 정답 포함 '변인 정리 표' 저장 → prompt 발화 → 미리보기 기본 정답 부재·토글 시 노출 → 빌트인 숨김→복원 왕복 → **국어 문서B 라이브러리에 등장 → 삽입 → 저장(rev 2) → B manifest 에 variable-table 블록 잔존(§6 수용: 다른 문서에서 재사용)**. CLI `preset list/delete/restore` + `doc list` 의 `.presets` 오인 차단.

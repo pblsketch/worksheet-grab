@@ -46,7 +46,20 @@
   <span class="tb-sep"></span>
   <button id="tb-answer" class="tb-btn tb-mark" title="선택 영역을 정답으로 표시/해제 — 학생용에서 자동 제거">⭐ 정답 표시</button>
   <button id="tb-anslines" class="tb-btn tb-mark" title="현재 블록에 답란 5줄 삽입">✏️ 답란 삽입</button>
+  <span class="tb-sep"></span>
+  <button id="tb-preset-save" class="tb-btn tb-mark" title="현재 블록을 프리셋으로 저장 — 다른 문서에서 재사용">⧉ 내 블록으로 저장</button>
+  <button id="tb-preset-lib" class="tb-btn tb-mark" title="프리셋 라이브러리 열기/닫기">📁 프리셋</button>
 </div>
+<aside id="preset-panel" class="preset-panel hidden" aria-label="프리셋 라이브러리">
+  <header class="preset-head">
+    <b>프리셋 라이브러리</b>
+    <label class="preset-answer-toggle"><input type="checkbox" id="preset-show-answer"> 정답 보기</label>
+    <button id="preset-close" class="tb-btn" title="닫기">✕</button>
+  </header>
+  <div id="preset-warnings" class="preset-warnings"></div>
+  <ul id="preset-list" class="preset-list"></ul>
+  <div id="preset-hidden" class="preset-hidden"></div>
+</aside>
 <div id="save-banner" class="save-banner hidden" role="status"></div>
 <section id="review-bar" class="review-bar" aria-live="polite">
   <span id="review-status" class="review-status">검수 준비 중…</span>

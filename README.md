@@ -117,6 +117,13 @@ node bin/worksheet-grab.js edit-ui 광합성탐구                         # 브
 #   ⭐ 정답 표시: 아무 내용이나 선택해 마크 → 학생용에서 자동 물리 제거(2벌 자동 생성).
 #   ✏️ 답란 삽입: 현재 블록에 답란 5줄. 저장(Ctrl+S) = manifest 반영 + 히스토리 스냅샷.
 #   실시간 예고: 페이지 넘침 빨강 배지 · 8pt 미만 즉시 경고 · 라이브 검수 바.
+#   ⧉ 내 블록으로 저장(E4): 아무 블록이나 프리셋으로 저장 → 📁 프리셋 라이브러리에서
+#   다른 문서에 삽입 재사용. 기본 제공(발문·답란·표·루브릭)은 삭제(숨김)·복원 자유.
+node bin/worksheet-grab.js preset list                                # 프리셋 목록(기본 제공 + 내 블록)
+node bin/worksheet-grab.js preset delete 나의-블록                    # 내 블록 삭제 / 기본 제공은 숨김
+node bin/worksheet-grab.js preset restore builtin-rubric              # 숨긴 기본 제공 복원
+#   저장 위치: <워크스페이스>/.presets/presets.json (쓰기 시 .bak 백업·원자 교체).
+#   미리보기는 정답 물리 제거본이 기본("정답 보기" 토글로만 원본 노출).
 #   manifest 가 진실의 소스. 매 저장 = history/ 스냅샷 + meta 리비전(.worksheet-grab/meta.json).
 #   정답 누출(마크 밖 평문) 감지 시 student.html 을 보류하고 meta.unsafe 를 남긴다(작업은 저장됨).
 #   워크스페이스 루트는 기본 <cwd>/worksheets, --workspaces-dir 로 변경.

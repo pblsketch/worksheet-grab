@@ -20,6 +20,8 @@ import { FsWorkspaceRepository } from '../adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
 import { createEditorServer, listenEditorServer } from '../adapters/EditorHttpServer.js';
+import { PresetLibrary } from '../usecases/PresetLibrary.js';
+import { FsPresetRepository } from '../adapters/FsPresetRepository.js';
 
 const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
 
@@ -66,6 +68,12 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       + 공통 툴바(폰트·크기·B/I/U·색·정렬·목록·표·이미지·↶↷) + ⭐정답 표시·✏️답란 삽입
       + 라이브 검수 바. 저장(Ctrl+S)은 manifest 역동기화 → SaveDocument(누출 게이트·히스토리).
       정답 마크 해제로 인한 누출은 세션 태깅·confirm·저장 시 마크 소멸 감지로 3중 방어.
+  worksheet-grab preset <list|delete|restore> …
+      사용자 프리셋(재사용 블록) 자산 관리. 저장은 에디터(edit-ui)의 "내 블록으로 저장".
+        preset list [--json]     라이브러리 목록(기본 제공 + 내 블록, 워크스페이스 공유)
+        preset delete <id>       내 블록 삭제 / 기본 제공은 숨김(비파괴)
+        preset restore <id>      숨긴 기본 제공 복원
+      저장 위치: <워크스페이스>/.presets/presets.json (쓰기 시 .bak 백업·원자 교체).
   worksheet-grab list-blocks
       블록 타입 exemplar 파일 목록(core/*, pack-*/*). 재사용 부품·폴백·few-shot 시드.
   worksheet-grab list-vocab [--subject <교과>] [--json]
@@ -258,6 +266,7 @@ export async function run(argv, { root, log = console.log, err = console.error, 
     case 'edit': return cmdEdit(positionals[1], positionals[2], flags, repo, { log, err });
     case 'doc': return cmdDoc(positionals.slice(1), flags, repo, { log, err });
     case 'edit-ui': return cmdEditUi(positionals[1], flags, repo, { root, log, onServer });
+    case 'preset': return cmdPreset(positionals.slice(1), flags, repo, { log, err });
     case 'list-blocks': return cmdListBlocks(repo, { log });
     case 'list-vocab': return cmdListVocab(flags, repo, { log, err });
     case 'list-archetypes': return cmdListArchetypes(flags, repo, { log, err });
@@ -575,6 +584,44 @@ async function cmdEditUi(name, flags, repo, { root, log, onServer }) {
   process.once('SIGINT', () => server.close(() => process.exit(0)));
   if (onServer) onServer(server, addr);
   return 0;
+}
+
+/** E4 프리셋 자산 관리(생성은 에디터 전용 — 선택 컨텍스트 필요). */
+async function cmdPreset(args, flags, repo, { log, err }) {
+  const [sub, id] = args;
+  const ws = wsRepoFromFlags(flags);
+  const lib = new PresetLibrary({
+    presetRepository: new FsPresetRepository({ baseDir: ws.baseDir }),
+    blockRepository: repo,
+  });
+  switch (sub) {
+    case 'list': {
+      const { presets, skipped, warning } = await lib.list();
+      if (flags.json) { log(JSON.stringify({ presets, skipped, warning }, null, 2)); return 0; }
+      log(`프리셋 ${presets.length}개 (${ws.baseDir}${sep}.presets):`);
+      for (const p of presets) log(`  ${p.id} — ${p.name} · ${p.type} · ${p.source === 'builtin' ? '기본 제공' : '내 블록'}`);
+      if (skipped.length) log(`  ⚠ 빌트인 스킵(exemplar 부재): ${skipped.join(', ')}`);
+      if (warning) log(`  ⚠ ${warning}`);
+      return 0;
+    }
+    case 'delete': {
+      if (!id) throw new Error('preset delete: <id> 가 필요합니다.');
+      const r = await lib.delete(id);
+      log(r.action === 'hidden'
+        ? `✔ 기본 제공 프리셋 숨김: ${id} ("preset restore ${id}" 로 복원)`
+        : `✔ 프리셋 삭제: ${id}`);
+      return 0;
+    }
+    case 'restore': {
+      if (!id) throw new Error('preset restore: <id> 가 필요합니다.');
+      await lib.restore(id);
+      log(`✔ 기본 제공 프리셋 복원: ${id}`);
+      return 0;
+    }
+    default:
+      err(`preset: 알 수 없는 서브명령 "${sub ?? ''}". 지원: list [--json] · delete <id> · restore <id>`);
+      return 2;
+  }
 }
 
 async function cmdDoc(args, flags, repo, { log, err }) {

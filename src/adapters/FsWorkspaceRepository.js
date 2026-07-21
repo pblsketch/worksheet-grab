@@ -98,6 +98,7 @@ export class FsWorkspaceRepository {
     const out = [];
     for (const ent of await readdir(this.baseDir, { withFileTypes: true })) {
       if (!ent.isDirectory()) continue;
+      if (ent.name.startsWith('.')) continue; // .presets 등 자산 디렉토리는 문서가 아니다
       out.push({ name: ent.name, meta: await this.readMeta(ent.name) });
     }
     return out.sort((a, b) => a.name.localeCompare(b.name));

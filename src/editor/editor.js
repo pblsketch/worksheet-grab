@@ -10,6 +10,7 @@ import { stripElementsByClass } from '/src/usecases/html-scan.js';
 import { resyncManifest } from '/editor/resync.js';
 import { createToolbar, applyFontSizeDirect } from '/editor/toolbar.js';
 import { toggleAnswerMark, insertAnswerLines } from '/editor/marks.js';
+import { extractPresetFromSelection, insertPreset, previewSrcdoc } from '/editor/presets.js';
 
 const MM_TO_PX = 96 / 25.4; // CSS 사양 고정(zoom/DPR 무관)
 
@@ -338,6 +339,129 @@ bind('tb-anslines', () => {
   if (doc) insertAnswerLines(doc, 5);
 });
 
+// ── E4 프리셋 라이브러리 ──
+const presetPanel = document.getElementById('preset-panel');
+const presetListEl = document.getElementById('preset-list');
+const presetHiddenEl = document.getElementById('preset-hidden');
+const presetWarnEl = document.getElementById('preset-warnings');
+// 미리보기에 실제 블록 CSS 를 쓰기 위해 조립본의 <style> 원문을 재사용한다.
+const shellStyles = [...shell.teacherHtml.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)]
+  .map((m) => m[1]).join('\n');
+let presetShowAnswer = false;
+let presetCache = null;
+
+async function refreshPresets() {
+  presetCache = await (await fetch('/presets')).json();
+  renderPresetPanel();
+}
+
+function renderPresetPanel() {
+  if (!presetCache) return;
+  presetWarnEl.textContent = [
+    presetCache.warning,
+    presetCache.skipped?.length ? `빌트인 스킵(exemplar 부재): ${presetCache.skipped.join(', ')}` : '',
+  ].filter(Boolean).join(' · ');
+  presetListEl.replaceChildren(...presetCache.presets.map(presetItem));
+  presetHiddenEl.replaceChildren();
+  if (presetCache.hidden?.length) {
+    presetHiddenEl.append('숨긴 기본 제공:');
+    for (const id of presetCache.hidden) {
+      const btn = document.createElement('button');
+      btn.textContent = `${id} 복원`;
+      btn.addEventListener('click', async () => {
+        await fetch(`/presets/restore/${encodeURIComponent(id)}`, { method: 'POST' });
+        await refreshPresets();
+      });
+      presetHiddenEl.appendChild(btn);
+    }
+  }
+}
+
+function presetItem(p) {
+  const li = document.createElement('li');
+  li.className = 'preset-item';
+  li.dataset.presetId = p.id;
+
+  const head = document.createElement('div');
+  head.className = 'preset-item-head';
+  const name = document.createElement('b');
+  name.textContent = p.name;
+  const tag = document.createElement('span');
+  tag.className = 'tag';
+  tag.textContent = `${p.type}${p.source === 'builtin' ? ' · 기본 제공' : ''}`;
+  head.append(name, tag);
+
+  // sandbox iframe: 프리셋 html 의 스크립트/핸들러 실행 차단(자기-XSS 방지).
+  // 기본은 물리 제거본(§3.1) — "정답 보기" 토글 시에만 원본.
+  const preview = document.createElement('iframe');
+  preview.className = 'preset-preview';
+  preview.setAttribute('sandbox', '');
+  preview.srcdoc = previewSrcdoc(p, { showAnswer: presetShowAnswer, styles: shellStyles });
+
+  const actions = document.createElement('div');
+  actions.className = 'preset-actions';
+  const insertBtn = document.createElement('button');
+  insertBtn.className = 'insert';
+  insertBtn.textContent = '삽입';
+  insertBtn.addEventListener('mousedown', (e) => {
+    e.preventDefault(); // iframe 선택(커서 블록) 유지
+    const doc = frames.teacher?.contentDocument;
+    if (!doc) return;
+    if (insertPreset(doc, p)) {
+      onEdit();
+      showBanner('ok', `프리셋 삽입: ${p.name} (저장 시 문서에 반영)`);
+    }
+  });
+  const delBtn = document.createElement('button');
+  delBtn.textContent = p.source === 'builtin' ? '숨기기' : '삭제';
+  delBtn.addEventListener('click', async () => {
+    await fetch(`/presets/${encodeURIComponent(p.id)}`, { method: 'DELETE' });
+    await refreshPresets();
+  });
+  actions.append(insertBtn, delBtn);
+
+  li.append(head, preview, actions);
+  return li;
+}
+
+async function savePresetFlow() {
+  const doc = frames.teacher?.contentDocument;
+  const payload = doc ? extractPresetFromSelection(doc) : null;
+  if (!payload) {
+    showBanner('warn', '저장할 블록 안에 커서를 두고 다시 시도하세요.');
+    return null;
+  }
+  const name = window.prompt('프리셋 이름을 입력하세요:');
+  if (!name || !name.trim()) return null; // 취소/빈 이름 = 미저장(확정 결정)
+  const res = await fetch('/presets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, ...payload }),
+  });
+  if (!res.ok) {
+    showBanner('error', `프리셋 저장 실패 (HTTP ${res.status})`);
+    return null;
+  }
+  const saved = await res.json();
+  showBanner('ok', `프리셋 저장됨: ${saved.name} — 다른 문서에서도 재사용됩니다.`);
+  await refreshPresets();
+  return saved;
+}
+
+document.getElementById('tb-preset-save').addEventListener('mousedown', (e) => {
+  e.preventDefault(); // iframe 선택 유지(커서 블록 추출에 필요)
+  savePresetFlow();
+});
+document.getElementById('tb-preset-lib').addEventListener('click', async () => {
+  const showing = presetPanel.classList.toggle('hidden') === false;
+  if (showing && !presetCache) await refreshPresets();
+});
+document.getElementById('preset-close').addEventListener('click', () => presetPanel.classList.add('hidden'));
+document.getElementById('preset-show-answer').addEventListener('change', (e) => {
+  presetShowAnswer = e.target.checked;
+  renderPresetPanel();
+});
+
 for (const w of shell.warnings ?? []) {
   const li = document.createElement('li');
   li.className = 'warning';
@@ -395,6 +519,34 @@ async function runSeed(seed) {
     insertAnswerLines(doc, 60); // 페이지 바닥 초과 유발 → 빨강 배지(§6 ⑤)
     fitFrame(frames.teacher);
     drawGuides();
+  } else if (seed === 'save-preset') {
+    // E4 ①: 커서 블록을 프리셋으로 저장(프롬프트 없이 결정적 이름) → 목록 등장·정제 계측
+    const range = doc.createRange();
+    range.selectNodeContents(firstQuestion);
+    range.collapse(true);
+    const sel = doc.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const payload = extractPresetFromSelection(doc);
+    const res = await fetch('/presets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: '시드 프리셋', ...payload }),
+    });
+    const saved = await res.json();
+    const list = await (await fetch('/presets')).json();
+    document.body.dataset.presetSaved = String(list.presets.some((p) => p.id === saved.id));
+    document.body.dataset.presetClean = String(!/data-wg-mark|contenteditable=/.test(payload.html));
+  } else if (seed === 'insert-preset') {
+    // E4 ②: 라이브러리 첫 항목 삽입 → 저장 → manifest 반영 계측(블록 수 +1)
+    const list = await (await fetch('/presets')).json();
+    const first = list.presets[0];
+    const blocksBefore = baseManifest.pages.flat().length;
+    insertPreset(doc, first);
+    const result = await save();
+    document.body.dataset.presetInserted =
+      String(result != null && baseManifest.pages.flat().length === blocksBefore + 1);
+    document.body.dataset.insertedType = first.type;
   }
   document.body.dataset.seedDone = seed;
 }

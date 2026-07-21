@@ -94,3 +94,34 @@ body {
 
 /* review-bar 위치 조정(툴바 추가로 상단 오프셋 증가) */
 .review-bar { top: 86px; }
+
+/* ── E4 프리셋 라이브러리 패널 ── */
+.preset-panel {
+  position: fixed; top: 96px; right: 12px; bottom: 12px; width: 340px; z-index: 30;
+  background: #fff; border: 1px solid #d0d7de; border-radius: 10px;
+  box-shadow: 0 6px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; overflow: hidden;
+}
+.preset-panel.hidden { display: none; }
+.preset-head {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  background: #f6f8fa; border-bottom: 1px solid #d0d7de;
+}
+.preset-head b { flex: 1; }
+.preset-answer-toggle { font-size: 12px; color: #57606a; display: flex; align-items: center; gap: 4px; }
+.preset-warnings { font-size: 12px; color: #bc4c00; padding: 0 12px; }
+.preset-warnings:empty { display: none; }
+.preset-list { list-style: none; margin: 0; padding: 8px 12px; overflow-y: auto; flex: 1; display: grid; gap: 10px; }
+.preset-item { border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; }
+.preset-item-head { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; }
+.preset-item-head b { flex: 1; font-size: 13px; }
+.preset-item-head .tag { font-size: 11px; color: #57606a; background: #f6f8fa; border-radius: 8px; padding: 1px 7px; }
+.preset-preview { width: 100%; height: 84px; border: 0; border-top: 1px solid #eaeef2; pointer-events: none; background: #fff; }
+.preset-actions { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid #eaeef2; }
+.preset-actions button {
+  border: 1px solid #d0d7de; border-radius: 6px; background: #fff;
+  padding: 3px 10px; cursor: pointer; font: inherit; font-size: 12px;
+}
+.preset-actions .insert { background: #2563eb; color: #fff; border-color: #2563eb; font-weight: 600; }
+.preset-hidden { font-size: 12px; padding: 8px 12px; border-top: 1px solid #eaeef2; color: #57606a; }
+.preset-hidden:empty { display: none; }
+.preset-hidden button { margin-left: 6px; font-size: 11px; cursor: pointer; }
