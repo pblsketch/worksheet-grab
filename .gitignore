@@ -9,3 +9,4 @@ progress.txt
 # 로컬 툴링 상태(OMC/fablize) — 추적하지 않음
 .omc/
 .fablize/
+.playwright-mcp/
