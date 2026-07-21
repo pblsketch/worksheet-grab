@@ -1,6 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve, sep } from 'node:path';
+import { normalizeDocName } from '../usecases/workspace.js';
 import { FsBlockRepository } from '../adapters/FsBlockRepository.js';
 import { GepaiCurriculum } from '../adapters/GepaiCurriculum.js';
 import { ChromeRenderer } from '../adapters/ChromeRenderer.js';
@@ -15,6 +16,9 @@ import { EditWorksheet } from '../usecases/EditWorksheet.js';
 import { RenderPdf, DEFAULT_VIRTUAL_TIME_BUDGET } from '../usecases/RenderPdf.js';
 import { RenderImage } from '../usecases/RenderImage.js';
 import { resolvePaper, paperToPx } from '../usecases/paper.js';
+import { FsWorkspaceRepository } from '../adapters/FsWorkspaceRepository.js';
+import { SaveDocument } from '../usecases/SaveDocument.js';
+import { OpenDocument } from '../usecases/OpenDocument.js';
 
 const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
 
@@ -45,6 +49,16 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       기본은 원본 보존(-v2, -v3 … 접미사로 저장). --in-place 지정 시에만 원본을 덮어쓴다.
       예: edit out/science-광합성.manifest.json "3번 문항 빼고 성찰 추가"
       지시 대신 플래그도 가능: --remove <N> (반복 가능) · --add reflection
+  worksheet-grab doc <list|open|save|history|restore> …
+      문서 워크스페이스(worksheets/<문서명>/ — manifest·학생/교사 HTML·meta·히스토리).
+        doc list                            문서 목록(제목·교과·리비전·unsafe 배지)
+        doc open <문서명>                   문서 로드·상태 표시(에디터 기동은 E2)
+        doc save <문서명> --from <manifest.json>   manifest 를 문서로 저장(재렌더·누출검증·스냅샷)
+        doc history <문서명>                히스토리 스냅샷 목록
+        doc restore <문서명> <일련번호>     스냅샷 복원(비파괴 — 새 리비전으로 저장)
+      generate/pipeline/edit 에 --doc <문서명> 을 주면 out/ 대신 워크스페이스 문서로 산출.
+      edit 는 경로 대신 --doc <문서명> 으로도 편집 가능. 정답 누출 시 student.html 은
+      보류되고 meta.unsafe 가 표시된다(작업은 저장됨 · export 는 차단).
   worksheet-grab list-blocks
       블록 타입 exemplar 파일 목록(core/*, pack-*/*). 재사용 부품·폴백·few-shot 시드.
   worksheet-grab list-vocab [--subject <교과>] [--json]
@@ -58,6 +72,7 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
 공통 옵션:
   --csv <경로>     성취기준 CSV 위치(assemble/generate/pipeline/edit). GEPAI_CSV 환경변수로도 지정 가능.
   --chrome <경로>  Chrome 실행 파일(render 계열). CHROME_PATH 환경변수로도 지정 가능.
+  --workspaces-dir <경로>  문서 워크스페이스 루트(doc/--doc). 기본 <현재 디렉토리>/worksheets.
 `;
 
 /** 인자 파서: 위치 인자 + --flag value / --flag=value / --bool. */
@@ -98,6 +113,43 @@ function parseStandardsFlag(flags) {
 function parseLimitFlag(flags, fallback = 6) {
   const n = Number(flags.limit);
   return Number.isInteger(n) && n > 0 ? n : fallback;
+}
+
+/** --workspaces-dir 플래그(기본 <cwd>/worksheets)로 워크스페이스 리포지토리 구성. */
+function wsRepoFromFlags(flags) {
+  return new FsWorkspaceRepository({
+    baseDir: typeof flags['workspaces-dir'] === 'string' ? flags['workspaces-dir'] : null,
+  });
+}
+
+/**
+ * 워크스페이스 저장의 단일 CLI 배선점 — generate/pipeline/edit 의 --doc 와
+ * doc save/restore 가 전부 여기를 거친다. 반드시 SaveDocument.execute 를 경유한다
+ * (writeVariantTrio 재사용 금지 — 정답 누출 게이트가 우회되면 안 된다).
+ * @param {{isNew?:boolean}} opts isNew: 생성 경로(--doc)의 동일 문서명 충돌 방지.
+ */
+async function emitToWorkspace(manifest, docName, flags, repo, { log }, { isNew = false } = {}) {
+  const ws = wsRepoFromFlags(flags);
+  if (isNew && ws.docExists(docName)) {
+    const meta = await ws.readMeta(docName);
+    if (meta) {
+      throw new Error(`문서 "${docName}" 가 이미 있습니다. "doc open ${docName}" 으로 열어 편집하거나 다른 이름을 쓰세요.`);
+    }
+    throw new Error(`문서 "${docName}" 디렉토리가 있으나 meta 가 없습니다(미완성/부분쓰기 의심). 디렉토리를 정리하거나 다른 이름을 쓰세요.`);
+  }
+  const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
+  const saver = new SaveDocument({ workspace: ws, blockRepository: repo, curriculum });
+  const result = await saver.execute({ name: docName, manifest });
+  log(`  워크스페이스 → ${result.paths.dir} (rev ${result.meta.revision})`);
+  log(`  ${result.paths.manifestPath}`);
+  log(`  ${result.paths.teacherPath}`);
+  if (result.unsafe) {
+    log('  ⚠ 정답 누출 감지 → student.html 쓰기 보류(meta.unsafe=true). export 는 차단됩니다. 콘텐츠 수정 후 재저장하세요.');
+    for (const f of result.leakFindings) log(`     ✗ [${f.rule}] ${f.message} (근거: ${f.evidence})`);
+  } else {
+    log(`  ${result.paths.studentPath}`);
+  }
+  return result;
 }
 
 /** 산출물 용지 추적 로그 1줄(관측성): size/orientation/margins. */
@@ -197,6 +249,7 @@ export async function run(argv, { root, log = console.log, err = console.error }
       return cmdCompose(gradeSubject, topic, flags, repo, { log, err });
     }
     case 'edit': return cmdEdit(positionals[1], positionals[2], flags, repo, { log, err });
+    case 'doc': return cmdDoc(positionals.slice(1), flags, repo, { log, err });
     case 'list-blocks': return cmdListBlocks(repo, { log });
     case 'list-vocab': return cmdListVocab(flags, repo, { log, err });
     case 'list-archetypes': return cmdListArchetypes(flags, repo, { log, err });
@@ -280,13 +333,20 @@ async function cmdGenerate(gradeSubject, topic, flags, repo, { log }) {
   const { html, worksheet, standards, manifest } =
     await gen.execute({ grade, subject, topic, limit: parseLimitFlag(flags), codes: parseStandardsFlag(flags) });
 
+  log(`✔ generate: ${grade} ${subject} "${topic}" (${worksheet.pageCount()}쪽, 성취기준 ${standards.map((s) => s.code).join(', ')})`);
+  if (manifest.paper) log(`  용지: ${paperLine(manifest.paper)}`);
+
+  // --doc: 워크스페이스 문서로 산출(단일 SaveDocument 경유). out/ 납작 경로는 건드리지 않는다.
+  if (typeof flags.doc === 'string') {
+    const result = await emitToWorkspace(manifest, flags.doc, flags, repo, { log }, { isNew: true });
+    if (flags.pdf || flags.png) log('  (워크스페이스 문서의 PDF/PNG export 는 후속(E6) — HTML 2벌까지 산출)');
+    return result.unsafe ? 1 : 0;
+  }
+
   const { student, teacher } = new BuildVariants().execute(html);
   const base = worksheetBase(worksheet.subject, topic);
   const { htmlPath, sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher });
   const mPath = await writeManifest(outDir, base, manifest);
-
-  log(`✔ generate: ${grade} ${subject} "${topic}" (${worksheet.pageCount()}쪽, 성취기준 ${standards.map((s) => s.code).join(', ')})`);
-  if (manifest.paper) log(`  용지: ${paperLine(manifest.paper)}`);
   log(`  ${htmlPath}`);
   log(`  ${sPath}`);
   log(`  ${tPath}`);
@@ -317,10 +377,14 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   log(`  2) 조립 + 2벌 분기: ${worksheet.pageCount()}쪽 (student/teacher)`);
   if (manifest.paper) log(`     용지: ${paperLine(manifest.paper)}`);
 
-  const base = worksheetBase(worksheet.subject, topic);
-  const { sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher });
-  const mPath = await writeManifest(outDir, base, manifest);
-  log(`     매니페스트: ${mPath} (재편집용 — edit 명령 입력)`);
+  const useDoc = typeof flags.doc === 'string';
+  let sPath, tPath;
+  if (!useDoc) {
+    const base = worksheetBase(worksheet.subject, topic);
+    ({ sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher }));
+    const mPath = await writeManifest(outDir, base, manifest);
+    log(`     매니페스트: ${mPath} (재편집용 — edit 명령 입력)`);
+  }
 
   // 3) 검수 게이트
   const findings = [...review.student.findings, ...review.teacher.findings];
@@ -334,6 +398,13 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   if (!gate) {
     err('  ✗ 검수 게이트 실패(정답 누출 등) → 렌더 중단(fail-closed). 콘텐츠 수정 후 재실행하세요.');
     return 1;
+  }
+
+  // --doc: 게이트 통과분을 워크스페이스 문서로 저장(단일 SaveDocument 경유). 렌더는 E6.
+  if (useDoc) {
+    const result = await emitToWorkspace(manifest, flags.doc, flags, repo, { log }, { isNew: true });
+    log('  4) 렌더: 워크스페이스 문서의 PDF export 는 후속(E6). HITL: 교사 검토 후 인쇄하세요.');
+    return result.unsafe ? 1 : 0;
   }
 
   // 4) 렌더 (게이트 통과 시)
@@ -391,9 +462,32 @@ async function cmdCompose(gradeSubject, topic, flags, repo, { log, err }) {
 }
 
 async function cmdEdit(manifestPath, instruction, flags, repo, { log }) {
-  if (!manifestPath) throw new Error('edit: <manifest.json> 경로가 필요합니다.');
   const outDir = flags.out || 'out';
-  const manifest = await repo.readManifest(manifestPath);
+  const ws = wsRepoFromFlags(flags);
+  let docName = typeof flags.doc === 'string' ? flags.doc : null;
+  // 문서명 해석: `edit --doc <name> "<지시>"` — 경로 자리에 온 지시문을 재배치.
+  if (docName && manifestPath && instruction === undefined && !/\.json$/i.test(manifestPath)) {
+    instruction = manifestPath;
+    manifestPath = null;
+  }
+  let manifest;
+  if (manifestPath) {
+    manifest = await repo.readManifest(manifestPath);
+    // 입력이 워크스페이스 문서(worksheets/<name>/worksheet.manifest.json)면 컨텍스트 자동 추론.
+    const abs = resolve(manifestPath);
+    if (abs.startsWith(ws.baseDir + sep) && basename(abs) === 'worksheet.manifest.json') {
+      const inferred = basename(dirname(abs));
+      if (docName && normalizeDocName(docName) !== inferred) {
+        throw new Error(`--doc "${docName}" 가 입력 문서("${inferred}")와 다릅니다. 의도치 않은 교차 저장을 막기 위해 중단합니다.`);
+      }
+      docName = inferred;
+    }
+  } else if (docName) {
+    if (!ws.docExists(docName)) throw new Error(`문서가 없습니다: ${docName}. "doc list" 로 문서 목록을 확인하세요.`);
+    manifest = await ws.readManifest(docName);
+  } else {
+    throw new Error('edit: <manifest.json> 경로 또는 --doc <문서명> 이 필요합니다.');
+  }
 
   // 편집 오퍼레이션: 자연어 지시("3번 문항 빼고 성찰 추가") 또는 --remove/--add 플래그.
   let ops;
@@ -412,6 +506,15 @@ async function cmdEdit(manifestPath, instruction, flags, repo, { log }) {
   }
 
   const { manifest: edited, applied } = new EditWorksheet().execute(manifest, ops);
+
+  // 워크스페이스 컨텍스트: SaveDocument 경유 저장(히스토리 스냅샷 = 무료 undo, -vN 불필요).
+  if (docName) {
+    log(`✔ edit(doc): ${docName}`);
+    for (const a of applied) log(`  · ${a}`);
+    const result = await emitToWorkspace(edited, docName, flags, repo, { log });
+    log('  ✔ HITL: 편집 결과를 교사가 검토한 뒤 인쇄/배포하세요. (PDF export 는 후속 E6)');
+    return result.unsafe ? 1 : 0;
+  }
 
   // 편집된 매니페스트로 재조립 + 2벌 분기(왕복).
   const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
@@ -443,6 +546,66 @@ async function cmdEdit(manifestPath, instruction, flags, repo, { log }) {
   }
   log('  ✔ HITL: 편집 결과를 교사가 검토한 뒤 인쇄/배포하세요.');
   return 0;
+}
+
+async function cmdDoc(args, flags, repo, { log, err }) {
+  const [sub, name, extra] = args;
+  const ws = wsRepoFromFlags(flags);
+  switch (sub) {
+    case 'list': {
+      const docs = await ws.listDocuments();
+      if (docs.length === 0) { log(`문서 없음 (${ws.baseDir})`); return 0; }
+      log(`문서 ${docs.length}개 (${ws.baseDir}):`);
+      for (const d of docs) {
+        if (d.meta) {
+          const unsafeTag = d.meta.unsafe ? ' · ⚠ UNSAFE(정답 누출 — student 보류)' : '';
+          log(`  ${d.name} — ${d.meta.title} · ${d.meta.subject} · rev ${d.meta.revision} · ${d.meta.updatedAt}${unsafeTag}`);
+        } else {
+          log(`  ${d.name} — (meta 없음 · 미완성/외부 생성 의심)`);
+        }
+      }
+      return 0;
+    }
+    case 'open': {
+      if (!name) throw new Error('doc open: <문서명> 이 필요합니다.');
+      const r = await new OpenDocument({ workspace: ws }).execute({ name });
+      log(`✔ doc open: ${r.name} (에디터 기동은 E2 — 여기서는 로드·상태 표시)`);
+      log(`  경로: ${r.paths.dir}`);
+      if (r.meta) {
+        log(`  제목: ${r.meta.title} · 교과: ${r.meta.subject} · rev ${r.meta.revision} · 수정 ${r.meta.updatedAt}`);
+        log(`  성취기준: ${(r.meta.standards || []).join(', ') || '없음'} · 용지: ${r.meta.paper ? paperLine(r.meta.paper) : 'A4 기본'}`);
+      }
+      log(`  히스토리: 스냅샷 ${r.history.length}개 (doc history ${r.name})`);
+      for (const w of r.warnings) log(`  ⚠ ${w}`);
+      return 0;
+    }
+    case 'save': {
+      if (!name) throw new Error('doc save: <문서명> 이 필요합니다.');
+      if (typeof flags.from !== 'string') throw new Error('doc save: --from <manifest.json> 이 필요합니다.');
+      const manifest = JSON.parse(await readFile(resolve(flags.from), 'utf8'));
+      const result = await emitToWorkspace(manifest, name, flags, repo, { log });
+      log(`✔ doc save: ${result.name} → rev ${result.meta.revision}`);
+      return result.unsafe ? 1 : 0;
+    }
+    case 'history': {
+      if (!name) throw new Error('doc history: <문서명> 이 필요합니다.');
+      if (!ws.docExists(name)) throw new Error(`문서가 없습니다: ${name}`);
+      const snaps = await ws.listSnapshots(name);
+      log(`히스토리 ${snaps.length}개 (${name}):`);
+      for (const s of snaps) log(`  ${s}`);
+      return 0;
+    }
+    case 'restore': {
+      if (!name || !extra) throw new Error('doc restore: <문서명> <일련번호> 가 필요합니다. 예: doc restore 광합성탐구 0001');
+      const snapshot = await ws.readSnapshot(name, extra);
+      const result = await emitToWorkspace(snapshot, name, flags, repo, { log });
+      log(`✔ doc restore: ${result.name} ← 스냅샷 ${extra} (새 rev ${result.meta.revision} — 비파괴, 복원도 히스토리에 남습니다)`);
+      return result.unsafe ? 1 : 0;
+    }
+    default:
+      err(`doc: 알 수 없는 서브명령 "${sub ?? ''}". 지원: list · open · save · history · restore`);
+      return 2;
+  }
 }
 
 async function cmdListBlocks(repo, { log }) {

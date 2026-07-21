@@ -153,3 +153,14 @@ ralplan 합의 계획 v2.1(Planner→Architect→Critic APPROVE) 기준 구현.
 **실측 수용(실 Chrome):** A4 기본 595×842pt · A3 가로 1191×841pt · B4(JIS) 세로 729×1032pt · sci+`paper:{size:A4}` = 595×842pt + 페이지수 불변 · A3 PNG IHDR = paperToPx(1587×1123). 예시 manifest: `manifests/_e0-a3-landscape.json`, `_e0-b4-portrait.json`.
 
 **배선:** `GenerateWorksheet`(템플릿 paper 전파, 없으면 키 미생성) · CLI `renderVariantFiles`(PNG 치수 paperToPx) · `ValidateWorksheet`(paper 기준 여백 + L≠R 경고, CSS 정규식 폴백 유지) · `RunPipeline`(paper 주입) · generate/pipeline 용지 로그 1줄(관측성).
+
+### 2026-07-21 — E1 완료 (문서 워크스페이스/저장)
+ralplan 합의 계획 v2.1(Planner→Architect 5건→Critic C1/M1/M2/m1→APPROVE) 기준 구현.
+
+**저장 모델(§5 구현 + E1 확정):** `worksheets/<문서명>/` = `worksheet.manifest.json`(진실) · `worksheet-student.html`(조건부)/`-teacher.html`(항상) · `assets/` · `.worksheet-grab/meta.json`(schemaVersion·revision·createdAt/updatedAt·unsafe — 커밋 마커, 저장 순서 최종) · `history/<0001>-<ISO>.manifest.json`(매 저장 스냅샷 = 무료 undo). **`worksheet.html`(통합본)은 E1 미생성** — MODE_TOKEN 미치환 원본은 정답을 물리 포함한 누출 벡터라 워크스페이스에 두지 않는다(§5 슬롯은 E2 편집 캔버스 소관으로 예약).
+
+**아키텍처:** 순수 정책 `src/usecases/workspace.js`(정규화·레이아웃·일련번호·meta·정합판정) / IO `src/adapters/FsWorkspaceRepository.js` / 오케스트레이션 `SaveDocument`·`OpenDocument`(**E2 에디터 서버의 로드/저장 진입점**). CLI: `doc list/open/save/history/restore` + generate/pipeline/edit `--doc` opt-in(전부 `emitToWorkspace`→`SaveDocument` 단일 경유). 기본 루트 `<cwd>/worksheets`, `--workspaces-dir` override.
+
+**누출 fail-closed × 저장 관대성(P5) 신테시스:** 모든 저장 진입점이 SaveDocument 하나를 경유. manifest·history·teacher·meta 는 항상 저장(작업 손실 0)하되, 정답 누출(error) 감지 시 **student.html 쓰기 보류(잔존 제거) + meta.unsafe=true + 비영 종료**. 정상 재저장 시 unsafe 해제·student 재생성. E6 export 는 unsafe 를 fail-closed 로 승격 예정. **구현 노트(계획 대비 정정):** 누출 판정 피연산자는 student 단독이 아니라 RunPipeline 게이트와 동일하게 **student+teacher 양벌의 error 합집합** — student 는 `.answer` 가 이미 물리 제거된 상태라 answer-leak 규칙이 구조적으로 발화 불가하며, "마크 밖 평문" 탐지는 마크가 살아 있는 teacher 쪽이 담당한다(그 평문이 곧 student 잔존 누출분).
+
+**수용 실증:** §6 왕복(생성→편집→다시 열기→`doc restore` 비파괴 복원+재렌더 일관) e2e green · 누출 3케이스(마킹 정답 안전/평문 누출 보류/재저장 해제) green · `--doc` 미지정 시 out/ 경로 무변경(기존 스위트 무수정 green).

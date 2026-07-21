@@ -104,7 +104,19 @@ node bin/worksheet-grab.js edit <base>.manifest.json "3번 문항 빼고 성찰 
 node bin/worksheet-grab.js render <in.html> --png <out.png>
 node bin/worksheet-grab.js generate 중2영어 감정 --out out/ --png   # 2벌 PNG 동시 산출
 
-# 9) 라이브러리 나열
+# 9) 문서 워크스페이스(E1) — worksheets/<문서명>/ 폴더 단위 저장·히스토리
+node bin/worksheet-grab.js generate 중2과학 광합성 --doc 광합성탐구   # out/ 대신 문서로 생성
+node bin/worksheet-grab.js edit --doc 광합성탐구 "3번 문항 빼줘"      # 문서명으로 편집(스냅샷 자동)
+node bin/worksheet-grab.js doc list                                   # 문서 목록(리비전·unsafe 배지)
+node bin/worksheet-grab.js doc open 광합성탐구                        # 로드·상태 표시(에디터 기동은 E2)
+node bin/worksheet-grab.js doc history 광합성탐구                     # 편집 스냅샷 목록(무료 undo)
+node bin/worksheet-grab.js doc restore 광합성탐구 0001                # 비파괴 복원(새 리비전으로 저장)
+node bin/worksheet-grab.js doc save 광합성탐구 --from x.manifest.json # 원시 저장 진입점(E2 서버용)
+#   manifest 가 진실의 소스. 매 저장 = history/ 스냅샷 + meta 리비전(.worksheet-grab/meta.json).
+#   정답 누출(마크 밖 평문) 감지 시 student.html 을 보류하고 meta.unsafe 를 남긴다(작업은 저장됨).
+#   워크스페이스 루트는 기본 <cwd>/worksheets, --workspaces-dir 로 변경.
+
+# 10) 라이브러리 나열
 node bin/worksheet-grab.js list-blocks                    # 타입 exemplar 파일(core/*, pack-*/*)
 node bin/worksheet-grab.js list-vocab                     # 블록 타입 어휘 + 계약(코어/교과팩·슬롯)
 node bin/worksheet-grab.js list-vocab --subject science  # 과학에서 쓸 수 있는 타입만
