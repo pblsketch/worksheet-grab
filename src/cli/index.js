@@ -22,6 +22,8 @@ import { OpenDocument } from '../usecases/OpenDocument.js';
 import { createEditorServer, listenEditorServer } from '../adapters/EditorHttpServer.js';
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
 import { FsPresetRepository } from '../adapters/FsPresetRepository.js';
+import { FsAiBridgeRepository } from '../adapters/FsAiBridgeRepository.js';
+import { AI_SCHEMA_VERSION } from '../usecases/aiBridge.js';
 
 const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
 
@@ -74,6 +76,13 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
         preset delete <id>       내 블록 삭제 / 기본 제공은 숨김(비파괴)
         preset restore <id>      숨긴 기본 제공 복원
       저장 위치: <워크스페이스>/.presets/presets.json (쓰기 시 .bak 백업·원자 교체).
+  worksheet-grab ai <pending|respond|list|clear> …
+      AI 액션 브리지(E5, 무API): 에디터의 "AI 재작성/예시 채우기" 요청을 구독 AI
+      (이 CLI 를 모는 Claude/Codex 세션)가 파일 큐로 주고받는다.
+        ai pending [--json] [--watch] [--once]   대기 요청 조회/감시(1s 폴링)
+        ai respond <id> --from <file>|--html <…> 재작성 결과 회신(취소된 요청은 거부)
+        ai list [--all] · ai clear [<id>]        상태 조회·terminal 정리
+      큐 위치: <워크스페이스>/.ai-bridge/. 성취기준·저작권 지문 블록은 대상에서 제외.
   worksheet-grab list-blocks
       블록 타입 exemplar 파일 목록(core/*, pack-*/*). 재사용 부품·폴백·few-shot 시드.
   worksheet-grab list-vocab [--subject <교과>] [--json]
@@ -267,6 +276,7 @@ export async function run(argv, { root, log = console.log, err = console.error, 
     case 'doc': return cmdDoc(positionals.slice(1), flags, repo, { log, err });
     case 'edit-ui': return cmdEditUi(positionals[1], flags, repo, { root, log, onServer });
     case 'preset': return cmdPreset(positionals.slice(1), flags, repo, { log, err });
+    case 'ai': return cmdAi(positionals.slice(1), flags, { log, err });
     case 'list-blocks': return cmdListBlocks(repo, { log });
     case 'list-vocab': return cmdListVocab(flags, repo, { log, err });
     case 'list-archetypes': return cmdListArchetypes(flags, repo, { log, err });
@@ -584,6 +594,67 @@ async function cmdEditUi(name, flags, repo, { root, log, onServer }) {
   process.once('SIGINT', () => server.close(() => process.exit(0)));
   if (onServer) onServer(server, addr);
   return 0;
+}
+
+/**
+ * E5 AI 브리지 — 구독 AI(이 CLI 를 모는 Claude/Codex 세션)가 에디터의 AI 요청을
+ * 읽고 응답하는 표면. 무API(§3.5): 여기에 LLM 호출은 없다 — 파일 큐 왕복뿐.
+ */
+async function cmdAi(args, flags, { log, err }) {
+  const [sub, id] = args;
+  const ws = wsRepoFromFlags(flags);
+  const bridge = new FsAiBridgeRepository({ baseDir: ws.baseDir });
+  const printRequest = (r) => {
+    if (flags.json) log(JSON.stringify(r, null, 2));
+    else log(`  ${r.id} — ${r.docName} · ${r.action} · ${r.block.bt || 'content'} (${r.block.html.length}자)${r.instruction ? ` · 지시: ${r.instruction}` : ''}`);
+  };
+  switch (sub) {
+    case 'pending': {
+      const initial = await bridge.listPending();
+      if (initial.length === 0 && !flags.watch) { log('대기 중인 AI 요청 없음.'); return 0; }
+      for (const r of initial) printRequest(r);
+      if (!flags.watch) return 0;
+      // --watch: 새 요청 도착을 폴링 감시(Windows fs.watch 불신뢰 → 1s 폴링 루프).
+      log(`● AI 브리지 감시 중 (${ws.baseDir}) — Ctrl+C 종료${flags.once ? ' · 첫 새 요청 후 종료' : ''}`);
+      const seen = new Set(initial.map((r) => r.id));
+      if (flags.once && initial.length > 0) return 0;
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const fresh = (await bridge.listPending()).filter((r) => !seen.has(r.id));
+        for (const r of fresh) { seen.add(r.id); printRequest(r); }
+        if (flags.once && fresh.length > 0) return 0;
+      }
+    }
+    case 'respond': {
+      if (!id) throw new Error('ai respond: <id> 가 필요합니다.');
+      const status = await bridge.getStatus(id);
+      if (!status) throw new Error(`요청을 찾을 수 없습니다: ${id}`);
+      if (status === 'cancelled') { err(`✗ 취소된 요청입니다(terminal): ${id} — 응답할 수 없습니다.`); return 1; }
+      if (status !== 'pending') { err(`✗ ${status} 상태 요청입니다: ${id} — pending 만 응답 가능합니다.`); return 1; }
+      let html;
+      if (typeof flags.from === 'string') html = await readFile(resolve(flags.from), 'utf8');
+      else if (typeof flags.html === 'string') html = flags.html;
+      else throw new Error('ai respond: --from <file> 또는 --html <inline> 이 필요합니다.');
+      await bridge.putResponse({ schemaVersion: AI_SCHEMA_VERSION, id, html });
+      log(`✔ 응답 기록: ${id} (${html.length}자) — 에디터가 폴링으로 수신합니다.`);
+      return 0;
+    }
+    case 'list': {
+      const all = await bridge.listAll();
+      const items = flags.all ? all : all.filter((r) => r.status === 'pending' || r.status === 'answered');
+      log(`AI 요청 ${items.length}건${flags.all ? '(전체)' : '(활성)'}:`);
+      for (const r of items) log(`  [${r.status}] ${r.id} — ${r.docName} · ${r.action} · ${r.block.bt || 'content'}`);
+      return 0;
+    }
+    case 'clear': {
+      const removed = id ? await bridge.prune({ ids: [id] }) : await bridge.prune();
+      log(`✔ 브리지 정리: ${removed.length}건 (${removed.join(', ') || '없음'})`);
+      return 0;
+    }
+    default:
+      err(`ai: 알 수 없는 서브명령 "${sub ?? ''}". 지원: pending [--json|--watch|--once] · respond <id> --from|--html · list [--all] · clear [<id>]`);
+      return 2;
+  }
 }
 
 /** E4 프리셋 자산 관리(생성은 에디터 전용 — 선택 컨텍스트 필요). */

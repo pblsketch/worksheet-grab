@@ -53,6 +53,8 @@ slides-grab처럼 **생성(Generate) · 편집(Edit) · 내보내기(Export)** �
 - **워크스페이스(E1)**: `worksheets/<문서명>/`(manifest 진실 + 2벌 HTML + meta 리비전 + history 스냅샷). 모든 저장은 `SaveDocument` 단일 경유 — 누출 시 student.html 보류 + `meta.unsafe`(fail-closed 는 export 게이트로 승격 예정).
 - **에디터 셸(E2)**: `edit-ui` → `EditorHttpServer`(127.0.0.1) → `RenderEditorShell` → 바닐라 ESM 클라이언트. "같은 규칙, 두 런타임" — 브라우저가 원본 `ValidateWorksheet` 를 `browserGraph` 화이트리스트 ESM 으로 실행(무빌드), 순수성은 `browser-purity` 가드가 Chrome 없이 상시 단정.
 - **편집(E3)**: teacher 캔버스만 `editMode` 블록 경계 래퍼(`display:contents`, 저장 시 clean 재조립로 소멸) → DOM 순회 → `resync`(순수) → POST `/save` → `SaveDocument`. 일반 툴바(execCommand 어댑터, fontSize 는 직접 style) + ⭐ 정답 마크(세션 태깅·기존 마크 confirm·저장 시 마크 소멸 감지 3중 방어) + ✏️ 답란. 실시간 예고(넘침 배지·최소폰트·라이브 검수 바)는 편집 DOM 직렬화 입력. student 는 편집 불가 즉석 파생 미리보기(`stripElementsByClass` 동일 원시).
+- **프리셋(E4)**: `.presets/presets.json` 단일 인덱스(원자 교체·.bak 폴백) + 빌트인 런타임 파생·오버레이. 프리셋 = 자산(SaveDocument 미경유), 미리보기는 sandbox iframe + 물리 제거본 기본.
+- **AI 브리지(E5, 무API)**: 에디터 요청 → `.ai-bridge/` 파일 큐(`aiBridge` 순수 + `FsAiBridgeRepository` 원자 IO) → 구독 AI 세션이 `ai pending --watch`/`ai respond` CLI 로 왕복(엔진에 LLM 호출 0). 성취기준·저작권 슬롯 블록은 타입 가드 3중(정책·서버·클라)으로 대상 제외 — Validate 가 못 잡는 §7·§10 을 코드로 강제. 적용 = DOMParser 정제 → diff 미리보기(sandbox) → 가역 교체(스냅샷·되돌리기) → 마커 제거 → 기존 SaveDocument 게이트.
 
 ### 4.3 Interface Adapters (포트 & 어댑터) — **실제로 변하는 경계에만 DIP**
 - `CurriculumProvider` 포트 → `GepaiMcpAdapter` / `GepaiCsvAdapter`(폴백). ← R4 해소

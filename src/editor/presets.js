@@ -10,20 +10,32 @@ import { stripElementsByClass } from '/src/usecases/html-scan.js';
  * 최소 정제 원칙(§3.2 "아무거나" 자유 보존): 편집 아티팩트 3종만 제거 —
  * data-wg-mark(세션 태깅)·contenteditable·빈 style="".
  */
-export function extractPresetFromSelection(doc) {
+/** 커서가 위치한 .wg-block(공유 헬퍼 — 프리셋·AI 액션이 함께 사용). */
+export function cursorBlock(doc) {
   const sel = doc.getSelection();
-  let block = null;
-  if (sel && sel.rangeCount > 0) {
-    let node = sel.getRangeAt(0).commonAncestorContainer;
-    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-    block = node?.closest?.('.wg-block') ?? null;
-  }
-  if (!block) return null;
+  if (!sel || sel.rangeCount === 0) return null;
+  let node = sel.getRangeAt(0).commonAncestorContainer;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  return node?.closest?.('.wg-block') ?? null;
+}
+
+/**
+ * 블록 편집 아티팩트 최소 정제(공유): data-wg-mark(세션 마크 태깅)·data-ai-req(AI
+ * 대기 마커)·contenteditable·빈 style="" 만 제거 — §3.2 "아무거나" 자유 보존.
+ */
+export function cleanBlockHtml(block) {
   const clone = block.cloneNode(true);
   for (const el of clone.querySelectorAll('[data-wg-mark]')) el.removeAttribute('data-wg-mark');
+  for (const el of clone.querySelectorAll('[data-ai-req]')) el.removeAttribute('data-ai-req');
   for (const el of clone.querySelectorAll('[contenteditable]')) el.removeAttribute('contenteditable');
   for (const el of clone.querySelectorAll('[style=""]')) el.removeAttribute('style');
-  return { type: block.dataset.bt || 'content', html: clone.innerHTML };
+  return clone.innerHTML;
+}
+
+export function extractPresetFromSelection(doc) {
+  const block = cursorBlock(doc);
+  if (!block) return null;
+  return { type: block.dataset.bt || 'content', html: cleanBlockHtml(block) };
 }
 
 /** 커서 블록 뒤에 프리셋을 새 wg-block 으로 삽입(없으면 첫 시트 말미) — 역동기화 경로가 그대로 픽업. */

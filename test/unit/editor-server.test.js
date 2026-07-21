@@ -107,6 +107,54 @@ test('E3 POST /save: SaveDocument 경유 저장·rev 증가·잘못된 본문 40
   }
 });
 
+test('E5 /ai/*: 요청 생성(docName 서버 주입)→answered→applied 왕복 + 제외 타입 400 + 취소 terminal', async () => {
+  const { server, url, workspace } = await startServer();
+  try {
+    const { FsAiBridgeRepository } = await import('../../src/adapters/FsAiBridgeRepository.js');
+    const { AI_SCHEMA_VERSION } = await import('../../src/usecases/aiBridge.js');
+    const bridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
+
+    // 제외 타입(§7·§10 타입 가드) → 400
+    for (const bt of ['passage', 'standard-label']) {
+      const res = await fetch(`${url}/ai/requests`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rewrite', block: { bt, html: '<p>x</p>' } }),
+      });
+      assert.equal(res.status, 400, `${bt} 는 AI 대상 아님`);
+    }
+
+    // 정상 요청 → pending, docName 은 서버 주입
+    const create = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', block: { bp: 0, bi: 3, bt: 'question', html: '<div class="q">문항</div>' }, docName: '위조시도' }),
+    });
+    assert.equal(create.status, 200);
+    const { id } = await create.json();
+    assert.equal((await bridge.readRequest(id)).docName, '문서', '서버 고정 docName');
+    assert.deepEqual(await (await fetch(`${url}/ai/${id}`)).json(), { status: 'pending' });
+
+    // 모의 구독 AI 응답 → answered + response 동봉
+    await bridge.putResponse({ schemaVersion: AI_SCHEMA_VERSION, id, html: '<div class="q">재작성</div>' });
+    const answered = await (await fetch(`${url}/ai/${id}`)).json();
+    assert.equal(answered.status, 'answered');
+    assert.equal(answered.response.html, '<div class="q">재작성</div>');
+
+    // 적용 기록 → 즉시 정리(스테일 방지)
+    assert.equal((await fetch(`${url}/ai/${id}/applied`, { method: 'POST' })).status, 200);
+    assert.equal((await fetch(`${url}/ai/${id}`)).status, 404, 'applied 후 prune');
+
+    // 취소 terminal
+    const c = await (await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'fill-example', block: { bt: 'content', html: '<p>본문</p>' } }),
+    })).json();
+    assert.equal((await fetch(`${url}/ai/${c.id}/cancel`, { method: 'POST' })).status, 200);
+    assert.equal((await fetch(`${url}/ai/${c.id}/applied`, { method: 'POST' })).status, 400, 'cancelled → applied 전이 불가');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
 test('E3 testSeed 게이트: 옵션 기동 시에만 shell.json 에 노출', async () => {
   const { server, url } = await startServer({ testSeed: true });
   try {

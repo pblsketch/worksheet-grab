@@ -7,6 +7,8 @@ import { OpenDocument } from '../usecases/OpenDocument.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
 import { FsPresetRepository } from './FsPresetRepository.js';
+import { FsAiBridgeRepository } from './FsAiBridgeRepository.js';
+import { AI_SCHEMA_VERSION, newRequestId, parseAction, assertTargetable, excludedTypes } from '../usecases/aiBridge.js';
 
 const MAX_SAVE_BODY = 20 * 1024 * 1024; // 로컬 편집 도구의 안전 상한
 
@@ -61,6 +63,7 @@ export function createEditorServer({ root, docName, workspace, blockRepository, 
     presetRepository: new FsPresetRepository({ baseDir: workspace.baseDir }),
     blockRepository,
   });
+  const aiBridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
 
   return createServer(async (req, res) => {
     try {
@@ -124,6 +127,63 @@ export function createEditorServer({ root, docName, workspace, blockRepository, 
           return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
       }
+      // E5 AI 브리지: 요청은 파일 큐(<ws>/.ai-bridge/)에 기록되고 구독 AI 가 CLI 로
+      // 응답한다(무API — 서버는 중개만). 성취기준·저작권 슬롯 블록은 타입 가드로 거부.
+      if (path === '/ai/requests' && req.method === 'POST') {
+        let body;
+        try {
+          body = await readJsonBody(req);
+        } catch (e) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+        try {
+          parseAction(body?.action);
+          const vocabulary = await blockRepository.readVocabulary();
+          assertTargetable(body?.block?.bt, vocabulary);
+          if (typeof body?.block?.html !== 'string' || !body.block.html.trim()) {
+            throw new Error('block.html 이 필요합니다.');
+          }
+        } catch (e) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+        const request = {
+          schemaVersion: AI_SCHEMA_VERSION,
+          id: newRequestId(),
+          docName, // 서버 고정값 주입(클라이언트 위조 방지)
+          action: body.action,
+          block: { bp: body.block.bp ?? null, bi: body.block.bi ?? null, bt: body.block.bt || 'content', html: body.block.html },
+          instruction: typeof body.instruction === 'string' ? body.instruction : '',
+          context: body.context && typeof body.context === 'object' ? body.context : {},
+          status: 'pending',
+        };
+        await aiBridge.putRequest(request);
+        return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ id: request.id, status: 'pending' }));
+      }
+      if (path.startsWith('/ai/')) {
+        const rest = path.slice('/ai/'.length);
+        try {
+          if (req.method === 'GET') {
+            const status = await aiBridge.getStatus(rest);
+            if (!status) return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: '요청 없음' }));
+            const payload = { status };
+            if (status === 'answered') payload.response = await aiBridge.readResponse(rest);
+            return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(payload));
+          }
+          if (req.method === 'POST' && rest.endsWith('/cancel')) {
+            const id = rest.slice(0, -'/cancel'.length);
+            await aiBridge.setStatus(id, 'cancelled');
+            return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ status: 'cancelled' }));
+          }
+          if (req.method === 'POST' && rest.endsWith('/applied')) {
+            const id = rest.slice(0, -'/applied'.length);
+            await aiBridge.setStatus(id, 'applied');
+            await aiBridge.prune({ ids: [id] }); // 적용 완료분은 즉시 정리(스테일 방지)
+            return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ status: 'applied' }));
+          }
+        } catch (e) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+      }
       if (req.method !== 'GET') return send(res, 405, 'text/plain; charset=utf-8', 'GET only');
 
       if (path === '/') {
@@ -136,8 +196,11 @@ export function createEditorServer({ root, docName, workspace, blockRepository, 
         const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
         const shell = await shellRenderer.execute({ manifest, meta, knownSubjectHexes, docName });
         // manifest 동봉: 클라이언트 역동기화(resync)가 pages 외 필드를 보존하는 원본.
+        // excludedAiTypes: AI 버튼 비활성용(타입 가드 3중의 클라이언트 층 — §7·§10).
+        const excludedAiTypes = [...excludedTypes(await blockRepository.readVocabulary())];
+        const payload = { ...shell, manifest, warnings, excludedAiTypes };
         return send(res, 200, 'application/json; charset=utf-8',
-          JSON.stringify(testSeed ? { ...shell, manifest, warnings, testSeed: true } : { ...shell, manifest, warnings }));
+          JSON.stringify(testSeed ? { ...payload, testSeed: true } : payload));
       }
       if (path.startsWith('/src/')) {
         const rel = path.slice(1);

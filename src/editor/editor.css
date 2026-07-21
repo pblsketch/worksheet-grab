@@ -125,3 +125,24 @@ body {
 .preset-hidden { font-size: 12px; padding: 8px 12px; border-top: 1px solid #eaeef2; color: #57606a; }
 .preset-hidden:empty { display: none; }
 .preset-hidden button { margin-left: 6px; font-size: 11px; cursor: pointer; }
+
+/* ── E5 AI 브리지 UI ── */
+.tb-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.ai-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 16px; font-size: 13px; font-weight: 600;
+  background: #eef2ff; color: #3730a3; border-bottom: 1px solid #d0d7de;
+}
+.ai-bar.hidden { display: none; }
+.ai-bar .tb-btn { border: 1px solid #c7d2fe; background: #fff; }
+.ai-diff {
+  position: fixed; left: 50%; top: 120px; transform: translateX(-50%);
+  width: min(920px, 92vw); z-index: 40;
+  background: #fff; border: 1px solid #d0d7de; border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.25);
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px;
+}
+.ai-diff.hidden { display: none; }
+.ai-diff-col { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.ai-diff-col iframe { width: 100%; height: 260px; border: 1px solid #eaeef2; border-radius: 6px; background: #fff; pointer-events: none; }
+.ai-diff-actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }

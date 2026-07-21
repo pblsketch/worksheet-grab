@@ -199,3 +199,14 @@ ralplan 합의 계획 v2(Planner→Architect 7건→APPROVE) 기준 구현.
 **§3.1 사각지대 봉합:** 라이브러리 미리보기는 **sandbox iframe(`sandbox=""` — 부모 접근·스크립트 차단 실측)** + 기본 **물리 제거본**(`stripElementsByClass` 동일 원시) 렌더, "정답 보기" 토글로만 원본. 정답 포함 상용구를 저장해도 학생 앞 화면에 정답이 새지 않는다.
 
 **실물 실증:** 시드 dump-dom(저장→목록 등장·아티팩트 정제 / 삽입→저장→manifest +1) + Playwright 관찰: 과학 문서A에서 정답 포함 '변인 정리 표' 저장 → prompt 발화 → 미리보기 기본 정답 부재·토글 시 노출 → 빌트인 숨김→복원 왕복 → **국어 문서B 라이브러리에 등장 → 삽입 → 저장(rev 2) → B manifest 에 variable-table 블록 잔존(§6 수용: 다른 문서에서 재사용)**. CLI `preset list/delete/restore` + `doc list` 의 `.presets` 오인 차단.
+
+### 2026-07-21 — E5 완료 (AI 액션 — 구독 AI 브리지, 무API)
+ralplan 합의 계획 v2(Planner→Architect 8건(HIGH 2)→Critic→APPROVE) 기준 구현.
+
+**§3.5 실현(무API):** 에디터의 🤖 AI 재작성/✨ 예시 채우기는 LLM API 를 호출하지 않는다. 요청은 **워크스페이스 파일 큐 `<baseDir>/.ai-bridge/{requests,responses}/`**(tmp→rename 원자 — 부분 파일이 상대 프로세스에 노출되지 않아 TOCTOU 방어)에 기록되고, **별도 프로세스의 구독 AI 세션이 `ai pending --watch`(1s 폴링 감시)로 수신해 `ai respond <id> --from <file>` 로 회신**한다. 상태 소유권: 서버 = pending 생성·cancelled·applied(즉시 prune), CLI = answered(응답 파일). `cancelled` 는 terminal — respond 가 거부하고 getStatus 우선순위로 레이스에서도 취소가 이긴다. **정직한 한계: '반영'은 AI 세션이 pending/watch 활성일 때 일어난다**(무API 의 대가 — SKILL.md 트리거 프로토콜로 명문화).
+
+**§7·§10 코드 강제(타입 가드 3중):** ValidateWorksheet 는 성취기준 변조·저작권 슬롯 침범을 못 잡는다 → `excludedTypes(vocabulary)`(copyrightSlot ∪ gen — 실측 passage·standard-label)를 **순수 정책(assertTargetable) + 서버 400 + 클라이언트 버튼 비활성**으로 강제. 성취기준 원문은 요청 컨텍스트에 **읽기 전용**으로만 동봉.
+
+**적용 안전(심층 방어):** 응답은 **DOMParser 순회 정제**(script·on*·javascript: 제거 — XSS 픽스처 실측: `<script>`·`onerror` 미주입) → **diff 미리보기**(sandbox iframe) → **가역 적용**(innerHTML 스냅샷 + "AI 적용 되돌리기") → `data-ai-req` 마커 즉시 제거(serializeSheets·프리셋 추출 정제 목록에도 편입 — 산출 manifest 무오염 실측) → 저장은 기존 SaveDocument 게이트.
+
+**실물 실증(이 세션이 실제 구독 AI):** 에디터에서 발문 블록 선택→🤖 → `ai pending --json` 으로 수신(성취기준 [9과14-02] 컨텍스트 동봉) → 실제 재작성 → `ai respond` → 에디터 diff(원본/재작성) → 적용(마커 정리·되돌리기 표시) → 저장 rev 2(§6 수용 왕복). **누출 반증:** 정답을 마크 밖 평문으로 넣은 악성 응답을 적용·저장 → `answer-leak` + `answer-mark-dropped` **이중 발화** → unsafe·student.html 보류(디스크 실측) — E3 3중 방어의 최후 그물이 AI 경로에도 그대로 작동. 시드 dump-dom 3/3(요청 발신·타입 가드 차단·적용 왕복+XSS+마커 무오염).

@@ -10,7 +10,8 @@ import { stripElementsByClass } from '/src/usecases/html-scan.js';
 import { resyncManifest } from '/editor/resync.js';
 import { createToolbar, applyFontSizeDirect } from '/editor/toolbar.js';
 import { toggleAnswerMark, insertAnswerLines } from '/editor/marks.js';
-import { extractPresetFromSelection, insertPreset, previewSrcdoc } from '/editor/presets.js';
+import { extractPresetFromSelection, insertPreset, previewSrcdoc, cursorBlock } from '/editor/presets.js';
+import { requestAiAction, pollResponse, applyAiResponse, undoAiApply, clearAiMarker } from '/editor/ai.js';
 
 const MM_TO_PX = 96 / 25.4; // CSS 사양 고정(zoom/DPR 무관)
 
@@ -81,6 +82,7 @@ function initTeacherEditing(f) {
   doc.body.contentEditable = 'true';
   doc.addEventListener('input', onEdit);
   doc.addEventListener('keydown', onKeydown);
+  doc.addEventListener('selectionchange', updateAiButtons);
 }
 
 let editTimer = null;
@@ -109,7 +111,10 @@ function serializeSheets() {
   return [...doc.querySelectorAll('.sheet')].map((sheet) => {
     const blocks = [...sheet.querySelectorAll('.wg-block')].map((w) => {
       const clone = w.cloneNode(true);
+      // 편집 세션 마커는 저장 산출물에 절대 남지 않는다(세션 정답 태깅·AI 대기 마커).
       for (const el of clone.querySelectorAll('[data-wg-mark]')) el.removeAttribute('data-wg-mark');
+      for (const el of clone.querySelectorAll('[data-ai-req]')) el.removeAttribute('data-ai-req');
+      clone.removeAttribute('data-ai-req');
       return { type: w.dataset.bt || 'content', html: clone.innerHTML };
     });
     let leftoverHtml = '';
@@ -462,6 +467,135 @@ document.getElementById('preset-show-answer').addEventListener('change', (e) => 
   renderPresetPanel();
 });
 
+// ── E5 AI 액션(구독 AI 브리지 — 무API) ──
+const aiBar = document.getElementById('ai-bar');
+const aiStatusEl = document.getElementById('ai-status');
+const aiCancelBtn = document.getElementById('ai-cancel');
+const aiResumeBtn = document.getElementById('ai-resume');
+const aiUndoBtn = document.getElementById('ai-undo');
+const aiDiff = document.getElementById('ai-diff');
+let aiActive = null; // { id, poll } — 진행 중 요청(문서당 1개 흐름)
+let aiApplied = null; // { target, snapshot } — 되돌리기(저장 전까지)
+
+function aiContext() {
+  const m = shell.manifest ?? {};
+  return {
+    subject: m.subject || '',
+    docTitle: shell.docTitle || '',
+    theme: m.theme || '',
+    // 성취기준 원문은 읽기 전용 품질 컨텍스트 — AI 는 블록 본문만 재작성한다(§7 창작 금지).
+    standards: (m.standards ?? []).map((code) => ({ code, text: m.standardsText?.[code] ?? '' })),
+  };
+}
+
+function aiShow(text, { cancel = false, resume = false, undo = false } = {}) {
+  aiBar.classList.remove('hidden');
+  aiStatusEl.textContent = text;
+  aiCancelBtn.classList.toggle('hidden', !cancel);
+  aiResumeBtn.classList.toggle('hidden', !resume);
+  aiUndoBtn.classList.toggle('hidden', !undo);
+}
+
+function aiHide() {
+  aiBar.classList.add('hidden');
+}
+
+function updateAiButtons() {
+  const doc = frames.teacher?.contentDocument;
+  const block = doc ? cursorBlock(doc) : null;
+  const excluded = block ? (shell.excludedAiTypes ?? []).includes(block.dataset.bt || 'content') : false;
+  for (const id of ['tb-ai-rewrite', 'tb-ai-fill']) {
+    const btn = document.getElementById(id);
+    btn.disabled = excluded;
+    btn.title = excluded
+      ? '성취기준 원문·저작권 지문 블록은 AI 대상이 아닙니다(보존).'
+      : btn.dataset.baseTitle ?? btn.title;
+    if (!btn.dataset.baseTitle) btn.dataset.baseTitle = btn.title;
+  }
+}
+
+async function startAiFlow(action) {
+  const doc = frames.teacher?.contentDocument;
+  if (!doc || aiActive) {
+    if (aiActive) aiShow(`이미 진행 중인 AI 요청이 있습니다 (${aiActive.id}).`, { cancel: true });
+    return;
+  }
+  const result = await requestAiAction(doc, {
+    action, context: aiContext(), excluded: shell.excludedAiTypes ?? [],
+  });
+  if (result.error) {
+    showBanner('warn', result.error);
+    return;
+  }
+  await waitForAi(result.id);
+}
+
+async function waitForAi(id) {
+  const poll = pollResponse(id);
+  aiActive = { id, poll };
+  aiShow(`AI 응답 대기 중 (${id}) — AI 세션에서 "worksheet-grab ai pending" 이 실행 중이어야 반영됩니다.`, { cancel: true });
+  const outcome = await poll.promise;
+  if (aiActive?.id !== id) return; // 취소 등으로 흐름 교체됨
+  aiActive = null;
+  const doc = frames.teacher?.contentDocument;
+  if (outcome.status === 'answered') {
+    showAiDiff(id, outcome.html);
+  } else if (outcome.status === 'timeout') {
+    aiShow(`대기 중단 (${id}) — 요청은 유지됩니다. 응답이 도착하면 재개하세요.`, { resume: true });
+    aiResumeBtn.onclick = () => waitForAi(id);
+  } else if (outcome.status === 'cancelled' || outcome.status === 'gone') {
+    if (doc) clearAiMarker(doc, id);
+    aiHide();
+  }
+}
+
+function showAiDiff(id, html) {
+  const doc = frames.teacher.contentDocument;
+  const target = doc.querySelector(`[data-ai-req="${CSS.escape(id)}"]`);
+  const beforeHtml = target ? target.innerHTML : '';
+  document.getElementById('ai-diff-before').srcdoc = previewSrcdoc({ html: beforeHtml }, { showAnswer: true, styles: shellStyles });
+  document.getElementById('ai-diff-after').srcdoc = previewSrcdoc({ html }, { showAnswer: true, styles: shellStyles });
+  aiDiff.classList.remove('hidden');
+  aiShow(`AI 응답 도착 (${id}) — 미리보기를 확인하고 적용/폐기하세요.`);
+  document.getElementById('ai-apply').onclick = async () => {
+    const applied = applyAiResponse(doc, id, html); // DOMParser 정제 포함
+    aiDiff.classList.add('hidden');
+    if (!applied) { aiShow('적용 대상 블록을 찾지 못했습니다(삭제됨?).'); return; }
+    aiApplied = applied;
+    await fetch(`/ai/${encodeURIComponent(id)}/applied`, { method: 'POST' });
+    onEdit();
+    aiShow('AI 재작성이 적용되었습니다. 저장 전까지 되돌릴 수 있습니다.', { undo: true });
+    document.body.dataset.aiApplied = 'true';
+  };
+  document.getElementById('ai-discard').onclick = async () => {
+    aiDiff.classList.add('hidden');
+    await fetch(`/ai/${encodeURIComponent(id)}/cancel`, { method: 'POST' }).catch(() => {});
+    clearAiMarker(doc, id);
+    aiHide();
+  };
+}
+
+aiCancelBtn.addEventListener('click', async () => {
+  if (!aiActive) return;
+  const { id, poll } = aiActive;
+  aiActive = null;
+  poll.stop();
+  await fetch(`/ai/${encodeURIComponent(id)}/cancel`, { method: 'POST' }).catch(() => {});
+  const doc = frames.teacher?.contentDocument;
+  if (doc) clearAiMarker(doc, id);
+  aiHide();
+});
+aiUndoBtn.addEventListener('click', () => {
+  if (undoAiApply(aiApplied)) {
+    aiApplied = null;
+    onEdit();
+    aiHide();
+    showBanner('ok', 'AI 적용을 되돌렸습니다.');
+  }
+});
+document.getElementById('tb-ai-rewrite').addEventListener('mousedown', (e) => { e.preventDefault(); startAiFlow('rewrite'); });
+document.getElementById('tb-ai-fill').addEventListener('mousedown', (e) => { e.preventDefault(); startAiFlow('fill-example'); });
+
 for (const w of shell.warnings ?? []) {
   const li = document.createElement('li');
   li.className = 'warning';
@@ -537,6 +671,49 @@ async function runSeed(seed) {
     const list = await (await fetch('/presets')).json();
     document.body.dataset.presetSaved = String(list.presets.some((p) => p.id === saved.id));
     document.body.dataset.presetClean = String(!/data-wg-mark|contenteditable=/.test(payload.html));
+  } else if (seed === 'ai-request') {
+    // E5 ①: 커서 블록으로 AI 요청 발신 → 마커·서버 pending 계측
+    const range = doc.createRange();
+    range.selectNodeContents(firstQuestion);
+    range.collapse(true);
+    const sel = doc.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const result = await requestAiAction(doc, { action: 'rewrite', context: aiContext(), excluded: shell.excludedAiTypes ?? [] });
+    document.body.dataset.aiRequestId = result.id ?? '';
+    document.body.dataset.aiMarkerSet = String(!!(result.id && doc.querySelector(`[data-ai-req="${CSS.escape(result.id)}"]`)));
+    document.body.dataset.aiServerStatus = result.id
+      ? (await (await fetch(`/ai/${encodeURIComponent(result.id)}`)).json()).status
+      : 'error';
+  } else if (seed === 'ai-guard') {
+    // E5 ②: 제외 타입(standard-label) 블록에서 요청 시도 → 클라이언트 가드 차단 계측
+    const guarded = [...doc.querySelectorAll('.wg-block')].find((w) => w.dataset.bt === 'standard-label');
+    const range = doc.createRange();
+    range.selectNodeContents(guarded);
+    range.collapse(true);
+    const sel = doc.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    updateAiButtons();
+    const result = await requestAiAction(doc, { action: 'rewrite', context: aiContext(), excluded: shell.excludedAiTypes ?? [] });
+    document.body.dataset.aiGuardBlocked = String(!!result.error);
+    document.body.dataset.aiGuardButtonDisabled = String(document.getElementById('tb-ai-rewrite').disabled);
+  } else if (seed === 'ai-apply') {
+    // E5 ③: 사전 준비된 요청/응답(id 는 ?req=)을 폴링→정제→적용→저장까지 왕복 계측
+    const id = new URLSearchParams(location.search).get('req');
+    firstQuestion.setAttribute('data-ai-req', id); // 테스트가 서버로 만든 요청의 대상 스탬프
+    const outcome = await pollResponse(id).promise;
+    if (outcome.status === 'answered') {
+      const applied = applyAiResponse(doc, id, outcome.html);
+      await fetch(`/ai/${encodeURIComponent(id)}/applied`, { method: 'POST' });
+      const serialized = firstQuestion.innerHTML;
+      document.body.dataset.aiXssClean = String(!/(<script|onerror=|javascript:)/i.test(serialized));
+      document.body.dataset.aiMarkerClean = String(!doc.querySelector('[data-ai-req]'));
+      const saveResult = await save();
+      document.body.dataset.aiApplied = String(!!applied && saveResult != null);
+    } else {
+      document.body.dataset.aiApplied = `poll:${outcome.status}`;
+    }
   } else if (seed === 'insert-preset') {
     // E4 ②: 라이브러리 첫 항목 삽입 → 저장 → manifest 반영 계측(블록 수 +1)
     const list = await (await fetch('/presets')).json();

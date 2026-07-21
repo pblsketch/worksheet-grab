@@ -124,6 +124,13 @@ node bin/worksheet-grab.js preset delete 나의-블록                    # 내 
 node bin/worksheet-grab.js preset restore builtin-rubric              # 숨긴 기본 제공 복원
 #   저장 위치: <워크스페이스>/.presets/presets.json (쓰기 시 .bak 백업·원자 교체).
 #   미리보기는 정답 물리 제거본이 기본("정답 보기" 토글로만 원본 노출).
+#   🤖 AI 재작성 / ✨ 예시 채우기(E5, 무API): 블록 요청이 <워크스페이스>/.ai-bridge/
+#   파일 큐로 가고, 구독 AI 세션이 아래 명령으로 수신·회신한다(반영은 AI 세션 활성 시).
+node bin/worksheet-grab.js ai pending --watch                         # 구독 AI: 요청 감시(1s 폴링)
+node bin/worksheet-grab.js ai respond <id> --from answer.html          # 구독 AI: 재작성 회신
+node bin/worksheet-grab.js ai list --all                               # 상태 조회 · ai clear 로 정리
+#   성취기준·저작권 지문 블록은 AI 대상에서 제외(타입 가드). AI 응답도 diff 미리보기
+#   → 적용(되돌리기 가능) → 저장 시 기존 누출 게이트를 그대로 통과한다.
 #   manifest 가 진실의 소스. 매 저장 = history/ 스냅샷 + meta 리비전(.worksheet-grab/meta.json).
 #   정답 누출(마크 밖 평문) 감지 시 student.html 을 보류하고 meta.unsafe 를 남긴다(작업은 저장됨).
 #   워크스페이스 루트는 기본 <cwd>/worksheets, --workspaces-dir 로 변경.

@@ -49,6 +49,23 @@
   <span class="tb-sep"></span>
   <button id="tb-preset-save" class="tb-btn tb-mark" title="현재 블록을 프리셋으로 저장 — 다른 문서에서 재사용">⧉ 내 블록으로 저장</button>
   <button id="tb-preset-lib" class="tb-btn tb-mark" title="프리셋 라이브러리 열기/닫기">📁 프리셋</button>
+  <span class="tb-sep"></span>
+  <button id="tb-ai-rewrite" class="tb-btn tb-mark" title="현재 블록을 구독 AI 가 재작성 — AI 세션에서 ai pending 실행 필요">🤖 AI 재작성</button>
+  <button id="tb-ai-fill" class="tb-btn tb-mark" title="현재 블록의 예시/빈칸을 구독 AI 가 채움">✨ 예시 채우기</button>
+</div>
+<div id="ai-bar" class="ai-bar hidden" role="status">
+  <span id="ai-status"></span>
+  <button id="ai-cancel" class="tb-btn hidden">요청 취소</button>
+  <button id="ai-resume" class="tb-btn hidden">대기 재개</button>
+  <button id="ai-undo" class="tb-btn hidden">AI 적용 되돌리기</button>
+</div>
+<div id="ai-diff" class="ai-diff hidden" aria-label="AI 재작성 미리보기">
+  <div class="ai-diff-col"><b>원본</b><iframe id="ai-diff-before" sandbox=""></iframe></div>
+  <div class="ai-diff-col"><b>AI 재작성</b><iframe id="ai-diff-after" sandbox=""></iframe></div>
+  <div class="ai-diff-actions">
+    <button id="ai-apply" class="save-btn">적용</button>
+    <button id="ai-discard" class="tb-btn">폐기</button>
+  </div>
 </div>
 <aside id="preset-panel" class="preset-panel hidden" aria-label="프리셋 라이브러리">
   <header class="preset-head">

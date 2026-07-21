@@ -1,0 +1,86 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { run } from '../../src/cli/index.js';
+import { FsAiBridgeRepository } from '../../src/adapters/FsAiBridgeRepository.js';
+import { AI_SCHEMA_VERSION } from '../../src/usecases/aiBridge.js';
+
+// E5 CLI: 구독 AI 측 표면(pending/watch/respond/list/clear). 무API — 파일 큐 왕복만.
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+
+function logger() {
+  const lines = [];
+  return { lines, log: (s) => lines.push(String(s)), err: (s) => lines.push(String(s)) };
+}
+
+function req(id) {
+  return {
+    schemaVersion: AI_SCHEMA_VERSION, id, docName: '문서', action: 'rewrite',
+    block: { bp: 0, bi: 1, bt: 'question', html: '<div class="q">문항 원문</div>' }, status: 'pending',
+  };
+}
+
+test('ai pending: 대기 요청 출력(--json 전문 포함)', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(req('req-1'));
+  const { lines, log, err } = logger();
+  assert.equal(await run(['ai', 'pending', '--workspaces-dir', base], { root: ROOT, log, err }), 0);
+  assert.ok(lines.some((l) => /req-1 — 문서 · rewrite · question/.test(l)));
+
+  const j = logger();
+  await run(['ai', 'pending', '--json', '--workspaces-dir', base], { root: ROOT, log: j.log, err: j.err });
+  const parsed = JSON.parse(j.lines.join('\n'));
+  assert.equal(parsed.block.html, '<div class="q">문항 원문</div>', '페이로드 전문');
+});
+
+test('ai respond: 응답 기록 → answered · cancelled 요청은 거부(비영 종료)', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-r-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(req('req-ok'));
+  await bridge.putRequest(req('req-cxl'));
+  await bridge.setStatus('req-cxl', 'cancelled');
+
+  const fromFile = join(base, 'answer.html');
+  await writeFile(fromFile, '<div class="q">재작성된 문항</div>', 'utf8');
+  const a = logger();
+  assert.equal(await run(['ai', 'respond', 'req-ok', '--from', fromFile, '--workspaces-dir', base], { root: ROOT, log: a.log, err: a.err }), 0);
+  assert.equal(await bridge.getStatus('req-ok'), 'answered');
+
+  const b = logger();
+  assert.equal(await run(['ai', 'respond', 'req-cxl', '--html', '<p>x</p>', '--workspaces-dir', base], { root: ROOT, log: b.log, err: b.err }), 1, 'cancelled terminal — 거부');
+  assert.ok(b.lines.some((l) => /취소된 요청/.test(l)));
+  assert.equal(await bridge.getStatus('req-cxl'), 'cancelled', '응답 파일 미생성');
+});
+
+test('ai pending --watch --once: 새 요청 도착을 감시로 포착', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-w-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  const { lines, log, err } = logger();
+  const watching = run(['ai', 'pending', '--watch', '--once', '--workspaces-dir', base], { root: ROOT, log, err });
+  await new Promise((r) => setTimeout(r, 300));
+  await bridge.putRequest(req('req-late'));
+  assert.equal(await watching, 0, '첫 새 요청 후 종료(--once)');
+  assert.ok(lines.some((l) => /req-late/.test(l)), '감시가 새 요청 출력');
+});
+
+test('ai list/clear: 상태 조회·terminal 정리', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-l-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(req('req-p'));
+  await bridge.putRequest(req('req-x'));
+  await bridge.setStatus('req-x', 'cancelled');
+
+  const l1 = logger();
+  await run(['ai', 'list', '--all', '--workspaces-dir', base], { root: ROOT, log: l1.log, err: l1.err });
+  assert.ok(l1.lines.some((l) => /\[pending\] req-p/.test(l)) && l1.lines.some((l) => /\[cancelled\] req-x/.test(l)));
+
+  const c = logger();
+  await run(['ai', 'clear', '--workspaces-dir', base], { root: ROOT, log: c.log, err: c.err });
+  assert.ok(c.lines.some((l) => /정리: 1건/.test(l)), 'terminal 만 정리');
+  assert.equal(await bridge.getStatus('req-p'), 'pending', 'pending 은 보존');
+});
