@@ -15,13 +15,17 @@ export class RenderEditorShell {
   }
 
   /**
-   * @param {{manifest:object, meta?:object|null, knownSubjectHexes?:string[]}} args
+   * @param {{manifest:object, meta?:object|null, knownSubjectHexes?:string[], docName?:string|null}} args
    * @returns {Promise<{teacherHtml:string, studentHtml:string, canvasMeta:object, validationSeed:object}>}
    */
-  async execute({ manifest, meta = null, knownSubjectHexes = [] }) {
+  async execute({ manifest, meta = null, knownSubjectHexes = [], docName = null }) {
     const asm = new AssembleWorksheet({ blockRepository: this.repo, curriculum: this.curriculum });
+    // teacher 캔버스만 editMode(블록 경계 래퍼) — E3 편집·역동기화 대상.
+    // student 는 clean 조립의 파생(래퍼 무오염, 미리보기 전용).
+    const { html: editHtml } = await asm.execute(manifest, { editMode: true });
     const { html } = await asm.execute(manifest);
-    const { student, teacher } = new BuildVariants().execute(html);
+    const teacher = new BuildVariants().execute(editHtml).teacher;
+    const { student } = new BuildVariants().execute(html);
 
     // paper 미지정 문서도 캔버스 메타는 현행 기본(A4 세로·비대칭 여백)으로 산출한다 —
     // resolvePaper(null)=null 은 "CSS 주입 0" 규약이므로 여기서만 A4 로 구체화.
@@ -37,6 +41,7 @@ export class RenderEditorShell {
       canvasMeta,
       validationSeed: { knownSubjectHexes, paper: manifest.paper ?? null },
       docTitle: manifest.docTitle || '',
+      docName,
       meta,
     };
   }

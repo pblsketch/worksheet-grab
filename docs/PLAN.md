@@ -46,7 +46,13 @@ slides-grab처럼 **생성(Generate) · 편집(Edit) · 내보내기(Export)** �
 - **불변식(invariants)**: 블록 순서 유효성 · **student 빌드에 정답 배제** · 성취기준은 외부 주입만(창작 금지) · 지문은 슬롯.
 
 ### 4.2 Use Cases (애플리케이션 규칙 — 포트에만 의존)
-`ResolveStandards` · `AssembleWorksheet` · `BuildVariants(student/teacher)` · `ValidateWorksheet` · `RenderPdf` / `RenderPng` · `EditWorksheet`. 어떤 유스케이스도 Chrome·gepai·파일시스템을 직접 부르지 않는다.
+`ResolveStandards` · `AssembleWorksheet` · `BuildVariants(student/teacher)` · `ValidateWorksheet` · `RenderPdf` / `RenderPng` · `EditWorksheet` · `SaveDocument`/`OpenDocument`(E1 워크스페이스) · `RenderEditorShell`(E2/E3 에디터 합성). 어떤 유스케이스도 Chrome·gepai·파일시스템을 직접 부르지 않는다.
+
+### 4.2b 에디터(E0~E3) 아키텍처 — HANDOFF-editor-workspace.md §12 상세
+- **용지(E0)**: `paper.js` 단일 소스 — manifest `paper` 1급 속성 → @page 숫자 mm 리터럴 주입 + `--sheet-*` var. A4 기본 여백은 현행 비대칭과 단일화(폴백-주입 등가성 테스트로 강제).
+- **워크스페이스(E1)**: `worksheets/<문서명>/`(manifest 진실 + 2벌 HTML + meta 리비전 + history 스냅샷). 모든 저장은 `SaveDocument` 단일 경유 — 누출 시 student.html 보류 + `meta.unsafe`(fail-closed 는 export 게이트로 승격 예정).
+- **에디터 셸(E2)**: `edit-ui` → `EditorHttpServer`(127.0.0.1) → `RenderEditorShell` → 바닐라 ESM 클라이언트. "같은 규칙, 두 런타임" — 브라우저가 원본 `ValidateWorksheet` 를 `browserGraph` 화이트리스트 ESM 으로 실행(무빌드), 순수성은 `browser-purity` 가드가 Chrome 없이 상시 단정.
+- **편집(E3)**: teacher 캔버스만 `editMode` 블록 경계 래퍼(`display:contents`, 저장 시 clean 재조립로 소멸) → DOM 순회 → `resync`(순수) → POST `/save` → `SaveDocument`. 일반 툴바(execCommand 어댑터, fontSize 는 직접 style) + ⭐ 정답 마크(세션 태깅·기존 마크 confirm·저장 시 마크 소멸 감지 3중 방어) + ✏️ 답란. 실시간 예고(넘침 배지·최소폰트·라이브 검수 바)는 편집 DOM 직렬화 입력. student 는 편집 불가 즉석 파생 미리보기(`stripElementsByClass` 동일 원시).
 
 ### 4.3 Interface Adapters (포트 & 어댑터) — **실제로 변하는 경계에만 DIP**
 - `CurriculumProvider` 포트 → `GepaiMcpAdapter` / `GepaiCsvAdapter`(폴백). ← R4 해소

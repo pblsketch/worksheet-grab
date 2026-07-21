@@ -53,7 +53,7 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
   worksheet-grab doc <list|open|save|history|restore> …
       문서 워크스페이스(worksheets/<문서명>/ — manifest·학생/교사 HTML·meta·히스토리).
         doc list                            문서 목록(제목·교과·리비전·unsafe 배지)
-        doc open <문서명>                   문서 로드·상태 표시(에디터 기동은 E2)
+        doc open <문서명>                   문서 로드·상태 표시(편집은 edit-ui)
         doc save <문서명> --from <manifest.json>   manifest 를 문서로 저장(재렌더·누출검증·스냅샷)
         doc history <문서명>                히스토리 스냅샷 목록
         doc restore <문서명> <일련번호>     스냅샷 복원(비파괴 — 새 리비전으로 저장)
@@ -61,9 +61,11 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       edit 는 경로 대신 --doc <문서명> 으로도 편집 가능. 정답 누출 시 student.html 은
       보류되고 meta.unsafe 가 표시된다(작업은 저장됨 · export 는 차단).
   worksheet-grab edit-ui <문서명> [--port <n>] [--workspaces-dir <dir>]
-      에디터 셸(E2, 읽기 전용): 문서를 127.0.0.1 로컬 서버로 띄워 브라우저에서 연다.
-      인쇄정밀 캔버스(실제 paper.css·용지 치수) + 여백선 + 학생/교사 토글(물리 2벌)
-      + 라이브 검수 바(엔진과 같은 ValidateWorksheet 를 브라우저에서 실행). 편집은 E3.
+      브라우저 에디터(E3): 문서를 127.0.0.1 로컬 서버로 띄워 편집한다.
+      인쇄정밀 캔버스(실제 paper.css·용지 치수) + 여백선/넘침 배지 + 학생/교사 토글(물리 2벌)
+      + 공통 툴바(폰트·크기·B/I/U·색·정렬·목록·표·이미지·↶↷) + ⭐정답 표시·✏️답란 삽입
+      + 라이브 검수 바. 저장(Ctrl+S)은 manifest 역동기화 → SaveDocument(누출 게이트·히스토리).
+      정답 마크 해제로 인한 누출은 세션 태깅·confirm·저장 시 마크 소멸 감지로 3중 방어.
   worksheet-grab list-blocks
       블록 타입 exemplar 파일 목록(core/*, pack-*/*). 재사용 부품·폴백·few-shot 시드.
   worksheet-grab list-vocab [--subject <교과>] [--json]
@@ -565,9 +567,10 @@ async function cmdEditUi(name, flags, repo, { root, log, onServer }) {
   const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
   const server = createEditorServer({
     root, docName: opened.name, workspace: ws, blockRepository: repo, curriculum,
+    testSeed: flags['test-seed'] === true, // 렌더 테스트 전용 시드 훅 게이트
   });
   const addr = await listenEditorServer(server, { port: flags.port ? Number(flags.port) : 0 });
-  log(`✔ edit-ui: ${opened.name} — http://127.0.0.1:${addr.port}/ (읽기 전용 셸 · Ctrl+C 종료)`);
+  log(`✔ edit-ui: ${opened.name} — http://127.0.0.1:${addr.port}/ (브라우저 에디터 · Ctrl+C 종료)`);
   for (const w of opened.warnings) log(`  ⚠ ${w}`);
   process.once('SIGINT', () => server.close(() => process.exit(0)));
   if (onServer) onServer(server, addr);
@@ -595,7 +598,7 @@ async function cmdDoc(args, flags, repo, { log, err }) {
     case 'open': {
       if (!name) throw new Error('doc open: <문서명> 이 필요합니다.');
       const r = await new OpenDocument({ workspace: ws }).execute({ name });
-      log(`✔ doc open: ${r.name} (에디터 기동은 E2 — 여기서는 로드·상태 표시)`);
+      log(`✔ doc open: ${r.name} (로드·상태 표시 — 편집은 "edit-ui ${r.name}")`);
       log(`  경로: ${r.paths.dir}`);
       if (r.meta) {
         log(`  제목: ${r.meta.title} · 교과: ${r.meta.subject} · rev ${r.meta.revision} · 수정 ${r.meta.updatedAt}`);

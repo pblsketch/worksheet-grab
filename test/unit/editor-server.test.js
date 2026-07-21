@@ -14,7 +14,7 @@ import { createEditorServer, listenEditorServer } from '../../src/adapters/Edito
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const DOMAIN_FILES = ['BlockContent', 'Block', 'Standard', 'Theme', 'Variant', 'Worksheet'];
 
-async function startServer() {
+async function startServer(opts = {}) {
   const base = await mkdtemp(join(tmpdir(), 'wsg-editorsrv-'));
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
@@ -22,10 +22,10 @@ async function startServer() {
   await new SaveDocument({ workspace, blockRepository, curriculum: null })
     .execute({ name: '문서', manifest, now: new Date('2026-07-21T01:00:00.000Z') });
   const server = createEditorServer({
-    root: ROOT, docName: '문서', workspace, blockRepository, curriculum: null,
+    root: ROOT, docName: '문서', workspace, blockRepository, curriculum: null, ...opts,
   });
   const addr = await listenEditorServer(server);
-  return { server, url: `http://127.0.0.1:${addr.port}`, addr };
+  return { server, url: `http://127.0.0.1:${addr.port}`, addr, workspace, manifest };
 }
 
 test('EditorHttpServer: 라우트·화이트리스트·트래버설·바인딩·close', async () => {
@@ -73,6 +73,45 @@ test('EditorHttpServer: 라우트·화이트리스트·트래버설·바인딩·
     const css = await fetch(`${url}/editor/editor.css`);
     assert.equal(css.status, 200);
     assert.match(css.headers.get('content-type'), /text\/css/);
+
+    // testSeed 미기동 시 shell.json 에 필드 부재(프로덕션 시드 훅 차단)
+    assert.ok(!('testSeed' in shell), 'testSeed 기본 미노출');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('E3 POST /save: SaveDocument 경유 저장·rev 증가·잘못된 본문 400·타 경로 405', async () => {
+  const { server, url, workspace, manifest } = await startServer();
+  try {
+    const edited = structuredClone(manifest);
+    edited.pages[0].push({ type: 'content', html: '<p>편집으로 추가된 문단</p>' });
+    const res = await fetch(`${url}/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manifest: edited, structureWarning: false }),
+    });
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.unsafe, false);
+    assert.equal(body.meta.revision, 2, 'SaveDocument 경유(리비전·히스토리)');
+    assert.equal(body.structureWarning, false);
+    const saved = await workspace.readManifest('문서');
+    assert.ok(JSON.stringify(saved.pages).includes('편집으로 추가된 문단'), '워크스페이스 반영');
+
+    const bad = await fetch(`${url}/save`, { method: 'POST', body: '잘못된 JSON' });
+    assert.equal(bad.status, 400);
+    assert.equal((await fetch(`${url}/shell.json`, { method: 'POST' })).status, 405, '저장 외 POST 는 405');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('E3 testSeed 게이트: 옵션 기동 시에만 shell.json 에 노출', async () => {
+  const { server, url } = await startServer({ testSeed: true });
+  try {
+    const shell = await (await fetch(`${url}/shell.json`)).json();
+    assert.equal(shell.testSeed, true);
   } finally {
     await new Promise((r) => server.close(r));
   }

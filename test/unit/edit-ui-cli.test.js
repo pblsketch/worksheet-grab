@@ -32,7 +32,7 @@ test('edit-ui: 문서 로드 → 서버 기동 → URL 로그 → close', async 
     assert.ok(started, 'onServer 시임으로 서버 수신');
     assert.equal(started.addr.address, '127.0.0.1');
     assert.ok(lines.some((l) => new RegExp(`http://127\\.0\\.0\\.1:${started.addr.port}/`).test(l)), 'URL 로그');
-    assert.ok(lines.some((l) => /읽기 전용 셸/.test(l)));
+    assert.ok(lines.some((l) => /브라우저 에디터/.test(l)));
     const res = await fetch(`http://127.0.0.1:${started.addr.port}/`);
     assert.equal(res.status, 200, 'CLI 가 띄운 서버가 실제 응답');
   } finally {

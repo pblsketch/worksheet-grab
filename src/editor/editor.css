@@ -54,3 +54,43 @@ body {
   position: absolute; pointer-events: none;
   border: 1px dashed rgba(37, 99, 235, .55);
 }
+.overflow-badge {
+  position: absolute; pointer-events: none; transform: translate(-100%, -100%);
+  background: #cf222e; color: #fff; font-size: 12px; font-weight: 700;
+  padding: 3px 10px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  white-space: nowrap; z-index: 11;
+}
+
+/* ── E3 툴바 ── */
+.toolbar {
+  position: sticky; top: 44px; z-index: 20;
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  padding: 6px 16px; background: #f6f8fa; border-bottom: 1px solid #d0d7de;
+}
+.tb-btn {
+  border: 1px solid transparent; border-radius: 6px; background: transparent;
+  padding: 4px 9px; cursor: pointer; font: inherit; font-size: 14px; line-height: 1;
+}
+.tb-btn:hover { background: #eaeef2; border-color: #d0d7de; }
+.tb-mark { border: 1px solid #d0d7de; background: #fff; font-weight: 600; }
+.tb-select { font: inherit; font-size: 13px; padding: 3px 4px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; }
+.tb-color { width: 28px; height: 26px; padding: 0 2px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; cursor: pointer; }
+.tb-sep { width: 1px; height: 20px; background: #d0d7de; margin: 0 4px; }
+.save-btn {
+  border: 0; border-radius: 8px; background: #2563eb; color: #fff;
+  padding: 6px 14px; cursor: pointer; font: inherit; font-weight: 700;
+}
+.save-btn kbd { font-size: 10px; font-weight: 400; opacity: .75; margin-left: 4px; }
+
+/* 저장 결과/구조 경고 배너 */
+.save-banner {
+  padding: 6px 16px; font-size: 13px; font-weight: 600;
+  border-bottom: 1px solid #d0d7de;
+}
+.save-banner.hidden { display: none; }
+.save-banner.ok { background: #dafbe1; color: #1a7f37; }
+.save-banner.warn { background: #fff8c5; color: #7d4e00; }
+.save-banner.error { background: #ffebe9; color: #cf222e; }
+
+/* review-bar 위치 조정(툴바 추가로 상단 오프셋 증가) */
+.review-bar { top: 86px; }

@@ -4,6 +4,26 @@ import { join, resolve, sep } from 'node:path';
 import { resolveBrowserGraph } from '../editor/browserGraph.js';
 import { RenderEditorShell } from '../usecases/RenderEditorShell.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
+import { SaveDocument } from '../usecases/SaveDocument.js';
+
+const MAX_SAVE_BODY = 20 * 1024 * 1024; // 로컬 편집 도구의 안전 상한
+
+function readJsonBody(req) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > MAX_SAVE_BODY) { rejectPromise(new Error('본문이 너무 큽니다.')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      try { resolvePromise(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      catch { rejectPromise(new Error('JSON 파싱 실패')); }
+    });
+    req.on('error', rejectPromise);
+  });
+}
 
 // EditorHttpServer — 에디터 셸(E2)의 로컬 HTTP 어댑터. 127.0.0.1 전용.
 // 셸 데이터는 /shell.json(application/json) 으로만 나간다 — 조립본 head 의 KaTeX
@@ -22,20 +42,44 @@ function send(res, status, type, body) {
 }
 
 /**
- * @param {{root:string, docName:string, workspace, blockRepository, curriculum}} deps
+ * @param {{root:string, docName:string, workspace, blockRepository, curriculum, testSeed?:boolean}} deps
+ *   testSeed: 렌더 테스트 전용 — shell.json 에 testSeed 필드를 노출해 클라이언트의
+ *   `?seed=` 결정적 편집 훅을 활성화한다. 기본 기동(edit-ui)에선 꺼져 있어
+ *   시드 훅이 실데이터를 변경할 수 없다.
  * @returns {import('node:http').Server}
  */
-export function createEditorServer({ root, docName, workspace, blockRepository, curriculum }) {
+export function createEditorServer({ root, docName, workspace, blockRepository, curriculum, testSeed = false }) {
   const absRoot = resolve(root);
   const editorDir = join(absRoot, 'src', 'editor');
   const whitelist = new Set(resolveBrowserGraph(absRoot).files);
   const shellRenderer = new RenderEditorShell({ blockRepository, curriculum });
   const opener = new OpenDocument({ workspace });
+  const saver = new SaveDocument({ workspace, blockRepository, curriculum });
 
   return createServer(async (req, res) => {
     try {
-      if (req.method !== 'GET') return send(res, 405, 'text/plain; charset=utf-8', 'GET only');
       const path = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
+
+      // E3 저장: 클라이언트 역동기화 manifest → SaveDocument 단일 경유(누출 게이트·히스토리).
+      if (req.method === 'POST' && path === '/save') {
+        let body;
+        try {
+          body = await readJsonBody(req);
+        } catch (e) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+        if (!body || typeof body.manifest !== 'object' || body.manifest === null) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: 'manifest 가 필요합니다.' }));
+        }
+        const result = await saver.execute({ name: docName, manifest: body.manifest });
+        return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({
+          unsafe: result.unsafe,
+          leakFindings: result.leakFindings,
+          meta: result.meta,
+          structureWarning: body.structureWarning === true,
+        }));
+      }
+      if (req.method !== 'GET') return send(res, 405, 'text/plain; charset=utf-8', 'GET only');
 
       if (path === '/') {
         return send(res, 200, MIME['.html'], await readFile(join(editorDir, 'editor.html')));
@@ -45,8 +89,10 @@ export function createEditorServer({ root, docName, workspace, blockRepository, 
         const { manifest, meta, warnings } = await opener.execute({ name: docName });
         const themes = await blockRepository.listThemes();
         const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
-        const shell = await shellRenderer.execute({ manifest, meta, knownSubjectHexes });
-        return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ ...shell, warnings }));
+        const shell = await shellRenderer.execute({ manifest, meta, knownSubjectHexes, docName });
+        // manifest 동봉: 클라이언트 역동기화(resync)가 pages 외 필드를 보존하는 원본.
+        return send(res, 200, 'application/json; charset=utf-8',
+          JSON.stringify(testSeed ? { ...shell, manifest, warnings, testSeed: true } : { ...shell, manifest, warnings }));
       }
       if (path.startsWith('/src/')) {
         const rel = path.slice(1);

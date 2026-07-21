@@ -28,9 +28,12 @@ export class AssembleWorksheet {
 
   /**
    * @param {object} manifest 파싱된 매니페스트
+   * @param {{editMode?:boolean}} opts editMode: 에디터(E3) 전용 — 각 블록을 경계 래퍼로
+   *   감싸 DOM↔manifest 역동기화를 가능하게 한다. 기본 false = 현행 산출 바이트 불변.
+   *   래퍼는 저장 시 clean 재조립으로 자연 소멸하므로 인쇄물/워크스페이스 HTML 에 남지 않는다.
    * @returns {Promise<{html:string, worksheet:Worksheet}>}
    */
-  async execute(manifest) {
+  async execute(manifest, { editMode = false } = {}) {
     const standards = await this.#resolveStandards(manifest);
 
     // 페이지별 블록 로드/생성 → 도메인 Block[][]
@@ -62,7 +65,7 @@ export class AssembleWorksheet {
       runFoot: manifest.runFoot || { left: '', rightPrefix: '' },
     });
 
-    const html = await this.#serialize(worksheet, manifest);
+    const html = await this.#serialize(worksheet, manifest, editMode);
     return { html, worksheet };
   }
 
@@ -110,7 +113,7 @@ ${lis}
   </div>`;
   }
 
-  async #serialize(worksheet, manifest) {
+  async #serialize(worksheet, manifest, editMode = false) {
     let paper = await this.repo.readAsset('paper.css');
     // manifest.paper(1급 속성) → @page 숫자 리터럴 + --sheet-* 변수를 paper.css 바로 뒤에
     // 인라인해 캐스케이드로 덮어쓴다. 미지정이면 스니펫 없음 = 현행 산출 그대로(하위호환).
@@ -124,7 +127,11 @@ ${lis}
 
     const pagesHtml = worksheet.pages.map((blocks, idx) => {
       const pageNo = idx + 1;
-      const body = blocks.map((b) => b.toHtml()).join('\n\n  ');
+      // editMode: 블록 경계 래퍼(display:contents — editor.css) — DOM 순회로 pages[p][b] 복원.
+      const body = blocks.map((b, bIdx) => (editMode
+        ? `<div class="wg-block" data-bp="${idx}" data-bi="${bIdx}" data-bt="${escapeHtml(b.type)}">${b.toHtml()}</div>`
+        : b.toHtml()
+      )).join('\n\n  ');
       const foot = worksheet.runFoot;
       const rightPrefix = foot.rightPrefix ?? foot.right ?? '';
       return `<section class="sheet">

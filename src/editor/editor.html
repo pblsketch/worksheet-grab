@@ -3,29 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>worksheet-grab — 에디터 셸 (읽기 전용)</title>
+<title>worksheet-grab — 에디터</title>
 <link rel="icon" href="data:,"><!-- favicon 자동 요청 404 소음 제거 -->
 <link rel="stylesheet" href="/editor/editor.css">
 </head>
 <body>
 <header class="topbar">
-  <div class="doc"><span class="logo">worksheet-grab</span><span id="doc-title">문서 로드 중…</span><span id="doc-paper" class="paper-badge"></span></div>
+  <div class="doc"><span class="logo">worksheet-grab</span><span id="doc-title">문서 로드 중…</span><span id="doc-paper" class="paper-badge"></span><span id="doc-rev" class="paper-badge"></span></div>
   <div class="controls">
     <div class="seg" role="tablist" aria-label="학생/교사 토글">
-      <button id="btn-teacher" class="seg-btn active" role="tab">교사용</button>
-      <button id="btn-student" class="seg-btn" role="tab">학생용</button>
+      <button id="btn-teacher" class="seg-btn active" role="tab">교사용 (편집)</button>
+      <button id="btn-student" class="seg-btn" role="tab">학생용 (미리보기)</button>
     </div>
     <button id="btn-guides" class="tool-btn active" aria-pressed="true">여백선</button>
-    <span class="readonly-note">읽기 전용 셸 — 편집은 E3</span>
+    <button id="btn-save" class="save-btn">저장 <kbd>Ctrl+S</kbd></button>
   </div>
 </header>
+<div class="toolbar" role="toolbar" aria-label="서식 도구">
+  <select id="tb-font" class="tb-select" title="폰트"><option value="Pretendard" selected>Pretendard</option></select>
+  <select id="tb-size" class="tb-select" title="글자 크기(pt)">
+    <option value="">크기</option>
+    <option>8</option><option>9</option><option>10</option><option>10.5</option>
+    <option>11</option><option>12</option><option>13</option><option>14</option>
+  </select>
+  <span class="tb-sep"></span>
+  <button id="tb-bold" class="tb-btn" title="굵게"><b>B</b></button>
+  <button id="tb-italic" class="tb-btn" title="기울임"><i>I</i></button>
+  <button id="tb-underline" class="tb-btn" title="밑줄"><u>U</u></button>
+  <input id="tb-color" class="tb-color" type="color" value="#c0392b" title="글자색">
+  <span class="tb-sep"></span>
+  <button id="tb-align-left" class="tb-btn" title="왼쪽 정렬">⯇</button>
+  <button id="tb-align-center" class="tb-btn" title="가운데 정렬">≡</button>
+  <button id="tb-align-right" class="tb-btn" title="오른쪽 정렬">⯈</button>
+  <button id="tb-ul" class="tb-btn" title="글머리 목록">•≡</button>
+  <button id="tb-ol" class="tb-btn" title="번호 목록">1≡</button>
+  <span class="tb-sep"></span>
+  <button id="tb-table" class="tb-btn" title="표 삽입(2×2)">⊞</button>
+  <button id="tb-image" class="tb-btn" title="이미지 자리 삽입">🖼</button>
+  <span class="tb-sep"></span>
+  <button id="tb-undo" class="tb-btn" title="실행 취소">↶</button>
+  <button id="tb-redo" class="tb-btn" title="다시 실행">↷</button>
+  <span class="tb-sep"></span>
+  <button id="tb-answer" class="tb-btn tb-mark" title="선택 영역을 정답으로 표시/해제 — 학생용에서 자동 제거">⭐ 정답 표시</button>
+  <button id="tb-anslines" class="tb-btn tb-mark" title="현재 블록에 답란 5줄 삽입">✏️ 답란 삽입</button>
+</div>
+<div id="save-banner" class="save-banner hidden" role="status"></div>
 <section id="review-bar" class="review-bar" aria-live="polite">
   <span id="review-status" class="review-status">검수 준비 중…</span>
   <ul id="review-list" class="review-list"></ul>
 </section>
 <main id="canvas-wrap">
   <div id="stage">
-    <!-- iframe(변형별 지연 생성) + 여백선 부모 오버레이가 여기에 절대배치된다 -->
+    <!-- iframe(변형별 지연 생성) + 여백선·넘침 배지 부모 오버레이 -->
     <div id="guide-overlay" aria-hidden="true"></div>
   </div>
 </main>

@@ -175,3 +175,16 @@ ralplan 합의 계획 v2.1(Planner→Architect 7건→Critic C1/M1/M2/m1→APPRO
 **검수 훅(E3 승계):** `recompute(mode)` — 입력은 shell.json 문자열(iframe DOM 아님, 지연 로드와 독립). answer-leak 은 항상 teacher(마크 생존측), 인쇄안전은 표시 변형 기준. 여백선은 **부모 오버레이 레이어**(iframe 무주입 — E3 contenteditable 대상 무오염), 학생/교사 토글은 물리 2벌 iframe 지연 로드 스왑.
 
 **실물 실측(실 Chrome + Playwright 관찰):** A4 `.sheet` 793.7×1122.5px(CSS 96dpi 정밀 일치) · A3 가로 1587.4px · 여백선 인셋 56.7/45.3/56.7/37.8px(기대치 ±0.1px, 3페이지 전부) · 학생 토글 시 student iframe DOM 에 정답 텍스트 물리 부재(`.answer` 는 빈 답란 셸로 잔존 — 학생 기입 공간) · 누출 픽스처에서 검수 바 answer-leak error 배지. `editor-shell.render.test.js`(Chrome 게이트, --dump-dom + body dataset 계측 훅)가 자동 회귀로 고정.
+
+### 2026-07-21 — E3 완료 (편집: 일반 툴바 + 마크 — §11 DoD 핵심 단계)
+ralplan 합의 계획 v2.1(Planner→Architect 8건→Critic 4건→APPROVE) 기준 구현.
+
+**§3.1 실현(일반 에디터 + 얇은 마크 — 인스펙터 없음):** teacher 캔버스 contenteditable + 공통 툴바(`toolbar.js` 어댑터 — execCommand 랩, **fontSize 는 직접 span style**(execCommand 는 1~7 레거시만 지원하는 실측 함정), 표 2×2·이미지 placeholder 삽입 골격) + **⭐ 정답 표시**(`marks.js`) + **✏️ 답란 5줄 삽입**.
+
+**manifest 역동기화:** `AssembleWorksheet.execute(manifest, {editMode})` 가 teacher 캔버스에만 `<div class="wg-block" data-bp/bi/bt>` 경계 래퍼를 주입(`display:contents` — 실 Chrome 실측으로 .sheet 치수 E2 등가 확인, 기본 경로 바이트 불변). 저장 = DOM 순회 → `resync.js`(순수: 배열→pages, 래퍼 소실 시 잔여 흡수+structureWarning 경고 배너) → `POST /save` → **`SaveDocument` 단일 경유**(리비전·히스토리·누출 게이트). 래퍼·세션 태깅은 저장 산출물에 남지 않는다(무오염 실측 단정).
+
+**⭐ 누출 3중 방어(§3.1 비협상 불변식):** (i) 신규 마크는 `data-wg-mark="session"` — 즉시 unwrap 은 세션 마크만. (ii) 기존 저작 `.answer` 해제는 confirm 게이트(실브라우저 관찰로 발화·거절 시 보존 확인). (iii) **저장 시 마크 소멸 감지** — `SaveDocument` 가 직전 manifest 의 마크 텍스트(`collectTextInside`)를 신규 student 의 `textOutside` 정규화 텍스트에서 전체/앞 20자 부분열로 검색해 `answer-mark-dropped` error 승격(unsafe·student 보류). **한계(정직):** (iii) 는 8자 미만 단답·대폭 수정을 못 잡는 최후 그물이며 주 방어는 (i)(ii)다.
+
+**실시간 예고(§3.4):** input 디바운스 250ms → 페이지 바닥 초과 **빨강 넘침 배지**(부모 오버레이) · 8pt 미만 **즉시 min-font 경고** · 라이브 검수 바(`recompute` 입력을 편집 DOM 직렬화로 확장 — E2 훅 승계). student 토글은 편집 불가 **즉석 파생 미리보기**(`stripElementsByClass` 동일 원시 — 저장 없이 마크의 2벌 효과 체감, contenteditable·편집 하이라이트는 파생 시 제거).
+
+**실물 실증:** 실 Chrome 시드 게이트(`--test-seed` 서버에서만 `?seed=` 활성 — 프로덕션 자동저장 오염 차단 실측): ② 마킹→저장→manifest `.answer` 반영·태깅 제거·student.html 물리 부재 ③ 답란 5줄 manifest 반영 ④ 6pt→min-font 즉시 경고 ⑤ 대량 답란→넘침 배지, + M1 높이 등가. Playwright 관찰: ① 자유 타이핑(insertText) 편집, ⭐마킹→학생 토글 즉석 반영, 기존 마크 confirm 발화·거절 보존, 저장 후 iframe 유지(rev 2, `__liveMarker` 생존 = 커서 컨텍스트 보존), `doc open` 재확인(rev 2·히스토리 2 = E1 저장 왕복).

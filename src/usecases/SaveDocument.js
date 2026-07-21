@@ -1,6 +1,7 @@
 import { AssembleWorksheet } from './AssembleWorksheet.js';
-import { BuildVariants } from './BuildVariants.js';
-import { ValidateWorksheet } from './ValidateWorksheet.js';
+import { BuildVariants, ANSWER_CLASSES } from './BuildVariants.js';
+import { ValidateWorksheet, MIN_ANSWER_LEN, SLICE_LEN } from './ValidateWorksheet.js';
+import { collectTextInside, textOutside } from './html-scan.js';
 import { buildMeta, nextSnapshotSerial, snapshotName } from './workspace.js';
 
 // SaveDocument — 워크스페이스 문서 저장의 단일 진입점. E2 에디터 서버·CLI(doc save/
@@ -46,6 +47,7 @@ export class SaveDocument {
     const leakFindings = [
       ...validator.execute(student).findings,
       ...validator.execute(teacher).findings,
+      ...(await this.#detectDroppedMarks(layout.name, student)),
     ].filter((f) => f.severity === 'error');
     const unsafe = leakFindings.length > 0;
 
@@ -61,5 +63,45 @@ export class SaveDocument {
     await this.workspace.writeMeta(layout.name, meta);
 
     return { name: layout.name, paths: layout, meta, unsafe, leakFindings };
+  }
+
+  // ⭐ unwrap 누출의 최후 그물(E3, 한계 있는 심층방어 최외곽): 직전 저장본에서 .answer
+  // 마크 안에 있던 긴 정답이 이번 저장의 student 에 마크 밖 평문으로 남았으면
+  // (= 편집 중 마크가 벗겨짐) error 로 승격한다. 검색은 raw HTML 이 아니라
+  // textOutside 정규화 텍스트 기준(#checkAnswerLeak 과 동일 패턴), 전체 일치 또는
+  // 앞 SLICE_LEN 부분열 일치(부분수정 잔존 포착). MIN_ANSWER_LEN 미만 단답과 대폭
+  // 수정은 못 잡는다 — 주 방어는 에디터의 세션 마크 태깅 + 기존 마크 confirm 이다.
+  // 최초 저장(이전 manifest 없음)은 skip. 이전 저장에서 이미 벗겨진 마크는
+  // prevTeacher 의 .answer 에 없으므로 비교가 자연 skip(추가 오탐 없음).
+  async #detectDroppedMarks(name, newStudent) {
+    if (!this.workspace.docExists(name)) return [];
+    let prevManifest;
+    try {
+      prevManifest = await this.workspace.readManifest(name);
+    } catch {
+      return []; // 미완성 디렉토리(manifest 부재) — 비교 대상 없음
+    }
+    const asm = new AssembleWorksheet({ blockRepository: this.repo, curriculum: this.curriculum });
+    const { html: prevHtml } = await asm.execute(prevManifest);
+    const { teacher: prevTeacher } = new BuildVariants().execute(prevHtml);
+    const prevMarks = [...new Set(collectTextInside(prevTeacher, ANSWER_CLASSES))]
+      .filter((t) => t.length >= MIN_ANSWER_LEN);
+    if (prevMarks.length === 0) return [];
+
+    const outside = textOutside(newStudent, ANSWER_CLASSES);
+    const findings = [];
+    for (const markText of prevMarks) {
+      const hit = outside.includes(markText)
+        || (markText.length >= SLICE_LEN && outside.includes(markText.slice(0, SLICE_LEN)));
+      if (hit) {
+        findings.push({
+          rule: 'answer-mark-dropped',
+          severity: 'error',
+          message: '직전 저장본에서 정답 마크(.answer) 안에 있던 텍스트가 이번 저장의 학생용에 평문으로 남았습니다(마크 해제 의심).',
+          evidence: markText.length > 60 ? markText.slice(0, 60) + '…' : markText,
+        });
+      }
+    }
+    return findings;
   }
 }

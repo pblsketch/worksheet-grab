@@ -76,7 +76,7 @@ test('doc list/open/history: 상태·unsafe 배지·경고 노출', async () => 
 
   const open = logger();
   assert.equal(await run(['doc', 'open', '문서', '--workspaces-dir', base], { root: ROOT, log: open.log, err: open.err }), 0);
-  assert.ok(open.lines.some((l) => /에디터 기동은 E2/.test(l)), 'open 은 로드·상태 표시임을 명시');
+  assert.ok(open.lines.some((l) => /로드·상태 표시 — 편집은 "edit-ui/.test(l)), 'open 은 로드·상태 표시임을 명시');
   assert.ok(open.lines.some((l) => /히스토리: 스냅샷 1개/.test(l)));
 
   const hist = logger();

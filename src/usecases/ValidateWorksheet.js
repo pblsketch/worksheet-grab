@@ -10,8 +10,9 @@ import { resolvePaper, paperMargins, paperMarginMinMm } from './paper.js';
 //
 // 결과: { ok, findings:[{rule, severity, message, evidence}] }. ok = error 없음.
 
-const MIN_ANSWER_LEN = 8;   // 짧은 숫자("0.5") 오탐 방지
-const SLICE_LEN = 20;
+// SaveDocument 의 마크 소멸 감지가 같은 임계로 판정하도록 export(규칙 단일 정의).
+export const MIN_ANSWER_LEN = 8;   // 짧은 숫자("0.5") 오탐 방지
+export const SLICE_LEN = 20;       // 긴 정답의 앞부분열 매칭(부분수정 잔존 포착)
 
 export class ValidateWorksheet {
   /**
