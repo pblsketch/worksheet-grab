@@ -82,6 +82,7 @@ node bin/worksheet-grab.js assemble <ko|sci|manifest.json> --out <file.html>
 # 5) 학년+교과+주제로 활동지 생성(M2) — 성취기준 CSV 조회 + 교과 템플릿
 node bin/worksheet-grab.js generate <학년교과> <주제> [--out <dir>] [--pdf] [--standards <코드,..>] [--limit <N>]
 #   예: generate 중2과학 광합성  ("중2 과학 광합성" 처럼 띄어 써도 됨)
+#       generate 중2과학 광합성 작용  (다단어 주제 — 공백 토큰으로 분해해 특이도순 조회)
 #   → 성취기준을 CSV(MCP off에서도)에서 조회해 헤더에 원문 주입, 교과 템플릿으로
 #     활동지 + student/teacher 2벌 생성. --pdf 지정 시 A4 PDF까지 렌더.
 #   --standards [9과12-01],[9과12-02] 로 성취기준 직접 선택, --limit 로 자동 조회 개수 제한(기본 6).
@@ -251,7 +252,7 @@ DIP 는 실제로 변하는 3경계(Curriculum·Renderer·ContentAuthor)에만 �
 ## 검증
 
 ```bash
-npm test            # 전체 241 테스트(단위 207 + 실물 렌더 34). Chrome 없으면 렌더 테스트는 스킵.
+npm test            # 전체 250 테스트(단위 215 + 실물 렌더 35). Chrome 없으면 렌더 테스트는 스킵.
 npm run test:unit   # Chrome 불필요 단위/수용 테스트
 npm run test:render # 실물 Chrome — 페이지수(국어 5·과학 3)·PDF MediaBox(A4/A3/B4)·에디터 계측(dump-dom)
 npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각은 만들지 않음)
@@ -259,6 +260,22 @@ npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각�
 
 다코어 머신에서 전 병렬 실행 시 Chrome 동시 spawn 경합으로 렌더 테스트가 드물게 타임아웃할 수
 있다 — `node --test --test-concurrency=8 "test/**/*.test.js"` 로 묶으면 안정적으로 green.
+
+### QA 하드닝(교차 검증 반영)
+
+내부 ULTRAQA + 외부 모델(Codex) 교차 QA로 다음을 보강했다(전 항목 회귀 테스트 포함):
+
+- **정답 누출 게이트 강화** — `html-scan` 토크나이저가 속성값 속 `>`(예: `title="a>b"`)와
+  따옴표 없는 `class=answer` 도 정확히 인식한다. 엔진측(manifest/블록) HTML 은 DOM
+  재직렬화를 거치지 않으므로 이 형태가 학생용에 새던 경로를 차단.
+- **파이프라인 fail-closed** — `pipeline` 검수 게이트가 디스크 쓰기보다 먼저 실행된다.
+  FAIL 시 어떤 산출물도 남기지 않는다(과거엔 학생 HTML 이 먼저 기록돼 잔존).
+- **편집 과삭제 방지** — "1번 참고, 2번 삭제"류에서 참고/참조/보고를 유지 동사로 인식해
+  1번이 뒤 삭제 지시로 흘러 함께 지워지던 데이터 손실을 막는다.
+- **다단어 주제** — `generate/compose` 가 공백 주제("광합성 작용")를 토큰 분해 후
+  매칭 특이도순으로 성취기준을 조회한다.
+- **에디터 UI** — 상단 크롬 통합 sticky(좁은 창 겹침·검수바 소실 해소), 학생용 미리보기
+  툴바 잠금, 미저장 이탈 경고, Chrome 임시 프로필 자동 정리.
 
 ## M1 수용 기준 (전부 통과)
 
