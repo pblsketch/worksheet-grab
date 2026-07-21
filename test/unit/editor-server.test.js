@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -160,6 +161,145 @@ test('E3 testSeed 게이트: 옵션 기동 시에만 shell.json 에 노출', asy
   try {
     const shell = await (await fetch(`${url}/shell.json`)).json();
     assert.equal(shell.testSeed, true);
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+// ===== E6: export·preview·paper (목 renderer — Chrome 0) =====
+
+const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+function e6MockRenderer() {
+  const calls = { pdf: [], png: [] };
+  return {
+    calls,
+    async renderToPdf(inputPath, outputPath, opts) {
+      calls.pdf.push({ inputPath, outputPath, opts });
+      await writeFile(outputPath, '%PDF-mock');
+    },
+    async renderToPng(inputPath, outputPath, opts) {
+      calls.png.push({ inputPath, outputPath, opts });
+      await writeFile(outputPath, PNG_MAGIC);
+    },
+  };
+}
+
+test('E6 POST /export: 저장본 2벌 PDF·unsafe 시 student 차단(fail-closed)·busy 409', async () => {
+  const renderer = e6MockRenderer();
+  const { server, url, manifest } = await startServer({ renderer });
+  try {
+    // 정상: teacher 먼저 2벌
+    const ok = await (await fetch(`${url}/export`, { method: 'POST' })).json();
+    assert.deepEqual(ok.rendered.map((x) => x.variant), ['teacher', 'student']);
+    assert.equal(ok.unsafe, false);
+    assert.ok(renderer.calls.pdf[0].outputPath.endsWith('worksheet-teacher.pdf'));
+    assert.ok(existsSync(renderer.calls.pdf[1].outputPath), '워크스페이스 PDF 슬롯 생성');
+
+    // 누출 저장 → unsafe → student 차단·사유 문구
+    const leaky = structuredClone(manifest);
+    leaky.pages[0].push({ type: 'content', html: '<p>유출: 전압이 커질수록 전류의 세기도 일정한 비율로 커질 것이다. (전압 ∝ 전류)</p>' });
+    const saved = await (await fetch(`${url}/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manifest: leaky }),
+    })).json();
+    assert.equal(saved.unsafe, true, '픽스처 전제: 누출 저장');
+    const blocked = await (await fetch(`${url}/export`, { method: 'POST' })).json();
+    assert.equal(blocked.unsafe, true);
+    assert.equal(blocked.skipped.student, 'unsafe');
+    assert.match(blocked.reason, /학생용 PDF 를 차단/);
+    assert.deepEqual(blocked.rendered.map((x) => x.variant), ['teacher'], 'teacher 는 보존');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('E6 GET /preview.png: scale:2 핀·paperToPx 치수·unsafe student 409', async () => {
+  const renderer = e6MockRenderer();
+  const { server, url, manifest } = await startServer({ renderer });
+  try {
+    const res = await fetch(`${url}/preview.png?mode=teacher&t=1`);
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /image\/png/);
+    const bytes = Buffer.from(await res.arrayBuffer());
+    assert.ok(bytes.subarray(0, 8).equals(PNG_MAGIC), 'PNG 바이트 스트림');
+    const opts = renderer.calls.png[0].opts;
+    assert.equal(opts.scale, 2, '[A1] scale 핀 고정');
+    assert.deepEqual({ width: opts.width, height: opts.height }, { width: 794, height: 1123 }, 'A4 paperToPx');
+    assert.equal((await fetch(`${url}/preview.png?mode=nope`)).status, 400);
+
+    // 누출 저장 → student 미리보기 409(교사용은 여전히 가능)
+    const leaky = structuredClone(manifest);
+    leaky.pages[0].push({ type: 'content', html: '<p>유출: 전압이 커질수록 전류의 세기도 일정한 비율로 커질 것이다. (전압 ∝ 전류)</p>' });
+    await fetch(`${url}/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manifest: leaky }),
+    });
+    const blocked = await fetch(`${url}/preview.png?mode=student`);
+    assert.equal(blocked.status, 409);
+    assert.match((await blocked.json()).message, /학생용 PDF 를 차단/);
+    assert.equal((await fetch(`${url}/preview.png?mode=teacher`)).status, 200, 'teacher 는 항상 가능');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('E6 POST /paper: 검증 400·no-op 가드·SaveDocument 경유 재저장', async () => {
+  const { server, url, workspace } = await startServer({ renderer: e6MockRenderer() });
+  try {
+    // 잘못된 용지 → 400
+    const bad = await fetch(`${url}/paper`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paper: { size: 'LETTER' } }),
+    });
+    assert.equal(bad.status, 400);
+
+    // 현재(미지정 = A4 기본)와 동일 → no-op(리비전 불증가)
+    const noop = await (await fetch(`${url}/paper`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paper: null }),
+    })).json();
+    assert.equal(noop.noop, true);
+
+    // A3 가로로 변경 → SaveDocument 경유(rev 2)·manifest.paper 반영
+    const changed = await (await fetch(`${url}/paper`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paper: { size: 'A3', orientation: 'landscape' } }),
+    })).json();
+    assert.equal(changed.noop, false);
+    assert.equal(changed.meta.revision, 2);
+    const saved = await workspace.readManifest('문서');
+    assert.deepEqual(saved.paper, { size: 'A3', orientation: 'landscape' });
+
+    // 같은 값 재선택 → no-op
+    const again = await (await fetch(`${url}/paper`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paper: { size: 'A3', orientation: 'landscape' } }),
+    })).json();
+    assert.equal(again.noop, true);
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('E6 in-flight 가드: 렌더 진행 중 중복 요청 409 busy', async () => {
+  let release;
+  const gate = new Promise((r) => { release = r; });
+  const renderer = {
+    async renderToPdf(inputPath, outputPath) { await gate; await writeFile(outputPath, '%PDF-mock'); },
+    async renderToPng() { throw new Error('unused'); },
+  };
+  const { server, url } = await startServer({ renderer });
+  try {
+    const first = fetch(`${url}/export`, { method: 'POST' }); // gate 에 매달림
+    await new Promise((r) => setTimeout(r, 50));
+    const second = await fetch(`${url}/export`, { method: 'POST' });
+    assert.equal(second.status, 409, '동시 렌더 1개 제한');
+    assert.equal((await second.json()).error, 'busy');
+    const preview = await fetch(`${url}/preview.png?mode=teacher`);
+    assert.equal(preview.status, 409, 'preview 도 같은 가드 공유');
+    release();
+    assert.equal((await first).status, 200, '선행 요청은 정상 완료');
   } finally {
     await new Promise((r) => server.close(r));
   }

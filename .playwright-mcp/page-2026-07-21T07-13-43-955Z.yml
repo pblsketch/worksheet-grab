@@ -1,0 +1,272 @@
+- generic [active] [ref=f4e1]:
+  - banner [ref=f4e2]:
+    - generic [ref=f4e3]:
+      - generic [ref=f4e4]: worksheet-grab
+      - generic [ref=f4e5]: 과학 탐구 활동지 — 전압과 전류의 관계
+      - generic [ref=f4e6]: A3 가로
+      - generic [ref=f4e7]: rev 2
+      - combobox "용지 프리셋(§3.3) — 변경 시 저장 후 전체 재페이지네이션" [ref=f4e8]:
+        - option "A4 세로 (기본)"
+        - option "A3 접이 (가로)" [selected]
+        - option "A4 가로"
+        - option "B4 세로 (시험지)"
+        - option "고급(자유 조합)…"
+    - generic [ref=f4e9]:
+      - tablist "학생/교사 토글" [ref=f4e10]:
+        - tab "교사용 (편집)" [ref=f4e11] [cursor=pointer]
+        - tab "학생용 (미리보기)" [ref=f4e12] [cursor=pointer]
+      - button "여백선" [pressed] [ref=f4e13] [cursor=pointer]
+      - button "🔍 정밀 미리보기" [ref=f4e14] [cursor=pointer]
+      - button "⬇ PDF 내보내기" [ref=f4e15] [cursor=pointer]
+      - button "저장 Ctrl+S" [ref=f4e16] [cursor=pointer]
+  - toolbar "서식 도구" [ref=f4e17]:
+    - combobox "폰트" [ref=f4e18]:
+      - option "Pretendard" [selected]
+    - combobox "글자 크기(pt)" [ref=f4e19]:
+      - option "크기" [selected]
+      - option "8"
+      - option "9"
+      - option "10"
+      - option "10.5"
+      - option "11"
+      - option "12"
+      - option "13"
+      - option "14"
+    - button "B" [ref=f4e21] [cursor=pointer]
+    - button "I" [ref=f4e22] [cursor=pointer]
+    - button "U" [ref=f4e23] [cursor=pointer]
+    - textbox "글자색" [ref=f4e24] [cursor=pointer]: "#c0392b"
+    - button "⯇" [ref=f4e26] [cursor=pointer]
+    - button "≡" [ref=f4e27] [cursor=pointer]
+    - button "⯈" [ref=f4e28] [cursor=pointer]
+    - button "•≡" [ref=f4e29] [cursor=pointer]
+    - button "1≡" [ref=f4e30] [cursor=pointer]
+    - button "⊞" [ref=f4e32] [cursor=pointer]
+    - button "🖼" [ref=f4e33] [cursor=pointer]
+    - button "↶" [ref=f4e35] [cursor=pointer]
+    - button "↷" [ref=f4e36] [cursor=pointer]
+    - button "⭐ 정답 표시" [ref=f4e38] [cursor=pointer]
+    - button "✏️ 답란 삽입" [ref=f4e39] [cursor=pointer]
+    - button "⧉ 내 블록으로 저장" [ref=f4e41] [cursor=pointer]
+    - button "📁 프리셋" [ref=f4e42] [cursor=pointer]
+    - button "🤖 AI 재작성" [ref=f4e44] [cursor=pointer]
+    - button "✨ 예시 채우기" [ref=f4e45] [cursor=pointer]
+  - generic [ref=f4e46]:
+    - generic [ref=f4e47]: 검수 통과 (교사용 기준)
+    - list
+  - main [ref=f4e48]:
+    - iframe [ref=f4e50]:
+      - generic [ref=f7e1]:
+        - generic [ref=f7e2]:
+          - generic [ref=f7e3]: 교사용 (정답 포함)
+          - generic [ref=f7e4]: 2022 개정 교육과정 · 과학 · 탐구 실험 활동지
+          - generic [ref=f7e6]:
+            - generic [ref=f7e7]: 탐구 실험
+            - generic [ref=f7e8]: 중학교 과학 · 전기와 자기
+            - heading "전압과 전류의 관계 탐구 — 옴의 법칙" [level=1] [ref=f7e10]
+            - generic [ref=f7e11]:
+              - generic [ref=f7e12]: 단원 전기와 자기 · 전기 회로에서 저항·전류·전압의 관계
+              - generic [ref=f7e13]: 학년 반 이름
+          - generic [ref=f7e18]:
+            - generic [ref=f7e19]: ▣ 관련 성취기준 (2022 개정 교육과정)
+            - list [ref=f7e20]:
+              - listitem [ref=f7e21]: "[9과14-02] 전기 회로에서 전류를 모형으로 설명하고, 실험을 통해 저항, 전류, 전압 사이의 관계를 이끌어낼 수 있다."
+          - generic [ref=f7e22]: 🔬 전압을 바꾸며 전류를 측정하는 실험을 설계하고, 저항·전류·전압 사이의 관계를 스스로 이끌어내 보자.
+          - paragraph [ref=f7e25]:
+            - generic [ref=f7e26]: "1"
+            - text: 탐구 문제와 가설을 세워 보자.
+          - generic [ref=f7e28]:
+            - generic [ref=f7e29]: 탐구 문제
+            - generic [ref=f7e30]: 전기 회로에서 저항이 일정할 때, 전압의 크기가 달라지면 전류의 세기는 어떻게 변할까?
+          - generic [ref=f7e31]: ▷ 나의 가설
+          - generic [ref=f7e33]: 전압이 커질수록 전류의 세기도 일정한 비율로 커질 것이다. (전압 ∝ 전류)
+          - paragraph [ref=f7e37]:
+            - generic [ref=f7e38]: "2"
+            - text: 실험을 설계하며 변인을 정리해 보자.
+          - table [ref=f7e40]:
+            - rowgroup [ref=f7e41]:
+              - row [ref=f7e42]:
+                - cell "준비물" [ref=f7e43]
+                - cell "전지(또는 전원 장치), 저항(꼬마전구), 전류계, 전압계, 스위치, 집게 도선" [ref=f7e44]
+              - row [ref=f7e45]:
+                - cell "조작 변인 (바꾸는 것)" [ref=f7e46]: 조작 변인(바꾸는 것)
+                - cell "회로에 걸어 주는 전압의 크기" [ref=f7e47]
+              - row [ref=f7e49]:
+                - cell "통제 변인 (같게 하는 것)" [ref=f7e50]: 통제 변인(같게 하는 것)
+                - cell "저항의 종류와 크기, 회로의 연결 방법, 온도 등" [ref=f7e51]
+              - row [ref=f7e53]:
+                - cell "종속 변인 (측정하는 것)" [ref=f7e54]: 종속 변인(측정하는 것)
+                - cell "회로에 흐르는 전류의 세기" [ref=f7e55]
+          - generic [ref=f7e57]:
+            - generic [ref=f7e58]: 2022 개정 교육과정 연계 과학 탐구 활동지
+            - generic [ref=f7e59]: 옴의 법칙 탐구 1
+        - generic [ref=f7e60]:
+          - generic [ref=f7e61]: 교사용 (정답 포함)
+          - generic [ref=f7e62]: 2022 개정 교육과정 · 과학 · 탐구 실험 활동지
+          - paragraph [ref=f7e64]:
+            - generic [ref=f7e65]: "3"
+            - text: 실험 과정에 따라 전압을 바꾸며 전류를 측정하고, 결과를 표에 기록해 보자.
+          - generic [ref=f7e67]:
+            - generic [ref=f7e68]: 실험 과정
+            - generic [ref=f7e69]:
+              - paragraph [ref=f7e70]: ① 전지·저항·전류계·전압계·스위치를 그림과 같이 연결한다. (전류계는 직렬, 전압계는 병렬)
+              - paragraph [ref=f7e71]: ② 전압을 1.5 V로 맞추고 스위치를 닫아 전류계 값을 읽는다.
+              - paragraph [ref=f7e72]: ③ 전압을 3.0 V, 4.5 V, 6.0 V로 바꾸며 ②를 반복한다.
+          - paragraph [ref=f7e74]:
+            - generic [ref=f7e75]: "4"
+            - text: 측정 결과 (저항 일정)
+          - table [ref=f7e77]:
+            - rowgroup [ref=f7e78]:
+              - row [ref=f7e79]:
+                - columnheader "전압 V (V)" [ref=f7e80]
+                - columnheader "전류 I (A)" [ref=f7e81]
+                - columnheader "V / I (Ω)" [ref=f7e82]
+              - row [ref=f7e83]:
+                - cell "1.5" [ref=f7e84]
+                - cell "0.5" [ref=f7e85]
+                - cell "3.0" [ref=f7e87]
+              - row [ref=f7e89]:
+                - cell "3.0" [ref=f7e90]
+                - cell "1.0" [ref=f7e91]
+                - cell "3.0" [ref=f7e93]
+              - row [ref=f7e95]:
+                - cell "4.5" [ref=f7e96]
+                - cell "1.5" [ref=f7e97]
+                - cell "3.0" [ref=f7e99]
+              - row [ref=f7e101]:
+                - cell "6.0" [ref=f7e102]
+                - cell "2.0" [ref=f7e103]
+                - cell "3.0" [ref=f7e105]
+          - paragraph [ref=f7e108]: ＊ 교사용에는 예시 측정값이 채워져 있습니다. 학생용은 실제 측정값을 기록합니다.
+          - paragraph [ref=f7e110]:
+            - generic [ref=f7e111]: "5"
+            - text: "측정한 값을 그래프로 나타내 보자. (가로축: 전압, 세로축: 전류)"
+          - generic [ref=f7e113]:
+            - img [ref=f7e114]:
+              - generic [ref=f7e117]:
+                - generic [ref=f7e118]: "1.5"
+                - generic [ref=f7e119]: "3.0"
+                - generic [ref=f7e120]: "4.5"
+                - generic [ref=f7e121]: "6.0"
+                - generic [ref=f7e122]: 전압(V)
+                - generic [ref=f7e123]: "0"
+                - generic [ref=f7e124]: "0.5"
+                - generic [ref=f7e125]: "1.0"
+                - generic [ref=f7e126]: "1.5"
+                - generic [ref=f7e127]: "2.0"
+                - generic [ref=f7e128]: 전류(A)
+            - generic [ref=f7e135]: 전압–전류 그래프 (모눈에 점을 찍고 직선으로 이어 보자)
+          - generic [ref=f7e136]:
+            - generic [ref=f7e137]: 2022 개정 교육과정 연계 과학 탐구 활동지
+            - generic [ref=f7e138]: 옴의 법칙 탐구 2
+        - generic [ref=f7e139]:
+          - generic [ref=f7e140]: 교사용 (정답 포함)
+          - generic [ref=f7e141]: 2022 개정 교육과정 · 과학 · 탐구 실험 활동지
+          - paragraph [ref=f7e143]:
+            - generic [ref=f7e144]: "6"
+            - text: 결과를 해석하며 저항·전류·전압의 관계를 정리해 보자.
+          - generic [ref=f7e145]: (1) 전압이 커질 때 전류의 세기는 어떻게 변했나요? 그래프의 모양과 함께 설명해 보자.
+          - generic [ref=f7e147]: 전압이 커질수록 전류도 일정한 비율로 커졌다. 그래프는 원점을 지나는 직선(정비례) 모양이다.
+          - generic [ref=f7e153]: (2) 표에서 V / I 의 값은 어떤 특징을 보이나요? 이 값은 무엇을 의미할까요?
+          - generic [ref=f7e155]: V / I 의 값이 3.0 으로 항상 일정하다. 이 일정한 값은 회로의 저항(R)을 의미한다.
+          - generic [ref=f7e161]: (3) 위 결과를 바탕으로 전압(V), 전류(I), 저항(R) 사이의 관계식을 완성해 보자.
+          - generic [ref=f7e164]:
+            - generic [ref=f7e166]:
+              - math [ref=f7e168]:
+                - generic [ref=f7e170]:
+                  - generic [ref=f7e171]: R
+                  - generic [ref=f7e172]: =
+                  - generic [ref=f7e174]:
+                    - generic [ref=f7e175]: V
+                    - generic [ref=f7e176]: I
+              - generic [ref=f7e177]:
+                - generic [ref=f7e178]: R =
+                - generic [ref=f7e184]:
+                  - generic [ref=f7e185]: I
+                  - generic [ref=f7e187]: V
+            - text: ⟹
+            - generic [ref=f7e192]:
+              - math [ref=f7e194]:
+                - generic [ref=f7e196]:
+                  - generic [ref=f7e197]: V
+                  - generic [ref=f7e198]: =
+                  - generic [ref=f7e199]: I
+                  - generic [ref=f7e200]: ×
+                  - generic [ref=f7e201]: R
+              - generic [ref=f7e202]:
+                - generic [ref=f7e203]: V =
+                - generic [ref=f7e204]: I ×
+                - generic [ref=f7e205]: R
+            - generic [ref=f7e206]: ＊ 이 관계를 옴의 법칙이라고 한다.
+          - generic [ref=f7e208]:
+            - text: "저항이 일정할 때 전류는 전압에 정비례한다. 관계식:"
+            - generic [ref=f7e210]:
+              - math [ref=f7e212]:
+                - generic [ref=f7e214]:
+                  - generic [ref=f7e215]: V
+                  - generic [ref=f7e216]: =
+                  - generic [ref=f7e217]: I
+                  - generic [ref=f7e218]: R
+              - generic [ref=f7e219]:
+                - generic [ref=f7e220]: V =
+                - generic [ref=f7e221]: IR
+            - text: (또는
+            - generic [ref=f7e223]:
+              - math [ref=f7e225]:
+                - generic [ref=f7e227]:
+                  - generic [ref=f7e228]: I
+                  - generic [ref=f7e229]: =
+                  - generic [ref=f7e230]: V
+                  - generic [ref=f7e231]: /
+                  - generic [ref=f7e232]: R
+              - generic [ref=f7e233]:
+                - generic [ref=f7e234]: I =
+                - generic [ref=f7e235]: V/R
+            - text: ). 이번 실험에서
+            - generic [ref=f7e237]:
+              - math [ref=f7e239]:
+                - generic [ref=f7e241]:
+                  - generic [ref=f7e242]: R
+                  - generic [ref=f7e243]: =
+                  - generic [ref=f7e244]: "3.0"
+                  - generic [ref=f7e245]: Ω
+              - generic [ref=f7e246]:
+                - generic [ref=f7e247]: R =
+                - generic [ref=f7e248]: 3.0 Ω
+            - text: .
+          - generic [ref=f7e249]: (4) 이 실험에서 저항의 크기를 2배로 바꾼다면, 같은 전압에서 전류의 세기는 어떻게 될까요?
+          - generic [ref=f7e252]:
+            - text: 전류는 전압에 정비례하고 저항에 반비례(
+            - generic [ref=f7e254]:
+              - math [ref=f7e256]:
+                - generic [ref=f7e258]:
+                  - generic [ref=f7e259]: I
+                  - generic [ref=f7e260]: =
+                  - generic [ref=f7e261]: V
+                  - generic [ref=f7e262]: /
+                  - generic [ref=f7e263]: R
+              - generic [ref=f7e264]:
+                - generic [ref=f7e265]: I =
+                - generic [ref=f7e266]: V/R
+            - text: )하므로, 저항이 2배가 되면 전류는 1/2로 줄어든다.
+          - heading "7 점검표를 작성하며 탐구를 정리해 보자." [level=2] [ref=f7e272]:
+            - generic [ref=f7e273]: "7"
+            - text: 점검표를 작성하며 탐구를 정리해 보자.
+          - table [ref=f7e275]:
+            - rowgroup [ref=f7e276]:
+              - row [ref=f7e277]:
+                - columnheader "점검 요소" [ref=f7e278]
+                - columnheader "점검 결과" [ref=f7e279]
+              - row [ref=f7e280]:
+                - cell "변인을 통제하며 전압–전류 측정 실험을 설계할 수 있는가?" [ref=f7e281]
+                - cell "☆☆☆☆☆" [ref=f7e282]
+              - row [ref=f7e283]:
+                - cell "측정 결과를 표와 그래프로 나타낼 수 있는가?" [ref=f7e284]
+                - cell "☆☆☆☆☆" [ref=f7e285]
+              - row [ref=f7e286]:
+                - cell "저항·전류·전압의 관계(옴의 법칙)를 실험 결과로 설명할 수 있는가?" [ref=f7e287]
+                - cell "☆☆☆☆☆" [ref=f7e288]
+          - paragraph [ref=f7e290]: • 탐구를 하며 새롭게 알게 되거나 궁금해진 점을 적어 보자.
+          - generic [ref=f7e295]:
+            - generic [ref=f7e296]: 2022 개정 교육과정 연계 과학 탐구 활동지
+            - generic [ref=f7e297]: 옴의 법칙 탐구 3

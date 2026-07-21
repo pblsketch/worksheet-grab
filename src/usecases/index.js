@@ -7,4 +7,5 @@ export { RunPipeline } from './RunPipeline.js';
 export { EditWorksheet, itemNumber } from './EditWorksheet.js';
 export { RenderPdf, DEFAULT_VIRTUAL_TIME_BUDGET } from './RenderPdf.js';
 export { RenderImage } from './RenderImage.js';
+export { ExportDocument, UNSAFE_STUDENT_MESSAGE, MISSING_STUDENT_MESSAGE } from './ExportDocument.js';
 export * as htmlScan from './html-scan.js';

@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { normalizeDocName } from '../usecases/workspace.js';
@@ -19,6 +19,7 @@ import { resolvePaper, paperToPx } from '../usecases/paper.js';
 import { FsWorkspaceRepository } from '../adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
+import { ExportDocument } from '../usecases/ExportDocument.js';
 import { createEditorServer, listenEditorServer } from '../adapters/EditorHttpServer.js';
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
 import { FsPresetRepository } from '../adapters/FsPresetRepository.js';
@@ -61,6 +62,8 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
         doc save <문서명> --from <manifest.json>   manifest 를 문서로 저장(재렌더·누출검증·스냅샷)
         doc history <문서명>                히스토리 스냅샷 목록
         doc restore <문서명> <일련번호>     스냅샷 복원(비파괴 — 새 리비전으로 저장)
+        doc export <문서명>                 저장본 → 학생/교사 PDF 2벌(worksheets/<문서명>/worksheet-*.pdf).
+                                            meta.unsafe(정답 누출) 시 학생용 차단·교사용만 산출·종료코드 1
       generate/pipeline/edit 에 --doc <문서명> 을 주면 out/ 대신 워크스페이스 문서로 산출.
       edit 는 경로 대신 --doc <문서명> 으로도 편집 가능. 정답 누출 시 student.html 은
       보류되고 meta.unsafe 가 표시된다(작업은 저장됨 · export 는 차단).
@@ -587,6 +590,7 @@ async function cmdEditUi(name, flags, repo, { root, log, onServer }) {
   const server = createEditorServer({
     root, docName: opened.name, workspace: ws, blockRepository: repo, curriculum,
     testSeed: flags['test-seed'] === true, // 렌더 테스트 전용 시드 훅 게이트
+    chromePath: typeof flags.chrome === 'string' ? flags.chrome : null, // E6 export·정밀 미리보기
   });
   const addr = await listenEditorServer(server, { port: flags.port ? Number(flags.port) : 0 });
   log(`✔ edit-ui: ${opened.name} — http://127.0.0.1:${addr.port}/ (브라우저 에디터 · Ctrl+C 종료)`);
@@ -749,8 +753,19 @@ async function cmdDoc(args, flags, repo, { log, err }) {
       log(`✔ doc restore: ${result.name} ← 스냅샷 ${extra} (새 rev ${result.meta.revision} — 비파괴, 복원도 히스토리에 남습니다)`);
       return result.unsafe ? 1 : 0;
     }
+    case 'export': {
+      // E6: 저장본 → PDF 2벌(에디터 POST /export 와 동일 코어 = ExportDocument 단일 경유).
+      // meta.unsafe 는 fail-closed — student 차단·teacher 산출·비영 종료.
+      if (!name) throw new Error('doc export: <문서명> 이 필요합니다. 예: doc export 광합성탐구');
+      const renderer = new ChromeRenderer({ chromePath: typeof flags.chrome === 'string' ? flags.chrome : null });
+      const exporter = new ExportDocument({ workspace: ws, renderer, fileExists: existsSync, removeFile: rm });
+      const result = await exporter.execute({ name });
+      for (const r of result.rendered) log(`✔ ${r.variant} PDF: ${r.path}`);
+      if (result.skipped.student) log(`⚠ 학생용 건너뜀(${result.skipped.student}): ${result.reason}`);
+      return result.skipped.student ? 1 : 0;
+    }
     default:
-      err(`doc: 알 수 없는 서브명령 "${sub ?? ''}". 지원: list · open · save · history · restore`);
+      err(`doc: 알 수 없는 서브명령 "${sub ?? ''}". 지원: list · open · save · history · restore · export`);
       return 2;
   }
 }

@@ -9,13 +9,17 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="doc"><span class="logo">worksheet-grab</span><span id="doc-title">문서 로드 중…</span><span id="doc-paper" class="paper-badge"></span><span id="doc-rev" class="paper-badge"></span></div>
+  <div class="doc"><span class="logo">worksheet-grab</span><span id="doc-title">문서 로드 중…</span><span id="doc-paper" class="paper-badge"></span><span id="doc-rev" class="paper-badge"></span>
+    <select id="paper-preset" class="paper-select" title="용지 프리셋(§3.3) — 변경 시 저장 후 전체 재페이지네이션"></select>
+  </div>
   <div class="controls">
     <div class="seg" role="tablist" aria-label="학생/교사 토글">
       <button id="btn-teacher" class="seg-btn active" role="tab">교사용 (편집)</button>
       <button id="btn-student" class="seg-btn" role="tab">학생용 (미리보기)</button>
     </div>
     <button id="btn-guides" class="tool-btn active" aria-pressed="true">여백선</button>
+    <button id="btn-preview" class="tool-btn" title="저장본을 백그라운드 Chrome 으로 렌더한 최종 판정 미리보기(첫 페이지)">🔍 정밀 미리보기</button>
+    <button id="btn-export" class="tool-btn" title="저장본을 학생용/교사용 PDF 2벌로 내보내기 — 정답 누출(unsafe) 시 학생용 차단">⬇ PDF 내보내기</button>
     <button id="btn-save" class="save-btn">저장 <kbd>Ctrl+S</kbd></button>
   </div>
 </header>
@@ -77,6 +81,25 @@
   <ul id="preset-list" class="preset-list"></ul>
   <div id="preset-hidden" class="preset-hidden"></div>
 </aside>
+<div id="paper-adv" class="paper-adv hidden" aria-label="고급 용지 조합">
+  <b>고급 용지</b>
+  <label>크기 <select id="adv-size"><option>A4</option><option>A3</option><option>B4</option></select></label>
+  <label>방향 <select id="adv-orient"><option value="portrait">세로</option><option value="landscape">가로</option></select></label>
+  <label>여백 <input id="adv-margins" type="text" placeholder="예: 12mm 15mm 10mm 15mm" size="24"></label>
+  <button id="adv-apply" class="save-btn">적용</button>
+  <button id="adv-close" class="tb-btn">✕</button>
+</div>
+<div id="preview-panel" class="preview-panel hidden" aria-label="정밀 미리보기">
+  <header class="preview-head">
+    <b>정밀 미리보기</b>
+    <span class="preview-note">저장본 기준 · 첫 페이지 · Chrome 최종 판정(§3.4)</span>
+    <button id="preview-close" class="tb-btn" title="닫기">✕</button>
+  </header>
+  <div class="preview-body">
+    <span id="preview-spinner" class="hidden">백그라운드 Chrome 렌더 중… (수 초~15초)</span>
+    <img id="preview-img" alt="정밀 미리보기(첫 페이지)">
+  </div>
+</div>
 <div id="save-banner" class="save-banner hidden" role="status"></div>
 <section id="review-bar" class="review-bar" aria-live="polite">
   <span id="review-status" class="review-status">검수 준비 중…</span>

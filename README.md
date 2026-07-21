@@ -134,6 +134,15 @@ node bin/worksheet-grab.js ai list --all                               # 상태 
 #   manifest 가 진실의 소스. 매 저장 = history/ 스냅샷 + meta 리비전(.worksheet-grab/meta.json).
 #   정답 누출(마크 밖 평문) 감지 시 student.html 을 보류하고 meta.unsafe 를 남긴다(작업은 저장됨).
 #   워크스페이스 루트는 기본 <cwd>/worksheets, --workspaces-dir 로 변경.
+#   ⬇ PDF 내보내기 / 🔍 정밀 미리보기(E6): 저장본을 백그라운드 Chrome 으로 렌더.
+#   미리보기는 첫 페이지 PNG(§3.4 최종 판정 — 화면 렌더는 고정밀 예측기).
+#   용지 프리셋 선택기(§3.3): A4 세로 · A3 접이(가로) · A4 가로 · B4 세로(시험지)
+#   + 고급(크기×방향×여백). 변경 = 저장 경유 후 전체 재페이지네이션(리비전 증가).
+#   "A3 접이"는 현재 A3 가로 단일 시트 렌더까지 — A4 4쪽 소책자 접기(imposition)는 후속.
+node bin/worksheet-grab.js doc export 광합성탐구                       # 저장본 → PDF 2벌(E6)
+#   산출: worksheets/<문서명>/worksheet-{student,teacher}.pdf.
+#   meta.unsafe(정답 누출) 시 학생용 PDF 를 차단(fail-closed)·스테일 학생용 PDF 물리 제거·
+#   교사용만 산출·종료코드 1. 에디터의 ⬇ 버튼과 동일 코어(ExportDocument)를 공유한다.
 
 # 10) 라이브러리 나열
 node bin/worksheet-grab.js list-blocks                    # 타입 exemplar 파일(core/*, pack-*/*)

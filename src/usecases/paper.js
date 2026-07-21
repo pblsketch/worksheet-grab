@@ -95,6 +95,34 @@ export function paperCss(resolved) {
 }`;
 }
 
+// 교사용 포맷 프리셋(§3.3). "A3 접이"는 E6 에선 A3 가로 단일 시트 렌더까지 —
+// A4 4쪽 소책자 imposition(논리 페이지 재배열)은 후속 에픽. margins 생략 =
+// resolvePaper 기본값(A4 세로만 현행 비대칭, 그 외 20mm). null = 현행 A4 기본(주입 0).
+export const PAPER_PRESETS = [
+  { id: 'a4-portrait', label: 'A4 세로 (기본)', paper: null },
+  { id: 'a3-fold', label: 'A3 접이 (가로)', paper: { size: 'A3', orientation: 'landscape' } },
+  { id: 'a4-landscape', label: 'A4 가로', paper: { size: 'A4', orientation: 'landscape' } },
+  { id: 'b4-portrait', label: 'B4 세로 (시험지)', paper: { size: 'B4', orientation: 'portrait' } },
+];
+
+/**
+ * 현재 manifest.paper 가 어느 프리셋인지 역판정. 어느 것도 아니면 'custom'(고급 조합).
+ * size·orientation 만 비교한다 — margins·columns 를 바꾼 경우도 custom.
+ */
+export function matchPreset(paper) {
+  const cur = resolvePaper(paper);
+  for (const p of PAPER_PRESETS) {
+    const preset = resolvePaper(p.paper);
+    if (cur == null && preset == null) return p.id;
+    if (
+      cur && preset &&
+      cur.size === preset.size && cur.orientation === preset.orientation &&
+      cur.margins === preset.margins && cur.columns === preset.columns
+    ) return p.id;
+  }
+  return 'custom';
+}
+
 /** PNG 렌더용 픽셀 치수. */
 export function paperToPx(resolved, dpi = 96) {
   const { w, h } = paperDims(resolved);

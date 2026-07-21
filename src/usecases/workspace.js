@@ -29,6 +29,8 @@ export function workspaceLayout(baseDir, name) {
     manifestPath: join(dir, 'worksheet.manifest.json'),
     studentPath: join(dir, 'worksheet-student.html'),
     teacherPath: join(dir, 'worksheet-teacher.html'),
+    studentPdfPath: join(dir, 'worksheet-student.pdf'),
+    teacherPdfPath: join(dir, 'worksheet-teacher.pdf'),
     assetsDir: join(dir, 'assets'),
     metaDir,
     metaPath: join(metaDir, 'meta.json'),

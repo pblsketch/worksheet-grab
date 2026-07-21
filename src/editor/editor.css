@@ -146,3 +146,27 @@ body {
 .ai-diff-col { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 .ai-diff-col iframe { width: 100%; height: 260px; border: 1px solid #eaeef2; border-radius: 6px; background: #fff; pointer-events: none; }
 .ai-diff-actions { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ===== E6: 용지 프리셋 · 고급 조합 · 정밀 미리보기 ===== */
+.paper-select { margin-left: 8px; font-size: 12px; padding: 2px 4px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; }
+.paper-adv {
+  position: fixed; top: 52px; left: 16px; z-index: 40;
+  display: flex; gap: 8px; align-items: center;
+  background: #fff; border: 1px solid #cbd5e1; border-radius: 10px;
+  padding: 10px 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, .18); font-size: 12px;
+}
+.paper-adv label { display: inline-flex; gap: 4px; align-items: center; }
+.paper-adv.hidden { display: none; }
+.preview-panel {
+  position: fixed; inset: 60px 8vw 24px; z-index: 50;
+  display: flex; flex-direction: column;
+  background: #fff; border: 1px solid #cbd5e1; border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, .3); overflow: hidden;
+}
+.preview-panel.hidden { display: none; }
+.preview-head { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
+.preview-head .preview-note { color: #64748b; font-size: 12px; flex: 1; }
+.preview-body { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 12px; background: #f1f5f9; }
+.preview-body img { max-width: 100%; height: auto; align-self: flex-start; box-shadow: 0 2px 10px rgba(15, 23, 42, .2); }
+.preview-body img.hidden, #preview-spinner.hidden { display: none; }
+#preview-spinner { color: #475569; font-size: 13px; align-self: center; }

@@ -12,6 +12,7 @@ import { createToolbar, applyFontSizeDirect } from '/editor/toolbar.js';
 import { toggleAnswerMark, insertAnswerLines } from '/editor/marks.js';
 import { extractPresetFromSelection, insertPreset, previewSrcdoc, cursorBlock } from '/editor/presets.js';
 import { requestAiAction, pollResponse, applyAiResponse, undoAiApply, clearAiMarker } from '/editor/ai.js';
+import { PAPER_PRESETS, matchPreset } from '/src/usecases/paper.js';
 
 const MM_TO_PX = 96 / 25.4; // CSS 사양 고정(zoom/DPR 무관)
 
@@ -86,8 +87,10 @@ function initTeacherEditing(f) {
 }
 
 let editTimer = null;
+let dirty = false; // E6 dirty-gate: 마지막 저장 이후 편집 여부 — save-first 의 skip 기준
 function onEdit() {
   studentStale = true;
+  dirty = true;
   clearTimeout(editTimer);
   editTimer = setTimeout(() => {
     fitFrame(frames.teacher);
@@ -250,6 +253,7 @@ async function save() {
   currentRevision = result.meta?.revision ?? currentRevision;
   renderRev();
   studentStale = true;
+  dirty = false; // 저장 성공 = 기준선 갱신(E6 dirty-gate 리셋)
 
   if (result.unsafe) {
     const rules = [...new Set(result.leakFindings.map((f) => f.rule))].join(', ');
@@ -596,6 +600,142 @@ aiUndoBtn.addEventListener('click', () => {
 document.getElementById('tb-ai-rewrite').addEventListener('mousedown', (e) => { e.preventDefault(); startAiFlow('rewrite'); });
 document.getElementById('tb-ai-fill').addEventListener('mousedown', (e) => { e.preventDefault(); startAiFlow('fill-example'); });
 
+// ── E6 내보내기 통합: dirty-gate save-first · 포맷 프리셋 · 정밀 미리보기 · PDF export ──
+// "저장이 곧 게이트" — 세 흐름 모두 저장본만 대상으로 한다. save-first 는 dirty 일 때만
+// /save 왕복(A5)하고, 실패하면 진행을 중단한다(A6 — 게이트 우회 봉쇄).
+async function saveFirst(what) {
+  if (!dirty) return true;
+  const result = await save();
+  if (result == null) {
+    showBanner('error', `저장 실패 — ${what}을(를) 중단했습니다.`);
+    return false;
+  }
+  return true;
+}
+
+const paperSelect = document.getElementById('paper-preset');
+const paperAdv = document.getElementById('paper-adv');
+
+function initPaperSelect() {
+  paperSelect.replaceChildren(
+    ...PAPER_PRESETS.map((p) => new Option(p.label, p.id)),
+    new Option('고급(자유 조합)…', 'custom'),
+  );
+  paperSelect.value = matchPreset(baseManifest.paper ?? null);
+  document.body.dataset.paperPreset = paperSelect.value;
+}
+
+async function applyPaper(paper) {
+  // 용지 변경 = manifest 레벨 영속 변이 → 저장(게이트) 후 서버가 SaveDocument 로 재저장.
+  if (!(await saveFirst('용지 변경'))) { initPaperSelect(); return; }
+  let res;
+  try {
+    res = await fetch('/paper', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paper }),
+    });
+  } catch (e) {
+    showBanner('error', `용지 변경 실패: ${e.message}`);
+    initPaperSelect();
+    return;
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    showBanner('error', `용지 변경 실패: ${body.error ?? `HTTP ${res.status}`}`);
+    initPaperSelect();
+    return;
+  }
+  if (body.noop) { showBanner('ok', '용지가 이미 해당 설정입니다.'); return; }
+  // 전체 재페이지네이션: 용지 변경은 치수·@page·리플로우가 모두 바뀌므로
+  // E3 "저장 후 iframe 유지" 원칙의 명시적 예외 — 셸 재로드가 필수다.
+  location.reload();
+}
+
+paperSelect.addEventListener('change', () => {
+  if (paperSelect.value === 'custom') {
+    const cur = shell.canvasMeta.paper;
+    document.getElementById('adv-size').value = cur.size;
+    document.getElementById('adv-orient').value = cur.orientation;
+    paperAdv.classList.remove('hidden');
+    return;
+  }
+  const preset = PAPER_PRESETS.find((p) => p.id === paperSelect.value);
+  if (preset) applyPaper(preset.paper);
+});
+document.getElementById('adv-apply').addEventListener('click', () => {
+  const paper = {
+    size: document.getElementById('adv-size').value,
+    orientation: document.getElementById('adv-orient').value,
+  };
+  const margins = document.getElementById('adv-margins').value.trim();
+  if (margins) paper.margins = margins;
+  paperAdv.classList.add('hidden');
+  applyPaper(paper);
+});
+document.getElementById('adv-close').addEventListener('click', () => {
+  paperAdv.classList.add('hidden');
+  initPaperSelect();
+});
+initPaperSelect();
+
+const previewPanel = document.getElementById('preview-panel');
+const previewImg = document.getElementById('preview-img');
+const previewSpinner = document.getElementById('preview-spinner');
+
+document.getElementById('btn-preview').addEventListener('click', async () => {
+  if (!(await saveFirst('정밀 미리보기'))) return;
+  previewPanel.classList.remove('hidden');
+  previewSpinner.classList.remove('hidden');
+  previewImg.classList.add('hidden');
+  let res;
+  try {
+    res = await fetch(`/preview.png?mode=${mode}&t=${Date.now()}`);
+  } catch (e) {
+    previewSpinner.textContent = `미리보기 실패: ${e.message}`;
+    return;
+  }
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    previewSpinner.textContent = `미리보기 실패: ${body.message ?? body.error ?? `HTTP ${res.status}`}`;
+    return;
+  }
+  previewImg.src = URL.createObjectURL(await res.blob());
+  previewSpinner.classList.add('hidden');
+  previewImg.classList.remove('hidden');
+  document.body.dataset.previewShown = 'true';
+});
+document.getElementById('preview-close').addEventListener('click', () => previewPanel.classList.add('hidden'));
+
+const exportBtn = document.getElementById('btn-export');
+exportBtn.addEventListener('click', async () => {
+  if (!(await saveFirst('PDF 내보내기'))) return;
+  exportBtn.disabled = true;
+  showBanner('warn', 'PDF 렌더 중… (백그라운드 Chrome · 수 초~30초)');
+  let res;
+  try {
+    res = await fetch('/export', { method: 'POST' });
+  } catch (e) {
+    showBanner('error', `내보내기 실패: ${e.message}`);
+    exportBtn.disabled = false;
+    return;
+  }
+  const body = await res.json().catch(() => ({}));
+  exportBtn.disabled = false;
+  if (!res.ok) {
+    showBanner('error', `내보내기 실패: ${body.message ?? body.error ?? `HTTP ${res.status}`}`);
+    return;
+  }
+  const paths = body.rendered.map((r) => r.path).join(' · ');
+  if (body.skipped?.student) {
+    showBanner('warn', `⚠ 교사용 PDF 만 생성: ${paths} — ${body.reason}`);
+  } else {
+    showBanner('ok', `PDF 2벌 생성: ${paths}`);
+  }
+  document.body.dataset.exportDone = String(body.rendered.length);
+  document.body.dataset.exportStudentSkipped = String(body.skipped?.student ?? '');
+});
+
 for (const w of shell.warnings ?? []) {
   const li = document.createElement('li');
   li.className = 'warning';
@@ -714,6 +854,16 @@ async function runSeed(seed) {
     } else {
       document.body.dataset.aiApplied = `poll:${outcome.status}`;
     }
+  } else if (seed === 'export-ui') {
+    // E6: UI 배선 계측(버튼·프리셋 선택기·A5 dirty-gate) — 중첩 Chrome 렌더 무발화.
+    // 실제 PDF/PNG 실측은 export.render.test.js(서버·CLI 직접 호출)가 담당한다.
+    document.body.dataset.e6Buttons =
+      String(!!(document.getElementById('btn-export') && document.getElementById('btn-preview')));
+    document.body.dataset.paperOptions = String(paperSelect.options.length);
+    document.body.dataset.paperPresetValue = paperSelect.value;
+    const revBefore = currentRevision;
+    const ok = await saveFirst('계측'); // 비-dirty → /save 무왕복(A5)·리비전 불변
+    document.body.dataset.saveFirstNoop = String(ok === true && currentRevision === revBefore);
   } else if (seed === 'insert-preset') {
     // E4 ②: 라이브러리 첫 항목 삽입 → 저장 → manifest 반영 계측(블록 수 +1)
     const list = await (await fetch('/presets')).json();

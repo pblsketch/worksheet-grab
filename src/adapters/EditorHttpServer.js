@@ -1,13 +1,17 @@
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { readFile, rm } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { resolveBrowserGraph } from '../editor/browserGraph.js';
 import { RenderEditorShell } from '../usecases/RenderEditorShell.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
+import { ExportDocument, UNSAFE_STUDENT_MESSAGE } from '../usecases/ExportDocument.js';
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
 import { FsPresetRepository } from './FsPresetRepository.js';
 import { FsAiBridgeRepository } from './FsAiBridgeRepository.js';
+import { ChromeRenderer } from './ChromeRenderer.js';
+import { resolvePaper, paperToPx } from '../usecases/paper.js';
 import { AI_SCHEMA_VERSION, newRequestId, parseAction, assertTargetable, excludedTypes } from '../usecases/aiBridge.js';
 
 const MAX_SAVE_BODY = 20 * 1024 * 1024; // 로컬 편집 도구의 안전 상한
@@ -52,13 +56,23 @@ function send(res, status, type, body) {
  *   시드 훅이 실데이터를 변경할 수 없다.
  * @returns {import('node:http').Server}
  */
-export function createEditorServer({ root, docName, workspace, blockRepository, curriculum, testSeed = false }) {
+export function createEditorServer({
+  root, docName, workspace, blockRepository, curriculum, testSeed = false,
+  renderer = null, chromePath = null,
+}) {
   const absRoot = resolve(root);
   const editorDir = join(absRoot, 'src', 'editor');
   const whitelist = new Set(resolveBrowserGraph(absRoot).files);
   const shellRenderer = new RenderEditorShell({ blockRepository, curriculum });
   const opener = new OpenDocument({ workspace });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum });
+  // E6 renderer 주입 seam(테스트 목) — 미주입 시 첫 렌더 요청에서 지연 생성한다.
+  // 생성자에서 만들면 Chrome 미설치 환경에서 편집 자체가 못 뜨기 때문.
+  let rendererInstance = renderer;
+  const getRenderer = () => (rendererInstance ??= new ChromeRenderer({ chromePath }));
+  // E6 in-flight 가드: Chrome 렌더(export·preview) 동시 1개 — 클라 버튼 비활성의
+  // 서버측 백스톱(겹침 spawn flake 방지). 진행 중이면 409 busy.
+  let renderBusy = false;
   const presetLibrary = new PresetLibrary({
     presetRepository: new FsPresetRepository({ baseDir: workspace.baseDir }),
     blockRepository,
@@ -126,6 +140,52 @@ export function createEditorServer({ root, docName, workspace, blockRepository, 
         } catch (e) {
           return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
+      }
+      // E6 내보내기: 저장본(SaveDocument 게이트 통과 산출물)을 PDF 2벌로.
+      // meta.unsafe 는 ExportDocument 가 fail-closed 승격(student 차단·teacher 보존).
+      if (req.method === 'POST' && path === '/export') {
+        if (renderBusy) {
+          return send(res, 409, 'application/json; charset=utf-8',
+            JSON.stringify({ error: 'busy', message: '렌더 진행 중입니다 — 잠시 후 다시 시도하세요.' }));
+        }
+        renderBusy = true;
+        try {
+          const exporter = new ExportDocument({ workspace, renderer: getRenderer(), fileExists: existsSync, removeFile: rm });
+          const result = await exporter.execute({ name: docName });
+          return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(result));
+        } finally {
+          renderBusy = false;
+        }
+      }
+      // E6 용지 변경(§3.3): manifest 레벨 변이라 /save(DOM 역동기화)와 분리 —
+      // 저장본 manifest 의 paper 만 치환해 SaveDocument 단일 게이트로 재저장한다.
+      // 클라이언트는 호출 전 save-first(dirty 시)로 편집 손실을 막는다.
+      if (req.method === 'POST' && path === '/paper') {
+        let body;
+        try {
+          body = await readJsonBody(req);
+        } catch (e) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+        let resolved;
+        try {
+          resolved = resolvePaper(body?.paper ?? null);
+        } catch (e) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+        const { manifest } = await opener.execute({ name: docName });
+        const current = resolvePaper(manifest.paper ?? null);
+        // no-op 가드: 동일 용지 재선택으로 불필요한 리비전·스냅샷을 만들지 않는다.
+        if (JSON.stringify(current) === JSON.stringify(resolved)) {
+          return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ noop: true }));
+        }
+        const next = { ...manifest };
+        if (body?.paper == null) delete next.paper;
+        else next.paper = body.paper;
+        const result = await saver.execute({ name: docName, manifest: next });
+        return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({
+          noop: false, unsafe: result.unsafe, meta: result.meta,
+        }));
       }
       // E5 AI 브리지: 요청은 파일 큐(<ws>/.ai-bridge/)에 기록되고 구독 AI 가 CLI 로
       // 응답한다(무API — 서버는 중개만). 성취기준·저작권 슬롯 블록은 타입 가드로 거부.
@@ -201,6 +261,37 @@ export function createEditorServer({ root, docName, workspace, blockRepository, 
         const payload = { ...shell, manifest, warnings, excludedAiTypes };
         return send(res, 200, 'application/json; charset=utf-8',
           JSON.stringify(testSeed ? { ...payload, testSeed: true } : payload));
+      }
+      // E6 정밀 미리보기(§3.4): 저장본을 백그라운드 Chrome 으로 PNG 렌더(첫 페이지).
+      // scale:2 핀 고정(레티나) — IHDR 폭 == 2×paperToPx. student 는 unsafe 시 409.
+      if (path === '/preview.png') {
+        const mode = new URL(req.url, 'http://127.0.0.1').searchParams.get('mode') || 'teacher';
+        if (mode !== 'teacher' && mode !== 'student') {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: 'mode 는 teacher|student' }));
+        }
+        if (renderBusy) {
+          return send(res, 409, 'application/json; charset=utf-8',
+            JSON.stringify({ error: 'busy', message: '렌더 진행 중입니다 — 잠시 후 다시 시도하세요.' }));
+        }
+        renderBusy = true;
+        try {
+          const { manifest, meta, paths } = await opener.execute({ name: docName });
+          const unsafe = meta == null || meta.unsafe === true;
+          if (mode === 'student' && unsafe) {
+            return send(res, 409, 'application/json; charset=utf-8',
+              JSON.stringify({ error: 'unsafe', message: UNSAFE_STUDENT_MESSAGE }));
+          }
+          const input = mode === 'student' ? paths.studentPath : paths.teacherPath;
+          if (!existsSync(input)) {
+            return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: '저장본이 없습니다 — 먼저 저장하세요.' }));
+          }
+          const { width, height } = paperToPx(resolvePaper(manifest.paper ?? null) ?? resolvePaper({ size: 'A4' }));
+          const out = join(paths.metaDir, `preview-${mode}.png`);
+          await getRenderer().renderToPng(input, out, { width, height, scale: 2 });
+          return send(res, 200, 'image/png', await readFile(out));
+        } finally {
+          renderBusy = false;
+        }
       }
       if (path.startsWith('/src/')) {
         const rel = path.slice(1);

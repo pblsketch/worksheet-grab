@@ -210,3 +210,29 @@ ralplan 합의 계획 v2(Planner→Architect 8건(HIGH 2)→Critic→APPROVE) �
 **적용 안전(심층 방어):** 응답은 **DOMParser 순회 정제**(script·on*·javascript: 제거 — XSS 픽스처 실측: `<script>`·`onerror` 미주입) → **diff 미리보기**(sandbox iframe) → **가역 적용**(innerHTML 스냅샷 + "AI 적용 되돌리기") → `data-ai-req` 마커 즉시 제거(serializeSheets·프리셋 추출 정제 목록에도 편입 — 산출 manifest 무오염 실측) → 저장은 기존 SaveDocument 게이트.
 
 **실물 실증(이 세션이 실제 구독 AI):** 에디터에서 발문 블록 선택→🤖 → `ai pending --json` 으로 수신(성취기준 [9과14-02] 컨텍스트 동봉) → 실제 재작성 → `ai respond` → 에디터 diff(원본/재작성) → 적용(마커 정리·되돌리기 표시) → 저장 rev 2(§6 수용 왕복). **누출 반증:** 정답을 마크 밖 평문으로 넣은 악성 응답을 적용·저장 → `answer-leak` + `answer-mark-dropped` **이중 발화** → unsafe·student.html 보류(디스크 실측) — E3 3중 방어의 최후 그물이 AI 경로에도 그대로 작동. 시드 dump-dom 3/3(요청 발신·타입 가드 차단·적용 왕복+XSS+마커 무오염).
+
+### 2026-07-21 — E6 완료 (내보내기 통합/마감 — 로드맵 최종 단계)
+ralplan 합의 계획 v2(Planner→Architect 조건부 승인 MED 4·권장 5 전부 반영→Critic APPROVE) 기준 구현.
+
+**"저장이 곧 게이트" 단일 경로:** export·정밀 미리보기·용지 변경 셋 다 **저장본(SaveDocument 가 게이트 통과시킨 디스크 산출물)만** 대상으로 한다 — 임시 직렬화 같은 두 번째 진실 소스를 만들지 않아 누출 방어선이 모든 산출 경로에 대칭 적용된다. 클라이언트는 dirty-gate save-first(비-dirty 반복 조회는 저장·스냅샷 0, 실측 시드 `export-ui`)로 우회 없이 저장을 선행하고, 실패 시 진행을 중단한다.
+
+**`meta.unsafe` fail-closed 승격(E1 예고의 이행):** 신규 `ExportDocument` 유스케이스(서버 `POST /export` 와 CLI `doc export` 가 **동일 코어 공유**)가 meta.unsafe(또는 meta 부재 = 부분쓰기 의심)면 **student PDF 거부·teacher 는 항상 산출**(§7 정신 = student 차단이 핵심). 스테일 student.pdf 는 SaveDocument 의 removeStudentHtml 과 **대칭으로 물리 제거**. meta 는 안전한데 student.html 부재(불일치)면 throw 대신 `skipped='missing'` graceful 강등으로 teacher PDF 를 보존한다. 워크스페이스에 `worksheet-{student,teacher}.pdf` 슬롯 신설(layout 확장).
+
+**정밀 미리보기(§3.4):** `GET /preview.png?mode=` — 저장본을 백그라운드 Chrome `renderToPng` 로 렌더(scale:2 핀 고정, **IHDR == 2×paperToPx 등식 실측**: A4 1588×2246). E6 은 첫 페이지 고정(페이지별 미리보기는 후속). unsafe 시 student 미리보기 409. 서버 in-flight 가드로 렌더 동시 1개(중복 요청 409 busy — Chrome 겹침 flake 방지).
+
+**포맷 프리셋 UI(§3.3):** 상단 용지 배지 옆 프리셋 선택기(paper.js `PAPER_PRESETS` 4종: A4 세로/A3 접이(가로)/A4 가로/B4 세로 + 고급 size×orientation×margins 자유조합, columns 는 E0 확정대로 스키마만) → save-first → `POST /paper`(resolvePaper 검증·동일 용지 no-op 가드·SaveDocument 경유 = 게이트·히스토리) → **셸 재로드 = 전체 재페이지네이션(E3 "저장 후 iframe 유지" 원칙의 명시적 예외)**. 프리셋 매핑은 화이트리스트·순수·CLI 공유가 이미 보장된 paper.js 에 배치(신규 클라 파일의 화이트리스트 404 함정 회피). **정직한 경계: "A3 접이" = E6 은 A3 가로 단일 시트 렌더까지 — A4 4쪽 소책자 imposition(논리 페이지 재배열)은 후속 에픽**(UI 라벨·README 명문).
+
+**실측(실 Chrome):** PDF MediaBox — A4 595.3×841.9 / A3 가로 1191.1×841.9 / B4(JIS) 728.5×1031.8pt(E0 기준 수치 재확인), unsafe 픽스처에서 student.pdf **물리 부재**·teacher 존재·CLI 종료코드 1. Playwright 실물: 프리셋 A4→A3 접이 변경 → 캔버스 793.7→1587.4px 재페이지네이션(rev 2·배지 동기화) → 정밀 미리보기 `<img>` 3174×2246 표시 → PDF 내보내기 2벌(1191×842pt·3쪽) → 정답 평문 주입·저장(unsafe rev 3) → export 가 "교사용 PDF 만 생성" 차단·디스크에서 student.pdf/html 부재 실측.
+
+**E0~E6 로드맵 완결표:**
+| 단계 | 내용 | 핵심 산출 | 상태 |
+|------|------|-----------|------|
+| E0 | 용지/방향 문서 속성 | paper.js 단일 소스·@page 리터럴 주입·PDF 실측 3종 | ✅ |
+| E1 | 문서 워크스페이스/저장 | SaveDocument 단일 게이트·unsafe 보류·history 무료 undo | ✅ |
+| E2 | 에디터 셸(읽기 전용) | /shell.json·browserGraph 화이트리스트·인쇄정밀 캔버스 | ✅ |
+| E3 | 편집(툴바+마크) | 블록 래퍼→resync→저장·⭐ 3중 방어·라이브 검수 바 | ✅ |
+| E4 | 사용자 프리셋 | .presets 원자 IO·빌트인 오버레이·sandbox 미리보기 | ✅ |
+| E5 | AI 액션(무API 브리지) | .ai-bridge 파일 큐·타입 가드 3중·가역 적용 | ✅ |
+| E6 | 내보내기 통합/마감 | ExportDocument fail-closed·정밀 미리보기·포맷 프리셋 UI | ✅ |
+
+**후속(범위 밖 명시):** A3→A4 4쪽 소책자 imposition · 페이지별 정밀 미리보기 · columns 다단 리플로우(스키마만 존재) · export `--out` override.
