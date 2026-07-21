@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -47,14 +48,15 @@ export class ChromeRenderer extends Renderer {
     const absIn = resolve(inputPath);
     const absOut = resolve(outputPath);
     if (!existsSync(absIn)) throw new Error(`입력 HTML 이 없습니다: ${absIn}`);
+    const { args: common, userDataDir } = this.#commonArgs();
     const args = [
-      ...this.#commonArgs(),
+      ...common,
       '--print-to-pdf-no-header',
       `--virtual-time-budget=${virtualTimeBudget}`,
       `--print-to-pdf=${absOut}`,
       pathToFileURL(absIn).href,
     ];
-    await this.#spawnChrome(args, absIn, absOut, options.timeoutMs ?? 60000, 'PDF');
+    await this.#spawnChrome(args, absIn, absOut, options.timeoutMs ?? 60000, 'PDF', userDataDir);
     return { outputPath: absOut };
   }
 
@@ -72,8 +74,9 @@ export class ChromeRenderer extends Renderer {
     const absIn = resolve(inputPath);
     const absOut = resolve(outputPath);
     if (!existsSync(absIn)) throw new Error(`입력 HTML 이 없습니다: ${absIn}`);
+    const { args: common, userDataDir } = this.#commonArgs();
     const args = [
-      ...this.#commonArgs(),
+      ...common,
       '--hide-scrollbars',
       `--force-device-scale-factor=${scale}`,
       `--window-size=${width},${height}`,
@@ -81,23 +84,29 @@ export class ChromeRenderer extends Renderer {
       `--screenshot=${absOut}`,
       pathToFileURL(absIn).href,
     ];
-    await this.#spawnChrome(args, absIn, absOut, options.timeoutMs ?? 60000, 'PNG');
+    await this.#spawnChrome(args, absIn, absOut, options.timeoutMs ?? 60000, 'PNG', userDataDir);
     return { outputPath: absOut };
   }
 
   #commonArgs() {
+    // 렌더마다 격리 프로필 — 종료 후 #spawnChrome 이 정리한다(무정리 시 %TEMP% 무한 누적).
     const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-chrome-'));
-    return [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-sandbox',
-      '--no-first-run',
-      '--no-default-browser-check',
-      `--user-data-dir=${userDataDir}`,
-    ];
+    return {
+      userDataDir,
+      args: [
+        '--headless=new',
+        '--disable-gpu',
+        '--no-sandbox',
+        '--no-first-run',
+        '--no-default-browser-check',
+        `--user-data-dir=${userDataDir}`,
+      ],
+    };
   }
 
-  #spawnChrome(args, absIn, absOut, timeoutMs, kind) {
+  #spawnChrome(args, absIn, absOut, timeoutMs, kind, userDataDir = null) {
+    // best-effort 정리: Windows 는 종료 직후 파일 잠금이 잠깐 남을 수 있어 실패는 무시.
+    const cleanup = () => { if (userDataDir) rm(userDataDir, { recursive: true, force: true }).catch(() => {}); };
     return new Promise((resolvePromise, rejectPromise) => {
       const child = spawn(this.chromePath, args, { stdio: ['ignore', 'ignore', 'pipe'] });
       let stderr = '';
@@ -106,9 +115,10 @@ export class ChromeRenderer extends Renderer {
         rejectPromise(new Error(`Chrome 렌더 타임아웃(${timeoutMs}ms): ${absIn}`));
       }, timeoutMs);
       child.stderr.on('data', (d) => { stderr += d.toString(); });
-      child.on('error', (err) => { clearTimeout(timer); rejectPromise(err); });
+      child.on('error', (err) => { clearTimeout(timer); cleanup(); rejectPromise(err); });
       child.on('close', (code) => {
         clearTimeout(timer);
+        cleanup();
         if (!existsSync(absOut)) {
           rejectPromise(new Error(`${kind} 가 생성되지 않았습니다(code=${code}).\n${stderr.slice(-800)}`));
           return;

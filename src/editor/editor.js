@@ -26,6 +26,18 @@ const saveBanner = document.getElementById('save-banner');
 let baseManifest = shell.manifest; // 저장 기준선(pages 외 필드 보존)
 let currentRevision = shell.meta?.revision ?? null;
 
+// 상단 크롬 실측 높이 → CSS 변수(--chrome-h): 고정 오프셋 패널(프리셋·AI diff·고급
+// 용지)이 랩 줄수와 무관하게 항상 크롬 아래에 열린다.
+const chromeEl = document.getElementById('chrome');
+new ResizeObserver(() => {
+  document.documentElement.style.setProperty('--chrome-h', `${chromeEl.offsetHeight}px`);
+}).observe(chromeEl);
+
+// 미저장 편집 보호: 새로고침·창 닫기 전 브라우저 네이티브 확인창(§E6 dirty-gate 연장).
+window.addEventListener('beforeunload', (e) => {
+  if (dirty) { e.preventDefault(); e.returnValue = ''; }
+});
+
 document.getElementById('doc-title').textContent = shell.docTitle || '(제목 없음)';
 document.getElementById('doc-paper').textContent =
   `${shell.canvasMeta.paper.size} ${shell.canvasMeta.paper.orientation === 'landscape' ? '가로' : '세로'}`;
@@ -333,7 +345,15 @@ bind('tb-redo', () => tb.applyRedo());
 document.getElementById('tb-color').addEventListener('input', (e) => { tb.applyColor(e.target.value); onEdit(); });
 document.getElementById('tb-font').addEventListener('change', (e) => { tb.applyFontFamily(e.target.value); onEdit(); });
 document.getElementById('tb-size').addEventListener('change', (e) => {
-  if (e.target.value) { tb.applyFontSize(Number(e.target.value)); onEdit(); }
+  if (e.target.value) {
+    const sel = frames.teacher?.contentDocument?.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+      showBanner('warn', '크기를 적용할 텍스트를 먼저 드래그해 선택하세요.'); // 무반응 방지
+    } else {
+      tb.applyFontSize(Number(e.target.value));
+      onEdit();
+    }
+  }
   e.target.selectedIndex = 0;
 });
 bind('tb-answer', () => {
@@ -510,11 +530,13 @@ function updateAiButtons() {
   const excluded = block ? (shell.excludedAiTypes ?? []).includes(block.dataset.bt || 'content') : false;
   for (const id of ['tb-ai-rewrite', 'tb-ai-fill']) {
     const btn = document.getElementById(id);
+    // baseTitle 은 덮어쓰기 전에 원본을 캡처해야 한다 — 첫 selectionchange 가
+    // 제외 블록에서 나면 가드 문구가 기본 툴팁으로 오염되던 버그의 수정.
+    if (!btn.dataset.baseTitle) btn.dataset.baseTitle = btn.title;
     btn.disabled = excluded;
     btn.title = excluded
       ? '성취기준 원문·저작권 지문 블록은 AI 대상이 아닙니다(보존).'
-      : btn.dataset.baseTitle ?? btn.title;
-    if (!btn.dataset.baseTitle) btn.dataset.baseTitle = btn.title;
+      : btn.dataset.baseTitle;
   }
 }
 
@@ -538,7 +560,16 @@ async function waitForAi(id) {
   const poll = pollResponse(id);
   aiActive = { id, poll };
   aiShow(`AI 응답 대기 중 (${id}) — AI 세션에서 "worksheet-grab ai pending" 이 실행 중이어야 반영됩니다.`, { cancel: true });
-  const outcome = await poll.promise;
+  let outcome;
+  try {
+    outcome = await poll.promise;
+  } catch (e) {
+    // 폴링 자체가 죽으면(서버 중단 등) 대기 UI 가 영구 고착되던 문제의 방지선.
+    if (aiActive?.id === id) aiActive = null;
+    aiShow(`폴링 실패 (${e.message}) — 요청은 유지됩니다. 서버 확인 후 재개하세요.`, { resume: true });
+    aiResumeBtn.onclick = () => waitForAi(id);
+    return;
+  }
   if (aiActive?.id !== id) return; // 취소 등으로 흐름 교체됨
   aiActive = null;
   const doc = frames.teacher?.contentDocument;
@@ -700,6 +731,7 @@ document.getElementById('btn-preview').addEventListener('click', async () => {
     previewSpinner.textContent = `미리보기 실패: ${body.message ?? body.error ?? `HTTP ${res.status}`}`;
     return;
   }
+  if (previewImg.src.startsWith('blob:')) URL.revokeObjectURL(previewImg.src); // 반복 미리보기 누수 방지
   previewImg.src = URL.createObjectURL(await res.blob());
   previewSpinner.classList.add('hidden');
   previewImg.classList.remove('hidden');

@@ -124,10 +124,12 @@ function parseArgs(argv) {
  */
 function gradeTopicArgs(positionals) {
   const [, a, b, c] = positionals;
+  // 다단어 주제("광합성 작용")는 남은 위치 인자를 모두 주제로 흡수한다 —
+  // 조용히 잘라내면 exit 0 으로 오생성을 성공처럼 보이게 한다(fail-open 방지).
   if (c && /^[초중고]\s*\d*$/.test(String(a || '').trim())) {
-    return { gradeSubject: `${a}${b}`, topic: c };
+    return { gradeSubject: `${a}${b}`, topic: positionals.slice(3).join(' ') };
   }
-  return { gradeSubject: a, topic: b };
+  return { gradeSubject: a, topic: positionals.slice(2).join(' ') || undefined };
 }
 
 /** --standards "[9과12-01],[9과12-02]" → 코드 배열(없으면 null). */
@@ -253,8 +255,16 @@ async function renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf =
   return results;
 }
 
+// 값 필수 플래그: 값 없이 오면(--out) parseArgs 가 true 를 남겨 하류에서 경로로
+// 쓰이며 원인 불명 타입 오류가 된다 — 진입점에서 fail-fast 로 막는다.
+const VALUE_FLAGS = ['out', 'csv', 'chrome', 'workspaces-dir', 'from', 'standards',
+  'limit', 'port', 'archetype', 'virtual-time-budget', 'doc', 'html', 'remove', 'add'];
+
 export async function run(argv, { root, log = console.log, err = console.error, onServer = null } = {}) {
   const { positionals, flags } = parseArgs(argv);
+  for (const name of VALUE_FLAGS) {
+    if (flags[name] === true) { err(`오류: --${name} 플래그에 값이 필요합니다. (예: --${name} <값>)`); return 2; }
+  }
   const command = positionals[0];
   const repo = new FsBlockRepository({ root });
 
@@ -408,9 +418,11 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   if (manifest.paper) log(`     용지: ${paperLine(manifest.paper)}`);
 
   const useDoc = typeof flags.doc === 'string';
+  // base 는 렌더 분기(아래 renderVariantFiles)에서도 쓰므로 함수 스코프여야 한다 —
+  // if 블록 안 선언 시 기본 렌더 경로가 ReferenceError 로 전멸한다(QA 발견).
+  const base = worksheetBase(worksheet.subject, topic);
   let sPath, tPath;
   if (!useDoc) {
-    const base = worksheetBase(worksheet.subject, topic);
     ({ sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher }));
     const mPath = await writeManifest(outDir, base, manifest);
     log(`     매니페스트: ${mPath} (재편집용 — edit 명령 입력)`);

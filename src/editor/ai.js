@@ -49,11 +49,16 @@ export function pollResponse(id) {
     while (!stopped) {
       const elapsed = Date.now() - startedAt;
       if (elapsed > 5 * 60 * 1000) return { status: 'timeout' };
-      const res = await fetch(`/ai/${encodeURIComponent(id)}`);
-      if (res.status === 404) return { status: 'gone' };
-      const body = await res.json();
-      if (body.status === 'answered') return { status: 'answered', html: body.response.html };
-      if (body.status === 'cancelled') return { status: 'cancelled' };
+      try {
+        const res = await fetch(`/ai/${encodeURIComponent(id)}`);
+        if (res.status === 404) return { status: 'gone' };
+        const body = await res.json();
+        if (body.status === 'answered') return { status: 'answered', html: body.response.html };
+        if (body.status === 'cancelled') return { status: 'cancelled' };
+      } catch {
+        // 일시적 네트워크/서버 오류는 타임아웃 창 안에서 재시도 — 폴링 promise 가
+        // reject 로 죽으면 에디터 대기 UI 가 고착되므로 여기서 삼킨다.
+      }
       await new Promise((r) => setTimeout(r, elapsed > 30 * 1000 ? 3000 : 1000));
     }
     return { status: 'stopped' };

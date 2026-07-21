@@ -6,8 +6,11 @@ body {
   background: #e8eaed; color: #24292f; font-size: 14px;
 }
 
+/* 상단 크롬 통합 sticky — 개별 top 오프셋 하드코딩 대신 자연 스택.
+   topbar/toolbar 가 좁은 창에서 2줄로 랩되어도 겹침·검수바 소실이 없다. */
+#chrome { position: sticky; top: 0; z-index: 20; }
+
 .topbar {
-  position: sticky; top: 0; z-index: 20;
   display: flex; justify-content: space-between; align-items: center; gap: 12px;
   padding: 8px 16px; background: #1f2937; color: #f3f4f6;
 }
@@ -25,7 +28,6 @@ body {
 .tool-btn.active { background: #374151; color: #fff; }
 
 .review-bar {
-  position: sticky; top: 44px; z-index: 19;
   padding: 6px 16px; background: #fff; border-bottom: 1px solid #d0d7de;
   display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
 }
@@ -63,9 +65,15 @@ body {
 
 /* ── E3 툴바 ── */
 .toolbar {
-  position: sticky; top: 44px; z-index: 20;
   display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
   padding: 6px 16px; background: #f6f8fa; border-bottom: 1px solid #d0d7de;
+}
+/* 학생용은 파생 미리보기(편집 불가) — 서식 도구가 보이는 화면(학생용)이 아니라
+   숨은 교사용 DOM 을 조작해 '보이지 않는 편집'이 되므로 통째로 잠근다. */
+body[data-mode="student"] .toolbar { opacity: .5; pointer-events: none; }
+body[data-mode="student"] .toolbar::after {
+  content: "학생용 미리보기 — 편집은 교사용 탭에서"; pointer-events: none;
+  font-size: 12px; font-weight: 600; color: #57606a; margin-left: 8px;
 }
 .tb-btn {
   border: 1px solid transparent; border-radius: 6px; background: transparent;
@@ -92,12 +100,9 @@ body {
 .save-banner.warn { background: #fff8c5; color: #7d4e00; }
 .save-banner.error { background: #ffebe9; color: #cf222e; }
 
-/* review-bar 위치 조정(툴바 추가로 상단 오프셋 증가) */
-.review-bar { top: 86px; }
-
 /* ── E4 프리셋 라이브러리 패널 ── */
 .preset-panel {
-  position: fixed; top: 96px; right: 12px; bottom: 12px; width: 340px; z-index: 30;
+  position: fixed; top: calc(var(--chrome-h, 130px) + 8px); right: 12px; bottom: 12px; width: 340px; z-index: 30;
   background: #fff; border: 1px solid #d0d7de; border-radius: 10px;
   box-shadow: 0 6px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; overflow: hidden;
 }
@@ -115,7 +120,7 @@ body {
 .preset-item-head { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; }
 .preset-item-head b { flex: 1; font-size: 13px; }
 .preset-item-head .tag { font-size: 11px; color: #57606a; background: #f6f8fa; border-radius: 8px; padding: 1px 7px; }
-.preset-preview { width: 100%; height: 84px; border: 0; border-top: 1px solid #eaeef2; pointer-events: none; background: #fff; }
+.preset-preview { width: 100%; height: 120px; border: 0; border-top: 1px solid #eaeef2; pointer-events: none; background: #fff; }
 .preset-actions { display: flex; gap: 6px; padding: 6px 10px; border-top: 1px solid #eaeef2; }
 .preset-actions button {
   border: 1px solid #d0d7de; border-radius: 6px; background: #fff;
@@ -136,7 +141,7 @@ body {
 .ai-bar.hidden { display: none; }
 .ai-bar .tb-btn { border: 1px solid #c7d2fe; background: #fff; }
 .ai-diff {
-  position: fixed; left: 50%; top: 120px; transform: translateX(-50%);
+  position: fixed; left: 50%; top: calc(var(--chrome-h, 130px) + 12px); transform: translateX(-50%);
   width: min(920px, 92vw); z-index: 40;
   background: #fff; border: 1px solid #d0d7de; border-radius: 10px;
   box-shadow: 0 8px 30px rgba(0,0,0,.25);
@@ -150,7 +155,7 @@ body {
 /* ===== E6: 용지 프리셋 · 고급 조합 · 정밀 미리보기 ===== */
 .paper-select { margin-left: 8px; font-size: 12px; padding: 2px 4px; border-radius: 6px; border: 1px solid #cbd5e1; background: #fff; }
 .paper-adv {
-  position: fixed; top: 52px; left: 16px; z-index: 40;
+  position: fixed; top: calc(var(--chrome-h, 130px) + 6px); left: 16px; z-index: 40;
   display: flex; gap: 8px; align-items: center;
   background: #fff; border: 1px solid #cbd5e1; border-radius: 10px;
   padding: 10px 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, .18); font-size: 12px;

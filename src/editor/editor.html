@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/editor/editor.css">
 </head>
 <body>
+<div id="chrome"><!-- 상단 크롬 통합 sticky: 랩(2줄) 높이에도 겹침 없이 순서대로 쌓인다 -->
 <header class="topbar">
   <div class="doc"><span class="logo">worksheet-grab</span><span id="doc-title">문서 로드 중…</span><span id="doc-paper" class="paper-badge"></span><span id="doc-rev" class="paper-badge"></span>
     <select id="paper-preset" class="paper-select" title="용지 프리셋(§3.3) — 변경 시 저장 후 전체 재페이지네이션"></select>
@@ -24,11 +25,16 @@
   </div>
 </header>
 <div class="toolbar" role="toolbar" aria-label="서식 도구">
-  <select id="tb-font" class="tb-select" title="폰트"><option value="Pretendard" selected>Pretendard</option></select>
-  <select id="tb-size" class="tb-select" title="글자 크기(pt)">
+  <select id="tb-font" class="tb-select" title="폰트">
+    <option value="Pretendard" selected>Pretendard</option>
+    <option value="Malgun Gothic">맑은 고딕</option>
+    <option value="Batang">바탕 (명조)</option>
+  </select>
+  <select id="tb-size" class="tb-select" title="글자 크기(pt) — 적용할 텍스트를 먼저 선택">
     <option value="">크기</option>
     <option>8</option><option>9</option><option>10</option><option>10.5</option>
     <option>11</option><option>12</option><option>13</option><option>14</option>
+    <option>16</option><option>18</option><option>20</option><option>24</option>
   </select>
   <span class="tb-sep"></span>
   <button id="tb-bold" class="tb-btn" title="굵게"><b>B</b></button>
@@ -63,6 +69,12 @@
   <button id="ai-resume" class="tb-btn hidden">대기 재개</button>
   <button id="ai-undo" class="tb-btn hidden">AI 적용 되돌리기</button>
 </div>
+<div id="save-banner" class="save-banner hidden" role="status"></div>
+<section id="review-bar" class="review-bar" aria-live="polite">
+  <span id="review-status" class="review-status">검수 준비 중…</span>
+  <ul id="review-list" class="review-list"></ul>
+</section>
+</div><!-- /#chrome -->
 <div id="ai-diff" class="ai-diff hidden" aria-label="AI 재작성 미리보기">
   <div class="ai-diff-col"><b>원본</b><iframe id="ai-diff-before" sandbox=""></iframe></div>
   <div class="ai-diff-col"><b>AI 재작성</b><iframe id="ai-diff-after" sandbox=""></iframe></div>
@@ -100,11 +112,6 @@
     <img id="preview-img" alt="정밀 미리보기(첫 페이지)">
   </div>
 </div>
-<div id="save-banner" class="save-banner hidden" role="status"></div>
-<section id="review-bar" class="review-bar" aria-live="polite">
-  <span id="review-status" class="review-status">검수 준비 중…</span>
-  <ul id="review-list" class="review-list"></ul>
-</section>
 <main id="canvas-wrap">
   <div id="stage">
     <!-- iframe(변형별 지연 생성) + 여백선·넘침 배지 부모 오버레이 -->
