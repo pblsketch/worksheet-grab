@@ -7,11 +7,12 @@ const VOID = new Set([
   'link', 'meta', 'param', 'source', 'track', 'wbr',
 ]);
 
-/** class="..." / class='...' 의 클래스 토큰 배열 추출. */
+/** class="..." / class='...' / class=bare 의 클래스 토큰 배열 추출.
+ *  따옴표 없는 형태도 유효 HTML — 정답 제거(불변식)의 근거라 놓치면 누출 벡터가 된다. */
 export function extractClasses(rawTag) {
-  const m = /\bclass\s*=\s*("([^"]*)"|'([^']*)')/i.exec(rawTag);
+  const m = /\bclass\s*=\s*("([^"]*)"|'([^']*)'|([^\s"'>]+))/i.exec(rawTag);
   if (!m) return [];
-  const val = m[2] ?? m[3] ?? '';
+  const val = m[2] ?? m[3] ?? m[4] ?? '';
   return val.split(/\s+/).filter(Boolean);
 }
 
@@ -42,7 +43,21 @@ export function tokenizeHtml(html) {
       i = stop;
       continue;
     }
-    const gt = html.indexOf('>', lt + 1);
+    // 태그 끝(>) 탐색은 따옴표 인지형 — 속성값 안의 '>'(예: title="a>b")에서
+    // 태그를 조기 절단하면 class 추출이 실패해 정답 제거·검수가 함께 뚫린다.
+    let gt = -1;
+    let quote = null;
+    for (let j = lt + 1; j < n; j++) {
+      const ch = html[j];
+      if (quote !== null) {
+        if (ch === quote) quote = null;
+      } else if (ch === '"' || ch === "'") {
+        quote = ch;
+      } else if (ch === '>') {
+        gt = j;
+        break;
+      }
+    }
     if (gt === -1) {
       tokens.push({ type: 'text', raw: html.slice(lt) });
       break;

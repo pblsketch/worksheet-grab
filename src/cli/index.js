@@ -421,14 +421,9 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   // base 는 렌더 분기(아래 renderVariantFiles)에서도 쓰므로 함수 스코프여야 한다 —
   // if 블록 안 선언 시 기본 렌더 경로가 ReferenceError 로 전멸한다(QA 발견).
   const base = worksheetBase(worksheet.subject, topic);
-  let sPath, tPath;
-  if (!useDoc) {
-    ({ sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher }));
-    const mPath = await writeManifest(outDir, base, manifest);
-    log(`     매니페스트: ${mPath} (재편집용 — edit 명령 입력)`);
-  }
 
-  // 3) 검수 게이트
+  // 3) 검수 게이트 — 디스크 쓰기보다 먼저. FAIL 이면 어떤 산출물도 남기지 않는다
+  //    (fail-closed): 학생 HTML 을 먼저 써 두면 누출분이 디스크에 잔존하는 벡터가 된다.
   const findings = [...review.student.findings, ...review.teacher.findings];
   const errors = findings.filter((f) => f.severity === 'error');
   log(`  3) 검수 게이트: ${gate ? 'PASS' : 'FAIL'} (error ${errors.length}건, warning ${findings.length - errors.length}건)`);
@@ -438,7 +433,7 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   }
 
   if (!gate) {
-    err('  ✗ 검수 게이트 실패(정답 누출 등) → 렌더 중단(fail-closed). 콘텐츠 수정 후 재실행하세요.');
+    err('  ✗ 검수 게이트 실패(정답 누출 등) → 산출물 미생성(fail-closed). 콘텐츠 수정 후 재실행하세요.');
     return 1;
   }
 
@@ -448,6 +443,11 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
     log('  4) 렌더: 워크스페이스 문서의 PDF export 는 후속(E6). HITL: 교사 검토 후 인쇄하세요.');
     return result.unsafe ? 1 : 0;
   }
+
+  // 게이트 통과 후에만 out/ 에 2벌 + 매니페스트를 기록한다.
+  const { sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher });
+  const mPath = await writeManifest(outDir, base, manifest);
+  log(`     매니페스트: ${mPath} (재편집용 — edit 명령 입력)`);
 
   // 4) 렌더 (게이트 통과 시)
   if (flags['no-render']) {

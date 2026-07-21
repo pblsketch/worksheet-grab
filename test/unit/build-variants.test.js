@@ -30,3 +30,18 @@ test('student 벌은 .answer/.plot-ans 내용을 물리적으로 제거(정답 �
 test('MODE_TOKEN 이 없으면 오류', () => {
   assert.throws(() => new BuildVariants().execute('<body></body>'), /MODE_TOKEN/);
 });
+
+// 누출 게이트 회귀(Codex 교차 QA): 정답 제거는 따옴표 없는 class·속성값 속 '>' 에도
+// 견뎌야 한다 — 엔진측(manifest/블록) HTML 은 DOM 재직렬화를 거치지 않으므로
+// 이런 형태가 그대로 학생용에 흘러 정답이 노출될 수 있다.
+test('정답 제거: 따옴표 없는 class=answer 도 물리 제거된다', () => {
+  const html = '<body data-mode="MODE_TOKEN"><span class=answer>비밀정답노출차단</span></body>';
+  const { student } = new BuildVariants().execute(html);
+  assert.ok(!student.includes('비밀정답노출차단'), '따옴표 없는 class 도 스트립되어야 한다');
+});
+
+test('정답 제거: 정답 앞 속성값에 >가 있어도 class=answer 를 놓치지 않는다', () => {
+  const html = '<body data-mode="MODE_TOKEN"><span data-note="1>2" class="answer">부등호정답노출차단</span></body>';
+  const { student } = new BuildVariants().execute(html);
+  assert.ok(!student.includes('부등호정답노출차단'), '속성값 속 > 로 태그가 조기 절단되면 안 된다');
+});

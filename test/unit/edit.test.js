@@ -70,6 +70,14 @@ test('파서: "1번은 그대로 두고 2번만 빼줘" → 유지 동사가 번
   );
 });
 
+test('파서: "1번 참고, 2번 삭제" → 참고(유지)가 1번을 소비, 2번만 제거(과삭제 방지)', () => {
+  // 회귀(Codex 교차 QA): 과거엔 1번이 뒤 삭제 동사로 흘러 1·2번 모두 삭제됐다.
+  assert.deepEqual(
+    EditWorksheet.parseInstruction('1번 참고, 2번 삭제'),
+    [{ op: 'removeItem', n: 2 }],
+  );
+});
+
 test('파서: 동작 없는 번호가 남으면 부분 적용 대신 전체 실패', () => {
   assert.throws(
     () => EditWorksheet.parseInstruction('3번 문항을 맨 위로 옮겨줘'),
