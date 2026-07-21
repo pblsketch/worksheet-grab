@@ -112,6 +112,7 @@ node bin/worksheet-grab.js doc open 광합성탐구                        # 로
 node bin/worksheet-grab.js doc history 광합성탐구                     # 편집 스냅샷 목록(무료 undo)
 node bin/worksheet-grab.js doc restore 광합성탐구 0001                # 비파괴 복원(새 리비전으로 저장)
 node bin/worksheet-grab.js doc save 광합성탐구 --from x.manifest.json # 원시 저장 진입점(E2 서버용)
+node bin/worksheet-grab.js edit-ui 광합성탐구                         # 에디터 셸(E2): 브라우저 캔버스·토글·검수 바
 #   manifest 가 진실의 소스. 매 저장 = history/ 스냅샷 + meta 리비전(.worksheet-grab/meta.json).
 #   정답 누출(마크 밖 평문) 감지 시 student.html 을 보류하고 meta.unsafe 를 남긴다(작업은 저장됨).
 #   워크스페이스 루트는 기본 <cwd>/worksheets, --workspaces-dir 로 변경.

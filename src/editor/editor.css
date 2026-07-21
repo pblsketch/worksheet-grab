@@ -1,0 +1,56 @@
+/* 에디터 셸(E2) — 도구 UI 전용 스타일. 캔버스 내부(iframe)는 실제 paper.css 가 지배한다. */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: "Pretendard", "Malgun Gothic", "맑은 고딕", sans-serif;
+  background: #e8eaed; color: #24292f; font-size: 14px;
+}
+
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 8px 16px; background: #1f2937; color: #f3f4f6;
+}
+.doc { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.logo { font-weight: 800; letter-spacing: .2px; color: #93c5fd; }
+#doc-title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.paper-badge { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: #374151; color: #d1d5db; }
+.controls { display: flex; align-items: center; gap: 10px; }
+.readonly-note { font-size: 12px; color: #9ca3af; }
+
+.seg { display: inline-flex; border: 1px solid #4b5563; border-radius: 8px; overflow: hidden; }
+.seg-btn { border: 0; background: transparent; color: #d1d5db; padding: 5px 14px; cursor: pointer; font: inherit; }
+.seg-btn.active { background: #2563eb; color: #fff; font-weight: 700; }
+.tool-btn { border: 1px solid #4b5563; border-radius: 8px; background: transparent; color: #d1d5db; padding: 5px 12px; cursor: pointer; font: inherit; }
+.tool-btn.active { background: #374151; color: #fff; }
+
+.review-bar {
+  position: sticky; top: 44px; z-index: 19;
+  padding: 6px 16px; background: #fff; border-bottom: 1px solid #d0d7de;
+  display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+}
+.review-status { font-weight: 700; }
+.review-status.ok { color: #1a7f37; }
+.review-status.warning { color: #bc4c00; }
+.review-status.error { color: #cf222e; }
+.review-list { margin: 0; padding: 0; list-style: none; display: flex; gap: 12px; flex-wrap: wrap; }
+.review-list li { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #f6f8fa; border: 1px solid #d0d7de; }
+.review-list li.error { border-color: #cf222e; background: #ffebe9; }
+.review-list li.warning { border-color: #bc4c00; background: #fff8f0; }
+.review-list li b { font-weight: 700; }
+
+#canvas-wrap { padding: 12px 0 40px; }
+#stage { position: relative; margin: 0 auto; }
+#stage iframe {
+  display: block; border: 0; background: transparent;
+  margin: 0 auto; width: 100%;
+}
+#stage iframe.hidden { display: none; }
+
+/* 여백선: 부모 오버레이 레이어(iframe 내부 무주입 — E3 편집 대상 무오염) */
+#guide-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+#guide-overlay.hidden { display: none; }
+.margin-guide {
+  position: absolute; pointer-events: none;
+  border: 1px dashed rgba(37, 99, 235, .55);
+}

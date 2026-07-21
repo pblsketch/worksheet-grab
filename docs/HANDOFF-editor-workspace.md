@@ -164,3 +164,14 @@ ralplan 합의 계획 v2.1(Planner→Architect 5건→Critic C1/M1/M2/m1→APPRO
 **누출 fail-closed × 저장 관대성(P5) 신테시스:** 모든 저장 진입점이 SaveDocument 하나를 경유. manifest·history·teacher·meta 는 항상 저장(작업 손실 0)하되, 정답 누출(error) 감지 시 **student.html 쓰기 보류(잔존 제거) + meta.unsafe=true + 비영 종료**. 정상 재저장 시 unsafe 해제·student 재생성. E6 export 는 unsafe 를 fail-closed 로 승격 예정. **구현 노트(계획 대비 정정):** 누출 판정 피연산자는 student 단독이 아니라 RunPipeline 게이트와 동일하게 **student+teacher 양벌의 error 합집합** — student 는 `.answer` 가 이미 물리 제거된 상태라 answer-leak 규칙이 구조적으로 발화 불가하며, "마크 밖 평문" 탐지는 마크가 살아 있는 teacher 쪽이 담당한다(그 평문이 곧 student 잔존 누출분).
 
 **수용 실증:** §6 왕복(생성→편집→다시 열기→`doc restore` 비파괴 복원+재렌더 일관) e2e green · 누출 3케이스(마킹 정답 안전/평문 누출 보류/재저장 해제) green · `--doc` 미지정 시 out/ 경로 무변경(기존 스위트 무수정 green).
+
+### 2026-07-21 — E2 완료 (에디터 셸 — 읽기 전용, 인쇄정밀 캔버스)
+ralplan 합의 계획 v2.1(Planner→Architect 7건→Critic C1/M1/M2/m1→APPROVE) 기준 구현.
+
+**구조:** `edit-ui <문서명>` CLI → `EditorHttpServer`(127.0.0.1 전용, 포트0 기본) → `RenderEditorShell`(순수: Assemble+BuildVariants 재사용, student/teacher 두 물리 문서 + canvasMeta 용지 파생) → `src/editor/`(바닐라 ESM 클라이언트, 빌드 0). 셸 데이터는 **`/shell.json` fetch** — 조립본 head 의 KaTeX `</script>` 인라인 주입 붕괴를 원천 회피.
+
+**§3.4 "같은 규칙, 두 런타임" 실현:** 브라우저가 원본 `ValidateWorksheet` 를 화이트리스트 ESM(`/src/**`)으로 그대로 import. 화이트리스트 = `browserGraph`(간선 추출이 `export … from` re-export 배럴 포함 — domain 6개 파일이 이 경로로 도달)의 전이 집합이며, `browser-purity.test.js` 가 그래프 전 파일의 `node:`/`require`/`process` 부재를 Chrome 없이 상시 단정(브라우저 로드 회귀를 유닛 그물에서 포착).
+
+**검수 훅(E3 승계):** `recompute(mode)` — 입력은 shell.json 문자열(iframe DOM 아님, 지연 로드와 독립). answer-leak 은 항상 teacher(마크 생존측), 인쇄안전은 표시 변형 기준. 여백선은 **부모 오버레이 레이어**(iframe 무주입 — E3 contenteditable 대상 무오염), 학생/교사 토글은 물리 2벌 iframe 지연 로드 스왑.
+
+**실물 실측(실 Chrome + Playwright 관찰):** A4 `.sheet` 793.7×1122.5px(CSS 96dpi 정밀 일치) · A3 가로 1587.4px · 여백선 인셋 56.7/45.3/56.7/37.8px(기대치 ±0.1px, 3페이지 전부) · 학생 토글 시 student iframe DOM 에 정답 텍스트 물리 부재(`.answer` 는 빈 답란 셸로 잔존 — 학생 기입 공간) · 누출 픽스처에서 검수 바 answer-leak error 배지. `editor-shell.render.test.js`(Chrome 게이트, --dump-dom + body dataset 계측 훅)가 자동 회귀로 고정.

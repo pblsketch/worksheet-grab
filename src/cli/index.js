@@ -19,6 +19,7 @@ import { resolvePaper, paperToPx } from '../usecases/paper.js';
 import { FsWorkspaceRepository } from '../adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
+import { createEditorServer, listenEditorServer } from '../adapters/EditorHttpServer.js';
 
 const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
 
@@ -59,6 +60,10 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       generate/pipeline/edit 에 --doc <문서명> 을 주면 out/ 대신 워크스페이스 문서로 산출.
       edit 는 경로 대신 --doc <문서명> 으로도 편집 가능. 정답 누출 시 student.html 은
       보류되고 meta.unsafe 가 표시된다(작업은 저장됨 · export 는 차단).
+  worksheet-grab edit-ui <문서명> [--port <n>] [--workspaces-dir <dir>]
+      에디터 셸(E2, 읽기 전용): 문서를 127.0.0.1 로컬 서버로 띄워 브라우저에서 연다.
+      인쇄정밀 캔버스(실제 paper.css·용지 치수) + 여백선 + 학생/교사 토글(물리 2벌)
+      + 라이브 검수 바(엔진과 같은 ValidateWorksheet 를 브라우저에서 실행). 편집은 E3.
   worksheet-grab list-blocks
       블록 타입 exemplar 파일 목록(core/*, pack-*/*). 재사용 부품·폴백·few-shot 시드.
   worksheet-grab list-vocab [--subject <교과>] [--json]
@@ -226,7 +231,7 @@ async function renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf =
   return results;
 }
 
-export async function run(argv, { root, log = console.log, err = console.error } = {}) {
+export async function run(argv, { root, log = console.log, err = console.error, onServer = null } = {}) {
   const { positionals, flags } = parseArgs(argv);
   const command = positionals[0];
   const repo = new FsBlockRepository({ root });
@@ -250,6 +255,7 @@ export async function run(argv, { root, log = console.log, err = console.error }
     }
     case 'edit': return cmdEdit(positionals[1], positionals[2], flags, repo, { log, err });
     case 'doc': return cmdDoc(positionals.slice(1), flags, repo, { log, err });
+    case 'edit-ui': return cmdEditUi(positionals[1], flags, repo, { root, log, onServer });
     case 'list-blocks': return cmdListBlocks(repo, { log });
     case 'list-vocab': return cmdListVocab(flags, repo, { log, err });
     case 'list-archetypes': return cmdListArchetypes(flags, repo, { log, err });
@@ -545,6 +551,26 @@ async function cmdEdit(manifestPath, instruction, flags, repo, { log }) {
     for (const e of rendered) log(`  ✔ render → ${e.pdf}`);
   }
   log('  ✔ HITL: 편집 결과를 교사가 검토한 뒤 인쇄/배포하세요.');
+  return 0;
+}
+
+/**
+ * E2 에디터 셸: 문서를 로컬 서버(127.0.0.1)로 띄운다(읽기 전용 — 편집은 E3).
+ * onServer 는 테스트 시임: 기동된 서버·주소를 넘겨 인프로세스 close 를 가능하게 한다.
+ */
+async function cmdEditUi(name, flags, repo, { root, log, onServer }) {
+  if (!name) throw new Error('edit-ui: <문서명> 이 필요합니다. 예: edit-ui 광합성탐구');
+  const ws = wsRepoFromFlags(flags);
+  const opened = await new OpenDocument({ workspace: ws }).execute({ name });
+  const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
+  const server = createEditorServer({
+    root, docName: opened.name, workspace: ws, blockRepository: repo, curriculum,
+  });
+  const addr = await listenEditorServer(server, { port: flags.port ? Number(flags.port) : 0 });
+  log(`✔ edit-ui: ${opened.name} — http://127.0.0.1:${addr.port}/ (읽기 전용 셸 · Ctrl+C 종료)`);
+  for (const w of opened.warnings) log(`  ⚠ ${w}`);
+  process.once('SIGINT', () => server.close(() => process.exit(0)));
+  if (onServer) onServer(server, addr);
   return 0;
 }
 

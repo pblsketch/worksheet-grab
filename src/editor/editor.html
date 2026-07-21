@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>worksheet-grab — 에디터 셸 (읽기 전용)</title>
+<link rel="icon" href="data:,"><!-- favicon 자동 요청 404 소음 제거 -->
+<link rel="stylesheet" href="/editor/editor.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="doc"><span class="logo">worksheet-grab</span><span id="doc-title">문서 로드 중…</span><span id="doc-paper" class="paper-badge"></span></div>
+  <div class="controls">
+    <div class="seg" role="tablist" aria-label="학생/교사 토글">
+      <button id="btn-teacher" class="seg-btn active" role="tab">교사용</button>
+      <button id="btn-student" class="seg-btn" role="tab">학생용</button>
+    </div>
+    <button id="btn-guides" class="tool-btn active" aria-pressed="true">여백선</button>
+    <span class="readonly-note">읽기 전용 셸 — 편집은 E3</span>
+  </div>
+</header>
+<section id="review-bar" class="review-bar" aria-live="polite">
+  <span id="review-status" class="review-status">검수 준비 중…</span>
+  <ul id="review-list" class="review-list"></ul>
+</section>
+<main id="canvas-wrap">
+  <div id="stage">
+    <!-- iframe(변형별 지연 생성) + 여백선 부모 오버레이가 여기에 절대배치된다 -->
+    <div id="guide-overlay" aria-hidden="true"></div>
+  </div>
+</main>
+<script type="module" src="/editor/editor.js"></script>
+</body>
+</html>
