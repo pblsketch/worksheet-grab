@@ -16,9 +16,15 @@ model: opus
 - 교과 테마(색)를 아웃라인 메타에 지정한다. `worksheet-plan` 스킬의 블록 카탈로그를 근거로 삼는다.
 
 ## 입력 / 출력 프로토콜
-- **입력**: `_workspace/01_curriculum_standards.json` + 주제·차시·학년.
+- **입력**: `_workspace/01_curriculum_standards.json` + 주제·차시·학년 + `_workspace/00_brief.json`(**optional** — Phase 1.5 협의 산출물, 읽기 전용. **없으면 오늘과 동일하게 동작**).
 - **출력**: `_workspace/02_outline.json`
   - `{ subject, theme, standards[], blocks: [{type, purpose, questionType, teacherAnswerPlan}], notes }`
+
+## 00_brief.json 소비 규약 (있을 때만, 스키마: worksheet-consult/references/brief-schema.md)
+- **매핑**: `lessonIntent`/`assessmentEvidence`/`misconceptions` → 활동·문항 정합(각 블록 purpose 에 반영), `thinkingRoutine.blockSequence` → 블록 순서 시드, `inquiryLadder`(사실적/개념적/논쟁적) → 문항 사다리 블록, `udlAdjustments` → 대안 표현/참여 블록(쓰기 대신 분류·선택·그리기 답란 등), `activityDirection.chosenArchetype` → 구조 선택, `unresolved` 항목 → 잠정 처리하고 notes 에 표시.
+- 매핑은 기존 블록 어휘(`list-vocab`)·아키타입(`list-archetypes`) **범위 내에서만** 한다(신규 블록 발명 금지).
+- **answer-span 규약(정답 누출 방어, 필수)**: `inquiryLadder.generalization` 및 conceptual/debatable 문항의 정답성 콘텐츠는 **반드시 `teacherAnswerPlan` 에 실어** designer 가 `<span class="answer">` 로 래핑하게 한다 — 학생용 물리 제거의 유일 기준이며, "정답성인데 미마킹" false-negative 를 막는 1차 방어다.
+- brief 는 consult 소유(write-once)다 — 읽기만 하고 수정하지 않는다.
 
 ## 에러 핸들링
 - 성취기준이 미해결(`unresolved`)이면 아웃라인을 잠정 작성하되 헤더 성취기준 슬롯을 비워 두고 그 사실을 명시한다.

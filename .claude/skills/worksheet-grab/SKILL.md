@@ -38,8 +38,16 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
   - 있음 + 부분 수정 요청("3번 문항 빼줘") → **부분 재실행**(해당 에이전트만)
   - 있음 + 새 주제 → 기존을 `_workspace_prev/`로 이동 후 **새 실행**
 
-## Phase 1: 입력 정리
-- 교사 요청에서 `{subject, gradeBand, topic, 차시?}`를 추출. 모호하면 **한 번에 하나씩** 질문(교과→학년→주제 순). 확정 후 요약 확인.
+## Phase 1: 입력 정리 + 협의 라우팅
+- 교사 요청에서 `{subject, gradeBand, topic, 차시?}`를 추출. 결손 필드는 **한 번에 하나씩** 질문(교과→학년→주제 순). 확정 후 요약 확인.
+- **협의(consult) 발동 판정 — 가중치 없는 이진/정성 트리거(점수 계산 없음):**
+  - **발동**: (a) explicit 협의 신호("같이 설계하자/협의하자/딸깍 말고/먼저 질문해줘/수업 의도부터/평가부터/PBL·수행평가 연계") → Deep 프로파일. (b) hard 필드(subject·gradeBand·topic) 결손 → Quick 경량(결손 필드만 확인).
+  - **스킵(기본)**: hard 3필드가 갖춰진 **완결 요청은 학생 맥락 언급("우리 반이 그래프를 어려워해서")이 섞여도 자동 인터뷰 진입 금지** — 곧장 Phase 2. 맥락 신호가 있으면 최대 **1-메타확인** 한 줄("바로 만들까요, 아니면 2~3가지만 먼저 맞춰볼까요?")만 허용하고 기본 편향은 skip(빠른 경로 불가침).
+  - 인터뷰가 열리는 **유일한** 조건 = explicit 협의 신호 또는 hard 필드 결손. 프로파일 출처: explicit > router-inferred > skill-default(Standard).
+
+## Phase 1.5: 협의 (조건부·독립 단계)
+- 발동 시 `worksheet-consult` 스킬로 협의(수업 의도·학생 맥락·평가 증거·오개념 + 활동지 특화 차원)를 수행하고 `_workspace/00_brief.json` 을 산출한 뒤 **종료**한다.
+- Phase 2 는 그 파일을 **새로 읽어** 시작한다(협의 대화와 파이프라인 조율을 한 컨텍스트에 섞지 않음). 미발동이면 brief 없이 오늘과 동일하게 진행.
 
 ## Phase 2: 팀 구성 & 작업 할당
 `TeamCreate`로 5명 구성, `TaskCreate`로 의존성 있는 작업 생성. 모든 Agent 호출은 `model:"opus"`.
@@ -51,6 +59,8 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 | 3 | worksheet-designer | worksheet-design | `03_worksheet.html` + `03_manifest.json` |
 | 4 | worksheet-reviewer | worksheet-review | `04_review.json` (PASS/FAIL) |
 | 5 | worksheet-exporter | worksheet-export | `{제목}_{subject}_student.pdf` / `_teacher.pdf` |
+
+> **`00_brief.json` 연동(Phase 1.5 산출물이 있을 때만):** planner 가 optional 입력으로 소비하고, reviewer 가 brief-fidelity advisory 로 반영도를 계측한다(verdict 불변). curriculum-mapper 는 `brief.meta.groundedStandards` 를 seed 로 대조하되 **자기 해결이 권위** — 재조정 결과는 brief 가 아니라 자기 산출물 `01_curriculum_standards.json` 에 기록하고(brief 는 consult write-once, 팀은 읽기 전용), 불일치 시 brief 종속 필드(inquiryLadder·assessmentEvidence 등)를 unresolved 취급으로 planner 에 통지한다. consult 는 대화형 독립 단계이지 팀 에이전트가 아니다.
 
 ## Phase 3: 검수 게이트 루프 (Producer-Reviewer)
 - reviewer가 **FAIL**이면 findings와 함께 designer로 반려 → 수정 → 재검수. 최대 3회.
@@ -76,6 +86,18 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 ## 후속/재실행
 - "성찰 문항만 다시" → planner+designer만 부분 재실행. "다른 교과로" → 새 실행. "색 바꿔" → designer만(theme 교체).
 
+## 삽화(생성 이미지) 필요 시 (F5)
+designer가 사진/일러스트가 필요하다고 판단하면:
+1. 사용자 로컬 `codex-image` 스킬로 생성한다(gpt-image-2·OAuth, 무API 원칙 유지 — 장당 약 2~6분 소요하니
+   여러 장이면 미리 안내하고 순차 진행).
+2. 산출 PNG를 워크스페이스 자산 폴더 `worksheets/<문서명>/assets/`에 저장한다(파일명은 안전문자·확장자 `.png`).
+   `edit-ui` 가 떠 있으면 에디터의 이미지 픽커·붙여넣기·드래그앤드롭으로 같은 경로에 직접 업로드해도 된다
+   (`POST /assets` — png/jpg/jpeg/gif/webp·5MB 이하·SVG 제외).
+3. 블록에는 `<img src="assets/<파일명>" style="width:__mm" alt="설명">`처럼 **로컬 상대경로**로만 참조한다.
+   원격 URL 인라인은 금지(`worksheet-design` 스킬 규칙과 동일 — 오프라인 인쇄·저작권 추적 위험).
+4. 교사가 이미 가진 이미지도 동일하게 `assets/` 경유로 다룬다(에디터 픽커·붙여넣기·DnD 또는 파일 직접 복사) —
+   생성 이미지와 별도 취급하지 않는다.
+
 ## AI 액션 브리지 (E5 — 에디터의 "AI 재작성/예시 채우기")
 교사가 브라우저 에디터(`edit-ui <문서명>`)에서 🤖/✨ 버튼을 누르면 요청이
 `<워크스페이스>/.ai-bridge/` 파일 큐에 쌓인다. **구독 AI(이 세션)가 그 요청의 처리자다** — 무API.
@@ -85,14 +107,22 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 요청 도착을 감시한다(감시가 없으면 에디터의 "반영"은 일어나지 않는다).
 
 **처리 절차:**
-1. `ai pending --json` 으로 요청 페이로드를 읽는다 — `block.html`(재작성 대상),
-   `action`(rewrite=문장 다듬기·명료화 / fill-example=예시·빈칸 채우기),
+1. `ai pending --json` 으로 요청 페이로드를 읽는다 — 요청은 **두 형태**가 온다:
+   - **v2(범위 선택, 기본)**: `blocks:[{slot,bp,bi,bt,html}, …]` — 교사가 여러 블록을 한 번에 선택한 것.
+     각 원소의 `slot`(0부터) 이 회신 매칭 키다.
+   - **v1(단일, 하위호환)**: `block:{bt,html}` — 예전 형태. 여전히 유효하며 `--from/--html` 로 회신한다.
+   공통: `action`(rewrite=문장 다듬기·명료화 / fill-example=예시·빈칸 채우기),
    `context`(교과·문서 제목·성취기준 원문 — **읽기 전용 품질 컨텍스트**).
 2. 재작성 규칙(§7·§10 — 위반 시 저장 게이트·타입 가드가 차단하지만 애초에 지켜라):
    - **블록 본문만** 재작성한다. 성취기준 원문은 인용만 하고 절대 창작·변조하지 않는다.
-   - 저작권 지문 슬롯(passage 등)은 요청 자체가 오지 않는다(타입 가드) — 오면 응답하지 말 것.
-   - **정답은 반드시 `<span class="answer">…</span>` 마크 안에** 둔다(학생용 물리 제거의 유일 기준).
+   - 저작권 지문 슬롯(passage 등)·성취기준(standard-label)은 요청에 **애초에 포함되지 않는다**
+     (선택 집합에 하나라도 섞이면 서버가 요청 전체를 400 으로 거부) — 오면 응답하지 말 것.
+   - **정답은 반드시 `<span class="answer">…</span>` 마크 안에** 둔다(블록마다 개별 적용 — 학생용 물리 제거의 유일 기준).
    - 범교과: 교과색 하드코딩 금지(`var(--*)` 토큰만), 기존 블록의 클래스 구조 유지.
    - 인쇄안전: 8pt 미만 폰트 금지, 블록 분량은 원본과 비슷하게(페이지 넘침 방지).
-3. 재작성 HTML 을 파일로 저장 후 `ai respond <id> --from <file>` 로 회신한다.
-   에디터가 폴링으로 수신해 교사에게 diff 미리보기를 보여주고, 적용·저장은 교사가 한다.
+3. 회신 형식(입력형에 맞춰):
+   - **v2 다중 블록**: `[{slot, html}, …]` JSON 파일을 만들어 `ai respond <id> --blocks <file.json>` 로 회신한다.
+     `slot` 은 요청의 blocks 순서(0부터)와 **정확히 일치**시킨다(위치가 아니라 slot 으로 재부착 —
+     교사가 대기 중 블록을 옮기거나 삽입해도 어긋나지 않는다). 일부 블록만 고쳤다면 그 slot 만 넣어도 된다.
+   - **v1 단일 블록**: 재작성 HTML 을 파일로 저장 후 `ai respond <id> --from <file>`(또는 `--html <inline>`).
+   에디터가 폴링으로 수신해 교사에게 diff 미리보기(다중이면 결합 뷰)를 보여주고, 적용·저장은 교사가 한다.
