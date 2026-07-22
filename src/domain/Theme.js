@@ -23,6 +23,20 @@ export class Theme {
     return `:root {\n${body}\n}`;
   }
 
+  /**
+   * 임의 셀렉터로 스코프한 토큰 블록으로 직렬화(자료집 멤버별 유일 래퍼 방출용).
+   * toRootCss 와 동일한 6토큰(THEME_TOKENS)을 방출하고 셀렉터만 교체한다 — 같은 팔레트
+   * 원천(=themes/*.css)에서 파생되므로 :root 방출분과 값이 어긋나지 않는다.
+   * @param {string} selector 예: `[data-wb-member="0"]`
+   */
+  toScopedCss(selector) {
+    if (typeof selector !== 'string' || !selector.trim()) {
+      throw new TypeError('toScopedCss 는 selector 문자열이 필요합니다.');
+    }
+    const body = THEME_TOKENS.map((k) => `  ${k}: ${this.tokens[k]};`).join('\n');
+    return `${selector} {\n${body}\n}`;
+  }
+
   /** 이 테마가 사용하는 팔레트 hex 값 집합(소문자). 검증기의 하드코딩 탐지 근거. */
   paletteHexes() {
     return new Set(

@@ -105,12 +105,16 @@
 <div id="preview-panel" class="preview-panel hidden" aria-label="정밀 미리보기">
   <header class="preview-head">
     <b>정밀 미리보기</b>
-    <span class="preview-note">저장본 기준 · 첫 페이지 · Chrome 최종 판정(§3.4)</span>
+    <span class="preview-note">저장본 기준 · Chrome 최종 판정(§3.4)</span>
+    <button id="preview-prev" class="tb-btn" title="이전 페이지">◀</button>
+    <span id="preview-page-num">1 / 1</span>
+    <button id="preview-next" class="tb-btn" title="다음 페이지">▶</button>
+    <span id="preview-overflow-badge" class="overflow-flag hidden">이 페이지는 1쪽을 넘칩니다</span>
     <button id="preview-close" class="tb-btn" title="닫기">✕</button>
   </header>
   <div class="preview-body">
     <span id="preview-spinner" class="hidden">백그라운드 Chrome 렌더 중… (수 초~15초)</span>
-    <img id="preview-img" alt="정밀 미리보기(첫 페이지)">
+    <img id="preview-img" alt="정밀 미리보기">
   </div>
 </div>
 <main id="canvas-wrap">

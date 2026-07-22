@@ -14,6 +14,8 @@ import { ChromeRenderer } from './ChromeRenderer.js';
 import { resolvePaper, paperToPx } from '../usecases/paper.js';
 import { sanitizeAssetName, assertAllowedImage, imageMimeFor, MAX_IMAGE_BYTES } from '../usecases/assets.js';
 import { AI_SCHEMA_VERSION, newRequestId, parseAction, assertTargetable, excludedTypes } from '../usecases/aiBridge.js';
+import { splitSheets } from '../usecases/sheets.js';
+import { countPdfPages } from '../usecases/pdfInfo.js';
 
 const MAX_SAVE_BODY = 20 * 1024 * 1024; // 로컬 편집 도구의 안전 상한
 
@@ -349,10 +351,23 @@ export function createEditorServer({
       }
       // E6 정밀 미리보기(§3.4): 저장본을 백그라운드 Chrome 으로 PNG 렌더(첫 페이지).
       // scale:2 핀 고정(레티나) — IHDR 폭 == 2×paperToPx. student 는 unsafe 시 409.
+      // T3(§2e) 페이지 지정(선택 쿼리 page, 1-based): 미지정(page===null)이면 아래 분기가
+      // 전부 스킵되어 이 블록은 기존 동작과 바이트 단위로 동일하다(하위호환 불가침).
       if (path === '/preview.png') {
-        const mode = new URL(req.url, 'http://127.0.0.1').searchParams.get('mode') || 'teacher';
+        const query = new URL(req.url, 'http://127.0.0.1').searchParams;
+        const mode = query.get('mode') || 'teacher';
         if (mode !== 'teacher' && mode !== 'student') {
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: 'mode 는 teacher|student' }));
+        }
+        const pageRaw = query.get('page');
+        let page = null;
+        if (pageRaw !== null) {
+          const n = Number(pageRaw);
+          if (!Number.isInteger(n) || n < 1) {
+            return send(res, 400, 'application/json; charset=utf-8',
+              JSON.stringify({ error: 'page 는 1 이상의 정수여야 합니다.' }));
+          }
+          page = n;
         }
         if (renderBusy) {
           return send(res, 409, 'application/json; charset=utf-8',
@@ -361,6 +376,13 @@ export function createEditorServer({
         renderBusy = true;
         try {
           const { manifest, meta, paths } = await opener.execute({ name: docName });
+          if (page != null) {
+            const total = Array.isArray(manifest.pages) ? manifest.pages.length : 0;
+            if (page > total) {
+              return send(res, 400, 'application/json; charset=utf-8',
+                JSON.stringify({ error: `page 는 1..${total} 범위여야 합니다(요청: ${page}).` }));
+            }
+          }
           const unsafe = meta == null || meta.unsafe === true;
           if (mode === 'student' && unsafe) {
             return send(res, 409, 'application/json; charset=utf-8',
@@ -371,9 +393,35 @@ export function createEditorServer({
             return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: '저장본이 없습니다 — 먼저 저장하세요.' }));
           }
           const { width, height } = paperToPx(resolvePaper(manifest.paper ?? null) ?? resolvePaper({ size: 'A4' }));
+
+          if (page == null) {
+            const out = join(paths.metaDir, `preview-${mode}.png`);
+            await getRenderer().renderToPng(input, out, { width, height, scale: 2 });
+            return send(res, 200, 'image/png', await readFile(out));
+          }
+
+          // T3: 저장본 sections[N-1] 만 남긴 임시 HTML(metaDir 바운드·요청마다 덮어씀) 슬라이스 렌더.
+          const savedHtml = await readFile(input, 'utf8');
+          const { head, sections, tail } = splitSheets(savedHtml);
+          const singlePageHtml = head + (sections[page - 1] ?? '') + tail;
+          const tmpHtmlPath = join(paths.metaDir, `.preview-page-${mode}.html`);
+          await writeFile(tmpHtmlPath, singlePageHtml, 'utf8');
+
           const out = join(paths.metaDir, `preview-${mode}.png`);
-          await getRenderer().renderToPng(input, out, { width, height, scale: 2 });
-          return send(res, 200, 'image/png', await readFile(out));
+          await getRenderer().renderToPng(tmpHtmlPath, out, { width, height, scale: 2 });
+
+          // 오버플로 감지: 동일 단일-페이지 HTML 을 PDF 로도 렌더해 물리 쪽수를 실측한다.
+          // PNG(첫 뷰포트)는 오버플로 판단 근거로 쓰지 않는다(§2e) — 스크롤 없는 스크린샷이라
+          // 넘친 콘텐츠가 잘려 보이지 않을 수 있다.
+          const tmpPdfPath = join(paths.metaDir, `.preview-page-${mode}.pdf`);
+          await getRenderer().renderToPdf(tmpHtmlPath, tmpPdfPath, {});
+          const overflowPages = await countPdfPages(tmpPdfPath);
+
+          const headers = { 'Content-Type': 'image/png' };
+          if (overflowPages > 1) headers['X-Preview-Overflow'] = '1';
+          res.writeHead(200, headers);
+          res.end(await readFile(out));
+          return undefined;
         } finally {
           renderBusy = false;
         }

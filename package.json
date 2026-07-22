@@ -21,7 +21,7 @@
   "scripts": {
     "test": "node --test \"test/**/*.test.js\"",
     "test:unit": "node --test \"test/unit/**/*.test.js\"",
-    "test:render": "node --test \"test/render/**/*.test.js\"",
+    "test:render": "node --test --test-concurrency=1 \"test/render/**/*.test.js\"",
     "extract": "node tools/extract-blocks.js"
   },
   "engines": {

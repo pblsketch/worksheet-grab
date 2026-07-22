@@ -1,5 +1,6 @@
-import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rm, mkdtemp, cp } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve, sep } from 'node:path';
 import { normalizeDocName } from '../usecases/workspace.js';
 import { FsBlockRepository } from '../adapters/FsBlockRepository.js';
@@ -19,7 +20,12 @@ import { resolvePaper, paperToPx } from '../usecases/paper.js';
 import { FsWorkspaceRepository } from '../adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
+import { RegeneratePage } from '../usecases/RegeneratePage.js';
 import { ExportDocument } from '../usecases/ExportDocument.js';
+import { FsWorkbookRepository } from '../adapters/FsWorkbookRepository.js';
+import { WorkbookAssemble } from '../usecases/WorkbookAssemble.js';
+import { WorkbookExport } from '../usecases/WorkbookExport.js';
+import { orderedMembers, memberStartPages, resolveWorkbookPaper } from '../usecases/workbook.js';
 import { annotateCanvaPages, canvaHtmlPath } from '../usecases/canvaExport.js';
 import { createEditorServer, listenEditorServer } from '../adapters/EditorHttpServer.js';
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
@@ -56,13 +62,17 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       기본은 원본 보존(-v2, -v3 … 접미사로 저장). --in-place 지정 시에만 원본을 덮어쓴다.
       예: edit out/science-광합성.manifest.json "3번 문항 빼고 성찰 추가"
       지시 대신 플래그도 가능: --remove <N> (반복 가능) · --add reflection
-  worksheet-grab doc <list|open|save|history|restore> …
+  worksheet-grab doc <list|open|save|history|restore|regenerate-page|export> …
       문서 워크스페이스(worksheets/<문서명>/ — manifest·학생/교사 HTML·meta·히스토리).
         doc list                            문서 목록(제목·교과·리비전·unsafe 배지)
         doc open <문서명>                   문서 로드·상태 표시(편집은 edit-ui)
         doc save <문서명> --from <manifest.json>   manifest 를 문서로 저장(재렌더·누출검증·스냅샷)
         doc history <문서명>                히스토리 스냅샷 목록
         doc restore <문서명> <일련번호>     스냅샷 복원(비파괴 — 새 리비전으로 저장)
+        doc regenerate-page <문서명> <N> --from <page.json>
+                                            N(1-based) 페이지만 page.json(블록 배열)로 교체 후 SaveDocument 재저장.
+                                            성취기준·저작권 슬롯(제외-타입) 블록은 삭제·변조·위조 시 거부(fail-closed).
+                                            타 페이지는 바이트 불변. 번호 불연속은 경고(에러 아님).
         doc export <문서명> [--canva]        저장본 → 학생/교사 PDF 2벌(worksheets/<문서명>/worksheet-*.pdf).
                                             meta.unsafe(정답 누출) 시 학생용 차단·교사용만 산출·종료코드 1
                                             --canva 지정 시 worksheet-{student,teacher}-canva.html
@@ -70,6 +80,22 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       generate/pipeline/edit 에 --doc <문서명> 을 주면 out/ 대신 워크스페이스 문서로 산출.
       edit 는 경로 대신 --doc <문서명> 으로도 편집 가능. 정답 누출 시 student.html 은
       보류되고 meta.unsafe 가 표시된다(작업은 저장됨 · export 는 차단).
+  worksheet-grab workbook <create|add|remove|order|list|show|export> …
+      자료집(합본) 장부(workbooks/<명>/workbook.json). 멤버 문서(worksheets/)는 참조만
+      하고 절대 쓰지 않는다(교차 저장 금지). 신규 --workbooks-dir <경로>(기본 <cwd>/workbooks).
+        workbook create <명> [--title <t>] [--paper a4|a3|b4]   자료집 생성(--title 생략 시 <명>)
+        workbook add <명> <문서명> [--toc-title <t>]            멤버 등록(존재하지 않는 문서·중복 등록 거부)
+        workbook remove <명> <문서명>                           멤버 제거
+        workbook order <명> <문서명...>                         전체 멤버를 지정 순서로 재배열(부분 지정 거부)
+        workbook list                                          자료집 목록
+        workbook show <명>                                     멤버·status·본문상대 시작쪽 요약
+        workbook export <명> [--out <dir>] [--workspaces-dir <dir>] [--portable]
+                                            합본 조립(WorkbookAssemble) → PDF 2벌(WorkbookExport,
+                                            countPdfPages fail-closed 게이트). 기본 출력:
+                                            workbooks/<명>/workbook-{student,teacher}.pdf.
+                                            unsafe(정답 누출) 멤버가 있으면 student 미산출+멤버 지목
+                                            +종료코드 1(teacher 는 항상 산출). --portable 은 멤버
+                                            자산을 렌더용 임시 디렉터리에 복사해 상대경로로 참조.
   worksheet-grab edit-ui <문서명> [--port <n>] [--workspaces-dir <dir>]
       브라우저 에디터(E3): 문서를 127.0.0.1 로컬 서버로 띄워 편집한다.
       인쇄정밀 캔버스(실제 paper.css·용지 치수) + 여백선/넘침 배지 + 학생/교사 토글(물리 2벌)
@@ -152,6 +178,27 @@ function wsRepoFromFlags(flags) {
   return new FsWorkspaceRepository({
     baseDir: typeof flags['workspaces-dir'] === 'string' ? flags['workspaces-dir'] : null,
   });
+}
+
+/** --workbooks-dir 플래그(기본 <cwd>/workbooks)로 자료집 장부 리포지토리 구성. */
+function wbRepoFromFlags(flags) {
+  return new FsWorkbookRepository({
+    baseDir: typeof flags['workbooks-dir'] === 'string' ? flags['workbooks-dir'] : null,
+  });
+}
+
+/** 자료집 용지 요약 1줄(workbook.paper 는 문자열('a4')|객체 — resolveWorkbookPaper 로 정규화). */
+function workbookPaperLine(paper) {
+  const p = resolveWorkbookPaper(paper);
+  return `${p.size} ${p.orientation === 'landscape' ? '가로' : '세로'} · 여백 ${p.margins}${p.columns > 1 ? ` · ${p.columns}단` : ''}`;
+}
+
+/** 자료집이 없으면 명확한 오류(존재 확인 후 로드) — OpenDocument 스타일. */
+async function readWorkbookOrThrow(wb, name) {
+  if (!wb.exists(name)) {
+    throw new Error(`자료집이 없습니다: ${name}. "workbook list" 로 확인하거나 "workbook create ${name}" 로 새로 만드세요.`);
+  }
+  return wb.readWorkbook(name);
 }
 
 /**
@@ -261,9 +308,10 @@ async function renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf =
 // 값 필수 플래그: 값 없이 오면(--out) parseArgs 가 true 를 남겨 하류에서 경로로
 // 쓰이며 원인 불명 타입 오류가 된다 — 진입점에서 fail-fast 로 막는다.
 const VALUE_FLAGS = ['out', 'csv', 'chrome', 'workspaces-dir', 'from', 'standards',
-  'limit', 'port', 'archetype', 'virtual-time-budget', 'doc', 'html', 'remove', 'add'];
+  'limit', 'port', 'archetype', 'virtual-time-budget', 'doc', 'html', 'remove', 'add',
+  'title', 'paper', 'toc-title', 'workbooks-dir'];
 
-export async function run(argv, { root, log = console.log, err = console.error, onServer = null } = {}) {
+export async function run(argv, { root, log = console.log, err = console.error, onServer = null, renderer = null } = {}) {
   const { positionals, flags } = parseArgs(argv);
   for (const name of VALUE_FLAGS) {
     if (flags[name] === true) { err(`오류: --${name} 플래그에 값이 필요합니다. (예: --${name} <값>)`); return 2; }
@@ -290,6 +338,7 @@ export async function run(argv, { root, log = console.log, err = console.error, 
     }
     case 'edit': return cmdEdit(positionals[1], positionals[2], flags, repo, { log, err });
     case 'doc': return cmdDoc(positionals.slice(1), flags, repo, { log, err });
+    case 'workbook': return cmdWorkbook(positionals.slice(1), flags, repo, { log, err, renderer });
     case 'edit-ui': return cmdEditUi(positionals[1], flags, repo, { root, log, onServer });
     case 'preset': return cmdPreset(positionals.slice(1), flags, repo, { log, err });
     case 'ai': return cmdAi(positionals.slice(1), flags, { log, err });
@@ -788,6 +837,25 @@ async function cmdDoc(args, flags, repo, { log, err }) {
       log(`✔ doc restore: ${result.name} ← 스냅샷 ${extra} (새 rev ${result.meta.revision} — 비파괴, 복원도 히스토리에 남습니다)`);
       return result.unsafe ? 1 : 0;
     }
+    case 'regenerate-page': {
+      // Phase 1 §2(d): pages[N-1] 만 교체 → SaveDocument 재저장(aiBridge 대칭 가드, C7·C9).
+      if (!name) throw new Error('doc regenerate-page: <문서명> 이 필요합니다.');
+      if (!extra) throw new Error('doc regenerate-page: <N>(1-based 페이지 번호) 이 필요합니다.');
+      const pageNum = Number(extra);
+      if (!Number.isInteger(pageNum)) throw new Error(`doc regenerate-page: 페이지 번호는 정수여야 합니다: "${extra}"`);
+      if (typeof flags.from !== 'string') throw new Error('doc regenerate-page: --from <page.json> 이 필요합니다.');
+      const newPageBlocks = JSON.parse(await readFile(resolve(flags.from), 'utf8'));
+      const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
+      const result = await new RegeneratePage({ workspace: ws, blockRepository: repo, curriculum })
+        .execute({ docName: name, page: pageNum, newPageBlocks });
+      log(`✔ doc regenerate-page: ${result.name} 페이지 ${pageNum} 재생성 → rev ${result.meta.revision}`);
+      if (result.continuityWarning) log(`  ⚠ ${result.continuityWarning}`);
+      if (result.unsafe) {
+        log('  ⚠ 정답 누출 감지 → student.html 쓰기 보류(meta.unsafe=true). export 는 차단됩니다.');
+        for (const f of result.leakFindings) log(`     ✗ [${f.rule}] ${f.message} (근거: ${f.evidence})`);
+      }
+      return result.unsafe ? 1 : 0;
+    }
     case 'export': {
       // E6: 저장본 → PDF 2벌(에디터 POST /export 와 동일 코어 = ExportDocument 단일 경유).
       // meta.unsafe 는 fail-closed — student 차단·teacher 산출·비영 종료.
@@ -825,7 +893,194 @@ async function cmdDoc(args, flags, repo, { log, err }) {
       return result.skipped.student ? 1 : 0;
     }
     default:
-      err(`doc: 알 수 없는 서브명령 "${sub ?? ''}". 지원: list · open · save · history · restore · export`);
+      err(`doc: 알 수 없는 서브명령 "${sub ?? ''}". 지원: list · open · save · history · restore · regenerate-page · export`);
+      return 2;
+  }
+}
+
+/**
+ * workbook <sub> — 자료집(합본) 장부 관리 + 내보내기(합의 계획 §4 Phase 2). workbooks/<명>/
+ * workbook.json 만 쓴다 — 멤버 문서(worksheets/)는 wsRepoFromFlags 로 읽기 전용 참조만
+ * 한다(교차 저장 금지, cmdDoc 정신). 콘텐츠 저작은 하지 않는다(무API — doc save/generate 소관).
+ */
+async function cmdWorkbook(args, flags, repo, { log, err, renderer: injectedRenderer = null }) {
+  const [sub, name, arg2] = args;
+  const wb = wbRepoFromFlags(flags);
+  switch (sub) {
+    case 'create': {
+      if (!name) throw new Error('workbook create: <명> 이 필요합니다.');
+      if (wb.exists(name)) {
+        throw new Error(`자료집 "${name}" 가 이미 있습니다. "workbook show ${name}" 으로 확인하세요.`);
+      }
+      const title = typeof flags.title === 'string' ? flags.title : name;
+      const workbook = { title, members: [] };
+      if (typeof flags.paper === 'string') workbook.paper = flags.paper;
+      const created = await wb.create(name, workbook);
+      log(`✔ workbook create: ${created.name} → ${created.workbookPath}`);
+      log(`  제목: ${title} · 용지: ${workbookPaperLine(workbook.paper)}`);
+      return 0;
+    }
+    case 'add': {
+      if (!name || !arg2) throw new Error('workbook add: <자료집명> <문서명> 이 필요합니다.');
+      const workbook = await readWorkbookOrThrow(wb, name);
+      const wsRepo = wsRepoFromFlags(flags);
+      if (!wsRepo.docExists(arg2)) {
+        throw new Error(`문서가 없습니다: ${arg2}. "doc list" 로 문서 목록을 확인하세요.`);
+      }
+      const docName = normalizeDocName(arg2);
+      if (workbook.members.some((m) => m.docName === docName)) {
+        throw new Error(`자료집 "${name}" 에 이미 등록된 문서입니다: ${docName}. ("workbook remove" 후 재등록하세요.)`);
+      }
+      const order = workbook.members.reduce((mx, m) => Math.max(mx, m.order), -1) + 1;
+      const member = { docName, order };
+      if (typeof flags['toc-title'] === 'string') member.tocTitle = flags['toc-title'];
+      await wb.writeWorkbook(name, { ...workbook, members: [...workbook.members, member] });
+      log(`✔ workbook add: ${docName} → ${name}(order ${order})`);
+      return 0;
+    }
+    case 'remove': {
+      if (!name || !arg2) throw new Error('workbook remove: <자료집명> <문서명> 이 필요합니다.');
+      const workbook = await readWorkbookOrThrow(wb, name);
+      const docName = normalizeDocName(arg2);
+      if (!workbook.members.some((m) => m.docName === docName)) {
+        throw new Error(`자료집 "${name}" 에 등록되지 않은 문서입니다: ${docName}.`);
+      }
+      await wb.writeWorkbook(name, { ...workbook, members: workbook.members.filter((m) => m.docName !== docName) });
+      log(`✔ workbook remove: ${docName} ← ${name}`);
+      return 0;
+    }
+    case 'order': {
+      if (!name) throw new Error('workbook order: <자료집명> <문서명...> 이 필요합니다.');
+      const workbook = await readWorkbookOrThrow(wb, name);
+      const wanted = args.slice(2).map((d) => normalizeDocName(d));
+      const existing = workbook.members.map((m) => m.docName);
+      const wantedSet = new Set(wanted);
+      const valid = wanted.length > 0 && wanted.length === existing.length
+        && wantedSet.size === wanted.length && existing.every((d) => wantedSet.has(d));
+      if (!valid) {
+        throw new Error(
+          `workbook order: 자료집의 전체 멤버를 중복 없이 모두 지정해야 합니다 `
+          + `(현재 멤버: ${existing.join(', ') || '없음'} / 입력: ${wanted.join(', ') || '없음'}).`,
+        );
+      }
+      const orderOf = new Map(wanted.map((d, i) => [d, i]));
+      await wb.writeWorkbook(name, {
+        ...workbook,
+        members: workbook.members.map((m) => ({ ...m, order: orderOf.get(m.docName) })),
+      });
+      log(`✔ workbook order: ${name} → ${wanted.join(' → ')}`);
+      return 0;
+    }
+    case 'list': {
+      const items = await wb.list();
+      if (items.length === 0) { log(`자료집 없음 (${wb.baseDir})`); return 0; }
+      log(`자료집 ${items.length}개 (${wb.baseDir}):`);
+      for (const it of items) {
+        if (it.workbook) {
+          log(`  ${it.name} — ${it.workbook.title} · 멤버 ${it.workbook.members.length}개 · 용지 ${workbookPaperLine(it.workbook.paper)}`);
+        } else {
+          log(`  ${it.name} — (workbook.json 없음/파손)`);
+        }
+      }
+      return 0;
+    }
+    case 'show': {
+      if (!name) throw new Error('workbook show: <자료집명> 이 필요합니다.');
+      const workbook = await readWorkbookOrThrow(wb, name);
+      const layout = wb.layout(name);
+      const wsRepo = wsRepoFromFlags(flags);
+      const ordered = orderedMembers(workbook);
+      const sectionCounts = [];
+      for (const m of ordered) {
+        if (wsRepo.docExists(m.docName)) {
+          const manifest = await wsRepo.readManifest(m.docName);
+          sectionCounts.push(Array.isArray(manifest.pages) ? manifest.pages.length : 0);
+        } else {
+          sectionCounts.push(0);
+        }
+      }
+      const starts = memberStartPages(sectionCounts);
+      log(`✔ workbook show: ${layout.name}`);
+      log(`  경로: ${layout.dir}`);
+      log(`  제목: ${workbook.title} · 용지: ${workbookPaperLine(workbook.paper)} · 멤버 ${ordered.length}개`);
+      ordered.forEach((m, i) => {
+        const tag = wsRepo.docExists(m.docName) ? '' : ' ⚠ 문서 없음';
+        const tocTitle = m.tocTitle ? ` "${m.tocTitle}"` : '';
+        log(`  [${i + 1}] ${m.docName}${tocTitle} — order ${m.order} · status ${m.status} · 본문상대 시작쪽 ${starts[i]}${tag}`);
+      });
+      return 0;
+    }
+    case 'export': {
+      // 슬라이스 하이브리드 합본(§2(a)): WorkbookAssemble 로 저장본 섹션을 슬라이스·재조립
+      // 하고, WorkbookExport 로 PDF 2벌을 렌더(C4 countPdfPages fail-closed 게이트).
+      if (!name) throw new Error('workbook export: <자료집명> 이 필요합니다.');
+      const workbook = await readWorkbookOrThrow(wb, name);
+      const wsRepo = wsRepoFromFlags(flags);
+      const outDir = typeof flags.out === 'string' ? resolve(flags.out) : wb.layout(name).dir;
+      await mkdir(outDir, { recursive: true });
+      const outputs = {
+        teacherPdfPath: join(outDir, 'workbook-teacher.pdf'),
+        studentPdfPath: join(outDir, 'workbook-student.pdf'),
+      };
+      const portable = !!flags.portable;
+      // renderer 주입점(테스트 전용 — run({renderer}) 로 목 Chrome 대체): 미주입 시 실 ChromeRenderer.
+      const renderer = injectedRenderer || new ChromeRenderer({ chromePath: typeof flags.chrome === 'string' ? flags.chrome : null });
+
+      // 렌더 임시 디렉터리: 임시 HTML(+ --portable 시 자산 복사본)을 여기 모아 상대경로
+      // "assets/<slug>/…" 가 렌더 시점 file:// 기준과 일치하게 하고, 종료 시 반드시 정리한다
+      // (디스크 소진 방지 — 렌더 성공/실패 무관 finally).
+      const tmpDir = await mkdtemp(join(tmpdir(), 'wsg-workbook-'));
+      try {
+        const assembler = new WorkbookAssemble({
+          workspace: wsRepo,
+          blockRepository: repo,
+          readTextFile: (p) => readFile(p, 'utf8'),
+          fileExists: existsSync,
+          copyDir: portable ? async (from, to) => { await mkdir(dirname(to), { recursive: true }); await cp(from, to, { recursive: true }); } : null,
+        });
+        log(`▶ workbook export: ${workbook.title}(멤버 ${workbook.members.length}개) 수집 중…`);
+        const assembled = await assembler.execute({
+          workbook,
+          portable,
+          portableAssetsDir: portable ? join(tmpDir, 'assets') : null,
+          onProgress: (ev) => {
+            if (ev.phase === 'collect') log(`  [${ev.index}/${ev.total}] 수집: ${ev.docName}`);
+          },
+        });
+        if (assembled.unsafeMembers.length > 0) {
+          log(`  ⚠ 정답 누출 멤버(학생용 합본 전체 차단): ${assembled.unsafeMembers.join(', ')}`);
+        }
+
+        const renderPdf = async ({ html, outputPath, budget, label }) => {
+          const htmlPath = join(tmpDir, `${label}.html`);
+          await writeFile(htmlPath, html, 'utf8');
+          const pdfPath = outputPath || join(tmpDir, `${label}.pdf`);
+          await renderer.renderToPdf(htmlPath, pdfPath, { virtualTimeBudget: budget.virtualTimeBudget, timeoutMs: budget.timeoutMs });
+          return pdfPath;
+        };
+        const exporter = new WorkbookExport({
+          renderPdf,
+          onProgress: (ev) => {
+            if (ev.phase === 'render') {
+              log(`  렌더 중(${ev.variant}): 예상 ${ev.totalPages}쪽(표지목차 ${ev.coverToc}+본문 ${ev.sigma}) · 예산 vtb=${ev.budget.virtualTimeBudget}ms`);
+            }
+            if (ev.phase === 'done') log(`  ✔ ${ev.variant} 렌더 완료: ${ev.pages}쪽`);
+          },
+        });
+        const result = await exporter.execute({ assembled, outputs });
+        for (const r of result.rendered) {
+          log(`✔ ${r.variant} PDF: ${outputs[`${r.variant}PdfPath`]} (${r.pages}쪽)`);
+        }
+        if (assembled.unsafeMembers.length > 0) {
+          log(`⚠ 학생용 미산출(정답 누출 멤버: ${assembled.unsafeMembers.join(', ')}) — 해당 문서를 재저장(doc save/edit)해 누출을 해소한 뒤 재시도하세요.`);
+        }
+        return assembled.unsafeMembers.length > 0 ? 1 : 0;
+      } finally {
+        await rm(tmpDir, { recursive: true, force: true });
+      }
+    }
+    default:
+      err(`workbook: 알 수 없는 서브명령 "${sub ?? ''}". 지원: create · add · remove · order · list · show · export`);
       return 2;
   }
 }

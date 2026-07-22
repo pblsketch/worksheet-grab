@@ -13,7 +13,9 @@ const SUBJECT_PACK_TYPES = new Set([
   'map', 'timeline', 'vocab', 'dialogue',
 ]);
 
-const KATEX_HEAD = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin>
+// KaTeX head 스니펫. 자료집(WorkbookAssemble)이 단일 head 로 1회 재사용하도록 export 로
+// 승격했다 — 이 상수의 사용처(#serialize)와 산출 바이트는 불변.
+export const KATEX_HEAD = `<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin></script>
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin
   onload="renderMathInElement(document.body,{delimiters:[{left:'$',right:'$',display:false},{left:'$$',right:'$$',display:true}]});"></script>`;

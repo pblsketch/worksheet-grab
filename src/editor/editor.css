@@ -185,6 +185,12 @@ body[data-mode="student"] .toolbar::after {
 .preview-panel.hidden { display: none; }
 .preview-head { display: flex; gap: 10px; align-items: center; padding: 8px 12px; border-bottom: 1px solid #e2e8f0; }
 .preview-head .preview-note { color: #64748b; font-size: 12px; flex: 1; }
+#preview-page-num { font-size: 13px; font-weight: 600; color: #24292f; white-space: nowrap; }
+.overflow-flag {
+  font-size: 12px; font-weight: 700; color: #fff; background: #cf222e;
+  padding: 3px 10px; border-radius: 6px; white-space: nowrap;
+}
+.overflow-flag.hidden { display: none; }
 .preview-body { flex: 1; overflow: auto; display: flex; justify-content: center; padding: 12px; background: #f1f5f9; }
 .preview-body img { max-width: 100%; height: auto; align-self: flex-start; box-shadow: 0 2px 10px rgba(15, 23, 42, .2); }
 .preview-body img.hidden, #preview-spinner.hidden { display: none; }

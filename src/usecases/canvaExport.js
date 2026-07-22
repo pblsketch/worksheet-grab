@@ -4,9 +4,11 @@
 // data-document-role="page" · data-label="<라벨>" 두 속성만 주입한다.
 // DOM 파서 재직렬화를 쓰지 않고 문자열 삽입 지점만 최소 수정 — 그 외 바이트는 1바이트도
 // 바꾸지 않는다. data-speaker-notes 는 F3 스코프 밖이라 방출하지 않는다.
+//
+// 섹션 절단은 공유 슬라이서 sheets.splitSheets 로 이관했다(자료집·미리보기 공유). 슬라이서가
+// 섹션간 바이트를 보존하므로(C5) 여기 출력 바이트는 이관 전과 동일하다.
 
-const SECTION_OPEN = '<section class="sheet">';
-const SECTION_CLOSE = '</section>';
+import { splitSheets, SECTION_OPEN, SECTION_CLOSE } from './sheets.js';
 
 // 라벨 파생 우선순위: 페이지(섹션) 내부 첫 표제 —
 // 1) .title-box 안 h1(활동지 표지, 보통 1페이지) 2) h2.sec(섹션 제목) 3) 그 외 단독 h1.
@@ -22,29 +24,27 @@ const ANY_H1_RE = /<h1[^>]*>([\s\S]*?)<\/h1>/;
 export function annotateCanvaPages(html, { docTitle = '' } = {}) {
   if (typeof html !== 'string') throw new TypeError('annotateCanvaPages 는 html 문자열이 필요합니다.');
 
-  let out = '';
-  let cursor = 0;
+  const { head, sections, tail } = splitSheets(html);
+  let out = head;
   let pageNo = 0;
-
-  for (;;) {
-    const openIdx = html.indexOf(SECTION_OPEN, cursor);
-    if (openIdx === -1) break;
-    out += html.slice(cursor, openIdx);
-
-    const openEnd = openIdx + SECTION_OPEN.length;
-    const closeIdx = html.indexOf(SECTION_CLOSE, openEnd);
-    const inner = closeIdx === -1 ? html.slice(openEnd) : html.slice(openEnd, closeIdx);
-
+  for (const section of sections) {
     pageNo += 1;
-    const label = deriveLabel(inner) || `${docTitle} — ${pageNo}쪽`;
-    out += `<section class="sheet" data-document-role="page" data-label="${escapeAttr(label)}">`;
-    out += inner;
-    if (closeIdx !== -1) out += SECTION_CLOSE;
-
-    cursor = closeIdx === -1 ? html.length : closeIdx + SECTION_CLOSE.length;
+    out += annotateSection(section, docTitle, pageNo);
   }
-  out += html.slice(cursor);
+  out += tail;
   return out;
+}
+
+// 슬라이스된 섹션 하나(SECTION_OPEN 으로 시작, `</section>` 뒤 섹션간 바이트가 꼬리로 붙을 수
+// 있음)에 data-document-role/data-label 을 주입한다. 오프닝 태그만 재작성하고 inner·꼬리
+// 바이트는 그대로 둔다.
+function annotateSection(section, docTitle, pageNo) {
+  const openEnd = SECTION_OPEN.length; // section 은 SECTION_OPEN 으로 시작
+  const closeIdx = section.indexOf(SECTION_CLOSE, openEnd);
+  const inner = closeIdx === -1 ? section.slice(openEnd) : section.slice(openEnd, closeIdx);
+  const rest = closeIdx === -1 ? '' : section.slice(closeIdx); // `</section>` + 섹션간 바이트
+  const label = deriveLabel(inner) || `${docTitle} — ${pageNo}쪽`;
+  return `<section class="sheet" data-document-role="page" data-label="${escapeAttr(label)}">${inner}${rest}`;
 }
 
 function deriveLabel(inner) {

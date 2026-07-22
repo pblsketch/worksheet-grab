@@ -1,11 +1,16 @@
 export { Renderer, CurriculumProvider, BlockRepository } from './ports.js';
 export { BuildVariants, ANSWER_CLASSES } from './BuildVariants.js';
 export { ValidateWorksheet } from './ValidateWorksheet.js';
-export { AssembleWorksheet } from './AssembleWorksheet.js';
+export { AssembleWorksheet, KATEX_HEAD } from './AssembleWorksheet.js';
 export { GenerateWorksheet, parseGrade, parseGradeSubject, resolveSubject } from './GenerateWorksheet.js';
 export { RunPipeline } from './RunPipeline.js';
 export { EditWorksheet, itemNumber } from './EditWorksheet.js';
+export { RegeneratePage } from './RegeneratePage.js';
 export { RenderPdf, DEFAULT_VIRTUAL_TIME_BUDGET } from './RenderPdf.js';
 export { RenderImage } from './RenderImage.js';
 export { ExportDocument, UNSAFE_STUDENT_MESSAGE, MISSING_STUDENT_MESSAGE } from './ExportDocument.js';
+export { WorkbookAssemble, assembleWorkbookHtml } from './WorkbookAssemble.js';
+export { WorkbookExport, renderBudget } from './WorkbookExport.js';
 export * as htmlScan from './html-scan.js';
+export * as sheets from './sheets.js';
+export * as workbook from './workbook.js';

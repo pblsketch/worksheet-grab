@@ -897,30 +897,61 @@ initPaperSelect();
 const previewPanel = document.getElementById('preview-panel');
 const previewImg = document.getElementById('preview-img');
 const previewSpinner = document.getElementById('preview-spinner');
+const previewPrevBtn = document.getElementById('preview-prev');
+const previewNextBtn = document.getElementById('preview-next');
+const previewPageNum = document.getElementById('preview-page-num');
+const previewOverflowBadge = document.getElementById('preview-overflow-badge');
 
-document.getElementById('btn-preview').addEventListener('click', async () => {
-  if (!(await saveFirst('정밀 미리보기'))) return;
-  previewPanel.classList.remove('hidden');
+let previewPage = 1; // T3(§2e): 현재 미리보기 페이지(1-based)
+
+function updatePreviewNavState(total) {
+  previewPrevBtn.disabled = previewPage <= 1;
+  previewNextBtn.disabled = previewPage >= total;
+}
+
+// T3(§2e): 저장본 sections[N-1] 슬라이스 렌더 — 서버 쿼리 &page= 로 요청.
+// 렌더 중 prev/next 비활성(단일-플라이트 409 폭주 방지). 응답 헤더 X-Preview-Overflow
+// 시 "1쪽 초과" 배지를 켠다(PNG 는 오버플로 판단 근거가 아니라 서버 PDF 실측 결과다).
+async function loadPreview(page) {
+  const total = baseManifest.pages.length;
+  previewPage = Math.min(Math.max(page, 1), total);
+  previewPrevBtn.disabled = true;
+  previewNextBtn.disabled = true;
+  previewPageNum.textContent = `${previewPage} / ${total}`;
+  previewOverflowBadge.classList.add('hidden');
   previewSpinner.classList.remove('hidden');
   previewImg.classList.add('hidden');
   let res;
   try {
-    res = await fetch(`/preview.png?mode=${mode}&t=${Date.now()}`);
+    res = await fetch(`/preview.png?mode=${mode}&page=${previewPage}&t=${Date.now()}`);
   } catch (e) {
     previewSpinner.textContent = `미리보기 실패: ${e.message}`;
+    updatePreviewNavState(total);
     return;
   }
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     previewSpinner.textContent = `미리보기 실패: ${body.message ?? body.error ?? `HTTP ${res.status}`}`;
+    updatePreviewNavState(total);
     return;
   }
   if (previewImg.src.startsWith('blob:')) URL.revokeObjectURL(previewImg.src); // 반복 미리보기 누수 방지
   previewImg.src = URL.createObjectURL(await res.blob());
   previewSpinner.classList.add('hidden');
   previewImg.classList.remove('hidden');
+  if (res.headers.get('X-Preview-Overflow') === '1') previewOverflowBadge.classList.remove('hidden');
   document.body.dataset.previewShown = 'true';
+  document.body.dataset.previewPage = String(previewPage);
+  updatePreviewNavState(total);
+}
+
+document.getElementById('btn-preview').addEventListener('click', async () => {
+  if (!(await saveFirst('정밀 미리보기'))) return;
+  previewPanel.classList.remove('hidden');
+  await loadPreview(1);
 });
+previewPrevBtn.addEventListener('click', () => loadPreview(previewPage - 1));
+previewNextBtn.addEventListener('click', () => loadPreview(previewPage + 1));
 document.getElementById('preview-close').addEventListener('click', () => previewPanel.classList.add('hidden'));
 
 const exportBtn = document.getElementById('btn-export');
