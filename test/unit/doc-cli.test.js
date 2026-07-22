@@ -7,11 +7,16 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
 import { DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
+import { resolveChromePath } from '../../src/adapters/ChromeRenderer.js';
 
-// E1 CLI 배선(run() 인프로세스, edit-cli.test 관례). Chrome 불필요.
+// E1 CLI 배선(run() 인프로세스, edit-cli.test 관례). doc save/open/history/edit 등
+// 대부분은 Chrome 불필요. 단, doc export(F3 --canva 포함) 테스트만 실제 PDF 렌더를
+// 거치므로 Chrome 이 있을 때만 실행한다(HAS_CSV 스킵 관례와 동일 패턴).
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const HAS_CSV = existsSync(DEFAULT_CSV_PATH);
+let HAS_CHROME = true;
+try { resolveChromePath(null); } catch { HAS_CHROME = false; }
 const ANSWER = '광합성은 빛에너지를 화학에너지로 전환하는 생명 활동 과정이다';
 
 function logger() {
@@ -117,6 +122,66 @@ test('doc save 동일 문서명 재저장은 갱신(rev 증가) — 충돌 실�
   assert.equal(code, 0, '저장은 갱신 시맨틱');
   const meta = JSON.parse(await readFile(join(base, '문서/.worksheet-grab/meta.json'), 'utf8'));
   assert.equal(meta.revision, 2);
+});
+
+test('doc export --canva 미지정: -canva.html 미생성 · 기존 산출(PDF 2벌) 불변', { skip: !HAS_CHROME }, async () => {
+  const base = await tmpBase();
+  const q = logger();
+  await run(['doc', 'save', '문서', '--from', join(ROOT, 'manifests/sci.json'), '--workspaces-dir', base], { root: ROOT, log: q.log, err: q.err });
+  const { lines, log, err } = logger();
+  const code = await run(['doc', 'export', '문서', '--workspaces-dir', base], { root: ROOT, log, err });
+  assert.equal(code, 0);
+  const dir = join(base, '문서');
+  assert.ok(existsSync(join(dir, 'worksheet-teacher.pdf')));
+  assert.ok(existsSync(join(dir, 'worksheet-student.pdf')));
+  assert.ok(!existsSync(join(dir, 'worksheet-teacher-canva.html')), '--canva 미지정 시 teacher-canva.html 미생성');
+  assert.ok(!existsSync(join(dir, 'worksheet-student-canva.html')), '--canva 미지정 시 student-canva.html 미생성');
+  assert.ok(!lines.some((l) => /Canva/.test(l)), '--canva 미지정 시 Canva 안내 로그도 없음');
+});
+
+test('doc export --canva: 안전 문서 → teacher+student -canva.html 생성(페이지 주석 포함)', { skip: !HAS_CHROME }, async () => {
+  const base = await tmpBase();
+  const q = logger();
+  await run(['doc', 'save', '문서', '--from', join(ROOT, 'manifests/sci.json'), '--workspaces-dir', base], { root: ROOT, log: q.log, err: q.err });
+  const { lines, log, err } = logger();
+  const code = await run(['doc', 'export', '문서', '--canva', '--workspaces-dir', base], { root: ROOT, log, err });
+  assert.equal(code, 0);
+  const dir = join(base, '문서');
+  const teacherCanvaPath = join(dir, 'worksheet-teacher-canva.html');
+  const studentCanvaPath = join(dir, 'worksheet-student-canva.html');
+  assert.ok(existsSync(teacherCanvaPath), 'teacher-canva.html 생성');
+  assert.ok(existsSync(studentCanvaPath), '안전 문서는 student-canva.html 도 생성');
+  const teacherHtml = await readFile(teacherCanvaPath, 'utf8');
+  assert.match(teacherHtml, /data-document-role="page"/);
+  assert.match(teacherHtml, /data-label="/);
+  assert.ok(lines.some((l) => /Canva HTML:.*import-design-from-url/.test(l)), '1줄 안내(경로+반입 취지) 출력');
+});
+
+test('doc export --canva unsafe 픽스처: student-canva 미생성+스테일 물리 제거·teacher는 생성', { skip: !HAS_CHROME }, async () => {
+  const base = await tmpBase();
+  const q = logger();
+  // 1) 안전 저장 → --canva export 로 student-canva.html 스테일 아티팩트를 만든다.
+  await run(['doc', 'save', '문서', '--from', join(ROOT, 'manifests/sci.json'), '--workspaces-dir', base], { root: ROOT, log: q.log, err: q.err });
+  await run(['doc', 'export', '문서', '--canva', '--workspaces-dir', base], { root: ROOT, log: q.log, err: q.err });
+  const dir = join(base, '문서');
+  const teacherCanvaPath = join(dir, 'worksheet-teacher-canva.html');
+  const studentCanvaPath = join(dir, 'worksheet-student-canva.html');
+  assert.ok(existsSync(studentCanvaPath), '전제: 이전 --canva export 의 student-canva.html 존재');
+
+  // 2) 동일 문서명으로 누출 픽스처 재저장(unsafe 로 강등) → student.html 자체가 보류된다.
+  const from = join(base, 'leaky.manifest.json');
+  await writeFile(from, JSON.stringify(LEAKY_MANIFEST, null, 2), 'utf8');
+  const saveResult = logger();
+  await run(['doc', 'save', '문서', '--from', from, '--workspaces-dir', base], { root: ROOT, log: saveResult.log, err: saveResult.err });
+  const meta = JSON.parse(await readFile(join(dir, '.worksheet-grab/meta.json'), 'utf8'));
+  assert.equal(meta.unsafe, true, '픽스처 전제: 누출 저장');
+
+  // 3) 재-export --canva: student-canva 는 미생성(+스테일 제거), teacher-canva 는 재생성.
+  const { log, err } = logger();
+  const code = await run(['doc', 'export', '문서', '--canva', '--workspaces-dir', base], { root: ROOT, log, err });
+  assert.equal(code, 1, 'unsafe 는 비영 종료(학생용 PDF 도 차단)');
+  assert.ok(existsSync(teacherCanvaPath), 'teacher-canva.html 은 unsafe 여도 생성');
+  assert.ok(!existsSync(studentCanvaPath), 'student-canva.html 미생성 + 스테일 물리 제거');
 });
 
 test('generate --doc: 워크스페이스 산출 + 재생성 충돌 실패(doc open 안내)', { skip: !HAS_CSV }, async () => {

@@ -26,6 +26,18 @@ body {
 @media screen { .sheet { margin: 6mm auto; box-shadow: 0 1px 6px rgba(0,0,0,.25); } }
 @media print { body { background: #fff; } .sheet { margin: 0; box-shadow: none; } }
 
+/* 다단(columns>1) 리플로우: .sheet-body 가 --sheet-cols/--sheet-colgap 를 소비한다.
+ * columns<=1(=var 미주입)이면 column-count:1 = 단일 흐름(현행과 동일, 래퍼도 미방출).
+ * column-fill:auto 필수 — 부분 페이지에서 좌우 반토막 balance 대신 신문식 순차 채움
+ * (한국 2단 시험지 표준). run-head/foot/mode-badge 는 .sheet 절대배치 자식이라
+ * 컬럼 흐름 밖(불변). 블록은 열 경계에서 잘리지 않게 break-inside:avoid. */
+.sheet-body {
+  column-count: var(--sheet-cols, 1);
+  column-gap: var(--sheet-colgap, 8mm);
+  column-fill: auto;
+}
+.sheet-body > * { break-inside: avoid; }
+
 /* running header / footer */
 .run-head { position: absolute; top: 7mm; right: var(--sheet-pad-r, 15mm); font-size: 8pt; color: #8a8f98; }
 .run-foot { position: absolute; bottom: 7mm; left: 0; right: 0;

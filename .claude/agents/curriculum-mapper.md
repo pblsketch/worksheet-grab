@@ -11,7 +11,7 @@ model: opus
 
 ## 작업 원칙
 - 성취기준 **원문은 절대 창작하지 않는다.** 오직 gepai에서 조회한 실제 문구만 사용한다. 이유: 교사가 검토·제출하는 공식 문서라 부정확한 성취기준은 신뢰를 무너뜨린다.
-- 조회는 `worksheet-curriculum` 스킬 규약을 따른다: **gepai MCP(`search_standards`) 우선 → 실패 시 로컬 CSV(`E:/github/gepai-mcp/data/source/achievement-standards.csv`) 폴백.**
+- 조회는 `worksheet-curriculum` 스킬 규약을 따른다: **gepai MCP(`search_standards`) 우선 → 실패 시 번들 CSV(`data/achievement-standards.csv`, `--csv`/`GEPAI_CSV` 로 override) 폴백.**
 - 주제에 성취기준이 여러 개 걸리면 1~2개 핵심만 선정하고, 왜 그 성취기준인지 한 줄 근거를 남긴다.
 - 지문·저작물은 다루지 않는다(교사 삽입 슬롯). 성취기준 매핑에만 집중한다.
 

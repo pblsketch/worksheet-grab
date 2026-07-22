@@ -106,6 +106,12 @@ export function stripElementsByClass(html, targets) {
       counter = 0;
       continue;
     }
+    // void/selfclose 태그(img·input 등)에 마크 클래스가 직접 붙으면 비울 "내용"이 없어
+    // 태그 자체가 정답 콘텐츠다(예: <img class="answer" src=…>) — fail-closed 로 태그를 통째 제거.
+    // 텍스트 기반 누출 탐지는 이미지를 볼 수 없으므로 여기서 막지 않으면 조용한 누출 벡터가 된다.
+    if (t.type === 'tag' && (t.kind === 'void' || t.kind === 'selfclose') && matchesTarget(t.classes, targets)) {
+      continue;
+    }
     out += t.raw;
   }
   return out;

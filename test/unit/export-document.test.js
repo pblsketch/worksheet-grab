@@ -132,14 +132,15 @@ test('E6 워크스페이스 PDF 슬롯: layout 신규 키(기존 키 무변경)'
   assert.ok(l.studentPath.endsWith('worksheet-student.html'), '기존 키 유지');
 });
 
-test('E6 용지 프리셋: 4종 매핑·역판정 왕복 항등·custom 판정', () => {
-  assert.equal(PAPER_PRESETS.length, 4);
+test('E6 용지 프리셋: 5종 매핑·역판정 왕복 항등·custom 판정', () => {
+  assert.equal(PAPER_PRESETS.length, 5);
   for (const p of PAPER_PRESETS) {
     assert.equal(matchPreset(p.paper), p.id, `${p.id} 왕복 항등`);
     resolvePaper(p.paper); // 전부 resolvePaper 검증 통과
   }
   assert.equal(matchPreset(null), 'a4-portrait', 'null = 현행 A4 기본');
   assert.equal(matchPreset({ size: 'A3', orientation: 'landscape' }), 'a3-fold');
+  assert.equal(matchPreset({ size: 'B4', orientation: 'portrait', columns: 2 }), 'b4-2col', '2단 프리셋 역판정(columns 비교)');
   assert.equal(matchPreset({ size: 'A4', orientation: 'portrait', margins: '20mm' }), 'custom', '여백 변경 = custom');
   assert.equal(matchPreset({ size: 'B4', orientation: 'landscape' }), 'custom');
 });

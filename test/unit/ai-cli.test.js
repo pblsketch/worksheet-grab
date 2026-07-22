@@ -17,10 +17,22 @@ function logger() {
   return { lines, log: (s) => lines.push(String(s)), err: (s) => lines.push(String(s)) };
 }
 
+// v1(단일 block) — 디스크의 in-flight 요청 형태. 신 코드에서도 유효해야 한다.
 function req(id) {
   return {
-    schemaVersion: AI_SCHEMA_VERSION, id, docName: '문서', action: 'rewrite',
+    schemaVersion: 1, id, docName: '문서', action: 'rewrite',
     block: { bp: 0, bi: 1, bt: 'question', html: '<div class="q">문항 원문</div>' }, status: 'pending',
+  };
+}
+
+// v2(blocks[]) — 범위 선택 다중 블록 요청(신규 쓰기 형태).
+function reqV2(id) {
+  return {
+    schemaVersion: AI_SCHEMA_VERSION, id, docName: '문서', action: 'rewrite',
+    blocks: [
+      { bp: 0, bi: 1, bt: 'question', html: '<div class="q">문항A</div>' },
+      { bp: 0, bi: 3, bt: 'subq', html: '<p class="subq">문항B</p>' },
+    ], status: 'pending',
   };
 }
 
@@ -30,12 +42,62 @@ test('ai pending: 대기 요청 출력(--json 전문 포함)', async () => {
   await bridge.putRequest(req('req-1'));
   const { lines, log, err } = logger();
   assert.equal(await run(['ai', 'pending', '--workspaces-dir', base], { root: ROOT, log, err }), 0);
-  assert.ok(lines.some((l) => /req-1 — 문서 · rewrite · question/.test(l)));
+  assert.ok(lines.some((l) => /req-1 — 문서 · rewrite · 1블록 \[question/.test(l)), 'v1 단일 블록 렌더(양형 무크래시)');
 
   const j = logger();
   await run(['ai', 'pending', '--json', '--workspaces-dir', base], { root: ROOT, log: j.log, err: j.err });
   const parsed = JSON.parse(j.lines.join('\n'));
   assert.equal(parsed.block.html, '<div class="q">문항 원문</div>', '페이로드 전문');
+});
+
+test('F4 ai pending/list: v1·v2 양형 무크래시 렌더(TypeError 없음)', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-mix-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(req('req-v1'));    // 단일 block
+  await bridge.putRequest(reqV2('req-v2'));  // blocks[2]
+
+  const p = logger();
+  assert.equal(await run(['ai', 'pending', '--workspaces-dir', base], { root: ROOT, log: p.log, err: p.err }), 0);
+  assert.ok(p.lines.some((l) => /req-v1 — 문서 · rewrite · 1블록 \[question/.test(l)), 'v1 블록 수·타입 요약');
+  assert.ok(p.lines.some((l) => /req-v2 — 문서 · rewrite · 2블록 \[question\(.*subq/.test(l)), 'v2 다중 블록 요약');
+
+  const l = logger();
+  assert.equal(await run(['ai', 'list', '--all', '--workspaces-dir', base], { root: ROOT, log: l.log, err: l.err }), 0);
+  assert.ok(l.lines.some((s) => /\[pending\] req-v1 — .* · 1블록/.test(s)));
+  assert.ok(l.lines.some((s) => /\[pending\] req-v2 — .* · 2블록/.test(s)));
+});
+
+test('F4 ai respond --blocks: v2 응답 리터럴 태깅(schemaVersion:2, 슬롯 보존)', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-b-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV2('req-b'));
+
+  const blocksFile = join(base, 'blocks.json');
+  await writeFile(blocksFile, JSON.stringify([
+    { slot: 0, html: '<div class="q">재작성 A</div>' },
+    { slot: 1, html: '<p class="subq">재작성 B</p>' },
+  ]), 'utf8');
+
+  const b = logger();
+  assert.equal(await run(['ai', 'respond', 'req-b', '--blocks', blocksFile, '--workspaces-dir', base], { root: ROOT, log: b.log, err: b.err }), 0);
+  assert.equal(await bridge.getStatus('req-b'), 'answered');
+  const resp = await bridge.readResponse('req-b');
+  assert.equal(resp.schemaVersion, 2, '--blocks → v2 리터럴 태깅');
+  assert.equal(resp.blocks.length, 2);
+  assert.deepEqual(resp.blocks.map((x) => x.slot), [0, 1], '슬롯 보존');
+});
+
+test('F4 ai respond --from: v1 응답 리터럴 태깅(schemaVersion:1, 상수 승격에 오태깅 안 됨)', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-v1r-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(req('req-v1r')); // v1 요청
+  const f = join(base, 'ans.html');
+  await writeFile(f, '<div class="q">v1 재작성</div>', 'utf8');
+  const r = logger();
+  assert.equal(await run(['ai', 'respond', 'req-v1r', '--from', f, '--workspaces-dir', base], { root: ROOT, log: r.log, err: r.err }), 0);
+  const resp = await bridge.readResponse('req-v1r');
+  assert.equal(resp.schemaVersion, 1, '--from → v1 리터럴(AI_SCHEMA_VERSION=2 로 오태깅되지 않음)');
+  assert.equal(typeof resp.html, 'string');
 });
 
 test('ai respond: 응답 기록 → answered · cancelled 요청은 거부(비영 종료)', async () => {

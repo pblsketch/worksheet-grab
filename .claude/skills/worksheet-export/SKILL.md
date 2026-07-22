@@ -20,6 +20,19 @@ node bin/worksheet-grab.js render out/03_worksheet-teacher.html --out out/{제�
 - 한 문장에서 종단으로 뽑을 때: `node bin/worksheet-grab.js pipeline <학년교과> <주제> --out out/`
   (조회→조립→2벌→검수 게이트→렌더. 게이트 실패 시 렌더 중단=fail-closed.)
 
+## Canva 반입 (선택 — `doc export --canva`, F3)
+문서 워크스페이스(`doc`)로 산출한 활동지를 Canva에서 다시 편집하고 싶을 때:
+```bash
+node bin/worksheet-grab.js doc export <문서명> --canva
+#   → worksheets/<문서명>/worksheet-{teacher,student}-canva.html
+#     (각 <section class="sheet"> 에 data-document-role="page"·data-label="…" 주석만 추가,
+#      그 외 바이트는 저장본과 동일. student 는 meta.unsafe/부재 시 fail-closed 로 미생성)
+```
+- **반입 경로**: 위 `-canva.html`을 공개 HTTPS URL로 호스팅한 뒤 Canva 연동(`import-design-from-url`)으로
+  가져온다. **사적 문서를 공개 호스팅에 올려 이 경로를 우회하지 말 것** — 정답이 담긴 교사용은 특히 주의.
+- **공개 URL이 없으면**: 주석(자동 페이지 매핑)은 활용하지 못하더라도, 정직하게 PDF를 Canva UI에
+  직접 업로드해 편집한다(주석 우회 없음 — 없는 기능을 있는 척 안내하지 않는다).
+
 아래는 CLI 부재 시의 **저수준 대체(수동)** 로만 남긴다.
 
 ## 2벌 분기 (저수준 대체)

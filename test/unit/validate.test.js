@@ -54,3 +54,37 @@ test('unfilled-slot: 슬롯이 모두 채워지면 경고 없음', () => {
   const { findings } = new ValidateWorksheet().execute(html);
   assert.ok(!findings.some((x) => x.rule === 'unfilled-slot'));
 });
+
+test('F5: 원격 이미지(http/https src)는 warning 으로 발화(fail-closed 아님)', () => {
+  const html = '<p><img src="https://example.com/photo.png" alt="사진"></p>';
+  const { ok, findings } = new ValidateWorksheet().execute(html);
+  const f = findings.find((x) => x.rule === 'remote-image');
+  assert.ok(f, 'remote-image 경고 존재');
+  assert.equal(f.severity, 'warning');
+  assert.equal(f.evidence, 'https://example.com/photo.png');
+  assert.equal(ok, true, '경고는 게이트를 막지 않는다(error 아님)');
+});
+
+test('F5: 로컬 assets/ 상대경로 이미지는 통과(오탐 없음)', () => {
+  const html = '<p><img src="assets/photo.png" alt="사진" style="width:60mm"></p>';
+  const { findings } = new ValidateWorksheet().execute(html);
+  assert.ok(!findings.some((x) => x.rule === 'remote-image'));
+});
+
+test('F5: data: URI 이미지는 통과(오탐 없음)', () => {
+  const html = '<p><img src="data:image/png;base64,iVBORw0KGgo=" alt="사진"></p>';
+  const { findings } = new ValidateWorksheet().execute(html);
+  assert.ok(!findings.some((x) => x.rule === 'remote-image'));
+});
+
+test('team-fix: alt 부재/빈값 <img> 는 img-alt warning, alt 채우면 통과(접근성)', () => {
+  const missing = '<body><img src="assets/a.png" style="width:60mm"><img src="assets/b.png" alt=""></body>';
+  const { ok, findings } = new ValidateWorksheet().execute(missing);
+  const f = findings.find((x) => x.rule === 'img-alt');
+  assert.ok(f && f.severity === 'warning', 'alt 부재/빈값 경고');
+  assert.equal(ok, true, '경고는 게이트를 막지 않는다(error 아님)');
+
+  const withAlt = '<body><img src="assets/a.png" alt="광합성 도해" style="width:60mm"></body>';
+  const { findings: f2 } = new ValidateWorksheet().execute(withAlt);
+  assert.ok(!f2.some((x) => x.rule === 'img-alt'), 'alt 채우면 통과');
+});

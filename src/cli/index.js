@@ -20,6 +20,7 @@ import { FsWorkspaceRepository } from '../adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
 import { ExportDocument } from '../usecases/ExportDocument.js';
+import { annotateCanvaPages, canvaHtmlPath } from '../usecases/canvaExport.js';
 import { createEditorServer, listenEditorServer } from '../adapters/EditorHttpServer.js';
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
 import { FsPresetRepository } from '../adapters/FsPresetRepository.js';
@@ -62,8 +63,10 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
         doc save <문서명> --from <manifest.json>   manifest 를 문서로 저장(재렌더·누출검증·스냅샷)
         doc history <문서명>                히스토리 스냅샷 목록
         doc restore <문서명> <일련번호>     스냅샷 복원(비파괴 — 새 리비전으로 저장)
-        doc export <문서명>                 저장본 → 학생/교사 PDF 2벌(worksheets/<문서명>/worksheet-*.pdf).
+        doc export <문서명> [--canva]        저장본 → 학생/교사 PDF 2벌(worksheets/<문서명>/worksheet-*.pdf).
                                             meta.unsafe(정답 누출) 시 학생용 차단·교사용만 산출·종료코드 1
+                                            --canva 지정 시 worksheet-{student,teacher}-canva.html
+                                            부가 산출(Canva 반입용 페이지 주석). student 는 동일하게 fail-closed
       generate/pipeline/edit 에 --doc <문서명> 을 주면 out/ 대신 워크스페이스 문서로 산출.
       edit 는 경로 대신 --doc <문서명> 으로도 편집 가능. 정답 누출 시 student.html 은
       보류되고 meta.unsafe 가 표시된다(작업은 저장됨 · export 는 차단).
@@ -620,9 +623,12 @@ async function cmdAi(args, flags, { log, err }) {
   const [sub, id] = args;
   const ws = wsRepoFromFlags(flags);
   const bridge = new FsAiBridgeRepository({ baseDir: ws.baseDir });
+  // v1(단일 block)·v2(blocks[]) 양형을 무크래시로 렌더한다(r.block 직접 접근 금지).
   const printRequest = (r) => {
-    if (flags.json) log(JSON.stringify(r, null, 2));
-    else log(`  ${r.id} — ${r.docName} · ${r.action} · ${r.block.bt || 'content'} (${r.block.html.length}자)${r.instruction ? ` · 지시: ${r.instruction}` : ''}`);
+    if (flags.json) { log(JSON.stringify(r, null, 2)); return; }
+    const blocks = r.blocks ?? (r.block ? [r.block] : []);
+    const summary = blocks.map((b) => `${b.bt || 'content'}(${(b.html ?? '').length}자)`).join(', ');
+    log(`  ${r.id} — ${r.docName} · ${r.action} · ${blocks.length}블록 [${summary}]${r.instruction ? ` · 지시: ${r.instruction}` : ''}`);
   };
   switch (sub) {
     case 'pending': {
@@ -647,19 +653,36 @@ async function cmdAi(args, flags, { log, err }) {
       if (!status) throw new Error(`요청을 찾을 수 없습니다: ${id}`);
       if (status === 'cancelled') { err(`✗ 취소된 요청입니다(terminal): ${id} — 응답할 수 없습니다.`); return 1; }
       if (status !== 'pending') { err(`✗ ${status} 상태 요청입니다: ${id} — pending 만 응답 가능합니다.`); return 1; }
-      let html;
-      if (typeof flags.from === 'string') html = await readFile(resolve(flags.from), 'utf8');
-      else if (typeof flags.html === 'string') html = flags.html;
-      else throw new Error('ai respond: --from <file> 또는 --html <inline> 이 필요합니다.');
-      await bridge.putResponse({ schemaVersion: AI_SCHEMA_VERSION, id, html });
-      log(`✔ 응답 기록: ${id} (${html.length}자) — 에디터가 폴링으로 수신합니다.`);
+      // 입력형별 리터럴 태깅: --from/--html → v1(단일 html), --blocks → v2(blocks[{slot,html}]).
+      // AI_SCHEMA_VERSION 상수를 응답에 직접 기록하지 않는다(상수 승격이 v1 회신을 오태깅하는 것 방지).
+      let response;
+      if (typeof flags.blocks === 'string') {
+        const parsed = JSON.parse(await readFile(resolve(flags.blocks), 'utf8'));
+        const blocks = Array.isArray(parsed) ? parsed : parsed?.blocks;
+        if (!Array.isArray(blocks) || blocks.length === 0) {
+          throw new Error('ai respond --blocks: [{slot,html}] 배열(또는 {blocks:[…]}) JSON 파일이 필요합니다.');
+        }
+        response = { schemaVersion: 2, id, blocks: blocks.map((b) => ({ slot: b.slot, html: b.html })) };
+      } else if (typeof flags.from === 'string') {
+        response = { schemaVersion: 1, id, html: await readFile(resolve(flags.from), 'utf8') };
+      } else if (typeof flags.html === 'string') {
+        response = { schemaVersion: 1, id, html: flags.html };
+      } else {
+        throw new Error('ai respond: --from <file> / --html <inline> / --blocks <file.json> 중 하나가 필요합니다.');
+      }
+      await bridge.putResponse(response);
+      const detail = response.blocks ? `${response.blocks.length}블록` : `${response.html.length}자`;
+      log(`✔ 응답 기록: ${id} (${detail}) — 에디터가 폴링으로 수신합니다.`);
       return 0;
     }
     case 'list': {
       const all = await bridge.listAll();
       const items = flags.all ? all : all.filter((r) => r.status === 'pending' || r.status === 'answered');
       log(`AI 요청 ${items.length}건${flags.all ? '(전체)' : '(활성)'}:`);
-      for (const r of items) log(`  [${r.status}] ${r.id} — ${r.docName} · ${r.action} · ${r.block.bt || 'content'}`);
+      for (const r of items) {
+        const blocks = r.blocks ?? (r.block ? [r.block] : []);
+        log(`  [${r.status}] ${r.id} — ${r.docName} · ${r.action} · ${blocks.length}블록 [${blocks.map((b) => b.bt || 'content').join(', ')}]`);
+      }
       return 0;
     }
     case 'clear': {
@@ -668,7 +691,7 @@ async function cmdAi(args, flags, { log, err }) {
       return 0;
     }
     default:
-      err(`ai: 알 수 없는 서브명령 "${sub ?? ''}". 지원: pending [--json|--watch|--once] · respond <id> --from|--html · list [--all] · clear [<id>]`);
+      err(`ai: 알 수 없는 서브명령 "${sub ?? ''}". 지원: pending [--json|--watch|--once] · respond <id> --from|--html|--blocks · list [--all] · clear [<id>]`);
       return 2;
   }
 }
@@ -774,6 +797,31 @@ async function cmdDoc(args, flags, repo, { log, err }) {
       const result = await exporter.execute({ name });
       for (const r of result.rendered) log(`✔ ${r.variant} PDF: ${r.path}`);
       if (result.skipped.student) log(`⚠ 학생용 건너뜀(${result.skipped.student}): ${result.reason}`);
+      // --canva: Canva 반입용 HTML(-canva.html) 부가 산출. student 는 ExportDocument 의
+      // fail-closed(unsafe/부재) 판정과 대칭으로 미생성 + 스테일 -canva.html 물리 제거.
+      // 미지정 시 이 블록은 실행되지 않아 doc export 기존 산출은 완전 불변.
+      if (flags.canva) {
+        const layout = ws.layout(name);
+        const manifest = await ws.readManifest(name);
+        const docTitle = manifest.docTitle || '';
+
+        const teacherHtml = await readFile(layout.teacherPath, 'utf8');
+        const teacherCanvaPath = canvaHtmlPath(layout.teacherPath);
+        await writeFile(teacherCanvaPath, annotateCanvaPages(teacherHtml, { docTitle }), 'utf8');
+        const canvaPaths = [teacherCanvaPath];
+
+        const studentCanvaPath = canvaHtmlPath(layout.studentPath);
+        if (!result.unsafe && existsSync(layout.studentPath)) {
+          const studentHtml = await readFile(layout.studentPath, 'utf8');
+          await writeFile(studentCanvaPath, annotateCanvaPages(studentHtml, { docTitle }), 'utf8');
+          canvaPaths.push(studentCanvaPath);
+        } else if (existsSync(studentCanvaPath)) {
+          await rm(studentCanvaPath);
+          log('⚠ Canva 학생용 건너뜀(정답 누출 방지) — 스테일 -canva.html 제거');
+        }
+
+        log(`✔ Canva HTML: ${canvaPaths.join(', ')} — 공개 HTTPS URL로 호스팅 후 Canva 연동(import-design-from-url)으로 임포트. 공개 URL이 없으면 PDF를 Canva UI에 직접 업로드하세요.`);
+      }
       return result.skipped.student ? 1 : 0;
     }
     default:

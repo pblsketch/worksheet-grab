@@ -18,11 +18,11 @@ M2 엔진의 `GepaiCurriculum` 이 이 조회를 코드로 구현한다(CSV 1차
 1. **1차 — gepai MCP**: `mcp__gepai__search_standards` 호출.
    - 파라미터: `query`(주제 키워드) 또는 `code`(코드 접두어), `subject`, `school_level`, `grade`, `limit`.
    - 반환: `{code, school, subject, grade, content}` — `content`가 원문.
-2. **2차 — 로컬 CSV 폴백** (MCP가 없거나 `No such tool`/연결 끊김일 때):
-   - 파일: `E:/github/gepai-mcp/data/source/achievement-standards.csv`
+2. **2차 — 번들 CSV 폴백** (MCP가 없거나 `No such tool`/연결 끊김일 때):
+   - 파일: 번들 CSV `data/achievement-standards.csv` (리포에 포함, `import.meta.url` 기준 해석 — 클론 위치·CWD 무관). `--csv`/`GEPAI_CSV` 로 override 가능.
    - 컬럼: `학교,과목,학년(학년군),성취기준 코드,성취기준 내용`
    - 조회 예: `grep "<과목>" 파일 | grep -E "<키워드>"` 로 후보를 찾고 코드·원문을 추출.
-   - 동일 데이터가 `E:/github/gepai/data/초중고 성취기준 데이터베이스 - 데이터베이스.csv` 에도 있음(이중 폴백).
+   - 이 번들 CSV 가 유일한 로컬 소스다 — 외부 절대경로 폴백에 의존하지 않는다(모든 사용자 클론만으로 동작).
 
 ## 선정 규칙
 - 주제에 여러 성취기준이 걸리면 **핵심 1~2개**만 선정하고, 각각 "왜 이 성취기준인가" 한 줄 근거를 남긴다.

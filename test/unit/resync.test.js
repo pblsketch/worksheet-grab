@@ -83,3 +83,31 @@ test('재조립 왕복: resync 산출 manifest 를 assemble 이 그대로 소화
   const { html: rebuilt } = await asm.execute(resynced);
   assert.ok(rebuilt.includes('전압과 전류의 관계 탐구'), '재조립 성공');
 });
+
+test('F2 왕복 게이트: columns:2 문서 조립(editMode)→resync 시뮬 왕복에서 pages 동일·structureWarning false', async () => {
+  const repo = new FsBlockRepository({ root: ROOT });
+  const asm = new AssembleWorksheet({ blockRepository: repo, curriculum: new GepaiCurriculum({}) });
+  const original = await repo.readManifest('sci');
+  original.paper = { size: 'B4', orientation: 'portrait', columns: 2 };
+
+  // editMode 조립: .wg-block 들이 .sheet-body(다단 래퍼) 내부에 배치되는지 구조 확인.
+  const { html: editHtml } = await asm.execute(original, { editMode: true });
+  assert.ok(editHtml.includes('<div class="sheet-body">'), '다단 래퍼 존재');
+  assert.match(editHtml, /<div class="sheet-body">\s*\n\s*<div class="wg-block"/, '.wg-block 은 .sheet-body 내부');
+
+  // serializeSheets 의 올바른 산출(브라우저 실경로)을 시뮬레이션한다: .sheet-body 는
+  // 투명 통과하므로 leftover 는 항상 '' — 시트별 blocks 만 채워진다(F2.4 계약).
+  const sheets = original.pages.map((page) => ({
+    blocks: page.map((b) => ({ type: b.type, html: b.html ?? '<div class="std-box">동결</div>' })),
+    leftoverHtml: '',
+  }));
+  const { manifest: out, structureWarning } = resyncManifest(sheets, original);
+  assert.equal(structureWarning, false, '다단 래퍼는 leftover 오포집 없음(구조 손실 0)');
+  assert.equal(out.pages.length, original.pages.length, '페이지 수 보존');
+  assert.deepEqual(
+    out.pages.map((p) => p.map((b) => b.type)),
+    original.pages.map((p) => p.map((b) => b.type)),
+    '블록 타입 시퀀스 왕복 보존',
+  );
+  assert.deepEqual(out.paper, original.paper, 'paper(columns 포함) 필드 보존');
+});

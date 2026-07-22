@@ -117,8 +117,12 @@ ${lis}
     let paper = await this.repo.readAsset('paper.css');
     // manifest.paper(1급 속성) → @page 숫자 리터럴 + --sheet-* 변수를 paper.css 바로 뒤에
     // 인라인해 캐스케이드로 덮어쓴다. 미지정이면 스니펫 없음 = 현행 산출 그대로(하위호환).
-    const paperOverride = paperCss(resolvePaper(manifest.paper));
+    const resolvedPaper = resolvePaper(manifest.paper);
+    const paperOverride = paperCss(resolvedPaper);
     if (paperOverride) paper = `${paper}\n${paperOverride}`;
+    // columns>1 일 때만 페이지 본문을 .sheet-body 로 감싼다(다단 흐름 소비). columns<=1
+    // 은 래퍼 미방출 = 현행 산출 바이트 불변. 크롬(run-head/foot/mode-badge)은 래퍼 밖.
+    const columns = resolvedPaper?.columns ?? 1;
     const blocksCss = await this.repo.readAsset('blocks.css');
     const themeCss = await this.repo.loadThemeCss(worksheet.themeName);
     const lang = manifest.lang || 'ko';
@@ -132,13 +136,15 @@ ${lis}
         ? `<div class="wg-block" data-bp="${idx}" data-bi="${bIdx}" data-bt="${escapeHtml(b.type)}">${b.toHtml()}</div>`
         : b.toHtml()
       )).join('\n\n  ');
+      // columns<=1 은 body 그대로(바이트 불변), columns>1 만 .sheet-body 래퍼로 감싼다.
+      const bodyOut = columns > 1 ? `<div class="sheet-body">\n  ${body}\n  </div>` : body;
       const foot = worksheet.runFoot;
       const rightPrefix = foot.rightPrefix ?? foot.right ?? '';
       return `<section class="sheet">
   <span class="mode-badge"></span>
   <div class="run-head">${escapeHtml(worksheet.runHead)}</div>
 
-  ${body}
+  ${bodyOut}
 
   <div class="run-foot"><span>${escapeHtml(foot.left || '')}</span><span>${escapeHtml(rightPrefix)}　${pageNo}</span></div>
 </section>`;

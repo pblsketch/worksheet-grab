@@ -78,12 +78,17 @@ const mm = (n) => `${Number.isInteger(n) ? n : parseFloat(n.toFixed(3))}mm`;
 /**
  * paper.css 뒤에 인라인할 오버라이드 스니펫. resolved=null 이면 ''(주입 0).
  * @page 는 숫자 mm 리터럴(캐스케이드로 기본 @page{size:A4} 를 덮음), 나머지는 :root 변수.
- * --sheet-cols 는 소비하는 CSS 가 없으므로 emit 하지 않는다(다단은 후속 에픽).
+ * --sheet-cols/--sheet-colgap 는 columns>1 일 때만 emit(.sheet-body 가 소비).
+ * columns<=1(미지정 포함)은 미방출 = 기존 출력 바이트 불변.
  */
 export function paperCss(resolved) {
   if (resolved == null) return '';
   const { w, h } = paperDims(resolved);
   const m = paperMargins(resolved);
+  // 다단은 columns>1 일 때만 방출한다 — columns<=1 은 델타 ∅(기존 스니펫과 바이트 동일).
+  const colVars = resolved.columns > 1
+    ? `\n  --sheet-cols: ${resolved.columns};\n  --sheet-colgap: 8mm;`
+    : '';
   return `/* ===== 용지 오버라이드 (manifest.paper: ${resolved.size} ${resolved.orientation}) ===== */
 @page { size: ${mm(w)} ${mm(h)}; margin: 0; }
 :root {
@@ -91,7 +96,7 @@ export function paperCss(resolved) {
   --sheet-h: ${mm(h)};
   --sheet-pad: ${mm(m.top)} ${mm(m.right)} ${mm(m.bottom)} ${mm(m.left)};
   --sheet-pad-l: ${mm(m.left)};
-  --sheet-pad-r: ${mm(m.right)};
+  --sheet-pad-r: ${mm(m.right)};${colVars}
 }`;
 }
 
@@ -103,6 +108,7 @@ export const PAPER_PRESETS = [
   { id: 'a3-fold', label: 'A3 접이 (가로)', paper: { size: 'A3', orientation: 'landscape' } },
   { id: 'a4-landscape', label: 'A4 가로', paper: { size: 'A4', orientation: 'landscape' } },
   { id: 'b4-portrait', label: 'B4 세로 (시험지)', paper: { size: 'B4', orientation: 'portrait' } },
+  { id: 'b4-2col', label: 'B4 세로 2단(시험지)', paper: { size: 'B4', orientation: 'portrait', columns: 2 } },
 ];
 
 /**

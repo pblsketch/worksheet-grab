@@ -7,7 +7,11 @@
 // AI 액션 대상에서 구조적으로 제외하는 이 타입 가드가 유일한 강제선이다
 // (순수 정책 + 서버 검증 + 클라이언트 버튼 비활성의 3중).
 
-export const AI_SCHEMA_VERSION = 1;
+// AI_SCHEMA_VERSION=2 는 **신규 요청/응답 쓰기에만** 쓴다(범위 선택 다중 블록 = blocks[]).
+// 디스크에 남은 v1 in-flight 요청/응답(단일 block/html)은 계속 유효해야 하므로
+// validateRequest/validateResponse 는 schemaVersion∈{1,2} 를 관용하고 형태-버전 정합만 강제한다.
+export const AI_SCHEMA_VERSION = 2;
+export const AI_SCHEMA_VERSIONS = new Set([1, 2]);
 export const AI_ACTIONS = ['rewrite', 'fill-example'];
 export const AI_STATUSES = ['pending', 'answered', 'cancelled', 'applied'];
 
@@ -55,22 +59,33 @@ export function assertTargetable(bt, vocabulary) {
   return type;
 }
 
+/** 단일 블록 페이로드 형태 검증(v1 block · v2 blocks[] 원소 공용). */
+function isValidBlock(b) {
+  return !!b && typeof b === 'object'
+    && typeof b.html === 'string'
+    && typeof (b.bt ?? 'content') === 'string';
+}
+
 export function validateRequest(req) {
   if (!req || typeof req !== 'object') return false;
-  if (req.schemaVersion !== AI_SCHEMA_VERSION) return false;
+  if (!AI_SCHEMA_VERSIONS.has(req.schemaVersion)) return false;
   if (typeof req.id !== 'string' || !req.id) return false;
   if (typeof req.docName !== 'string' || !req.docName) return false;
   if (!AI_ACTIONS.includes(req.action)) return false;
-  if (!req.block || typeof req.block.html !== 'string') return false;
-  if (typeof (req.block.bt ?? 'content') !== 'string') return false;
   if (!AI_STATUSES.includes(req.status ?? 'pending')) return false;
-  return true;
+  // 형태-버전 정합: v1 = 단일 block 필수, v2 = 비어있지 않은 blocks[] 필수.
+  if (req.schemaVersion === 1) return isValidBlock(req.block);
+  return Array.isArray(req.blocks) && req.blocks.length > 0 && req.blocks.every(isValidBlock);
 }
 
 export function validateResponse(res) {
   if (!res || typeof res !== 'object') return false;
-  if (res.schemaVersion !== AI_SCHEMA_VERSION) return false;
+  if (!AI_SCHEMA_VERSIONS.has(res.schemaVersion)) return false;
   if (typeof res.id !== 'string' || !res.id) return false;
-  if (typeof res.html !== 'string' || !res.html.trim()) return false;
-  return true;
+  // v1 = 단일 html, v2 = blocks[{slot:정수≥0, html:비어있지 않음}].
+  if (res.schemaVersion === 1) return typeof res.html === 'string' && !!res.html.trim();
+  return Array.isArray(res.blocks) && res.blocks.length > 0 && res.blocks.every((b) =>
+    !!b && typeof b === 'object'
+    && Number.isInteger(b.slot) && b.slot >= 0
+    && typeof b.html === 'string' && !!b.html.trim());
 }

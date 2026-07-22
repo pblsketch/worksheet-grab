@@ -45,3 +45,21 @@ test('정답 제거: 정답 앞 속성값에 >가 있어도 class=answer 를 놓
   const { student } = new BuildVariants().execute(html);
   assert.ok(!student.includes('부등호정답노출차단'), '속성값 속 > 로 태그가 조기 절단되면 안 된다');
 });
+
+// void 요소(img·input 등)에 마크 클래스가 직접 붙으면 비울 "내용"이 없어 태그 자체가
+// 정답 콘텐츠다 — 텍스트 기반 누출 탐지가 이미지를 못 보므로 태그를 통째 제거해야 한다(Codex 교차 QA).
+test('정답 제거: <img class="answer"> 직접 마킹도 student 에서 태그째 물리 제거된다', () => {
+  const html = '<body data-mode="MODE_TOKEN"><img class="answer" src="assets/정답샷.png" alt="정답"><p>본문</p></body>';
+  const { student, teacher } = new BuildVariants().execute(html);
+  assert.ok(!student.includes('assets/정답샷.png'), 'student 에 정답 이미지 참조가 남으면 안 됨');
+  assert.ok(!student.includes('<img'), 'void 태그 자체가 제거되어야 함');
+  assert.match(teacher, /assets\/정답샷\.png/, 'teacher 는 유지');
+  assert.match(student, /<p>본문<\/p>/, '비정답 콘텐츠는 보존');
+});
+
+test('정답 제거: span.answer 로 감싼 이미지는 기존대로 내용만 제거(빈 래퍼 유지)', () => {
+  const html = '<body data-mode="MODE_TOKEN"><span class="answer"><img src="assets/x.png"></span></body>';
+  const { student } = new BuildVariants().execute(html);
+  assert.ok(!student.includes('assets/x.png'), 'student 에 이미지 참조 제거');
+  assert.match(student, /<span class="answer"><\/span>/, '답란 셸은 유지');
+});

@@ -153,6 +153,8 @@ node bin/worksheet-grab.js doc restore 광합성탐구 0001                # 비
 node bin/worksheet-grab.js doc save 광합성탐구 --from x.manifest.json # 원시 저장 진입점(E2 서버용)
 node bin/worksheet-grab.js edit-ui 광합성탐구                         # 브라우저 에디터(E3): 편집·마크·저장
 #   교사용 캔버스에서 자유 편집(툴바: 폰트·크기·B/I/U·색·정렬·목록·표·이미지·↶↷).
+#   🖼️ 이미지: 픽커/붙여넣기/드래그앤드롭으로 업로드 → worksheets/<문서명>/assets/ 저장(png/jpg/jpeg/gif/
+#   webp·5MB 이하, SVG 제외) → 블록에는 항상 로컬 상대경로(assets/…)로 삽입, 원격 URL 인라인은 금지.
 #   ⭐ 정답 표시: 아무 내용이나 선택해 마크 → 학생용에서 자동 물리 제거(2벌 자동 생성).
 #   ✏️ 답란 삽입: 현재 블록에 답란 5줄. 저장(Ctrl+S) = manifest 반영 + 히스토리 스냅샷.
 #   실시간 예고: 페이지 넘침 빨강 배지 · 8pt 미만 즉시 경고 · 라이브 검수 바.
@@ -175,13 +177,18 @@ node bin/worksheet-grab.js ai list --all                               # 상태 
 #   워크스페이스 루트는 기본 <cwd>/worksheets, --workspaces-dir 로 변경.
 #   ⬇ PDF 내보내기 / 🔍 정밀 미리보기(E6): 저장본을 백그라운드 Chrome 으로 렌더.
 #   미리보기는 첫 페이지 PNG(§3.4 최종 판정, 화면 렌더는 고정밀 예측기).
-#   용지 프리셋 선택기(§3.3): A4 세로 · A3 접이(가로) · A4 가로 · B4 세로(시험지)
-#   + 고급(크기×방향×여백). 변경 = 저장 경유 후 전체 재페이지네이션(리비전 증가).
+#   용지 프리셋 선택기(§3.3): A4 세로 · A3 접이(가로) · A4 가로 · B4 세로(시험지) ·
+#   B4 세로 2단(다단, columns:2 — .sheet-body 래퍼로 리플로우) + 고급(크기×방향×여백).
+#   변경 = 저장 경유 후 전체 재페이지네이션(리비전 증가).
 #   "A3 접이"는 현재 A3 가로 단일 시트 렌더까지이며, A4 4쪽 소책자 접기(imposition)는 후속이다.
 node bin/worksheet-grab.js doc export 광합성탐구                       # 저장본 → PDF 2벌(E6)
 #   산출: worksheets/<문서명>/worksheet-{student,teacher}.pdf.
 #   meta.unsafe(정답 누출) 시 학생용 PDF 를 차단(fail-closed)·스테일 학생용 PDF 물리 제거·
 #   교사용만 산출·종료코드 1. 에디터의 ⬇ 버튼과 동일 코어(ExportDocument)를 공유한다.
+node bin/worksheet-grab.js doc export 광합성탐구 --canva               # + Canva 반입용 HTML(F3)
+#   산출: worksheet-{teacher,student}-canva.html(페이지마다 data-document-role/data-label 주석,
+#   그 외 바이트 불변). student 는 위 PDF 와 동일하게 fail-closed(unsafe/부재 시 미생성+스테일 제거).
+#   반입: 공개 HTTPS URL로 호스팅 후 Canva 연동(import-design-from-url), 없으면 PDF를 Canva UI에 업로드.
 
 # 10) 라이브러리 나열
 node bin/worksheet-grab.js list-blocks                    # 타입 exemplar 파일(core/*, pack-*/*)
@@ -339,7 +346,7 @@ npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각�
 - **E5 AI 액션(무API)**: 🤖 재작성/✨ 예시 채우기를 `.ai-bridge/` 파일 큐로 구독 AI 세션과 왕복. 성취기준·저작권 슬롯은 타입 가드로 제외.
 - **E6 내보내기 통합**: 에디터/CLI PDF export(`meta.unsafe` fail-closed), 정밀 미리보기(백그라운드 Chrome), 포맷 프리셋 UI(A4 세로·A3 접이·A4 가로·B4 세로 + 고급).
 
-후속 후보(범위 밖 명시): A3→A4 4쪽 소책자 imposition · 페이지별 정밀 미리보기 · columns 다단 리플로우 · export `--out` override.
+후속 후보(범위 밖 명시): A3→A4 4쪽 소책자 imposition · 페이지별 정밀 미리보기 · export `--out` override.
 
 세부 수용·함정 기록은 `progress.txt`(로컬 작업 로그, 저장소에는 포함되지 않음), 마일스톤 원장은 `.omc/ultragoal/`.
 `.claude/`(하네스)와 `poc/` 원본은 참고·복사만 하며 훼손하지 않는다.

@@ -38,6 +38,8 @@ export class ValidateWorksheet {
     this.#checkMinFont(html, findings);
     this.#checkMargin(html, findings);
     this.#checkKeepTogether(html, findings);
+    this.#checkRemoteImage(html, findings);
+    this.#checkImageAlt(html, findings);
 
     const ok = !findings.some((f) => f.severity === 'error');
     return { ok, findings };
@@ -173,6 +175,51 @@ export class ValidateWorksheet {
         severity: 'warning',
         message: '분리 취약 블록(다행 표/지문)이 있으나 keep-together(page-break-inside:avoid / .keep) 지원이 없습니다. 블록이 페이지 경계에서 잘릴 수 있습니다.',
         evidence: 'no page-break-inside:avoid',
+      });
+    }
+  }
+
+  // 원격 이미지(F5): src 가 http(s):// 인 <img> 는 오프라인 인쇄에서 깨지거나 원격 서버에
+  // 종속되고, 저작권 출처가 불투명해질 위험이 있다. 로컬 assets/ 상대경로·data: URI 는
+  // 대상이 아니다(경고만 — fail-closed 아님, 기존 error 규칙에는 영향 없음).
+  #checkRemoteImage(html, findings) {
+    const imgRe = /<img\b[^>]*>/gi;
+    const srcRe = /\bsrc\s*=\s*(["'])(.*?)\1/i;
+    const seen = new Set();
+    let m;
+    while ((m = imgRe.exec(html)) !== null) {
+      const srcMatch = srcRe.exec(m[0]);
+      if (!srcMatch) continue;
+      const src = srcMatch[2];
+      if (/^https?:\/\//i.test(src) && !seen.has(src)) {
+        seen.add(src);
+        findings.push({
+          rule: 'remote-image',
+          severity: 'warning',
+          message: `원격 이미지(${src})가 인라인되어 있습니다. 오프라인 인쇄·저작권 추적 위험을 피하려면 로컬 assets/ 상대경로로 옮기세요.`,
+          evidence: src,
+        });
+      }
+    }
+  }
+
+  // 이미지 alt(Codex 교차 QA): alt 부재/빈값 <img> 는 접근성·인쇄 캡션 손실이므로 warning.
+  // alt 가 채워진 이미지(placeholder 포함)는 통과. error 아님(게이트 미차단).
+  #checkImageAlt(html, findings) {
+    const imgRe = /<img\b[^>]*>/gi;
+    const altRe = /\balt\s*=\s*(["'])([\s\S]*?)\1/i;
+    let missing = 0;
+    let m;
+    while ((m = imgRe.exec(html)) !== null) {
+      const altMatch = altRe.exec(m[0]);
+      if (!altMatch || altMatch[2].trim() === '') missing++;
+    }
+    if (missing > 0) {
+      findings.push({
+        rule: 'img-alt',
+        severity: 'warning',
+        message: `대체 텍스트(alt)가 없는 <img> 가 ${missing}개 있습니다. 접근성·인쇄 캡션을 위해 alt 를 채우세요.`,
+        evidence: `${missing} img(s) without alt`,
       });
     }
   }

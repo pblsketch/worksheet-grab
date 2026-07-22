@@ -69,6 +69,28 @@ test('paperCss: B4(JIS) 세로 = 257mm 364mm', () => {
   assert.ok(css.includes('@page { size: 257mm 364mm; margin: 0; }'));
 });
 
+test('paperCss: columns>1 → --sheet-cols/--sheet-colgap 방출(.sheet-body 가 소비)', () => {
+  const css = paperCss(resolvePaper({ size: 'B4', orientation: 'portrait', columns: 2 }));
+  assert.ok(css.includes('--sheet-cols: 2;'), 'columns 값 그대로 방출');
+  assert.ok(css.includes('--sheet-colgap: 8mm;'), '적정 기본 열 간격 방출');
+  // 다른 용지 파라미터는 그대로(치수·여백)
+  assert.ok(css.includes('@page { size: 257mm 364mm; margin: 0; }'));
+  assert.ok(css.includes('--sheet-w: 257mm;'));
+});
+
+test('paperCss: columns 미지정/1 → --sheet-cols 미방출(바이트 불변)', () => {
+  const none = paperCss(resolvePaper({ size: 'B4' })); // columns 기본 1
+  const one = paperCss(resolvePaper({ size: 'B4', columns: 1 }));
+  assert.ok(!none.includes('--sheet-cols'), 'columns 기본(1)은 미방출');
+  assert.ok(!none.includes('--sheet-colgap'), 'colgap 도 미방출');
+  assert.equal(one, none, 'columns:1 명시 = 미지정과 바이트 동일(무-op)');
+});
+
+test('paperCss: column-fill 은 정적 paper.css 소관(paperCss 는 var 만 방출)', () => {
+  const css = paperCss(resolvePaper({ size: 'B4', columns: 2 }));
+  assert.ok(!css.includes('column-fill'), 'column-fill 규칙은 assets/paper.css 에서 선언');
+});
+
 test('paperToPx: 96dpi 픽셀 치수', () => {
   assert.deepEqual(paperToPx(resolvePaper({ size: 'A4' })), { width: 794, height: 1123 }); // 현행 하드코딩값과 일치
   // 297mm = 1122.52px → round 1123 (A4 세로폭과 동일 값 — 현행 A4 height 하드코딩과 일관)

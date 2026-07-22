@@ -8,10 +8,10 @@ import { ValidateWorksheet } from '/src/usecases/ValidateWorksheet.js';
 import { ANSWER_CLASSES } from '/src/usecases/BuildVariants.js';
 import { stripElementsByClass } from '/src/usecases/html-scan.js';
 import { resyncManifest } from '/editor/resync.js';
-import { createToolbar, applyFontSizeDirect } from '/editor/toolbar.js';
+import { createToolbar, applyFontSizeDirect, imageMarkup, IMAGE_PLACEHOLDER } from '/editor/toolbar.js';
 import { toggleAnswerMark, insertAnswerLines } from '/editor/marks.js';
 import { extractPresetFromSelection, insertPreset, previewSrcdoc, cursorBlock } from '/editor/presets.js';
-import { requestAiAction, pollResponse, applyAiResponse, undoAiApply, clearAiMarker } from '/editor/ai.js';
+import { requestAiAction, pollResponse, applyAiResponse, undoAiApply, clearAiMarker, selectedBlocks, aiDiffView } from '/editor/ai.js';
 import { PAPER_PRESETS, matchPreset } from '/src/usecases/paper.js';
 
 const MM_TO_PX = 96 / 25.4; // CSS 사양 고정(zoom/DPR 무관)
@@ -52,6 +52,7 @@ function renderRev() {
 const frames = { teacher: null, student: null };
 let mode = 'teacher';
 let studentStale = false; // 편집 발생 시 student 파생 캐시 무효화
+let selectedImg = null; // F1: 리사이즈 핸들 대상(부모 오버레이 표시). 이미지 클릭 시 지정.
 
 function ensureFrame(m, srcdocOverride = null) {
   if (frames[m] && !srcdocOverride) return Promise.resolve(frames[m]);
@@ -87,6 +88,9 @@ function initTeacherEditing(f) {
   style.id = 'wg-editor-style'; // student 파생 시 이 블록을 식별·치환한다
   style.textContent = `
     .wg-block { display: contents; }
+    /* 다단 예고: .wg-block 은 display:contents(boxless)라 자신엔 break-inside 무효 —
+       실박스 자식에 걸어 열 경계 잘림을 화면에서도 근사한다(정밀 판정은 미리보기). */
+    .sheet-body > .wg-block > * { break-inside: avoid; }
     @media screen {
       .answer { outline: 2px dashed rgba(37,99,235,.6); outline-offset: 1px; background: rgba(147,197,253,.18); }
       [data-wg-mark="session"] { background: rgba(52,211,153,.22); }
@@ -96,6 +100,11 @@ function initTeacherEditing(f) {
   doc.addEventListener('input', onEdit);
   doc.addEventListener('keydown', onKeydown);
   doc.addEventListener('selectionchange', updateAiButtons);
+  // F1 이미지: 붙여넣기(클립보드)·드롭(DnD) → 업로드 후 커서 삽입. 클릭 → 이미지 선택(리사이즈).
+  doc.addEventListener('paste', onPaste);
+  doc.addEventListener('dragover', (e) => e.preventDefault()); // drop 허용
+  doc.addEventListener('drop', onDrop);
+  doc.addEventListener('click', onCanvasClick);
 }
 
 let editTimer = null;
@@ -123,6 +132,23 @@ function serializeSheets() {
   const doc = frames.teacher?.contentDocument;
   if (!doc) return null;
   const CHROME = new Set(['run-head', 'run-foot', 'mode-badge']);
+  // 래퍼 밖 leftover 재귀 수집: .sheet-body(다단 래퍼)는 투명 통과 — 그 자식에 동일
+  // 규칙을 적용한다(내부 .wg-block 은 상위 querySelectorAll 이 이미 재귀 수집하므로 skip).
+  // columns<=1(.sheet-body 부재)에선 sheet 직속만 순회 = 현행과 동일.
+  const collectLeftover = (nodes) => {
+    let html = '';
+    for (const node of nodes) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        if (node.classList.contains('wg-block')) continue;
+        if ([...node.classList].some((c) => CHROME.has(c))) continue;
+        if (node.classList.contains('sheet-body')) { html += collectLeftover(node.childNodes); continue; }
+        html += node.outerHTML;
+      } else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
+        html += node.textContent;
+      }
+    }
+    return html;
+  };
   return [...doc.querySelectorAll('.sheet')].map((sheet) => {
     const blocks = [...sheet.querySelectorAll('.wg-block')].map((w) => {
       const clone = w.cloneNode(true);
@@ -132,16 +158,7 @@ function serializeSheets() {
       clone.removeAttribute('data-ai-req');
       return { type: w.dataset.bt || 'content', html: clone.innerHTML };
     });
-    let leftoverHtml = '';
-    for (const node of sheet.childNodes) {
-      if (node.nodeType === Node.ELEMENT_NODE) {
-        if (node.classList.contains('wg-block')) continue;
-        if ([...node.classList].some((c) => CHROME.has(c))) continue;
-        leftoverHtml += node.outerHTML;
-      } else if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) {
-        leftoverHtml += node.textContent;
-      }
-    }
+    const leftoverHtml = collectLeftover(sheet.childNodes);
     return { blocks, leftoverHtml };
   });
 }
@@ -163,6 +180,128 @@ function deriveStudentHtml() {
     .replaceAll('data-mode="teacher"', 'data-mode="student"')
     .replace(/ contenteditable="true"/g, '')
     .replace(/<style id="wg-editor-style">[\s\S]*?<\/style>/, '<style>.wg-block{display:contents}</style>');
+}
+
+// ── F1 이미지: 업로드(POST /assets) → 커서 삽입 · 리사이즈 핸들 ──
+const DEFAULT_IMG_WIDTH_MM = 60;
+
+async function uploadImage(file) {
+  try {
+    const res = await fetch(`/assets?name=${encodeURIComponent(file.name || 'image')}`, {
+      method: 'POST',
+      headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      body: file,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { showBanner('warn', `이미지 업로드 실패: ${body.error ?? `HTTP ${res.status}`}`); return null; }
+    return body.path; // "assets/<name>"
+  } catch (e) {
+    showBanner('error', `이미지 업로드 실패: ${e.message}`);
+    return null;
+  }
+}
+
+// 파일명 stem 을 alt 기본값으로(접근성·인쇄 캡션). 확장자·경로 성분 제거, 없으면 '이미지'.
+function altFromName(name) {
+  const base = String(name || '').split(/[\\/]/).pop() || '';
+  const dot = base.lastIndexOf('.');
+  return (dot > 0 ? base.slice(0, dot) : base).trim() || '이미지';
+}
+
+async function insertImageFile(file) {
+  const doc = frames.teacher?.contentDocument;
+  if (!doc) return;
+  const path = await uploadImage(file);
+  // 성공 → 실제 자산 img(alt=파일명 stem), 실패/취소 → 폴백 자리표시(§F1-3). 어느 쪽이든 편집으로 간주.
+  tb.insertImage(path ? imageMarkup(path, DEFAULT_IMG_WIDTH_MM, altFromName(file.name)) : IMAGE_PLACEHOLDER);
+  if (path) showBanner('ok', `이미지 삽입: ${path}`);
+  onEdit();
+}
+
+// tb-image: 파일 픽커 → 업로드 삽입. 커서(iframe 선택)는 mousedown preventDefault 로 보존됨.
+function pickImage() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/png,image/jpeg,image/gif,image/webp';
+  input.addEventListener('change', () => {
+    const file = input.files && input.files[0];
+    if (file) insertImageFile(file);
+  });
+  input.click();
+}
+
+function onPaste(e) {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const it of items) {
+    if (it.kind === 'file' && it.type.startsWith('image/')) {
+      const file = it.getAsFile();
+      if (file) { e.preventDefault(); insertImageFile(file); return; }
+    }
+  }
+}
+
+function onDrop(e) {
+  const files = e.dataTransfer?.files;
+  if (!files || !files.length) return;
+  const file = [...files].find((f) => f.type.startsWith('image/'));
+  if (file) { e.preventDefault(); insertImageFile(file); }
+}
+
+// 이미지 클릭 → 선택. 이미지 자체를 선택 범위로 잡아 ⭐정답 마킹(marks.js)이 span.answer 로
+// 감쌀 수 있게 한다(요소 선택 마킹). 비이미지 클릭은 선택 해제.
+function onCanvasClick(e) {
+  if (e.target && e.target.tagName === 'IMG') selectImageEl(e.target);
+  else clearImageSelection();
+}
+
+function selectImageEl(img) {
+  selectedImg = img;
+  const doc = frames.teacher?.contentDocument;
+  if (doc) {
+    const range = doc.createRange();
+    range.selectNode(img);
+    const sel = doc.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+  drawGuides();
+}
+
+function clearImageSelection() {
+  if (selectedImg) { selectedImg = null; drawGuides(); }
+}
+
+// 리사이즈: 부모 오버레이 핸들 드래그 → img.style.width 를 mm 로 갱신(iframe .sheet 내부
+// 크롬 무주입 원칙 — 핸들은 오버레이, 갱신 대상은 img 자체 style=정당한 콘텐츠 편집).
+function startImageResize(e) {
+  e.preventDefault();
+  const doc = frames.teacher?.contentDocument;
+  if (!selectedImg || !doc) return;
+  const startX = e.clientX;
+  const startWidth = selectedImg.getBoundingClientRect().width;
+  const onMove = (ev) => {
+    const newPx = Math.max(20, startWidth + (ev.clientX - startX));
+    selectedImg.style.width = `${Math.round(newPx / MM_TO_PX)}mm`;
+    fitFrame(frames.teacher);
+    drawGuides();
+  };
+  const onUp = () => {
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    onEdit();
+  };
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+}
+
+// 렌더 시드 전용: 1×1 PNG 바이트(업로드 왕복 계측용). 프로덕션 경로엔 영향 없음.
+function seedPngBytes() {
+  const b64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return arr;
 }
 
 // ── 여백선 + 넘침 배지: 부모 오버레이 레이어(iframe 무오염, §3.4 실시간 예고) ──
@@ -198,6 +337,34 @@ function drawGuides() {
   }
   document.body.dataset.guides = String(overlay.querySelectorAll('.margin-guide').length);
   document.body.dataset.overflowBadges = String(overflowCount);
+
+  // 다단 근사 안내: 화면 배치는 근사이므로 정밀 미리보기로 열 분할·페이지 경계 확인을 유도한다.
+  // teacher iframe(.sheet 내부) 에는 절대 주입하지 않는다 — 부모 오버레이 크롬에만 노출
+  // (leftover 포집→structureWarning 오염 방지). overlay 는 매 redraw 마다 재구성되므로
+  // drawGuides 안에서 재부착해 지속성을 보장한다(overflow-badge 선례와 동일 레이어).
+  const multiCol = (shell.canvasMeta.paper.columns ?? 1) > 1;
+  if (multiCol) {
+    const note = document.createElement('div');
+    note.className = 'columns-note';
+    note.textContent = '2단 화면 배치는 근사입니다 — 열 분할·페이지 경계는 정밀 미리보기로 확인하세요';
+    overlay.appendChild(note);
+  }
+  document.body.dataset.columnsNote = String(multiCol);
+
+  // F1 이미지 리사이즈 핸들: 선택 이미지의 우하단에 부모 오버레이 핸들(overlay 는 매 redraw
+  // 재구성되므로 여기서 재부착해 지속). pointer-events:auto(오버레이는 기본 none) 로 드래그 수신.
+  if (selectedImg && selectedImg.isConnected && mode === 'teacher') {
+    const ir = selectedImg.getBoundingClientRect();
+    const handle = document.createElement('div');
+    handle.className = 'img-resize-handle';
+    handle.style.left = `${frameLeft + ir.left + ir.width - 6}px`;
+    handle.style.top = `${frameTop + ir.top + ir.height - 6}px`;
+    handle.addEventListener('pointerdown', startImageResize);
+    overlay.appendChild(handle);
+    document.body.dataset.imgSelected = 'true';
+  } else {
+    document.body.dataset.imgSelected = 'false';
+  }
 }
 
 function paperHeightMm() {
@@ -339,7 +506,9 @@ bind('tb-align-right', () => tb.applyAlign('right'));
 bind('tb-ul', () => tb.applyList('ul'));
 bind('tb-ol', () => tb.applyList('ol'));
 bind('tb-table', () => tb.insertTable());
-bind('tb-image', () => tb.insertImage());
+// tb-image 는 파일 픽커(비동기) — bind 의 즉시 onEdit 를 피하려 별도 배선(삽입 후 onEdit 는
+// insertImageFile 이 호출). mousedown preventDefault 로 iframe 커서(삽입 지점) 보존.
+document.getElementById('tb-image').addEventListener('mousedown', (e) => { e.preventDefault(); pickImage(); });
 bind('tb-undo', () => tb.applyUndo());
 bind('tb-redo', () => tb.applyRedo());
 document.getElementById('tb-color').addEventListener('input', (e) => { tb.applyColor(e.target.value); onEdit(); });
@@ -526,8 +695,9 @@ function aiHide() {
 
 function updateAiButtons() {
   const doc = frames.teacher?.contentDocument;
-  const block = doc ? cursorBlock(doc) : null;
-  const excluded = block ? (shell.excludedAiTypes ?? []).includes(block.dataset.bt || 'content') : false;
+  // 선택 집합 기준: 집합 중 하나라도 제외 타입이면 버튼 비활성(범위 선택 시 부분 요청 차단 예고).
+  const blocks = doc ? selectedBlocks(doc) : [];
+  const excluded = blocks.some((b) => (shell.excludedAiTypes ?? []).includes(b.dataset.bt || 'content'));
   for (const id of ['tb-ai-rewrite', 'tb-ai-fill']) {
     const btn = document.getElementById(id);
     // baseTitle 은 덮어쓰기 전에 원본을 캡처해야 한다 — 첫 selectionchange 가
@@ -574,7 +744,7 @@ async function waitForAi(id) {
   aiActive = null;
   const doc = frames.teacher?.contentDocument;
   if (outcome.status === 'answered') {
-    showAiDiff(id, outcome.html);
+    showAiDiff(id, outcome.response);
   } else if (outcome.status === 'timeout') {
     aiShow(`대기 중단 (${id}) — 요청은 유지됩니다. 응답이 도착하면 재개하세요.`, { resume: true });
     aiResumeBtn.onclick = () => waitForAi(id);
@@ -584,22 +754,32 @@ async function waitForAi(id) {
   }
 }
 
-function showAiDiff(id, html) {
+function showAiDiff(id, response) {
   const doc = frames.teacher.contentDocument;
-  const target = doc.querySelector(`[data-ai-req="${CSS.escape(id)}"]`);
-  const beforeHtml = target ? target.innerHTML : '';
-  document.getElementById('ai-diff-before').srcdoc = previewSrcdoc({ html: beforeHtml }, { showAnswer: true, styles: shellStyles });
-  document.getElementById('ai-diff-after').srcdoc = previewSrcdoc({ html }, { showAnswer: true, styles: shellStyles });
+  // 결합 뷰: 슬롯별 현재본(before) vs 응답본(after)을 한 미리보기로(다중 블록). 슬롯 규칙은 apply 와 공유.
+  const { before, after, count } = aiDiffView(doc, id, response);
+  document.getElementById('ai-diff-before').srcdoc = previewSrcdoc({ html: before }, { showAnswer: true, styles: shellStyles });
+  document.getElementById('ai-diff-after').srcdoc = previewSrcdoc({ html: after }, { showAnswer: true, styles: shellStyles });
   aiDiff.classList.remove('hidden');
-  aiShow(`AI 응답 도착 (${id}) — 미리보기를 확인하고 적용/폐기하세요.`);
+  aiShow(`AI 응답 도착 (${id}) — ${count}블록 미리보기를 확인하고 적용/폐기하세요.`);
   document.getElementById('ai-apply').onclick = async () => {
-    const applied = applyAiResponse(doc, id, html); // DOMParser 정제 포함
+    const applied = applyAiResponse(doc, id, response); // 슬롯 재부착 + DOMParser 정제
     aiDiff.classList.add('hidden');
-    if (!applied) { aiShow('적용 대상 블록을 찾지 못했습니다(삭제됨?).'); return; }
+    if (!applied) { aiShow('AI 응답이 비어 있습니다.'); return; } // null = 빈/비정상 응답
+    if (applied.applied === 0) {
+      // 전 슬롯 소실(대상 블록이 대기 중 모두 삭제됨) → 요청을 terminal(cancel)로 정리(스테일 방지).
+      await fetch(`/ai/${encodeURIComponent(id)}/cancel`, { method: 'POST' }).catch(() => {});
+      clearAiMarker(doc, id);
+      aiHide();
+      showBanner('warn', `AI 대상 블록이 모두 삭제되어 적용할 수 없습니다(${applied.missing}개 슬롯). 요청을 정리했습니다.`);
+      document.body.dataset.aiApplied = 'all-missing';
+      return;
+    }
     aiApplied = applied;
     await fetch(`/ai/${encodeURIComponent(id)}/applied`, { method: 'POST' });
     onEdit();
-    aiShow('AI 재작성이 적용되었습니다. 저장 전까지 되돌릴 수 있습니다.', { undo: true });
+    const warn = applied.missing > 0 ? ` (경고: ${applied.missing}개 블록 소실 — 해당 슬롯 skip)` : '';
+    aiShow(`AI 재작성이 ${applied.applied}블록에 적용되었습니다${warn}. 저장 전까지 되돌릴 수 있습니다.`, { undo: true });
     document.body.dataset.aiApplied = 'true';
   };
   document.getElementById('ai-discard').onclick = async () => {
@@ -688,6 +868,7 @@ paperSelect.addEventListener('change', () => {
     const cur = shell.canvasMeta.paper;
     document.getElementById('adv-size').value = cur.size;
     document.getElementById('adv-orient').value = cur.orientation;
+    document.getElementById('adv-columns').value = String(cur.columns ?? 1);
     paperAdv.classList.remove('hidden');
     return;
   }
@@ -701,6 +882,9 @@ document.getElementById('adv-apply').addEventListener('click', () => {
   };
   const margins = document.getElementById('adv-margins').value.trim();
   if (margins) paper.margins = margins;
+  // columns 1 은 키 미부여(현행 최소 paper 객체 보존) — resolvePaper 가 기본 1 로 정규화.
+  const columns = Number(document.getElementById('adv-columns').value);
+  if (columns > 1) paper.columns = columns;
   paperAdv.classList.add('hidden');
   applyPaper(paper);
 });
@@ -853,7 +1037,8 @@ async function runSeed(seed) {
     sel.addRange(range);
     const result = await requestAiAction(doc, { action: 'rewrite', context: aiContext(), excluded: shell.excludedAiTypes ?? [] });
     document.body.dataset.aiRequestId = result.id ?? '';
-    document.body.dataset.aiMarkerSet = String(!!(result.id && doc.querySelector(`[data-ai-req="${CSS.escape(result.id)}"]`)));
+    // 단일 선택도 슬롯 마커(<id>#0)로 스탬프된다(v2 통일).
+    document.body.dataset.aiMarkerSet = String(!!(result.id && doc.querySelector(`[data-ai-req="${CSS.escape(`${result.id}#0`)}"]`)));
     document.body.dataset.aiServerStatus = result.id
       ? (await (await fetch(`/ai/${encodeURIComponent(result.id)}`)).json()).status
       : 'error';
@@ -886,6 +1071,82 @@ async function runSeed(seed) {
     } else {
       document.body.dataset.aiApplied = `poll:${outcome.status}`;
     }
+  } else if (seed === 'ai-multi-request') {
+    // F4 ①: 인접 비제외 블록 2개 선택 → v2 요청 발신(blocks[] 스탬프·서버 blocks 계측).
+    const all = [...doc.querySelectorAll('.wg-block')];
+    const isExcluded = (w) => (shell.excludedAiTypes ?? []).includes(w.dataset.bt || 'content');
+    let pair = null;
+    for (let i = 0; i + 1 < all.length; i++) {
+      if (!isExcluded(all[i]) && !isExcluded(all[i + 1])) { pair = [all[i], all[i + 1]]; break; }
+    }
+    const range = doc.createRange();
+    range.setStartBefore(pair[0]);
+    range.setEndAfter(pair[1]);
+    const sel = doc.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const result = await requestAiAction(doc, { action: 'rewrite', context: aiContext(), excluded: shell.excludedAiTypes ?? [] });
+    document.body.dataset.aiRequestId = result.id ?? '';
+    document.body.dataset.aiSelCount = String(result.blocks?.length ?? 0);
+    document.body.dataset.aiMarker0 = String(!!(result.id && doc.querySelector(`[data-ai-req="${CSS.escape(`${result.id}#0`)}"]`)));
+    document.body.dataset.aiMarker1 = String(!!(result.id && doc.querySelector(`[data-ai-req="${CSS.escape(`${result.id}#1`)}"]`)));
+    document.body.dataset.aiServerStatus = result.id
+      ? (await (await fetch(`/ai/${encodeURIComponent(result.id)}`)).json()).status
+      : 'error';
+  } else if (seed === 'ai-multi-apply') {
+    // F4 ②: 사전 준비된 v2 요청/응답(id=?req)을 슬롯 마커로 스탬프 → 순서 뒤집기 →
+    // 폴링→슬롯 재부착(위치 매칭 아님)→적용→저장. 순서가 바뀌어도 슬롯별 정확 재부착 계측.
+    const id = new URLSearchParams(location.search).get('req');
+    const isExcluded = (w) => (shell.excludedAiTypes ?? []).includes(w.dataset.bt || 'content');
+    const targets = [...doc.querySelectorAll('.wg-block')].filter((w) => !isExcluded(w)).slice(0, 2);
+    targets[0].setAttribute('data-ai-req', `${id}#0`);
+    targets[1].setAttribute('data-ai-req', `${id}#1`);
+    // 순서 변경: 슬롯1 블록을 슬롯0 블록 앞으로 이동(위치 매칭이면 여기서 어긋난다 — 슬롯 재부착은 불변).
+    targets[0].parentNode.insertBefore(targets[1], targets[0]);
+    const outcome = await pollResponse(id).promise;
+    const applied = applyAiResponse(doc, id, outcome.response);
+    await fetch(`/ai/${encodeURIComponent(id)}/applied`, { method: 'POST' });
+    document.body.dataset.aiMultiApplied = String(applied?.applied ?? 0);
+    document.body.dataset.aiMultiMarkerClean = String(!doc.querySelector('[data-ai-req]'));
+    document.body.dataset.aiSlot0Correct = String(targets[0].innerHTML.includes('SLOT0-AI') && !targets[0].innerHTML.includes('SLOT1-AI'));
+    document.body.dataset.aiSlot1Correct = String(targets[1].innerHTML.includes('SLOT1-AI') && !targets[1].innerHTML.includes('SLOT0-AI'));
+    document.body.dataset.aiXssClean = String(!/(<script|onerror=|javascript:)/i.test(targets[0].innerHTML + targets[1].innerHTML));
+    const saveResult = await save();
+    document.body.dataset.aiMultiSaved = String(saveResult != null && saveResult.unsafe === false);
+  } else if (seed === 'ai-multi-guard') {
+    // F4 ③: 선택 집합에 제외 타입(standard-label) 포함 → 전체 거부(부분 요청 금지).
+    const all = [...doc.querySelectorAll('.wg-block')];
+    const guarded = all.find((w) => w.dataset.bt === 'standard-label');
+    const gi = all.indexOf(guarded);
+    const other = all[gi + 1] || all[gi - 1];
+    const [first, last] = all.indexOf(guarded) < all.indexOf(other) ? [guarded, other] : [other, guarded];
+    const range = doc.createRange();
+    range.setStartBefore(first);
+    range.setEndAfter(last);
+    const sel = doc.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    updateAiButtons();
+    const result = await requestAiAction(doc, { action: 'rewrite', context: aiContext(), excluded: shell.excludedAiTypes ?? [] });
+    document.body.dataset.aiMultiGuardBlocked = String(!!result.error);
+    document.body.dataset.aiMultiGuardButtonDisabled = String(document.getElementById('tb-ai-rewrite').disabled);
+  } else if (seed === 'ai-all-missing') {
+    // team-fix ⑥: 슬롯 마커 스탬프 → 대상 블록 전부 삭제(대상 소실) → 적용은 applied:0/missing:n 반환,
+    // 흐름은 요청을 terminal(cancel)로 정리(pending/응답 스테일 방지) 계측.
+    const id = new URLSearchParams(location.search).get('req');
+    const isExcluded = (w) => (shell.excludedAiTypes ?? []).includes(w.dataset.bt || 'content');
+    const targets = [...doc.querySelectorAll('.wg-block')].filter((w) => !isExcluded(w)).slice(0, 2);
+    targets.forEach((w, k) => w.setAttribute('data-ai-req', `${id}#${k}`));
+    targets.forEach((w) => w.remove()); // 대상 전부 삭제
+    const outcome = await pollResponse(id).promise;
+    const applied = applyAiResponse(doc, id, outcome.response);
+    document.body.dataset.aiAllMissingApplied = String(applied?.applied ?? 'null');
+    document.body.dataset.aiAllMissingMissing = String(applied?.missing ?? 'null');
+    if (applied && applied.applied === 0) {
+      await fetch(`/ai/${encodeURIComponent(id)}/cancel`, { method: 'POST' }).catch(() => {});
+      clearAiMarker(doc, id);
+    }
+    document.body.dataset.aiAllMissingStatus = (await (await fetch(`/ai/${encodeURIComponent(id)}`)).json()).status;
   } else if (seed === 'export-ui') {
     // E6: UI 배선 계측(버튼·프리셋 선택기·A5 dirty-gate) — 중첩 Chrome 렌더 무발화.
     // 실제 PDF/PNG 실측은 export.render.test.js(서버·CLI 직접 호출)가 담당한다.
@@ -906,6 +1167,50 @@ async function runSeed(seed) {
     document.body.dataset.presetInserted =
       String(result != null && baseManifest.pages.flat().length === blocksBefore + 1);
     document.body.dataset.insertedType = first.type;
+  } else if (seed === 'columns-roundtrip') {
+    // F2 왕복 게이트: 다단(columns>1) 문서에서 편집 없이 serializeSheets→resync 왕복이
+    // 구조를 보존하는지 실 Chrome 계측. .sheet-body(다단 래퍼)를 leftover 로 오포집하면
+    // structureWarning=true·블록수 급증으로 즉시 드러난다(F2.4 투명 통과 검증).
+    const sheets = serializeSheets();
+    const { manifest, structureWarning } = resyncManifest(sheets, baseManifest);
+    document.body.dataset.rtStructureWarning = String(structureWarning);
+    document.body.dataset.rtPages = String(manifest.pages.length);
+    document.body.dataset.rtBlocks = String(manifest.pages.flat().length);
+    document.body.dataset.rtBaseBlocks = String(baseManifest.pages.flat().length);
+    document.body.dataset.rtSheetBodyCount = String(doc.querySelectorAll('.sheet-body').length);
+  } else if (seed === 'image-insert') {
+    // F1: PNG 업로드→커서 블록에 40mm img 삽입(마킹 없음)→저장. GET 200·manifest 반영·student 존재 계측.
+    const up = await (await fetch(`/assets?name=${encodeURIComponent('시드샷.png')}`, {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: seedPngBytes(),
+    })).json();
+    document.body.dataset.assetPath = up.path || '';
+    document.body.dataset.assetGet = String((await fetch(`/${up.path}`)).status);
+    const img = doc.createElement('img');
+    img.src = up.path;
+    img.style.width = '40mm';
+    firstQuestion.appendChild(img);
+    const result = await save();
+    document.body.dataset.savedUnsafe = String(result?.unsafe ?? 'null');
+    const mstr = JSON.stringify(baseManifest.pages);
+    document.body.dataset.manifestHasImg = String(mstr.includes(up.path));
+    document.body.dataset.manifestHasWidth = String(mstr.includes('40mm'));
+    document.body.dataset.studentHasImg = String(deriveStudentHtml().includes(up.path));
+  } else if (seed === 'image-answer') {
+    // F1: 업로드 img 를 ⭐정답 마킹(요소 선택)→저장. student 물리 부재·teacher manifest 잔존 계측.
+    const up = await (await fetch(`/assets?name=${encodeURIComponent('정답샷.png')}`, {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: seedPngBytes(),
+    })).json();
+    const img = doc.createElement('img');
+    img.src = up.path;
+    img.style.width = '50mm';
+    firstQuestion.appendChild(img);
+    selectImageEl(img);
+    toggleAnswerMark(doc);
+    document.body.dataset.imgWrappedAnswer = String(!!img.closest('.answer'));
+    const result = await save();
+    document.body.dataset.savedUnsafe = String(result?.unsafe ?? 'null');
+    document.body.dataset.studentHasAnsImg = String(deriveStudentHtml().includes(up.path));
+    document.body.dataset.teacherHasAnsImg = String(JSON.stringify(baseManifest.pages).includes(up.path));
   }
   document.body.dataset.seedDone = seed;
 }

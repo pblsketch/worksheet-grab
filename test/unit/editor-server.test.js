@@ -134,8 +134,8 @@ test('E5 /ai/*: 요청 생성(docName 서버 주입)→answered→applied 왕복
     assert.equal((await bridge.readRequest(id)).docName, '문서', '서버 고정 docName');
     assert.deepEqual(await (await fetch(`${url}/ai/${id}`)).json(), { status: 'pending' });
 
-    // 모의 구독 AI 응답 → answered + response 동봉
-    await bridge.putResponse({ schemaVersion: AI_SCHEMA_VERSION, id, html: '<div class="q">재작성</div>' });
+    // 모의 구독 AI 응답(v1 하위호환) → answered + response 동봉
+    await bridge.putResponse({ schemaVersion: 1, id, html: '<div class="q">재작성</div>' });
     const answered = await (await fetch(`${url}/ai/${id}`)).json();
     assert.equal(answered.status, 'answered');
     assert.equal(answered.response.html, '<div class="q">재작성</div>');
@@ -151,6 +151,122 @@ test('E5 /ai/*: 요청 생성(docName 서버 주입)→answered→applied 왕복
     })).json();
     assert.equal((await fetch(`${url}/ai/${c.id}/cancel`, { method: 'POST' })).status, 200);
     assert.equal((await fetch(`${url}/ai/${c.id}/applied`, { method: 'POST' })).status, 400, 'cancelled → applied 전이 불가');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('F4 /ai/requests: v2 blocks[] 저장(schemaVersion:2) + 집합 내 제외 타입 1개 → 전체 400', async () => {
+  const { server, url, workspace } = await startServer();
+  try {
+    const { FsAiBridgeRepository } = await import('../../src/adapters/FsAiBridgeRepository.js');
+    const bridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
+
+    // 다중 블록 v2 요청 → 200, 요청 파일은 v2(blocks[2]) 로 저장
+    const create = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', blocks: [
+        { bp: 0, bi: 3, bt: 'subq', html: '<p class="subq">A</p>' },
+        { bp: 0, bi: 5, bt: 'question', html: '<div class="q">B</div>' },
+      ] }),
+    });
+    assert.equal(create.status, 200);
+    const { id } = await create.json();
+    const saved = await bridge.readRequest(id);
+    assert.equal(saved.schemaVersion, 2, '신규 요청은 v2 로 기록');
+    assert.equal(saved.blocks.length, 2, 'blocks[] 보존');
+    assert.equal(saved.docName, '문서', '서버 고정 docName');
+
+    // 집합 중 하나라도 제외 타입(passage/standard-label) → 전체 400(부분 요청 금지, §7·§10)
+    for (const badBt of ['passage', 'standard-label']) {
+      const res = await fetch(`${url}/ai/requests`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rewrite', blocks: [
+          { bt: 'question', html: '<div class="q">정상</div>' },
+          { bt: badBt, html: '<p>제외</p>' },
+        ] }),
+      });
+      assert.equal(res.status, 400, `집합에 ${badBt} 포함 → 전체 거부`);
+    }
+    assert.equal((await bridge.listPending()).length, 1, '거부분은 큐 미잔존 — 정상 v2 요청 1건만');
+
+    // v2 응답(blocks[{slot,html}]) 왕복
+    await bridge.putResponse({ schemaVersion: 2, id, blocks: [
+      { slot: 0, html: '<p class="subq">A2</p>' }, { slot: 1, html: '<div class="q">B2</div>' },
+    ] });
+    const answered = await (await fetch(`${url}/ai/${id}`)).json();
+    assert.equal(answered.status, 'answered');
+    assert.equal(answered.response.blocks.length, 2, 'v2 응답 blocks 동봉');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('F1 POST /assets: 업로드→GET 서빙·바이트 왕복·트래버설 404·비허용 400·동명 접미사', async () => {
+  const { server, url } = await startServer();
+  try {
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+      'base64');
+
+    // 정상 업로드(한글 파일명 보존)
+    const up = await fetch(`${url}/assets?name=${encodeURIComponent('그림.png')}`, {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: png,
+    });
+    assert.equal(up.status, 200);
+    assert.equal((await up.json()).path, 'assets/그림.png', '경로 파생·파일명 보존');
+
+    // GET 서빙: image MIME·바이트 왕복 동일
+    const get = await fetch(`${url}/assets/${encodeURIComponent('그림.png')}`);
+    assert.equal(get.status, 200);
+    assert.match(get.headers.get('content-type'), /image\/png/);
+    assert.ok(Buffer.from(await get.arrayBuffer()).equals(png), '자산 바이트 왕복 동일');
+
+    // GET 트래버설(../..) → 404 (assetsDir 밖 봉쇄)
+    assert.equal((await fetch(`${url}/assets/%2e%2e%2f%2e%2e%2fpackage.json`)).status, 404, '.. 트래버설 거부');
+    assert.equal((await fetch(`${url}/assets/none.png`)).status, 404, '부재 파일 404');
+
+    // 비허용 확장자(svg) → 400
+    const svg = await fetch(`${url}/assets?name=x.svg`, {
+      method: 'POST', headers: { 'Content-Type': 'image/svg+xml' }, body: Buffer.from('<svg/>'),
+    });
+    assert.equal(svg.status, 400, 'SVG 업로드 거부');
+    // 확장자 없음 → 400
+    assert.equal((await fetch(`${url}/assets?name=x`, {
+      method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: png,
+    })).status, 400);
+
+    // 동명 재업로드 → 접미사(-1)
+    const up2 = await (await fetch(`${url}/assets?name=${encodeURIComponent('그림.png')}`, {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: png,
+    })).json();
+    assert.equal(up2.path, 'assets/그림-1.png', '동명 충돌 접미사');
+
+    // Codex QA: 확장자는 png 인데 내용이 이미지가 아님(4바이트 가짜) → 400(매직바이트 대조)
+    const fake = await fetch(`${url}/assets?name=fake.png`, {
+      method: 'POST', headers: { 'Content-Type': 'image/png' }, body: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+    });
+    assert.equal(fake.status, 400, '가짜 png(매직 시그니처 불일치) 거부');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('team-fix ⑥: answered 요청도 cancel 로 terminal 전환(전 슬롯 소실 정리 경로)', async () => {
+  const { server, url, workspace } = await startServer();
+  try {
+    const { FsAiBridgeRepository } = await import('../../src/adapters/FsAiBridgeRepository.js');
+    const bridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
+    const { id } = await (await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', blocks: [{ bt: 'content', html: '<p>A</p>' }] }),
+    })).json();
+    await bridge.putResponse({ schemaVersion: 1, id, html: '<p>재작성</p>' });
+    assert.equal(await bridge.getStatus(id), 'answered');
+    // 대상 블록이 모두 삭제된 경우 에디터가 answered 요청을 cancel 로 terminal 전환(스테일 방지)
+    assert.equal((await fetch(`${url}/ai/${id}/cancel`, { method: 'POST' })).status, 200);
+    assert.equal(await bridge.getStatus(id), 'cancelled', 'answered→cancelled terminal');
+    assert.equal((await fetch(`${url}/ai/${id}/applied`, { method: 'POST' })).status, 400, 'terminal 이후 applied 불가');
   } finally {
     await new Promise((r) => server.close(r));
   }

@@ -101,8 +101,9 @@ test('E5 시드: 응답 폴링→DOMParser 정제→적용→저장 왕복(XSS·
       body: JSON.stringify({ action: 'rewrite', block: { bt: 'subq', html: '<p class="subq">원문</p>' } }),
     });
     const { id } = await create.json();
+    // v1 응답(단일 html) 하위호환: 신 코드가 v1 in-flight 응답을 슬롯0(레거시 평문 마커)로 적용한다.
     await bridge.putResponse({
-      schemaVersion: AI_SCHEMA_VERSION, id,
+      schemaVersion: 1, id,
       html: '<p class="subq"><span class="qnum">1</span>AI 가 재작성한 발문입니다.</p>'
         + '<script>window.hacked=1</script><img src="x" onerror="window.hacked=2">',
     });
@@ -118,6 +119,93 @@ test('E5 시드: 응답 폴링→DOMParser 정제→적용→저장 왕복(XSS·
     assert.ok(flat.includes('AI 가 재작성한 발문입니다'), '저장 manifest 에 AI 재작성 반영');
     assert.ok(!/(data-ai-req|<script|onerror=)/.test(flat), '산출 manifest 무오염');
     assert.equal(await bridge.getStatus(id), null, 'applied 후 prune(스테일 없음)');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('F4 ①: 다중 블록 선택 → v2 요청 발신(blocks[] 슬롯 스탬프·서버 v2 blocks 2)', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url, bridge } = await startEditServer();
+  try {
+    const dom = await dumpDom(`${url}/?seed=ai-multi-request`);
+    assert.equal(ds(dom, 'seed-done'), 'ai-multi-request');
+    const id = ds(dom, 'ai-request-id');
+    assert.ok(id && id.startsWith('req-'), '요청 id 발급');
+    assert.equal(ds(dom, 'ai-sel-count'), '2', '선택 집합 2블록');
+    assert.equal(ds(dom, 'ai-marker0'), 'true', '슬롯0 마커 <id>#0 스탬프');
+    assert.equal(ds(dom, 'ai-marker1'), 'true', '슬롯1 마커 <id>#1 스탬프');
+    assert.equal(ds(dom, 'ai-server-status'), 'pending');
+    const saved = await bridge.readRequest(id);
+    assert.equal(saved.schemaVersion, 2, 'v2 요청 파일');
+    assert.equal(saved.blocks.length, 2, 'blocks[2] 기록');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('F4 ②: 응답 대기 중 블록 순서 변경에도 슬롯 재부착 정확 → XSS 정제·적용·저장 왕복', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url, base, bridge } = await startEditServer();
+  try {
+    // 모의 구독 AI: v2 요청 생성(id 확보) + v2 응답(슬롯0/1, 슬롯1 에 XSS 페이로드) 기록
+    const create = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', blocks: [{ bt: 'content', html: '<p>A</p>' }, { bt: 'content', html: '<p>B</p>' }] }),
+    });
+    const { id } = await create.json();
+    await bridge.putResponse({
+      schemaVersion: 2, id, blocks: [
+        { slot: 0, html: '<div>SLOT0-AI 재작성</div>' },
+        { slot: 1, html: '<div>SLOT1-AI 재작성</div><script>window.h=1</script><img src="x" onerror="window.h=2">' },
+      ],
+    });
+
+    const dom = await dumpDom(`${url}/?seed=ai-multi-apply&req=${id}`);
+    assert.equal(ds(dom, 'seed-done'), 'ai-multi-apply');
+    assert.equal(ds(dom, 'ai-multi-applied'), '2', '두 슬롯 모두 적용');
+    assert.equal(ds(dom, 'ai-slot0-correct'), 'true', '슬롯0 마커 블록에 SLOT0 재부착(위치 매칭 아님)');
+    assert.equal(ds(dom, 'ai-slot1-correct'), 'true', '슬롯1 마커 블록에 SLOT1 재부착(순서 뒤집힘에도)');
+    assert.equal(ds(dom, 'ai-xss-clean'), 'true', 'DOMParser 정제 — script·onerror 미주입');
+    assert.equal(ds(dom, 'ai-multi-marker-clean'), 'true', '적용 후 data-ai-req 무잔존');
+    assert.equal(ds(dom, 'ai-multi-saved'), 'true', '저장 왕복(unsafe false)');
+
+    const manifest = JSON.parse(await readFile(join(base, '문서', 'worksheet.manifest.json'), 'utf8'));
+    const flat = manifest.pages.flat().map((b) => b.html ?? '').join('\n');
+    assert.ok(flat.includes('SLOT0-AI') && flat.includes('SLOT1-AI'), '두 블록 재작성 저장 반영');
+    assert.ok(!/(data-ai-req|<script|onerror=)/.test(flat), '산출 manifest 무오염');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('F4 ③: 선택 집합에 제외 타입(standard-label) 포함 → 전체 거부·요청 미생성', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url, bridge } = await startEditServer();
+  try {
+    const dom = await dumpDom(`${url}/?seed=ai-multi-guard`);
+    assert.equal(ds(dom, 'seed-done'), 'ai-multi-guard');
+    assert.equal(ds(dom, 'ai-multi-guard-blocked'), 'true', '클라이언트 가드 전체 거부(부분 요청 금지)');
+    assert.equal(ds(dom, 'ai-multi-guard-button-disabled'), 'true', '선택에 제외 타입 포함 → 버튼 비활성');
+    assert.equal((await bridge.listPending()).length, 0, '요청 미생성(§7·§10 보존)');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('team-fix ⑥: 대상 블록 전부 삭제 → applyAiResponse applied:0·요청 terminal(cancel) 정리', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url, bridge } = await startEditServer();
+  try {
+    const create = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', blocks: [{ bt: 'content', html: '<p>A</p>' }, { bt: 'content', html: '<p>B</p>' }] }),
+    });
+    const { id } = await create.json();
+    await bridge.putResponse({ schemaVersion: 2, id, blocks: [{ slot: 0, html: '<div>재작성0</div>' }, { slot: 1, html: '<div>재작성1</div>' }] });
+
+    const dom = await dumpDom(`${url}/?seed=ai-all-missing&req=${id}`);
+    assert.equal(ds(dom, 'seed-done'), 'ai-all-missing');
+    assert.equal(ds(dom, 'ai-all-missing-applied'), '0', '전 슬롯 소실 → applied 0(null 아님)');
+    assert.equal(ds(dom, 'ai-all-missing-missing'), '2', 'missing 2');
+    assert.equal(ds(dom, 'ai-all-missing-status'), 'cancelled', '요청이 terminal(cancel)로 정리됨(스테일 방지)');
+    assert.equal(await bridge.getStatus(id), 'cancelled', '브리지 상태 cancelled');
   } finally {
     await new Promise((r) => server.close(r));
   }

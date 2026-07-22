@@ -62,6 +62,20 @@ body {
   padding: 3px 10px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.3);
   white-space: nowrap; z-index: 11;
 }
+/* 다단 근사 안내 배지: 부모 오버레이 상단 중앙(§3.4 화면=근사, 정밀 미리보기 유도) */
+.columns-note {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  pointer-events: none; max-width: 92%;
+  background: #7d4e00; color: #fff8c5; font-size: 12px; font-weight: 600;
+  padding: 3px 12px; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,.3);
+  white-space: nowrap; z-index: 11;
+}
+/* F1 이미지 리사이즈 핸들: 부모 오버레이(기본 pointer-events:none)에서 이 핸들만 수신 */
+.img-resize-handle {
+  position: absolute; width: 12px; height: 12px; z-index: 12;
+  background: #2563eb; border: 2px solid #fff; border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.35); cursor: nwse-resize; pointer-events: auto;
+}
 
 /* ── E3 툴바 ── */
 .toolbar {

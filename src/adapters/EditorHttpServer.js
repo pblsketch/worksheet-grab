@@ -1,6 +1,6 @@
 import { createServer } from 'node:http';
 import { existsSync } from 'node:fs';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, rm, writeFile, rename, mkdir, readdir } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { resolveBrowserGraph } from '../editor/browserGraph.js';
 import { RenderEditorShell } from '../usecases/RenderEditorShell.js';
@@ -12,6 +12,7 @@ import { FsPresetRepository } from './FsPresetRepository.js';
 import { FsAiBridgeRepository } from './FsAiBridgeRepository.js';
 import { ChromeRenderer } from './ChromeRenderer.js';
 import { resolvePaper, paperToPx } from '../usecases/paper.js';
+import { sanitizeAssetName, assertAllowedImage, imageMimeFor, MAX_IMAGE_BYTES } from '../usecases/assets.js';
 import { AI_SCHEMA_VERSION, newRequestId, parseAction, assertTargetable, excludedTypes } from '../usecases/aiBridge.js';
 
 const MAX_SAVE_BODY = 20 * 1024 * 1024; // 로컬 편집 도구의 안전 상한
@@ -29,6 +30,27 @@ function readJsonBody(req) {
       try { resolvePromise(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
       catch { rejectPromise(new Error('JSON 파싱 실패')); }
     });
+    req.on('error', rejectPromise);
+  });
+}
+
+// 파일명에 -N 접미사 삽입(확장자 앞). rename 예약 충돌 시 다음 후보 생성용.
+function suffixName(name, n) {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? `${name.slice(0, dot)}-${n}${name.slice(dot)}` : `${name}-${n}`;
+}
+
+// 이미지 업로드용 바이너리 본문 리더(cap=5MB). 상한 초과 시 스트림을 끊고 거부한다.
+function readBinaryBody(req, cap = MAX_IMAGE_BYTES) {
+  return new Promise((resolvePromise, rejectPromise) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > cap) { rejectPromise(new Error(`업로드가 너무 큽니다(상한 ${cap} bytes = 5MB).`)); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => resolvePromise(Buffer.concat(chunks)));
     req.on('error', rejectPromise);
   });
 }
@@ -196,22 +218,26 @@ export function createEditorServer({
         } catch (e) {
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
+        // v2(blocks[]) 우선, v1(단일 block) 하위호환으로 정규화. 저장 요청 파일은 항상 v2.
+        const rawBlocks = Array.isArray(body?.blocks) ? body.blocks : (body?.block ? [body.block] : []);
         try {
           parseAction(body?.action);
+          if (rawBlocks.length === 0) throw new Error('blocks(또는 block) 이 필요합니다.');
           const vocabulary = await blockRepository.readVocabulary();
-          assertTargetable(body?.block?.bt, vocabulary);
-          if (typeof body?.block?.html !== 'string' || !body.block.html.trim()) {
-            throw new Error('block.html 이 필요합니다.');
+          for (const b of rawBlocks) {
+            // 집합 중 하나라도 제외 타입(성취기준·저작권 슬롯)이면 전체 400(부분 요청 금지, §7·§10).
+            assertTargetable(b?.bt, vocabulary);
+            if (typeof b?.html !== 'string' || !b.html.trim()) throw new Error('각 블록에 html 이 필요합니다.');
           }
         } catch (e) {
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
         const request = {
-          schemaVersion: AI_SCHEMA_VERSION,
+          schemaVersion: AI_SCHEMA_VERSION, // = 2 (신규 요청 쓰기)
           id: newRequestId(),
           docName, // 서버 고정값 주입(클라이언트 위조 방지)
           action: body.action,
-          block: { bp: body.block.bp ?? null, bi: body.block.bi ?? null, bt: body.block.bt || 'content', html: body.block.html },
+          blocks: rawBlocks.map((b, k) => ({ slot: b.slot ?? k, bp: b.bp ?? null, bi: b.bi ?? null, bt: b.bt || 'content', html: b.html })),
           instruction: typeof body.instruction === 'string' ? body.instruction : '',
           context: body.context && typeof body.context === 'object' ? body.context : {},
           status: 'pending',
@@ -244,6 +270,65 @@ export function createEditorServer({
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
       }
+      // F1 이미지 업로드: 바이너리 본문 → assets.js 검증(경로탈출·확장자·5MB) → assetsDir 원자 쓰기.
+      // 자산은 SaveDocument 게이트 미경유(문서가 아니라 참조 파일) — 문서 불변식은 삽입 후
+      // manifest 저장 시 SaveDocument 가, 학생용 안전은 마킹→BuildVariants 물리 제거가 맡는다.
+      if (req.method === 'POST' && path === '/assets') {
+        let buf;
+        try {
+          buf = await readBinaryBody(req);
+        } catch (e) {
+          return send(res, 413, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+        const rawName = new URL(req.url, 'http://127.0.0.1').searchParams.get('name') || 'image';
+        const assetsDir = workspace.layout(docName).assetsDir;
+        await mkdir(assetsDir, { recursive: true });
+        let existing = [];
+        try { existing = await readdir(assetsDir); } catch { /* 신규 디렉토리 */ }
+        let name;
+        try {
+          name = sanitizeAssetName(rawName, existing);
+          assertAllowedImage(name, buf.length, buf); // 매직바이트 대조(확장자 위장 차단)
+        } catch (e) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+        // tmp→rename 원자 쓰기(부분 파일 노출 방지). rename 은 dest 존재 시 Windows 에서 실패
+        // (EEXIST/EPERM)하므로 이를 exclusive 예약으로 삼아 접미사 재시도한다 — readdir↔rename
+        // 사이 TOCTOU·대소문자 무구분 FS 경합에서 기존 자산 덮어쓰기를 방어(bounded 20회).
+        const tmp = join(assetsDir, `.tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+        await writeFile(tmp, buf);
+        let finalName = name;
+        let reserved = false;
+        try {
+          for (let attempt = 0; attempt < 20; attempt++) {
+            const dest = join(assetsDir, finalName);
+            // 방어적 트래버설 재검사(정규화 우회 봉쇄) — 쓰기 경로가 assetsDir 밖이면 거부.
+            if (!resolve(dest).startsWith(resolve(assetsDir) + sep)) {
+              await rm(tmp, { force: true });
+              return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: '경로 이탈이 차단되었습니다.' }));
+            }
+            if (existsSync(dest)) { finalName = suffixName(name, attempt + 1); continue; } // POSIX 는 rename 이 덮어쓰므로 선점검
+            try {
+              await rename(tmp, dest);
+              reserved = true;
+              break;
+            } catch (e) {
+              if (e.code === 'EEXIST' || e.code === 'EPERM' || e.code === 'ENOTEMPTY' || e.code === 'EACCES') {
+                finalName = suffixName(name, attempt + 1);
+                continue;
+              }
+              throw e;
+            }
+          }
+        } finally {
+          if (!reserved) await rm(tmp, { force: true });
+        }
+        if (!reserved) {
+          return send(res, 409, 'application/json; charset=utf-8', JSON.stringify({ error: '동일 이름 자산이 많아 예약에 실패했습니다 — 다시 시도하세요.' }));
+        }
+        return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ path: `assets/${finalName}`, name: finalName }));
+      }
+
       if (req.method !== 'GET') return send(res, 405, 'text/plain; charset=utf-8', 'GET only');
 
       if (path === '/') {
@@ -307,6 +392,16 @@ export function createEditorServer({
           return send(res, 404, 'text/plain; charset=utf-8', 'not found');
         }
         return send(res, 200, MIME[ext], await readFile(abs));
+      }
+      // F1 자산 서빙: assetsDir 밖(트래버설)·비이미지 확장자·부재는 404. 이미지 MIME 로 전송.
+      if (path.startsWith('/assets/')) {
+        const assetsDir = workspace.layout(docName).assetsDir;
+        const abs = resolve(assetsDir, path.slice('/assets/'.length));
+        const mime = imageMimeFor(abs);
+        if (!abs.startsWith(resolve(assetsDir) + sep) || !mime || !existsSync(abs)) {
+          return send(res, 404, 'text/plain; charset=utf-8', 'not found');
+        }
+        return send(res, 200, mime, await readFile(abs));
       }
       return send(res, 404, 'text/plain; charset=utf-8', 'not found');
     } catch (e) {

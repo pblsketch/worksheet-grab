@@ -61,13 +61,13 @@ async function startDoc(docName) {
   return { server, url: `http://127.0.0.1:${addr.port}` };
 }
 
-test('E6 실측: export-ui 시드 — 버튼·프리셋 선택기(4+고급)·A5 dirty-gate 무왕복', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+test('E6 실측: export-ui 시드 — 버튼·프리셋 선택기(5+고급)·A5 dirty-gate 무왕복', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
   const { server, url } = await startDoc('e6UI문서');
   try {
     const dom = await dumpDom(`${url}/?seed=export-ui`);
     assert.equal(bodyDataset(dom, 'seed-done'), 'export-ui');
     assert.equal(bodyDataset(dom, 'e6-buttons'), 'true', '정밀 미리보기·PDF 내보내기 버튼 배선');
-    assert.equal(bodyDataset(dom, 'paper-options'), '5', '프리셋 4종 + 고급');
+    assert.equal(bodyDataset(dom, 'paper-options'), '6', '프리셋 5종 + 고급');
     assert.equal(bodyDataset(dom, 'paper-preset-value'), 'a4-portrait', 'matchPreset 역판정(현행 A4 기본)');
     assert.equal(bodyDataset(dom, 'save-first-noop'), 'true', '[A5] 비-dirty saveFirst = /save 무왕복·리비전 불변');
   } finally {
