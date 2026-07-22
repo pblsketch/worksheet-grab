@@ -11,6 +11,7 @@ export { RenderImage } from './RenderImage.js';
 export { ExportDocument, UNSAFE_STUDENT_MESSAGE, MISSING_STUDENT_MESSAGE } from './ExportDocument.js';
 export { WorkbookAssemble, assembleWorkbookHtml } from './WorkbookAssemble.js';
 export { WorkbookExport, renderBudget } from './WorkbookExport.js';
+export { parseBatchList } from './batchList.js';
 export * as htmlScan from './html-scan.js';
 export * as sheets from './sheets.js';
 export * as workbook from './workbook.js';

@@ -22,9 +22,8 @@ import { countPdfPages, pdfPageSizePt, chromeAvailable } from '../helpers/pdf.js
 // run-foot 연속성·목차 시작쪽·student 정답부재 단언은 usecase 레벨에서, unsafe 종료코드는
 // CLI 레벨(workbook export)에서 검증 — export.render.test.js 의 실측 관례를 따른다.
 //
-// ⚠ 실행 보류 신호: 이 파일은 리드의 "게이트 완료" 신호 전까지 실행하지 않는다
-// (node --test --test-concurrency=1 test/render/workbook.render.test.js). 코드/구조는
-// 여기서 완성하되, Chrome 을 실제 기동하는 실행은 별도 승인 후.
+// 실행은 반드시 직렬로: node --test --test-concurrency=1 test/render/workbook.render.test.js
+// (병렬 시 Chrome 경합 플레이크 — 이 저장소 실측 관례)
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const HAS_CHROME = chromeAvailable();

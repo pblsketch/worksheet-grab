@@ -25,7 +25,11 @@ import { ExportDocument } from '../usecases/ExportDocument.js';
 import { FsWorkbookRepository } from '../adapters/FsWorkbookRepository.js';
 import { WorkbookAssemble } from '../usecases/WorkbookAssemble.js';
 import { WorkbookExport } from '../usecases/WorkbookExport.js';
-import { orderedMembers, memberStartPages, resolveWorkbookPaper } from '../usecases/workbook.js';
+import {
+  orderedMembers, memberStartPages, resolveWorkbookPaper, buildDocName, upsertMember,
+  assertNoRowCollisions, canTransitionStatus, WORKBOOK_STATUSES,
+} from '../usecases/workbook.js';
+import { parseBatchList } from '../usecases/batchList.js';
 import { annotateCanvaPages, canvaHtmlPath } from '../usecases/canvaExport.js';
 import { createEditorServer, listenEditorServer } from '../adapters/EditorHttpServer.js';
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
@@ -80,7 +84,7 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       generate/pipeline/edit 에 --doc <문서명> 을 주면 out/ 대신 워크스페이스 문서로 산출.
       edit 는 경로 대신 --doc <문서명> 으로도 편집 가능. 정답 누출 시 student.html 은
       보류되고 meta.unsafe 가 표시된다(작업은 저장됨 · export 는 차단).
-  worksheet-grab workbook <create|add|remove|order|list|show|export> …
+  worksheet-grab workbook <create|add|remove|order|list|show|export|batch-plan|status|mark> …
       자료집(합본) 장부(workbooks/<명>/workbook.json). 멤버 문서(worksheets/)는 참조만
       하고 절대 쓰지 않는다(교차 저장 금지). 신규 --workbooks-dir <경로>(기본 <cwd>/workbooks).
         workbook create <명> [--title <t>] [--paper a4|a3|b4]   자료집 생성(--title 생략 시 <명>)
@@ -89,6 +93,14 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
         workbook order <명> <문서명...>                         전체 멤버를 지정 순서로 재배열(부분 지정 거부)
         workbook list                                          자료집 목록
         workbook show <명>                                     멤버·status·본문상대 시작쪽 요약
+        workbook batch-plan <명> --from <list.json|.jsonl|.csv> [--csv]
+                                            무API — 콘텐츠는 생성하지 않고 장부만 등록한다(멱등).
+                                            batchList 로 행 파싱(JSON/JSONL 1차·CSV 2차, [--csv] 는
+                                            형식을 CSV 로 강제하는 불리언) → 각 행을 buildDocName
+                                            (<자료집명>-NN-<주제슬러그>)으로 upsert(status:pending).
+                                            재실행 시 기존 멤버 status 보존·스킵, 신규만 추가.
+        workbook status <명>                                   pending/saved/failed 집계 + 재개 대상(≠saved) 목록
+        workbook mark <명> <문서명> <saved|failed>              하네스 저작 결과를 장부에 기록(상태 전이 검증)
         workbook export <명> [--out <dir>] [--workspaces-dir <dir>] [--portable]
                                             합본 조립(WorkbookAssemble) → PDF 2벌(WorkbookExport,
                                             countPdfPages fail-closed 게이트). 기본 출력:
@@ -313,10 +325,13 @@ const VALUE_FLAGS = ['out', 'csv', 'chrome', 'workspaces-dir', 'from', 'standard
 
 export async function run(argv, { root, log = console.log, err = console.error, onServer = null, renderer = null } = {}) {
   const { positionals, flags } = parseArgs(argv);
+  const command = positionals[0];
   for (const name of VALUE_FLAGS) {
+    // --csv 는 다른 명령에선 값 필수(CurriculumProvider CSV 경로)지만, workbook batch-plan
+    // 에서만 값 없는 불리언(형식 힌트: CSV 강제)으로 쓰인다 — 이 명령에 한해 예외.
+    if (name === 'csv' && command === 'workbook') continue;
     if (flags[name] === true) { err(`오류: --${name} 플래그에 값이 필요합니다. (예: --${name} <값>)`); return 2; }
   }
-  const command = positionals[0];
   const repo = new FsBlockRepository({ root });
 
   switch (command) {
@@ -904,7 +919,7 @@ async function cmdDoc(args, flags, repo, { log, err }) {
  * 한다(교차 저장 금지, cmdDoc 정신). 콘텐츠 저작은 하지 않는다(무API — doc save/generate 소관).
  */
 async function cmdWorkbook(args, flags, repo, { log, err, renderer: injectedRenderer = null }) {
-  const [sub, name, arg2] = args;
+  const [sub, name, arg2, arg3] = args;
   const wb = wbRepoFromFlags(flags);
   switch (sub) {
     case 'create': {
@@ -1010,6 +1025,73 @@ async function cmdWorkbook(args, flags, repo, { log, err, renderer: injectedRend
       });
       return 0;
     }
+    case 'batch-plan': {
+      // 무API(§4 Phase 3): 배치는 콘텐츠를 저작하는 CLI 명령이 아니라 멱등 장부 등록만
+      // 한다 — 실제 저작은 하네스가 pending 멤버를 순회하며 기존 파이프라인(compose→
+      // 디자이너 저작→--doc 저장=SaveDocument 게이트)으로 수행하고 workbook mark 로 기록한다.
+      if (!name) throw new Error('workbook batch-plan: <자료집명> 이 필요합니다.');
+      if (typeof flags.from !== 'string') throw new Error('workbook batch-plan: --from <list.json|.jsonl|.csv> 이 필요합니다.');
+      const workbook = await readWorkbookOrThrow(wb, name);
+      const text = await readFile(resolve(flags.from), 'utf8');
+      const rows = parseBatchList(text, flags.csv ? 'csv' : 'auto');
+      if (rows.length === 0) throw new Error('workbook batch-plan: 등록할 행이 없습니다.');
+
+      // 결정적 docName(<자료집명>-NN-<주제슬러그>, NN=행의 1-based 파일 내 순번) — 재실행 시
+      // 동일 목록이면 항상 동일 docName 을 산출해 upsertMember 의 멱등 스킵을 가능하게 한다.
+      const incoming = rows.map((r) => ({
+        docName: buildDocName(name, r.row, r.topic),
+        __row: r.row,
+        tocTitle: r.title || undefined,
+        tocStandards: r.standardCode ? [r.standardCode] : undefined,
+        status: 'pending',
+      }));
+      assertNoRowCollisions(incoming); // 행-충돌(서로 다른 행이 같은 docName) fail-closed 방어선.
+
+      let members = workbook.members;
+      let added = 0;
+      let skipped = 0;
+      for (const inc of incoming) {
+        const res = upsertMember(members, inc);
+        members = res.members;
+        if (res.added) added++; else skipped++;
+      }
+      await wb.writeWorkbook(name, { ...workbook, members });
+      log(`✔ workbook batch-plan: ${name} ← ${rows.length}행 (신규 ${added}개 · 스킵(기존 status 보존) ${skipped}개)`);
+      return 0;
+    }
+    case 'status': {
+      if (!name) throw new Error('workbook status: <자료집명> 이 필요합니다.');
+      const workbook = await readWorkbookOrThrow(wb, name);
+      const counts = { pending: 0, saved: 0, failed: 0 };
+      for (const m of workbook.members) counts[m.status] = (counts[m.status] ?? 0) + 1;
+      log(`✔ workbook status: ${name} — 전체 ${workbook.members.length}개(pending ${counts.pending} · saved ${counts.saved} · failed ${counts.failed})`);
+      const resumeTargets = orderedMembers(workbook).filter((m) => m.status !== 'saved');
+      if (resumeTargets.length === 0) {
+        log('  재개 대상 없음(전부 saved).');
+      } else {
+        log(`  재개 대상(status≠saved) ${resumeTargets.length}개:`);
+        for (const m of resumeTargets) log(`    ${m.docName} — status ${m.status}`);
+      }
+      return 0;
+    }
+    case 'mark': {
+      // 하네스 저작 루프가 결과를 장부에 기록하는 유일한 전이 경로(계획의 "status 전이" 실행부).
+      if (!name || !arg2 || !arg3) throw new Error('workbook mark: <자료집명> <문서명> <saved|failed> 가 필요합니다.');
+      if (arg3 !== 'saved' && arg3 !== 'failed') {
+        throw new Error(`workbook mark: 상태는 saved|failed 여야 합니다: "${arg3}"`);
+      }
+      const workbook = await readWorkbookOrThrow(wb, name);
+      const docName = normalizeDocName(arg2);
+      const member = workbook.members.find((m) => m.docName === docName);
+      if (!member) throw new Error(`자료집 "${name}" 에 등록되지 않은 문서입니다: ${docName}. "workbook batch-plan" 또는 "workbook add" 로 먼저 등록하세요.`);
+      if (!canTransitionStatus(member.status, arg3)) {
+        throw new Error(`workbook mark: "${member.status}" → "${arg3}" 전이는 허용되지 않습니다(허용 상태: ${WORKBOOK_STATUSES.join(', ')}; saved 는 terminal).`);
+      }
+      const members = workbook.members.map((m) => (m.docName === docName ? { ...m, status: arg3 } : m));
+      await wb.writeWorkbook(name, { ...workbook, members });
+      log(`✔ workbook mark: ${docName} → ${arg3}(자료집 ${name})`);
+      return 0;
+    }
     case 'export': {
       // 슬라이스 하이브리드 합본(§2(a)): WorkbookAssemble 로 저장본 섹션을 슬라이스·재조립
       // 하고, WorkbookExport 로 PDF 2벌을 렌더(C4 countPdfPages fail-closed 게이트).
@@ -1080,7 +1162,7 @@ async function cmdWorkbook(args, flags, repo, { log, err, renderer: injectedRend
       }
     }
     default:
-      err(`workbook: 알 수 없는 서브명령 "${sub ?? ''}". 지원: create · add · remove · order · list · show · export`);
+      err(`workbook: 알 수 없는 서브명령 "${sub ?? ''}". 지원: create · add · remove · order · list · show · batch-plan · status · mark · export`);
       return 2;
   }
 }

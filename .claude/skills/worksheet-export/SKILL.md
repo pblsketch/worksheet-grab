@@ -33,6 +33,38 @@ node bin/worksheet-grab.js doc export <문서명> --canva
 - **공개 URL이 없으면**: 주석(자동 페이지 매핑)은 활용하지 못하더라도, 정직하게 PDF를 Canva UI에
   직접 업로드해 편집한다(주석 우회 없음 — 없는 기능을 있는 척 안내하지 않는다).
 
+## 자료집(합본) 배치 생성 반복 절차 (workbook 모드 — 여러 활동지를 한 벌 PDF로)
+여러 문서를 묶은 자료집(합본) PDF 요청("이 N개 주제 자료집 하나로", "단원 전체 모아서")을 받으면, 개별
+문서 export(`doc export`) 대신 **자료집 장부(workbook)** 경로를 쓴다. 무API 원칙상 배치는 콘텐츠를
+저작하는 CLI 명령이 아니다 — CLI는 멱등 장부(`workbook.json`)만 관리하고, 콘텐츠 저작(각 멤버 문서)은
+`worksheet-grab` 팀(curriculum→planner→designer→reviewer)이 맡는다. exporter 는 아래 ⑥의 최종
+합본 export 를 담당하되, 전체 절차를 알아야 재개·재시도를 정확히 안내할 수 있다.
+
+1. **목록 파일 준비**: `{subject, grade, topic, standardCode?, title?}` 행 목록을 JSON/JSONL/CSV 로
+   준비(**마크다운 표/리스트는 지원 안 됨** — `batchList.parseBatchList` 명시 거부).
+2. **자료집 생성 + 장부 등록**(멱등):
+   ```bash
+   node bin/worksheet-grab.js workbook create <자료집명> [--title <t>] [--paper a4|a3|b4]
+   node bin/worksheet-grab.js workbook batch-plan <자료집명> --from list.json [--csv]
+   ```
+   각 행이 `<자료집명>-NN-<주제슬러그>` docName 으로 `status:pending` 등록(콘텐츠 무생성).
+3. **pending 순회 저작**: `node bin/worksheet-grab.js workbook status <자료집명>` 로 재개 대상(status≠saved)
+   확인 후, 각 docName 을 기존 파이프라인(compose→designer 저작→assemble, 또는 pipeline)으로 저작하되
+   반드시 `--doc <docName>` 산출(SaveDocument 게이트 — 정답 누출 재검증 대칭 적용).
+4. **결과 기록**:
+   `node bin/worksheet-grab.js workbook mark <자료집명> <docName> saved`(성공) 또는
+   `... mark <자료집명> <docName> failed`(정답 누출·저작 포기 등 실패). saved 는 terminal.
+5. **재개**: `workbook status <자료집명>` 은 saved 를 자동 스킵 — 나머지만 이어서 저작. 동일 목록으로
+   `batch-plan` 재실행해도 기존 status 는 보존(멱등, 신규 행만 추가).
+6. **합본 export(이 스킬의 담당)**:
+   ```bash
+   node bin/worksheet-grab.js workbook export <자료집명> [--out <dir>] [--workspaces-dir <dir>] [--portable]
+   ```
+   `workbooks/<자료집명>/workbook-{student,teacher}.pdf` 2벌 산출(countPdfPages 실측 게이트 —
+   기대 쪽수와 다르면 fail-closed + 넘친 멤버 지목). unsafe 멤버가 남아 있으면 student 합본 전체가
+   차단되고 멤버가 지목된다(teacher 는 산출) — 정직하게 보고하고 `workbook status` 로 안내해
+   해당 문서를 재저작(3~4단계)한 뒤 재-export한다. **부분 성공을 전체 성공으로 보고하지 않는다.**
+
 아래는 CLI 부재 시의 **저수준 대체(수동)** 로만 남긴다.
 
 ## 2벌 분기 (저수준 대체)

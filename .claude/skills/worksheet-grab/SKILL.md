@@ -98,6 +98,40 @@ designer가 사진/일러스트가 필요하다고 판단하면:
 4. 교사가 이미 가진 이미지도 동일하게 `assets/` 경유로 다룬다(에디터 픽커·붙여넣기·DnD 또는 파일 직접 복사) —
    생성 이미지와 별도 취급하지 않는다.
 
+## 자료집(합본) 배치 생성 반복 절차 (workbook 모드 — 여러 활동지를 한 벌 PDF로)
+교사가 "이 N개 주제를 묶어서 자료집 하나로", "단원 전체 활동지 모아서 PDF 한 벌로" 등을 요청하면 발동한다.
+**무API 원칙상 배치는 콘텐츠를 저작하는 CLI 명령이 아니다** — CLI는 멱등 장부(`workbook.json`)만 관리하고,
+콘텐츠 저작은 **이 세션(하네스)이 pending 목록을 순회하며 기존 경로로 반복 수행**한다.
+
+1. **목록 파일 준비**: 요청에서 `{subject(교과), grade(학년), topic(주제), standardCode?(성취기준 코드),
+   title?(목차 표기)}` 행 목록을 뽑아 JSON(배열)·JSONL(줄당 객체)·CSV 중 하나로 만든다.
+   **마크다운 표/리스트는 지원하지 않는다**(`batchList.parseBatchList` 가 명시 거부 — 조용한 절단 방지).
+2. **자료집 생성 + 장부 등록**(멱등 — 동일 목록 재실행 안전):
+   ```bash
+   node bin/worksheet-grab.js workbook create <자료집명> [--title <t>] [--paper a4|a3|b4]
+   node bin/worksheet-grab.js workbook batch-plan <자료집명> --from list.json [--csv]
+   ```
+   각 행이 `<자료집명>-NN-<주제슬러그>` docName(`workbook.buildDocName`)으로 `status:pending` 등록된다
+   (콘텐츠는 아직 생성되지 않는다). `--csv` 는 형식을 CSV로 강제하는 불리언 플래그(값 없음).
+3. **pending 순회 저작**: `node bin/worksheet-grab.js workbook status <자료집명>` 로 재개 대상(status≠saved)
+   목록을 확인하고, 각 docName 을 위 "동적 조립 경로"(compose→designer 저작→assemble) 또는 "빠른 경로"
+   (pipeline)로 그대로 저작하되, 산출은 반드시 **`--doc <docName>`** 으로 지정한다(SaveDocument 게이트
+   경유 — 정답 누출 재검증·히스토리 스냅샷이 배치 경로에도 대칭 적용된다).
+4. **결과를 장부에 기록**: 저작·저장이 성공(`meta.unsafe:false`)하면
+   `node bin/worksheet-grab.js workbook mark <자료집명> <docName> saved`,
+   실패(정답 누출로 student 보류·저작 포기 등)면
+   `node bin/worksheet-grab.js workbook mark <자료집명> <docName> failed`. (saved 는 terminal — 재전이 불가.)
+5. **재개**: 세션이 끊기거나 일부만 마쳤으면 `workbook status <자료집명>` 으로 saved 는 자동 스킵하고
+   나머지(pending·failed)만 이어서 저작한다. `batch-plan` 을 동일 목록으로 재실행해도 기존 멤버의
+   status 는 보존된다(신규 행만 추가).
+6. **완성 후 합본 export**:
+   ```bash
+   node bin/worksheet-grab.js workbook export <자료집명> [--out <dir>] [--workspaces-dir <dir>] [--portable]
+   ```
+   `workbooks/<자료집명>/workbook-{student,teacher}.pdf` 2벌 산출(단일 head·연속 쪽번호·계산된 목차
+   시작쪽). unsafe(정답 누출) 멤버가 하나라도 남아 있으면 **student 합본 전체가 차단**되고 멤버가
+   지목된다(teacher 는 항상 산출) — `workbook status` 로 원인 문서를 찾아 재저작(4단계부터) 후 재-export.
+
 ## AI 액션 브리지 (E5 — 에디터의 "AI 재작성/예시 채우기")
 교사가 브라우저 에디터(`edit-ui <문서명>`)에서 🤖/✨ 버튼을 누르면 요청이
 `<워크스페이스>/.ai-bridge/` 파일 큐에 쌓인다. **구독 AI(이 세션)가 그 요청의 처리자다** — 무API.
