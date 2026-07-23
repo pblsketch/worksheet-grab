@@ -1,12 +1,18 @@
 import { collectTextInside, textOutside, stripRootBlocks } from './html-scan.js';
 import { ANSWER_CLASSES } from './BuildVariants.js';
 import { resolvePaper, paperMargins, paperMarginMinMm } from './paper.js';
+import { ValidateObjectTree } from './ValidateObjectTree.js';
 
-// ValidateWorksheet — 활동지 HTML 정적 검사(순수). Chrome 불필요.
-//  1) 정답 누출: .answer/.plot-ans 밖으로 정답 텍스트가 새면 error(FAIL). (수용기준 3)
-//  2) 하드코딩 교과색: 교과 팔레트 hex 가 :root 밖에서 쓰이면 warning. (수용기준 4)
-//  3) 인쇄 안전(권고, M5): 최소 글자 크기·최소 여백·keep-together 미지원이면 warning. (HANDOFF 3.2)
-//  4) 미기입 슬롯: ［…슬롯］ 마커가 남아 있으면 warning(스캐폴드 상태 — 인쇄 전 저작 필요).
+// ValidateWorksheet — 활동지 검수(순수). Chrome 불필요. 두 입력 경로를 지원한다(S2.3).
+//  A) HTML 경로(기존, 동작 불변) — execute(html:string). manifest 파이프라인이 여전히 이 경로를 쓴다.
+//     1) 정답 누출: .answer/.plot-ans 밖으로 정답 텍스트가 새면 error(FAIL). (수용기준 3)
+//     2) 하드코딩 교과색: 교과 팔레트 hex 가 :root 밖에서 쓰이면 warning. (수용기준 4)
+//     3) 인쇄 안전(권고, M5): 최소 글자 크기·최소 여백·keep-together 미지원이면 warning. (HANDOFF 3.2)
+//     4) 미기입 슬롯: ［…슬롯］ 마커가 남아 있으면 warning(스캐폴드 상태 — 인쇄 전 저작 필요).
+//  B) 개체 트리 경로(신설, S2.3) — execute(document:object, renderedHtml?:string). editor-v4 개체
+//     트리 문서가 입력이면 1층(구조 검증)을 ValidateObjectTree 에 위임해 error 로 승격하고, 렌더된
+//     HTML 이 함께 주어지면(선택) 2층(누출 grep·인쇄 안전 등 렌더 실측 검사)을 같은 배터리로 수행한다.
+//     구조 검증은 error(게이트 차단), 렌더 실측 인쇄 안전 룰은 기존과 동일하게 warning 층을 유지한다.
 //
 // 결과: { ok, findings:[{rule, severity, message, evidence}] }. ok = error 없음.
 
@@ -27,11 +33,52 @@ export class ValidateWorksheet {
     this.paper = resolvePaper(paper);
   }
 
-  /** @param {string} html @returns {{ok:boolean, findings:object[]}} */
-  execute(html) {
-    if (typeof html !== 'string') throw new TypeError('ValidateWorksheet 는 HTML 문자열이 필요합니다.');
+  /**
+   * @param {string|object} input HTML 문자열(기존 경로) 또는 개체 트리 문서(신설 경로, {pagination, pages}).
+   * @param {string} [renderedHtml] 개체 트리 경로에서만 사용 — 2층(렌더 실측) 검사 대상 HTML(선택).
+   * @returns {{ok:boolean, findings:object[]}}
+   */
+  execute(input, renderedHtml) {
+    if (typeof input === 'string') return this.#executeHtml(input);
+    if (input !== null && typeof input === 'object' && !Array.isArray(input)) {
+      return this.#executeObjectTree(input, renderedHtml);
+    }
+    throw new TypeError('ValidateWorksheet 는 HTML 문자열 또는 개체 트리 문서가 필요합니다.');
+  }
+
+  /** 경로 A(기존, 동작 불변) — HTML 정적 검사 배터리. */
+  #executeHtml(html) {
+    const findings = [];
+    this.#runHtmlChecks(html, findings);
+    const ok = !findings.some((f) => f.severity === 'error');
+    return { ok, findings };
+  }
+
+  /**
+   * 경로 B(신설, S2.3) — 1층: ValidateObjectTree 구조 검증을 위임받아 error 로 승격(게이트 차단).
+   * 2층: renderedHtml 이 주어지면 기존 HTML 검사 배터리(누출 grep·인쇄 안전 warning 등)를 그대로 수행.
+   */
+  #executeObjectTree(document, renderedHtml) {
     const findings = [];
 
+    const structural = new ValidateObjectTree().execute(document);
+    for (const f of structural.findings) {
+      // ValidateObjectTree 가 severity 를 명시한 finding(예: passage-source-missing advisory)은
+      // 그대로 보존한다 — 명시하지 않은 구조 위반만 error(게이트 차단)로 승격한다.
+      findings.push({ ...f, severity: f.severity || 'error' });
+    }
+
+    if (typeof renderedHtml === 'string') {
+      this.#runHtmlChecks(renderedHtml, findings);
+    }
+
+    const ok = !findings.some((f) => f.severity === 'error');
+    return { ok, findings };
+  }
+
+  /** HTML 정적 검사 배터리(경로 A·경로 B 2층이 공유). */
+  #runHtmlChecks(html, findings) {
+    if (typeof html !== 'string') throw new TypeError('ValidateWorksheet 는 HTML 문자열이 필요합니다.');
     this.#checkAnswerLeak(html, findings);
     this.#checkUnfilledSlots(html, findings);
     this.#checkHardcodedSubjectColor(html, findings);
@@ -40,9 +87,6 @@ export class ValidateWorksheet {
     this.#checkKeepTogether(html, findings);
     this.#checkRemoteImage(html, findings);
     this.#checkImageAlt(html, findings);
-
-    const ok = !findings.some((f) => f.severity === 'error');
-    return { ok, findings };
   }
 
   #checkAnswerLeak(html, findings) {

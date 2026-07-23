@@ -74,6 +74,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .passage p { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
 .passage .slot { color: #b06a00; background: #fff5e6; border: 1px dashed #e0a94f;
   border-radius: 5px; padding: 6px 10px; font-size: 8.7pt; margin: 6px 0; }
+.passage .passage-body { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
 .passage .src { text-align: right; font-size: 8.7pt; color: #555; margin-top: 6px; }
 .passage .fn { border-top: 1px dotted #ccc; margin-top: 8px; padding-top: 5px; font-size: 8.3pt; color: #555; }
 .passage .fn p { margin: 1px 0; text-indent: 0; }

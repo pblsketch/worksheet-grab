@@ -58,8 +58,19 @@ export function nextSnapshotSerial(existingNames) {
  * meta.json 빌드. createdAt 은 최초 저장 시각을 보존하고 revision 은 저장마다 +1.
  * unsafe: 직전 저장의 student 재렌더가 정답 누출(error)을 내 student.html 쓰기가
  * 보류됐음을 뜻한다. E6 export 는 이 마커를 fail-closed 로 승격한다.
+ *
+ * checkpointName/serial(S2.4, C-3): SaveDocument.checkpoint 의 명명 체크포인트 계약 — 이름이
+ * 주어지면 meta.checkpoints 이력에 {name, revision, serial, at} 을 추가해 "이름 → 어느 스냅샷
+ * 일련번호" 매핑을 남긴다(workspace.readSnapshot(name, serial) 로 복원 가능). rev 는 여전히
+ * 체크포인트(=저장) 단위로만 증가하므로 checkCommitIntegrity 의 rev==스냅샷개수 불변식은 그대로다.
+ * 이름 없는(디바운스 자동) 체크포인트는 이력에 추가하지 않되 기존 이력은 그대로 이어받는다.
  */
-export function buildMeta(name, manifest, { now, prev = null, unsafe = false }) {
+export function buildMeta(name, manifest, { now, prev = null, unsafe = false, checkpointName = null, serial = null } = {}) {
+  const revision = (prev?.revision ?? 0) + 1;
+  const checkpoints = Array.isArray(prev?.checkpoints) ? [...prev.checkpoints] : [];
+  if (checkpointName) {
+    checkpoints.push({ name: checkpointName, revision, serial, at: now.toISOString() });
+  }
   return {
     schemaVersion: META_SCHEMA_VERSION,
     name,
@@ -67,10 +78,11 @@ export function buildMeta(name, manifest, { now, prev = null, unsafe = false }) 
     subject: manifest.subject || '',
     standards: manifest.standards || [],
     paper: manifest.paper ?? null,
-    revision: (prev?.revision ?? 0) + 1,
+    revision,
     createdAt: prev?.createdAt ?? now.toISOString(),
     updatedAt: now.toISOString(),
     unsafe: !!unsafe,
+    checkpoints,
   };
 }
 
