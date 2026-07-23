@@ -120,11 +120,15 @@ function runReflow() {
       bumpDataset('reflowRuns');
       if (!changed) return;
       core.setDocument(nextDoc);
+      // srcdoc 교체는 편집 포커스를 파괴한다 — 재로드 전 캐럿을 캡처했다가 복원하지 않으면
+      // 리플로우 직후의 타이핑이 body 로 흘러 조용히 사라진다.
+      const caret = selection.captureCaret();
       await reloadTeacherFrame(nextDoc);
       selection.refreshVisual();
       canvasInline.refreshDecoration();
       aiPanel.refreshFreshBadges(frames.teacher?.contentDocument ?? null);
       fitFrame(frames.teacher);
+      selection.restoreCaret(caret);
       history.commit();
       leftPanel.renderThumbs(frames.teacher?.contentDocument ?? null);
       bumpDataset('reflowChanges');
@@ -509,7 +513,13 @@ async function changePaper(paper) {
   }
   const result = await res.json().catch(() => ({}));
   if (!res.ok) { showBanner('error', `용지 변경 실패: ${result.error ?? res.status}`); return; }
-  if (!result.noop) location.reload();
+  if (!result.noop) {
+    // 용지 변경은 flow 경계의 전제(가용 높이)를 바꾼다 — 저장본 pages[] 는 이전 용지 기준이라
+    // 재로드 직후 1회 리플로우로 경계를 재계산한다(플래그는 이 경로 한정 — 수동 빈 페이지 보존
+    // 설계(handlePageAction 주석)는 건드리지 않는다).
+    try { sessionStorage.setItem('wgReflowAfterPaperChange', '1'); } catch { /* 저장 불가 환경 무시 */ }
+    location.reload();
+  }
 }
 
 function scrollToPage(index) {
@@ -731,6 +741,12 @@ const canvasInline = createCanvasInline({
 // ── 초기 모드: teacher 는 항상 먼저 만들어 둔다(썸네일·검수는 teacher 문서가 진실). ──
 await ensureFrame('teacher');
 await setMode(location.hash === '#student' ? 'student' : 'teacher');
+try {
+  if (sessionStorage.getItem('wgReflowAfterPaperChange') === '1') {
+    sessionStorage.removeItem('wgReflowAfterPaperChange');
+    scheduleReflow(); // 용지 변경 재로드 — 새 가용 높이로 flow 경계 재계산(changePaper 주석 참조)
+  }
+} catch { /* 저장 불가 환경 무시 */ }
 document.body.dataset.ready = 'true'; // 검증 스크립트가 폴링해 초기 렌더 완료를 확인
 
 // ── 시드 훅(렌더 테스트 전용): 서버가 testSeed 로 기동됐을 때만 활성 ──
@@ -797,6 +813,9 @@ async function runSeed(seed) {
     stdEl.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     document.body.dataset.stdEditingId = selection.state.editingId ?? '(none)';
     document.body.dataset.stdSelected = String(selection.state.selectedIds.has(stdEl.dataset.oid));
+    // 학습목표 표기 전환(2026-07-23): 인스펙터 objectives 필드 존재 + codes 읽기전용 확인(회귀 방어).
+    document.body.dataset.stdInspObjectivesField = String(!!document.getElementById('insp-std-objectives'));
+    document.body.dataset.stdInspCodesReadonly = String(document.getElementById('insp-std-codes')?.hasAttribute('readonly') ?? false);
     doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
     questionEl.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));

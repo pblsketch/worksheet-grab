@@ -32,8 +32,8 @@ node --test "test/unit/**/*.test.js"        # 기준선: 379/379
 # 렌더 (반드시 1파일씩 직렬 — 병렬 시 Chrome 경합 플레이크)
 for f in test/render/*.render.test.js; do node --test "$f"; done   # 기준선: 25파일 73/73
 
-# 편집기 실사용 구동
-node src/cli/index.js edit-ui <문서명>      # 예: edit-ui 데모활동지 → http://127.0.0.1:<port>/
+# 편집기 실사용 구동 (엔트리는 bin/ — src/cli/index.js 는 라이브러리라 직접 실행 시 무동작, ultraqa 실측)
+node bin/worksheet-grab.js edit-ui <문서명>  # 예: edit-ui 데모활동지 → http://127.0.0.1:<port>/
 # 워크스페이스 문서: worksheets/{데모활동지,문학의가치-UDL,편집테스트,개체편집테스트}
 # 구 HTML manifest 문서를 열면 지연 마이그레이션(메모리 내) → 첫 저장(Ctrl+S)에서 새 스키마 커밋
 
@@ -45,7 +45,7 @@ node scratchpad/ralph-reports/us19-evidence/verify-us19-mouse.mjs   # AI 플로�
 node scratchpad/ralph-reports/us20-evidence/verify-us20-mouse.mjs   # 종단(생성→편집→AI→저장→export)
 
 # 파이프라인/내보내기
-node src/cli/index.js pipeline "<한 문장 요청>" ...   # 생성 종단
+node bin/worksheet-grab.js pipeline <학년교과> <주제> --out out/   # 생성 종단
 node --test test/render/pipeline.render.test.js       # scaffold 거부·경계 일치 계약
 ```
 
@@ -76,7 +76,7 @@ node --test test/render/pipeline.render.test.js       # scaffold 거부·경계 
 - **드래그·클릭 검증은 실제 마우스(CDP Input.dispatchMouseEvent)** — dispatchEvent 합성은 실버그 4건을 놓쳤던 전력이 있음(pointer-events, width:0 슬롯, 인스펙터 포커스 파괴, 드래그-후-click)
 - 임시 파일: wsg-* 접두사, 60분+ 잔존은 `test/helpers/tmp.js` 훅이 자동 청소. 수동 정리 시에도 wsg- 접두사 한정.
 - virtual-time-budget 은 외부 실시간 프로세스(AI 응답 폴링)와 상극 — 그런 시나리오는 CDP 실시간으로.
-- AI 응답은 무API 설계: 편집기 AI 요청은 `node src/cli/index.js ai pending --json` → `ai respond <id> --objects <file.json>` 으로 모의 응답 주입.
+- AI 응답은 무API 설계: 편집기 AI 요청은 `node bin/worksheet-grab.js ai pending --json` → `ai respond <id> --objects <file.json>` 으로 모의 응답 주입.
 
 ## 7. ultraqa 권장 초점 (기존 자동화가 약한 곳)
 

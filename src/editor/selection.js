@@ -130,6 +130,49 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     target.focus();
   }
 
+  /** 편집 중 캐럿의 "편집 대상 내 텍스트 오프셋"을 캡처한다(리플로우 iframe 재로드 대비).
+   *  편집 중이 아니거나 캐럿이 편집 대상 밖이면 null. */
+  function captureCaret() {
+    if (!state.editingId || !currentDoc) return null;
+    const found = core.findObject(state.editingId);
+    const target = editTarget(objEl(state.editingId), found?.obj?.type);
+    const sel = currentDoc.defaultView?.getSelection?.();
+    if (!target || !sel || sel.rangeCount === 0) return null;
+    const range = sel.getRangeAt(0);
+    if (!target.contains(range.startContainer)) return null;
+    const pre = range.cloneRange();
+    pre.selectNodeContents(target);
+    pre.setEnd(range.startContainer, range.startOffset);
+    return { id: state.editingId, offset: pre.toString().length };
+  }
+
+  /** iframe 재로드 후 편집 포커스·캐럿을 복원한다 — srcdoc 교체는 포커스를 파괴하므로(활성 요소가
+   *  body 로 리셋) 복원하지 않으면 리플로우 직후의 키 입력이 조용히 사라진다. */
+  function restoreCaret(saved) {
+    if (!state.editingId || !currentDoc) return;
+    const effective = saved && saved.id === state.editingId ? saved : null;
+    const found = core.findObject(state.editingId);
+    const target = editTarget(objEl(state.editingId), found?.obj?.type);
+    if (!target) return;
+    if (!effective) { placeCaretAtEnd(target); return; }
+    const doc = target.ownerDocument;
+    const walker = doc.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+    let remaining = effective.offset;
+    let node = walker.nextNode();
+    while (node && remaining > node.textContent.length) {
+      remaining -= node.textContent.length;
+      node = walker.nextNode();
+    }
+    const range = doc.createRange();
+    if (node) range.setStart(node, Math.min(remaining, node.textContent.length));
+    else { range.selectNodeContents(target); range.collapse(false); }
+    range.collapse(true);
+    const sel = doc.defaultView.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    target.focus();
+  }
+
   /** 클릭=선택. additive(Shift/Ctrl)면 집합에 토글, 아니면 단일 교체. 편집 중 다른 개체를
    *  고르면 먼저 편집을 종료(필드 동기화)한다. */
   function select(id, { additive = false } = {}) {
@@ -273,6 +316,7 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
 
   return {
     state, attach, select, clearAll, enterEdit, exitEdit, handleEscape, refreshVisual, syncEditingField,
+    captureCaret, restoreCaret,
     isEditableType: (type) => !!EDIT_FIELD[type],
   };
 }
