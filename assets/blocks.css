@@ -117,9 +117,47 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .rubric td.stars { text-align: center; width: 22%; color: #f0a500; font-size: 12pt; letter-spacing: 2px; }
 .note-under { border-bottom: 1px solid #ccc; height: 14px; margin-top: 4px; }
 
+/* ---- 도형 개체 (공통) ----
+   .wg-shape-layer 는 블록 흐름 안에 놓인 높이 0 의 위치 기준점이다. 블록이 리플로우로
+   다음 쪽에 밀리면 도형도 함께 간다(쪽 절대배치였다면 본문만 밀리고 도형은 남는다).
+   여기(blocks.css)에 두는 이유: 에디터 주입 스타일은 저장·인쇄본에서 제거되므로
+   도형이 학생용 HTML·PDF 에서 사라진다. */
+.wg-shape-layer { position: relative; height: 0; }
+.wg-shape { position: absolute; overflow: visible; }
+.wg-shape > * {
+  fill: var(--wg-fill, none);
+  stroke: var(--wg-stroke, #333);
+  stroke-width: var(--wg-sw, 1.6);
+  stroke-dasharray: var(--wg-dash, 0);
+  /* 가로·세로를 다르게 늘려도 선 굵기는 일정하게 유지된다. */
+  vector-effect: non-scaling-stroke;
+}
+.wg-shape > .head { fill: var(--wg-stroke, #333); stroke: none; }
+.wg-shape[data-shape="line"] > *,
+.wg-shape[data-shape="arrow"] > line { fill: none; }
+
+/* ---- 텍스트 상자 개체 (자유 배치) ----
+   도형과 같은 앵커 섬 모델(.wg-text-layer = 높이 0 기준점). 인쇄·학생용에서도 살아야
+   하므로 여기(blocks.css)에 둔다. 화면 편집용 테두리는 에디터 주입 스타일이 따로 얹는다
+   (저장·인쇄본에는 테두리가 남지 않는다). */
+.wg-text-layer { position: relative; height: 0; }
+.wg-text {
+  position: absolute;
+  box-sizing: border-box;
+  min-height: 6mm;
+  padding: 1mm 1.5mm;
+  font-size: var(--wg-fs, 11pt);
+  color: var(--wg-color, #333333);
+  text-align: var(--wg-align, left);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
 /* ---- numbered section heading (공통) ---- */
 h2.sec { display: flex; align-items: center; gap: 8px; font-size: 12pt; margin: 3mm 0 1.5mm; }
-h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border-radius: 4px;
+/* 원형 — 문서 내 다른 번호 표기(.qnum)와 같은 형태로 통일한다. */
+h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center; font-size: 10pt; }
 
 /* ===== 자료 제시 박스 (과학·공통) ===== */

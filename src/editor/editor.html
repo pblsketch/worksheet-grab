@@ -19,6 +19,8 @@
       <button id="btn-student" class="seg-btn" role="tab">학생용 (미리보기)</button>
     </div>
     <button id="btn-guides" class="tool-btn active" aria-pressed="true">여백선</button>
+    <button id="btn-rulers" class="tool-btn" aria-pressed="false" title="가로·세로 눈금자(mm)">📏 눈금자</button>
+    <button id="btn-grid" class="tool-btn" aria-pressed="false" title="격자 표시(5mm)">▦ 격자</button>
     <button id="btn-preview" class="tool-btn" title="저장본을 백그라운드 Chrome 으로 렌더한 최종 판정 미리보기(첫 페이지)">🔍 정밀 미리보기</button>
     <button id="btn-export" class="tool-btn" title="저장본을 학생용/교사용 PDF 2벌로 내보내기 — 정답 누출(unsafe) 시 학생용 차단">⬇ PDF 내보내기</button>
     <button id="btn-save" class="save-btn">저장 <kbd>Ctrl+S</kbd></button>
@@ -30,26 +32,42 @@
     <option value="Malgun Gothic">맑은 고딕</option>
     <option value="Batang">바탕 (명조)</option>
   </select>
-  <select id="tb-size" class="tb-select" title="글자 크기(pt) — 적용할 텍스트를 먼저 선택">
-    <option value="">크기</option>
+  <!-- 글자 크기: 프리셋 목록(datalist)에 얽매이지 않는 자유 입력 + ± 스테퍼(구글 독스 모델).
+       10.5pt 처럼 한국 문서에서 흔한 소수점 크기를 그대로 칠 수 있어야 한다. -->
+  <div class="tb-size-group" role="group" aria-label="글자 크기">
+    <button id="tb-size-dec" class="tb-step" title="글자 크기 줄이기 (−1pt)" aria-label="글자 크기 줄이기">−</button>
+    <input id="tb-size" class="tb-size-input" type="number" min="4" max="200" step="0.5"
+           list="tb-size-presets" placeholder="pt" aria-label="글자 크기(pt)"
+           title="글자 크기(pt) — 직접 입력하거나 ± 로 조절. 적용할 텍스트를 먼저 선택하세요.">
+    <button id="tb-size-inc" class="tb-step" title="글자 크기 키우기 (+1pt)" aria-label="글자 크기 키우기">+</button>
+  </div>
+  <datalist id="tb-size-presets">
     <option>8</option><option>9</option><option>10</option><option>10.5</option>
     <option>11</option><option>12</option><option>13</option><option>14</option>
     <option>16</option><option>18</option><option>20</option><option>24</option>
-  </select>
+    <option>28</option><option>32</option><option>40</option><option>48</option>
+  </datalist>
   <span class="tb-sep"></span>
   <button id="tb-bold" class="tb-btn" title="굵게"><b>B</b></button>
   <button id="tb-italic" class="tb-btn" title="기울임"><i>I</i></button>
   <button id="tb-underline" class="tb-btn" title="밑줄"><u>U</u></button>
   <input id="tb-color" class="tb-color" type="color" value="#c0392b" title="글자색">
   <span class="tb-sep"></span>
-  <button id="tb-align-left" class="tb-btn" title="왼쪽 정렬">⯇</button>
-  <button id="tb-align-center" class="tb-btn" title="가운데 정렬">≡</button>
-  <button id="tb-align-right" class="tb-btn" title="오른쪽 정렬">⯈</button>
+  <!-- 정렬: 문자 글리프(⯇ ≡ ⯈)는 방향이 직관적으로 안 읽혀 표준 4줄 아이콘(SVG)으로 바꾼다. -->
+  <button id="tb-align-left" class="tb-btn tb-icon" title="왼쪽 정렬" aria-label="왼쪽 정렬"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><g fill="currentColor"><rect x="1" y="2.4" width="14" height="1.6" rx=".8"/><rect x="1" y="6.1" width="9" height="1.6" rx=".8"/><rect x="1" y="9.8" width="14" height="1.6" rx=".8"/><rect x="1" y="13.5" width="9" height="1.6" rx=".8"/></g></svg></button>
+  <button id="tb-align-center" class="tb-btn tb-icon" title="가운데 정렬" aria-label="가운데 정렬"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><g fill="currentColor"><rect x="1" y="2.4" width="14" height="1.6" rx=".8"/><rect x="3.5" y="6.1" width="9" height="1.6" rx=".8"/><rect x="1" y="9.8" width="14" height="1.6" rx=".8"/><rect x="3.5" y="13.5" width="9" height="1.6" rx=".8"/></g></svg></button>
+  <button id="tb-align-right" class="tb-btn tb-icon" title="오른쪽 정렬" aria-label="오른쪽 정렬"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><g fill="currentColor"><rect x="1" y="2.4" width="14" height="1.6" rx=".8"/><rect x="6" y="6.1" width="9" height="1.6" rx=".8"/><rect x="1" y="9.8" width="14" height="1.6" rx=".8"/><rect x="6" y="13.5" width="9" height="1.6" rx=".8"/></g></svg></button>
   <button id="tb-ul" class="tb-btn" title="글머리 목록">•≡</button>
   <button id="tb-ol" class="tb-btn" title="번호 목록">1≡</button>
   <span class="tb-sep"></span>
   <button id="tb-table" class="tb-btn" title="표 삽입(2×2)">⊞</button>
   <button id="tb-image" class="tb-btn" title="이미지 자리 삽입">🖼</button>
+  <!-- 텍스트 상자: 누른 뒤 캔버스를 끌어 상자를 그린다(끌지 않고 클릭하면 기본 크기). -->
+  <button id="tb-textbox" class="tb-btn" title="텍스트 상자 — 누르고 캔버스를 끌어 그리세요" aria-pressed="false">🅣 텍스트</button>
+  <!-- AI 초안 텍스트를 자유 이동 상자로: 선택한 텍스트(없으면 커서가 놓인 문단)를 변환. -->
+  <button id="tb-to-textbox" class="tb-btn" title="선택한 텍스트(또는 커서가 놓인 문단)를 자유 이동 텍스트 상자로 변환">🅣↩ 상자로</button>
+  <!-- 도형은 종류가 여러 개라 툴바를 넓히는 대신 팝오버로 연다(구글 슬라이드 도형 메뉴). -->
+  <button id="tb-shape" class="tb-btn" title="도형 삽입" aria-haspopup="true" aria-expanded="false">◇ 도형</button>
   <span class="tb-sep"></span>
   <button id="tb-undo" class="tb-btn" title="실행 취소">↶</button>
   <button id="tb-redo" class="tb-btn" title="다시 실행">↷</button>
@@ -65,6 +83,9 @@
 </div>
 <div id="ai-bar" class="ai-bar hidden" role="status">
   <span id="ai-status"></span>
+  <!-- 무API 설계상 응답 주체는 이 편집창을 띄운 AI 세션이다. 그 사실과 "무엇을 시켜야
+       하는지"를 감추면 사용자에겐 그냥 먹통으로 보인다 — 지시문을 통째로 넘겨준다. -->
+  <button id="ai-copy" class="tb-btn hidden" title="AI 세션에 그대로 붙여넣을 지시문을 클립보드에 복사">📋 AI 지시문 복사</button>
   <button id="ai-cancel" class="tb-btn hidden">요청 취소</button>
   <button id="ai-resume" class="tb-btn hidden">대기 재개</button>
   <button id="ai-undo" class="tb-btn hidden">AI 적용 되돌리기</button>
@@ -83,16 +104,7 @@
     <button id="ai-discard" class="tb-btn">폐기</button>
   </div>
 </div>
-<aside id="preset-panel" class="preset-panel hidden" aria-label="프리셋 라이브러리">
-  <header class="preset-head">
-    <b>프리셋 라이브러리</b>
-    <label class="preset-answer-toggle"><input type="checkbox" id="preset-show-answer"> 정답 보기</label>
-    <button id="preset-close" class="tb-btn" title="닫기">✕</button>
-  </header>
-  <div id="preset-warnings" class="preset-warnings"></div>
-  <ul id="preset-list" class="preset-list"></ul>
-  <div id="preset-hidden" class="preset-hidden"></div>
-</aside>
+<div id="shape-popover" class="shape-popover hidden" role="menu" aria-label="도형 종류"></div>
 <div id="paper-adv" class="paper-adv hidden" aria-label="고급 용지 조합">
   <b>고급 용지</b>
   <label>크기 <select id="adv-size"><option>A4</option><option>A3</option><option>B4</option></select></label>
@@ -113,12 +125,44 @@
     <img id="preview-img" alt="정밀 미리보기(첫 페이지)">
   </div>
 </div>
-<main id="canvas-wrap">
-  <div id="stage">
-    <!-- iframe(변형별 지연 생성) + 여백선·넘침 배지 부모 오버레이 -->
-    <div id="guide-overlay" aria-hidden="true"></div>
-  </div>
-</main>
+<!-- 작업 영역: 좌(페이지·프리셋) — 중(캔버스) — 우(선택 개체 속성).
+     좌우 패널은 접힌다 — 접으면 캔버스가 그만큼 넓어진다(작은 화면에서 인쇄 폭 확보). -->
+<div id="workspace">
+  <aside id="left-panel" class="side-panel" aria-label="페이지·프리셋">
+    <div class="side-tabs" role="tablist" aria-label="좌측 패널 탭">
+      <button id="tab-pages" class="side-tab active" role="tab" aria-selected="true" aria-controls="pane-pages">페이지</button>
+      <button id="tab-presets" class="side-tab" role="tab" aria-selected="false" aria-controls="pane-presets">프리셋</button>
+      <button id="left-collapse" class="panel-toggle" title="좌측 패널 접기" aria-label="좌측 패널 접기">◀</button>
+    </div>
+    <div id="pane-pages" class="side-pane" role="tabpanel">
+      <div class="side-note"><span id="thumb-count" class="side-count"></span></div>
+      <ul id="thumb-list" class="thumb-list"></ul>
+    </div>
+    <div id="pane-presets" class="side-pane hidden" role="tabpanel">
+      <div class="side-note">
+        <label class="preset-answer-toggle"><input type="checkbox" id="preset-show-answer"> 정답 보기</label>
+      </div>
+      <div id="preset-warnings" class="preset-warnings"></div>
+      <ul id="preset-list" class="preset-list" role="listbox" aria-label="프리셋 목록"></ul>
+      <div id="preset-hidden" class="preset-hidden"></div>
+    </div>
+  </aside>
+  <main id="canvas-wrap">
+    <div id="stage">
+      <!-- iframe(변형별 지연 생성) + 여백선·넘침 배지 부모 오버레이 -->
+      <div id="guide-overlay" aria-hidden="true"></div>
+    </div>
+  </main>
+  <!-- 우측: 선택한 대상에 반응하는 속성 패널(구글 슬라이드 '서식 옵션' 모델).
+       툴바를 계속 넓히는 대신 "무엇을 골랐는가"에 따라 여기 내용이 바뀐다. -->
+  <aside id="right-panel" class="side-panel" aria-label="속성">
+    <div class="side-tabs">
+      <b id="inspector-title" class="inspector-title">문서</b>
+      <button id="right-collapse" class="panel-toggle" title="우측 패널 접기" aria-label="우측 패널 접기">▶</button>
+    </div>
+    <div id="inspector" class="inspector side-pane"></div>
+  </aside>
+</div>
 <script type="module" src="/editor/editor.js"></script>
 </body>
 </html>

@@ -1,10 +1,27 @@
 /* 에디터 셸(E2) — 도구 UI 전용 스타일. 캔버스 내부(iframe)는 실제 paper.css 가 지배한다. */
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
+/* 뷰포트를 꽉 채우는 셸: 상단 크롬 고정 + 작업 영역이 남은 높이를 갖고 열마다 따로
+   스크롤한다(구글 슬라이드·Acrobat 모델). 창 전체가 스크롤되면 좌측 썸네일이 본문을
+   따라 흘러가 페이지 이동 도구로 쓸 수 없다. */
 body {
   font-family: "Pretendard", "Malgun Gothic", "맑은 고딕", sans-serif;
   background: #e8eaed; color: #24292f; font-size: 14px;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
 }
+#workspace {
+  flex: 1; min-height: 0;
+  display: grid;
+  grid-template-columns: var(--left-w, 176px) minmax(0, 1fr) var(--right-w, 264px);
+}
+/* 접기: 폭만 줄이면 그리드가 알아서 캔버스를 넓힌다(별도 재배치 없음). */
+body.left-collapsed { --left-w: 30px; }
+body.right-collapsed { --right-w: 30px; }
+body.left-collapsed #pane-pages,
+body.left-collapsed #pane-presets,
+body.left-collapsed .side-tab { display: none; }
+body.right-collapsed #inspector,
+body.right-collapsed .inspector-title { display: none; }
 
 /* 상단 크롬 통합 sticky — 개별 top 오프셋 하드코딩 대신 자연 스택.
    topbar/toolbar 가 좁은 창에서 2줄로 랩되어도 겹침·검수바 소실이 없다. */
@@ -41,7 +58,146 @@ body {
 .review-list li.warning { border-color: #bc4c00; background: #fff8f0; }
 .review-list li b { font-weight: 700; }
 
-#canvas-wrap { padding: 12px 0 40px; }
+#canvas-wrap { padding: 12px 0 40px; overflow: auto; min-width: 0; }
+
+/* ── 좌측 페이지 썸네일 패널(항목 1) ── */
+.side-panel {
+  display: flex; flex-direction: column; min-height: 0;
+  background: #fafbfc; border-right: 1px solid #d0d7de;
+}
+#right-panel { border-right: 0; border-left: 1px solid #d0d7de; }
+.side-tabs {
+  display: flex; align-items: center; gap: 2px; padding: 4px 4px 0;
+  border-bottom: 1px solid #d0d7de; background: #f1f3f5;
+}
+.side-tab {
+  border: 1px solid transparent; border-bottom: 0; border-radius: 6px 6px 0 0;
+  background: transparent; padding: 5px 10px; cursor: pointer; font: inherit; font-size: 12px; color: #57606a;
+}
+.side-tab:hover { background: #e6eaef; }
+.side-tab.active { background: #fafbfc; border-color: #d0d7de; color: #24292f; font-weight: 700; margin-bottom: -1px; }
+.inspector-title { flex: 1; font-size: 12px; padding: 6px 4px; }
+.panel-toggle {
+  margin-left: auto; border: 0; background: transparent; cursor: pointer;
+  color: #57606a; font-size: 12px; padding: 4px 6px; border-radius: 4px;
+}
+.panel-toggle:hover { background: #e6eaef; color: #24292f; }
+.side-pane { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.side-pane.hidden { display: none; }
+.side-note { padding: 6px 10px 0; font-size: 11px; color: #57606a; }
+.side-count { color: #57606a; font-size: 11px; }
+
+/* ── 도형 팝오버 ── */
+.shape-popover {
+  position: fixed; z-index: 40; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  background: #fff; border: 1px solid #d0d7de; border-radius: 10px; padding: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .18);
+}
+.shape-popover.hidden { display: none; }
+.shape-pick {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  border: 1px solid #d0d7de; border-radius: 8px; background: #fff;
+  padding: 7px 9px; cursor: pointer; font: inherit; font-size: 11px; color: #24292f; min-width: 62px;
+}
+.shape-pick:hover { background: #eef4fc; border-color: #7a9cc6; }
+.shape-pick svg { width: 26px; height: 20px; overflow: visible; }
+.shape-pick svg > * { fill: none; stroke: #334155; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.shape-pick svg > .head { fill: #334155; stroke: none; }
+
+/* 개체 선택 표시(부모 오버레이 — iframe 무주입 원칙).
+   표·그림·상자를 클릭하면 무엇이 잡혔는지 테두리로 보여준다. */
+.object-outline {
+  position: absolute; pointer-events: none; border-radius: 3px;
+  border: 2px solid rgba(37, 99, 235, .9); background: rgba(37, 99, 235, .07);
+}
+.shape-outline { position: absolute; border: 1px dashed rgba(37, 99, 235, .85); pointer-events: none; }
+.shape-handle {
+  position: absolute; width: 10px; height: 10px; background: #2563eb;
+  border: 1.5px solid #fff; border-radius: 2px; pointer-events: auto; box-shadow: 0 0 0 1px rgba(0,0,0,.25);
+}
+/* ── 눈금자 · 격자 · 정렬 안내선 (파워포인트 모델) ──
+   단위는 mm — 인쇄가 진실원천이고 교사가 mm 로 말한다. */
+.ruler {
+  position: absolute; pointer-events: none;
+  background: #f3f5f7; border: 1px solid #ccd3da; box-sizing: border-box;
+}
+.ruler-h { height: 18px; }
+.ruler-v { width: 18px; }
+.ruler-tick { position: absolute; background: #9aa4b0; }
+.ruler-h .ruler-tick { bottom: 0; width: 1px; height: 4px; }
+.ruler-h .ruler-tick.major { height: 9px; background: #5b6673; }
+.ruler-v .ruler-tick { right: 0; height: 1px; width: 4px; }
+.ruler-v .ruler-tick.major { width: 9px; background: #5b6673; }
+.ruler-label {
+  position: absolute; font-size: 8px; color: #5b6673; line-height: 1;
+  font-family: system-ui, sans-serif; white-space: nowrap;
+}
+.ruler-h .ruler-label { left: 2px; top: -9px; }
+.ruler-v .ruler-label { right: 10px; top: -4px; }
+
+/* 격자: 요소 대신 그라디언트 한 장 — mm 마다 요소를 만들면 한 쪽에 수백 개가 생긴다. */
+.canvas-grid {
+  position: absolute; pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(37, 99, 235, .10) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 99, 235, .10) 1px, transparent 1px),
+    linear-gradient(to right, rgba(37, 99, 235, .20) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(37, 99, 235, .20) 1px, transparent 1px);
+}
+
+/* 정렬 안내선: 드래그 중 중앙이 맞았을 때만 나타난다. */
+.align-guide { position: absolute; pointer-events: none; z-index: 12; }
+.align-x { width: 1px; border-left: 1px dashed #e11d48; }
+.align-y { height: 1px; border-top: 1px dashed #e11d48; }
+
+/* ✥ 이동 핸들 — 선택 테두리 왼쪽 위. 본체를 끌면 본문 텍스트 편집과 부딪히므로
+   조작은 오버레이 핸들에서만 받는다. */
+.object-move-handle {
+  position: absolute; width: 22px; height: 22px; pointer-events: auto; cursor: move;
+  display: flex; align-items: center; justify-content: center;
+  background: #2563eb; color: #fff; border: 2px solid #fff; border-radius: 5px;
+  font-size: 12px; line-height: 1; box-shadow: 0 1px 3px rgba(15, 23, 42, .35); user-select: none;
+}
+.object-move-handle:hover { background: #1d4ed8; }
+.shape-handle[data-dir="e"] { cursor: ew-resize; }
+.shape-handle[data-dir="s"] { cursor: ns-resize; }
+.shape-handle[data-dir="se"] { cursor: nwse-resize; }
+
+/* ── 우측 속성(인스펙터) ── */
+.inspector { overflow-y: auto; padding: 10px; gap: 12px; font-size: 12px; }
+.insp-section { display: flex; flex-direction: column; gap: 8px; }
+.insp-row { display: flex; align-items: center; gap: 6px; justify-content: space-between; }
+.insp-row label { color: #57606a; flex: 0 0 auto; }
+.insp-val { color: #24292f; font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.insp-hint { color: #6b7280; line-height: 1.5; }
+.insp-group-title {
+  font-weight: 700; color: #24292f; font-size: 12px;
+  border-bottom: 1px solid #eaeef2; padding-bottom: 4px;
+}
+.insp-btn {
+  border: 1px solid #d0d7de; border-radius: 6px; background: #fff;
+  padding: 4px 8px; cursor: pointer; font: inherit; font-size: 12px;
+}
+.insp-btn:hover { background: #f3f5f7; }
+.insp-num { width: 66px; border: 1px solid #d0d7de; border-radius: 6px; padding: 3px 6px; font: inherit; font-size: 12px; }
+.insp-color { width: 32px; height: 24px; padding: 0 2px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; cursor: pointer; }
+.thumb-list { list-style: none; margin: 0; padding: 10px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.thumb { position: relative; cursor: pointer; flex: 0 0 auto; }
+/* 축소는 iframe 을 transform:scale 하고 부모가 잘라내는 방식 — 렌더 엔진 추가 없이
+   실제 블록 CSS 그대로 그려진다(캔버스와 어긋나지 않음). */
+.thumb-frame {
+  overflow: hidden; background: #fff; border: 1px solid #c3cbd5; border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .12);
+}
+.thumb-frame iframe { border: 0; transform-origin: 0 0; pointer-events: none; display: block; }
+.thumb:hover .thumb-frame { border-color: #7a9cc6; }
+.thumb.active .thumb-frame { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, .35); }
+.thumb-no {
+  position: absolute; left: -2px; bottom: -2px;
+  background: #4b5563; color: #fff; font-size: 10px; font-weight: 700;
+  border-radius: 3px; padding: 0 5px; line-height: 15px;
+}
+.thumb.active .thumb-no { background: #2563eb; }
 #stage { position: relative; margin: 0 auto; }
 #stage iframe {
   display: block; border: 0; background: transparent;
@@ -83,19 +239,43 @@ body {
   padding: 6px 16px; background: #f6f8fa; border-bottom: 1px solid #d0d7de;
 }
 /* 학생용은 파생 미리보기(편집 불가) — 서식 도구가 보이는 화면(학생용)이 아니라
-   숨은 교사용 DOM 을 조작해 '보이지 않는 편집'이 되므로 통째로 잠근다. */
-body[data-mode="student"] .toolbar { opacity: .5; pointer-events: none; }
+   숨은 교사용 DOM 을 조작해 '보이지 않는 편집'이 되므로 통째로 잠근다.
+   잠금은 pointer-events 로만 건다: 투명도를 쓰면 아이콘·글자가 흐려져 판독성만
+   떨어지고 잠금 사실은 오히려 덜 읽힌다(배지로 명시하는 편이 정확하다). */
+body[data-mode="student"] .toolbar { pointer-events: none; background: #eef1f5; }
 body[data-mode="student"] .toolbar::after {
-  content: "학생용 미리보기 — 편집은 교사용 탭에서"; pointer-events: none;
-  font-size: 12px; font-weight: 600; color: #57606a; margin-left: 8px;
+  content: "🔒 학생용 미리보기 — 편집은 교사용 탭에서"; pointer-events: none;
+  font-size: 12px; font-weight: 700; color: #414a56; margin-left: 8px;
+  background: #dde3ea; border: 1px solid #c3cbd5; border-radius: 999px; padding: 3px 10px;
 }
 .tb-btn {
   border: 1px solid transparent; border-radius: 6px; background: transparent;
   padding: 4px 9px; cursor: pointer; font: inherit; font-size: 14px; line-height: 1;
 }
 .tb-btn:hover { background: #eaeef2; border-color: #d0d7de; }
+/* 텍스트 상자 배치 대기(＋텍스트를 눌러 캔버스에 그리기 직전) — 눌린 상태를 분명히 보인다. */
+.tb-btn[aria-pressed="true"] { background: #dbe6f5; border-color: #9db8dd; color: #0b4f9e; font-weight: 600; }
 .tb-mark { border: 1px solid #d0d7de; background: #fff; font-weight: 600; }
 .tb-select { font: inherit; font-size: 13px; padding: 3px 4px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; }
+/* SVG 아이콘 버튼(정렬 등) — 글리프 대신 도형이라 baseline 정렬 대신 flex 로 중앙을 맞춘다. */
+.tb-icon { display: inline-flex; align-items: center; justify-content: center; padding: 4px 7px; color: #24292f; }
+.tb-icon.active { background: #dbe6f5; border-color: #9db8dd; color: #0b4f9e; }
+/* 글자 크기: [− | 입력 | +] 한 덩어리로 보이게 붙인다(구글 독스 모델). */
+.tb-size-group { display: inline-flex; align-items: stretch; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; overflow: hidden; }
+.tb-size-group .tb-step {
+  border: 0; background: #f6f8fa; color: #24292f; cursor: pointer; font: inherit;
+  font-size: 15px; font-weight: 700; line-height: 1; padding: 0 8px;
+}
+.tb-size-group .tb-step:hover { background: #e5eaf0; }
+.tb-size-input {
+  width: 52px; border: 0; border-left: 1px solid #d0d7de; border-right: 1px solid #d0d7de;
+  font: inherit; font-size: 13px; text-align: center; padding: 3px 2px; background: #fff; color: #24292f;
+}
+.tb-size-input:focus { outline: 2px solid #2563eb; outline-offset: -2px; }
+/* 숫자 입력의 브라우저 기본 스피너는 폭을 먹고 ± 버튼과 중복이라 감춘다. */
+.tb-size-input::-webkit-outer-spin-button,
+.tb-size-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.tb-size-input { -moz-appearance: textfield; appearance: textfield; }
 .tb-color { width: 28px; height: 26px; padding: 0 2px; border: 1px solid #d0d7de; border-radius: 6px; background: #fff; cursor: pointer; }
 .tb-sep { width: 1px; height: 20px; background: #d0d7de; margin: 0 4px; }
 .save-btn {
@@ -114,23 +294,22 @@ body[data-mode="student"] .toolbar::after {
 .save-banner.warn { background: #fff8c5; color: #7d4e00; }
 .save-banner.error { background: #ffebe9; color: #cf222e; }
 
-/* ── E4 프리셋 라이브러리 패널 ── */
-.preset-panel {
-  position: fixed; top: calc(var(--chrome-h, 130px) + 8px); right: 12px; bottom: 12px; width: 340px; z-index: 30;
-  background: #fff; border: 1px solid #d0d7de; border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0,0,0,.18); display: flex; flex-direction: column; overflow: hidden;
-}
-.preset-panel.hidden { display: none; }
-.preset-head {
-  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
-  background: #f6f8fa; border-bottom: 1px solid #d0d7de;
-}
-.preset-head b { flex: 1; }
-.preset-answer-toggle { font-size: 12px; color: #57606a; display: flex; align-items: center; gap: 4px; }
-.preset-warnings { font-size: 12px; color: #bc4c00; padding: 0 12px; }
+/* ── E4 프리셋 라이브러리(좌측 패널 탭) ──
+   캔버스를 덮는 fixed 오버레이였으나 3단 레이아웃의 좌측 탭으로 들어왔다 — 프리셋을
+   고르면서 본문을 동시에 볼 수 있어야 "어디에 넣을지"를 판단할 수 있다. */
+.preset-answer-toggle { font-size: 11px; color: #57606a; display: flex; align-items: center; gap: 4px; }
+.preset-warnings { font-size: 11px; color: #bc4c00; padding: 4px 10px 0; }
 .preset-warnings:empty { display: none; }
-.preset-list { list-style: none; margin: 0; padding: 8px 12px; overflow-y: auto; flex: 1; display: grid; gap: 10px; }
-.preset-item { border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; }
+/* flex column + flex-shrink:0 이어야 항목이 내용 높이를 지키고 목록이 스크롤된다.
+   display:grid 였을 때는 정해진 패널 높이를 행에 균등 분배해(6개 → 107px) 내용
+   183px 이 overflow:hidden 에 잘려 나갔다 — 삽입/삭제 버튼이 통째로 안 보이던 원인. */
+.preset-list {
+  list-style: none; margin: 0; padding: 8px 10px; overflow-y: auto; flex: 1;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.preset-item { border: 1px solid #d0d7de; border-radius: 8px; overflow: hidden; flex: 0 0 auto; cursor: pointer; }
+.preset-item:hover { border-color: #9db8dd; }
+.preset-item.selected { border-color: #2563eb; box-shadow: 0 0 0 2px rgba(37, 99, 235, .25); }
 .preset-item-head { display: flex; align-items: baseline; gap: 8px; padding: 6px 10px; }
 .preset-item-head b { flex: 1; font-size: 13px; }
 .preset-item-head .tag { font-size: 11px; color: #57606a; background: #f6f8fa; border-radius: 8px; padding: 1px 7px; }

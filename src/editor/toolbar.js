@@ -39,24 +39,50 @@ export function createToolbar(getDoc) {
     insertTable: () => ex('insertHTML', TABLE_SKELETON),
     // 커서 위치에 이미지 마크업 삽입. 인자 없으면 폴백 자리표시(업로드 실패/취소 경로).
     insertImage: (markup = IMAGE_PLACEHOLDER) => ex('insertHTML', markup),
-    applyUndo: () => ex('undo'),
-    applyRedo: () => ex('redo'),
+    // 되돌리기/다시하기는 여기 없다 — execCommand 스택은 DOM 직접 조작(정답 표시 등)을
+    // 못 담아 history.js 의 통합 스택이 단독으로 소유한다.
   };
 }
 
-/** 선택 영역에 pt 단위 글자 크기를 직접 적용(execCommand fontSize 대체). */
+/**
+ * 선택이 "우리가 만든 크기 span 의 내용 전체"와 정확히 일치하면 그 span 을 돌려준다.
+ * ± 스테퍼 연타 시 span 이 무한 중첩되는 것을 막는 판별(중첩 대신 값만 갱신).
+ */
+function soleSizedSpan(range) {
+  let node = range.commonAncestorContainer;
+  if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+  if (!node || node.tagName !== 'SPAN' || !node.style.fontSize) return null;
+  const full = node.ownerDocument.createRange();
+  full.selectNodeContents(node);
+  const sameStart = range.compareBoundaryPoints(Range.START_TO_START, full) === 0;
+  const sameEnd = range.compareBoundaryPoints(Range.END_TO_END, full) === 0;
+  return sameStart && sameEnd ? node : null;
+}
+
+/** 선택 영역에 pt 단위 글자 크기를 직접 적용(execCommand fontSize 대체). 성공 시 true. */
 export function applyFontSizeDirect(doc, pt) {
-  if (!doc) return;
+  if (!doc) return false;
   const sel = doc.getSelection();
-  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return false;
   const range = sel.getRangeAt(0);
+
+  const existing = soleSizedSpan(range);
+  if (existing) { existing.style.fontSize = `${pt}pt`; return true; }
+
   const span = doc.createElement('span');
   span.style.fontSize = `${pt}pt`;
   try {
     range.surroundContents(span);
   } catch {
+    // 요소 경계를 가로지르는 부분 선택: 내용을 추출해 감싼다.
     span.appendChild(range.extractContents());
     range.insertNode(span);
   }
+  // 적용 후 선택을 유지한다 — removeAllRanges 는 ± 를 두 번째 누를 때부터
+  // "텍스트를 먼저 선택하세요" 경고가 뜨게 하던 원인이다.
+  const after = doc.createRange();
+  after.selectNodeContents(span);
   sel.removeAllRanges();
+  sel.addRange(after);
+  return true;
 }
