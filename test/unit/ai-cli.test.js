@@ -6,7 +6,6 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
 import { FsAiBridgeRepository } from '../../src/adapters/FsAiBridgeRepository.js';
-import { AI_SCHEMA_VERSION } from '../../src/usecases/aiBridge.js';
 
 // E5 CLI: 구독 AI 측 표면(pending/watch/respond/list/clear). 무API — 파일 큐 왕복만.
 
@@ -25,13 +24,26 @@ function req(id) {
   };
 }
 
-// v2(blocks[]) — 범위 선택 다중 블록 요청(신규 쓰기 형태).
+// v2(blocks[]) — 디스크의 in-flight 요청 형태(S4.0 이전 세션 잔존분). schemaVersion 은 형태와
+// 짝이므로 리터럴 2 로 고정한다(AI_SCHEMA_VERSION 은 S4.0 에서 3=objects[] 로 승격됐다 — 신규
+// 쓰기용 상수를 이 v2 고정 shape 픽스처에 쓰면 형태-버전 불일치로 validateRequest 가 거부한다).
 function reqV2(id) {
   return {
-    schemaVersion: AI_SCHEMA_VERSION, id, docName: '문서', action: 'rewrite',
+    schemaVersion: 2, id, docName: '문서', action: 'rewrite',
     blocks: [
       { bp: 0, bi: 1, bt: 'question', html: '<div class="q">문항A</div>' },
       { bp: 0, bi: 3, bt: 'subq', html: '<p class="subq">문항B</p>' },
+    ], status: 'pending',
+  };
+}
+
+// v3(objects[], US-19/F4) — 개체 ID 에코 경로(현행 신규 쓰기 스키마). AI_SCHEMA_VERSION 상수 사용.
+function reqV3(id) {
+  return {
+    schemaVersion: 3, id, docName: '문서', action: 'rewrite',
+    objects: [
+      { id: 'o1', type: 'question', qtype: 'short-answer', placement: 'flow', prompt: '문항 원문' },
+      { id: 'o2', type: 'title', placement: 'flow', text: '제목 원문' },
     ], status: 'pending',
   };
 }
@@ -67,6 +79,67 @@ test('F4 ai pending/list: v1·v2 양형 무크래시 렌더(TypeError 없음)', 
   assert.ok(l.lines.some((s) => /\[pending\] req-v2 — .* · 2블록/.test(s)));
 });
 
+test('US-19 ai pending/list: v3(objects[]) 요청도 무크래시 렌더', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-v3-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(req('req-v1')); // v1 도 섞어 양형 무크래시 재확인
+  await bridge.putRequest(reqV3('req-v3'));
+
+  const p = logger();
+  assert.equal(await run(['ai', 'pending', '--workspaces-dir', base], { root: ROOT, log: p.log, err: p.err }), 0);
+  assert.ok(p.lines.some((l) => /req-v3 — 문서 · rewrite · 2개체 \[question\(o1\), title\(o2\)\]/.test(l)), 'v3 개체 요약(타입·id)');
+
+  const l = logger();
+  assert.equal(await run(['ai', 'list', '--all', '--workspaces-dir', base], { root: ROOT, log: l.log, err: l.err }), 0);
+  assert.ok(l.lines.some((s) => /\[pending\] req-v3 — .* · 2개체 \[question, title\]/.test(s)));
+});
+
+test('US-19 ai respond --objects: v3 응답 기록(개체 ID 에코 왕복, aiBridge.validateResponse 재사용)', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-obj-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV3('req-obj'));
+
+  const objectsFile = join(base, 'objects.json');
+  await writeFile(objectsFile, JSON.stringify([
+    { id: 'o1', object: { id: 'o1', type: 'question', qtype: 'short-answer', placement: 'flow', prompt: '재작성된 문항' } },
+    { id: 'o2', object: { id: 'o2', type: 'title', placement: 'flow', text: '재작성된 제목' } },
+  ]), 'utf8');
+
+  const r = logger();
+  assert.equal(await run(['ai', 'respond', 'req-obj', '--objects', objectsFile, '--workspaces-dir', base], { root: ROOT, log: r.log, err: r.err }), 0);
+  assert.ok(r.lines.some((l) => /응답 기록: req-obj \(2개체\)/.test(l)));
+  assert.equal(await bridge.getStatus('req-obj'), 'answered');
+  const resp = await bridge.readResponse('req-obj');
+  assert.equal(resp.schemaVersion, 3, '--objects → v3(AI_SCHEMA_VERSION 상수 사용)');
+  assert.deepEqual(resp.objects.map((o) => o.id), ['o1', 'o2'], '요청 objects[].id 그대로 에코');
+  assert.equal(resp.objects[0].object.prompt, '재작성된 문항');
+});
+
+test('US-19 ai respond --objects: {objects:[…]} 래핑 형태도 허용', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-objwrap-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV3('req-wrap'));
+  const objectsFile = join(base, 'objects.json');
+  await writeFile(objectsFile, JSON.stringify({
+    objects: [{ id: 'o1', object: { id: 'o1', type: 'question', qtype: 'short-answer', placement: 'flow', prompt: '재작성' } }],
+  }), 'utf8');
+  assert.equal(await run(['ai', 'respond', 'req-wrap', '--objects', objectsFile, '--workspaces-dir', base], { root: ROOT, log: () => {}, err: () => {} }), 0);
+  assert.equal(await bridge.getStatus('req-wrap'), 'answered');
+});
+
+test('US-19 ai respond --objects: 스키마 불일치(id 누락) → 거부(비영 종료)', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-objbad-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV3('req-bad'));
+  const objectsFile = join(base, 'objects.json');
+  await writeFile(objectsFile, JSON.stringify([{ object: { id: 'o1', type: 'question' } }]), 'utf8'); // id 누락
+  await assert.rejects(
+    () => run(['ai', 'respond', 'req-bad', '--objects', objectsFile, '--workspaces-dir', base], { root: ROOT, log: () => {}, err: () => {} }),
+    /v3 스키마/,
+  );
+  assert.equal(await bridge.getStatus('req-bad'), 'pending', '거부된 응답은 기록되지 않음');
+});
+
 test('F4 ai respond --blocks: v2 응답 리터럴 태깅(schemaVersion:2, 슬롯 보존)', async () => {
   const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-b-'));
   const bridge = new FsAiBridgeRepository({ baseDir: base });
@@ -96,7 +169,7 @@ test('F4 ai respond --from: v1 응답 리터럴 태깅(schemaVersion:1, 상수 �
   const r = logger();
   assert.equal(await run(['ai', 'respond', 'req-v1r', '--from', f, '--workspaces-dir', base], { root: ROOT, log: r.log, err: r.err }), 0);
   const resp = await bridge.readResponse('req-v1r');
-  assert.equal(resp.schemaVersion, 1, '--from → v1 리터럴(AI_SCHEMA_VERSION=2 로 오태깅되지 않음)');
+  assert.equal(resp.schemaVersion, 1, '--from → v1 리터럴(신규 쓰기용 상수 승격에 오태깅되지 않음)');
   assert.equal(typeof resp.html, 'string');
 });
 

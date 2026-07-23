@@ -178,25 +178,58 @@ for (const variant of ['student', 'teacher']) {
     });
 }
 
-// ── (d) 왕복 게이트: 실 Chrome serializeSheets→resync 가 .sheet-body 투명 통과로 구조 보존 ──
-test('(d) 다단 문서 왕복 — serializeSheets→resync structureWarning false·블록수 불변',
+// ── (d) 왕복 게이트: 개체 트리 왕복(US-20/S4.5 재작성) ──
+// 구 테스트는 DOM 역동기화(serializeSheets→resync, 이제 소멸된 resync.js)가 .sheet-body
+// 다단 래퍼를 무해하게 투과하는지를 검증했다. 신 계약은 애초에 DOM 역동기화가 없다 — 편집기는
+// 개체 트리를 그대로 들고 있다가 /save 로 직송한다(EditorHttpServer.js). 같은 검증 의도
+// ("다단 문서를 편집기에서 열고 저장해도 구조·개체 수가 보존된다")를 개체 트리 왕복으로
+// 재구성했다: columns:2 개체 트리 문서를 열어(.sheet-body 다단 래퍼 렌더 확인) 무변경
+// /save 왕복 후 개체 수·페이지 경계가 그대로인지 실 Chrome 으로 단정한다.
+test('(d) 다단 문서 왕복 — 개체 트리 무변경 /save 후 구조·개체 수 보존(.sheet-body 렌더 포함)',
   { skip: !HAS_CHROME, timeout: 120000 }, async () => {
     const base = await mkdtemp(join(tmpdir(), 'wsg-cols-edit-'));
     const workspace = new FsWorkspaceRepository({ baseDir: base });
     const blockRepository = new FsBlockRepository({ root: ROOT });
-    const m = await blockRepository.readManifest('sci');
-    m.paper = { size: 'A4', orientation: 'portrait', columns: 2 };
+    const document = {
+      pagination: 'paginated',
+      docTitle: '다단 왕복 테스트',
+      subject: 'science', dataSubject: 'science', themeName: 'sci', lang: 'ko',
+      paper: { size: 'A4', orientation: 'portrait', columns: 2 },
+      standards: [],
+      pages: [
+        { flow: Array.from({ length: 6 }, (_, i) => ({ id: `p0-${i}`, type: 'richtext', placement: 'flow', html: `<p>블록 ${i}</p>` })), float: [] },
+        { flow: Array.from({ length: 4 }, (_, i) => ({ id: `p1-${i}`, type: 'richtext', placement: 'flow', html: `<p>블록 ${i}</p>` })), float: [] },
+      ],
+    };
     await new SaveDocument({ workspace, blockRepository, curriculum: null })
-      .execute({ name: '문서', manifest: m, now: new Date('2026-07-21T01:00:00.000Z') });
+      .checkpoint({ name: '문서', document, now: new Date('2026-07-21T01:00:00.000Z') });
     const server = createEditorServer({ root: ROOT, docName: '문서', workspace, blockRepository, curriculum: null, testSeed: true });
     const addr = await listenEditorServer(server);
+    const url = `http://127.0.0.1:${addr.port}`;
     try {
-      const dom = await dumpDom(`http://127.0.0.1:${addr.port}/?seed=columns-roundtrip`);
-      assert.equal(ds(dom, 'seed-done'), 'columns-roundtrip');
-      assert.ok(Number(ds(dom, 'rt-sheet-body-count')) >= 1, 'teacher 캔버스에 .sheet-body(다단 DOM) 렌더');
-      assert.equal(ds(dom, 'rt-structure-warning'), 'false', '.sheet-body 투명 통과 — leftover 오포집 없음');
-      assert.equal(ds(dom, 'rt-blocks'), ds(dom, 'rt-base-blocks'), '왕복 블록 수 불변');
-      assert.equal(ds(dom, 'rt-sheet-body-count'), ds(dom, 'rt-pages'), '페이지당 .sheet-body 1개');
+      // teacher iframe 은 srcdoc 속성으로 실려 dump-dom 출력에 HTML 이스케이프된 채 나온다
+      // (class="sheet-body" → class=&quot;sheet-body&quot;) — 이스케이프 여부와 무관하게
+      // "sheet-body" 토큰 등장 횟수로 다단 래퍼 렌더를 확인한다.
+      const dom = await dumpDom(`${url}/`);
+      const sheetBodyCount = (dom.match(/sheet-body/g) || []).length;
+      assert.ok(sheetBodyCount >= 2, `페이지당 .sheet-body(다단 래퍼) 1개씩 실 렌더(실측 토큰 ${sheetBodyCount}회)`);
+
+      const before = await (await fetch(`${url}/shell.json`)).json();
+      const beforeCount = before.document.pages.flatMap((p) => [...p.flow, ...p.float]).length;
+      assert.equal(beforeCount, 10, '픽스처 전제: 개체 10개');
+
+      // 무변경 /save 왕복(편집기가 실제로 보내는 것과 동일한 페이로드 형태).
+      const saveRes = await fetch(`${url}/save`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ document: before.document }),
+      });
+      assert.equal(saveRes.status, 200);
+
+      const after = await (await fetch(`${url}/shell.json`)).json();
+      const afterCount = after.document.pages.flatMap((p) => [...p.flow, ...p.float]).length;
+      assert.equal(afterCount, beforeCount, '왕복 개체 수 불변');
+      assert.equal(after.document.pages.length, 2, '왕복 페이지 경계 불변');
+      assert.equal(after.document.paper.columns, 2, '다단 설정 보존');
     } finally {
       await new Promise((r) => server.close(r));
     }

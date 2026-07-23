@@ -6,6 +6,8 @@ import { resolveBrowserGraph } from '../editor/browserGraph.js';
 import { RenderEditorShell } from '../usecases/RenderEditorShell.js';
 import { OpenDocument } from '../usecases/OpenDocument.js';
 import { SaveDocument } from '../usecases/SaveDocument.js';
+import { ValidateObjectTree } from '../usecases/ValidateObjectTree.js';
+import { migrateManifestToObjectTree } from '../usecases/MigrateManifestToObjectTree.js';
 import { ExportDocument, UNSAFE_STUDENT_MESSAGE } from '../usecases/ExportDocument.js';
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
 import { FsPresetRepository } from './FsPresetRepository.js';
@@ -14,6 +16,7 @@ import { ChromeRenderer } from './ChromeRenderer.js';
 import { resolvePaper, paperToPx } from '../usecases/paper.js';
 import { sanitizeAssetName, assertAllowedImage, imageMimeFor, MAX_IMAGE_BYTES } from '../usecases/assets.js';
 import { AI_SCHEMA_VERSION, newRequestId, parseAction, assertTargetable, excludedTypes } from '../usecases/aiBridge.js';
+import { PAGINATION_STATES } from '../domain/schema/index.js';
 
 const MAX_SAVE_BODY = 20 * 1024 * 1024; // 로컬 편집 도구의 안전 상한
 
@@ -71,6 +74,49 @@ function send(res, status, type, body) {
   res.end(body);
 }
 
+// S4.0 지연 마이그레이션(A1, C-6/GAP-5): 구 HTML manifest 문서를 GET /shell.json 시 개체 트리로
+// 승격해 서빙한다. 원본 manifest 는 절대 쓰지 않는다(읽기 전용 보존) — 새 스키마는 클라이언트가
+// 되돌려 보낸 문서를 POST /save 가 SaveDocument.checkpoint 로 커밋할 때 비로소 디스크에 자리잡는다.
+async function buildLegacyDocument(manifest, { blockRepository, curriculum }) {
+  const migrated = await migrateManifestToObjectTree(manifest, { blockRepository });
+  const standards = await resolveStandardsText(manifest, curriculum);
+  return {
+    ...migrated,
+    docTitle: manifest.docTitle || '',
+    subject: manifest.subject || '',
+    dataSubject: manifest.dataSubject || manifest.subject || '',
+    themeName: manifest.theme || '',
+    lang: manifest.lang || 'ko',
+    runHead: manifest.runHead || '',
+    runFoot: manifest.runFoot || {},
+    head: manifest.head || { katex: false },
+    paper: manifest.paper ?? null,
+    standards,
+  };
+}
+
+// AssembleWorksheet#resolveStandards 와 동형(창작 금지 원칙 동일 적용) — 셸 서빙 시 이미 해석된
+// 원문을 개체 트리 document.standards 에 실어야 RenderObjectTree 의 std-box 가 원문을 그릴 수 있다.
+async function resolveStandardsText(manifest, curriculum) {
+  const codes = manifest.standards || [];
+  const fallback = manifest.standardsText || {};
+  const out = [];
+  for (const rawCode of codes) {
+    const code = String(rawCode);
+    let text = null;
+    if (curriculum) {
+      try {
+        const r = await curriculum.resolve(code);
+        if (r && r.text) text = r.text;
+      } catch { /* MCP/CSV 실패 → 폴백 */ }
+    }
+    if (!text) text = fallback[code] || fallback[code.replace(/^\[|\]$/g, '')] || null;
+    if (!text) throw new Error(`성취기준 ${code} 의 원문을 CSV/MCP/폴백 어디에서도 찾지 못했습니다(창작 금지).`);
+    out.push({ code, text });
+  }
+  return out;
+}
+
 /**
  * @param {{root:string, docName:string, workspace, blockRepository, curriculum, testSeed?:boolean}} deps
  *   testSeed: 렌더 테스트 전용 — shell.json 에 testSeed 필드를 노출해 클라이언트의
@@ -105,7 +151,9 @@ export function createEditorServer({
     try {
       const path = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname);
 
-      // E3 저장: 클라이언트 역동기화 manifest → SaveDocument 단일 경유(누출 게이트·히스토리).
+      // E3/S4.0 저장: 클라이언트가 개체 트리 문서를 직송 → ValidateObjectTree → SaveDocument.checkpoint
+      // 단일 경유(누출 게이트·히스토리). DOM 역동기화(.wg-block 순회·resync)는 폐지됐다 — 클라이언트가
+      // 편집 결과를 개체 트리 JSON 그대로 들고 온다.
       if (req.method === 'POST' && path === '/save') {
         let body;
         try {
@@ -113,15 +161,23 @@ export function createEditorServer({
         } catch (e) {
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
-        if (!body || typeof body.manifest !== 'object' || body.manifest === null) {
-          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: 'manifest 가 필요합니다.' }));
+        if (!body || typeof body.document !== 'object' || body.document === null) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: 'document(개체 트리)가 필요합니다.' }));
         }
-        const result = await saver.execute({ name: docName, manifest: body.manifest });
+        const { ok, findings } = new ValidateObjectTree().execute(body.document);
+        if (!ok) {
+          return send(res, 400, 'application/json; charset=utf-8',
+            JSON.stringify({ error: '개체 트리 검증 실패', findings }));
+        }
+        const result = await saver.checkpoint({
+          name: docName,
+          document: body.document,
+          checkpointName: typeof body.checkpointName === 'string' ? body.checkpointName : null,
+        });
         return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({
           unsafe: result.unsafe,
           leakFindings: result.leakFindings,
           meta: result.meta,
-          structureWarning: body.structureWarning === true,
         }));
       }
       // E4 프리셋(자산): SaveDocument 게이트 미경유 — 프리셋은 문서가 아니라 재사용 상용구다
@@ -180,8 +236,11 @@ export function createEditorServer({
         }
       }
       // E6 용지 변경(§3.3): manifest 레벨 변이라 /save(DOM 역동기화)와 분리 —
-      // 저장본 manifest 의 paper 만 치환해 SaveDocument 단일 게이트로 재저장한다.
+      // 저장본의 paper 만 치환해 SaveDocument 단일 게이트로 재저장한다.
       // 클라이언트는 호출 전 save-first(dirty 시)로 편집 손실을 막는다.
+      // S4.1(us15.md 후속 공백 ②): 저장본이 이미 개체 트리로 승격된 문서(pagination 필드 보유)면
+      // 구 saver.execute()(HTML manifest 전용, AssembleWorksheet 경유)를 호출하면 스키마가
+      // 어긋난다 — /shell.json 과 동일한 isObjectTree 판정으로 분기해 saver.checkpoint() 로 보낸다.
       if (req.method === 'POST' && path === '/paper') {
         let body;
         try {
@@ -204,13 +263,21 @@ export function createEditorServer({
         const next = { ...manifest };
         if (body?.paper == null) delete next.paper;
         else next.paper = body.paper;
-        const result = await saver.execute({ name: docName, manifest: next });
+        const result = PAGINATION_STATES.includes(manifest?.pagination)
+          ? await saver.checkpoint({ name: docName, document: next })
+          : await saver.execute({ name: docName, manifest: next });
         return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({
           noop: false, unsafe: result.unsafe, meta: result.meta,
         }));
       }
-      // E5 AI 브리지: 요청은 파일 큐(<ws>/.ai-bridge/)에 기록되고 구독 AI 가 CLI 로
-      // 응답한다(무API — 서버는 중개만). 성취기준·저작권 슬롯 블록은 타입 가드로 거부.
+      // E5/S4.0 AI 브리지: 요청은 파일 큐(<ws>/.ai-bridge/)에 기록되고 구독 AI 가 CLI 로
+      // 응답한다(무API — 서버는 중개만). 개체 ID 에코(F4 개정, worksheet-designer 계약과 정합):
+      // 클라이언트는 objects:[{id,type,…현재 개체 필드}] 로 개체를 전체 필드째 그대로 지목한다
+      // (구 bp/bi/slot 위치 주소·html 요약 폐기 — 개체 트리의 현재 개체를 스키마 그대로 담아 보낸다).
+      // 성취기준 개체(std-box, 원칙 3 — 창작 금지)는 개체 타입 가드로 거부 — 레거시 HTML 문서
+      // 세션도 /shell.json 이 이미 개체 트리로 마이그레이션해 서빙하므로 클라이언트가 보내는
+      // objects[].type 은 항상 ObjectCatalog 의 닫힌 카탈로그 타입이다. passage-slot 은 3층 정책
+      // (2026-07-23 2차 델타)으로 가드에서 해제되어 AI 요청 대상이 될 수 있다(§7 std-box 만 잔류).
       if (path === '/ai/requests' && req.method === 'POST') {
         let body;
         try {
@@ -218,26 +285,24 @@ export function createEditorServer({
         } catch (e) {
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
-        // v2(blocks[]) 우선, v1(단일 block) 하위호환으로 정규화. 저장 요청 파일은 항상 v2.
-        const rawBlocks = Array.isArray(body?.blocks) ? body.blocks : (body?.block ? [body.block] : []);
+        const rawObjects = Array.isArray(body?.objects) ? body.objects : [];
         try {
           parseAction(body?.action);
-          if (rawBlocks.length === 0) throw new Error('blocks(또는 block) 이 필요합니다.');
-          const vocabulary = await blockRepository.readVocabulary();
-          for (const b of rawBlocks) {
+          if (rawObjects.length === 0) throw new Error('objects 가 필요합니다.');
+          for (const o of rawObjects) {
+            if (typeof o?.id !== 'string' || !o.id) throw new Error('각 개체에 id 가 필요합니다.');
             // 집합 중 하나라도 제외 타입(성취기준·저작권 슬롯)이면 전체 400(부분 요청 금지, §7·§10).
-            assertTargetable(b?.bt, vocabulary);
-            if (typeof b?.html !== 'string' || !b.html.trim()) throw new Error('각 블록에 html 이 필요합니다.');
+            assertTargetable(o?.type);
           }
         } catch (e) {
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
         const request = {
-          schemaVersion: AI_SCHEMA_VERSION, // = 2 (신규 요청 쓰기)
+          schemaVersion: AI_SCHEMA_VERSION, // = 3 (신규 요청 쓰기, 개체 ID 에코)
           id: newRequestId(),
           docName, // 서버 고정값 주입(클라이언트 위조 방지)
           action: body.action,
-          blocks: rawBlocks.map((b, k) => ({ slot: b.slot ?? k, bp: b.bp ?? null, bi: b.bi ?? null, bt: b.bt || 'content', html: b.html })),
+          objects: rawObjects.map((o) => ({ ...o })), // 개체 전체 필드 그대로 보존(html 요약 아님)
           instruction: typeof body.instruction === 'string' ? body.instruction : '',
           context: body.context && typeof body.context === 'object' ? body.context : {},
           status: 'pending',
@@ -336,14 +401,19 @@ export function createEditorServer({
       }
       if (path === '/shell.json') {
         // 매 요청 신선 로드: E3 편집·외부 저장 후 새로고침만으로 최신 문서 반영.
-        const { manifest, meta, warnings } = await opener.execute({ name: docName });
+        const { manifest: raw, meta, warnings } = await opener.execute({ name: docName });
+        // S4.0 지연 마이그레이션(A1): pagination 필드 유무로 개체 트리/구 manifest 를 구분한다.
+        // 구 manifest 는 이 GET 경로에서 절대 쓰지 않는다 — 승격은 메모리 내에서만 일어나고,
+        // 디스크 커밋은 클라이언트가 되돌려 보낸 문서를 POST /save 가 처리할 때 비로소 일어난다.
+        const isObjectTree = PAGINATION_STATES.includes(raw?.pagination);
+        const document = isObjectTree ? raw : await buildLegacyDocument(raw, { blockRepository, curriculum });
         const themes = await blockRepository.listThemes();
         const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
-        const shell = await shellRenderer.execute({ manifest, meta, knownSubjectHexes, docName });
-        // manifest 동봉: 클라이언트 역동기화(resync)가 pages 외 필드를 보존하는 원본.
+        const shell = await shellRenderer.executeObjectTree({ document, meta, knownSubjectHexes, docName });
+        // document 동봉: 개체 트리 왕복의 원본(클라이언트가 편집 후 그대로 POST /save 한다).
         // excludedAiTypes: AI 버튼 비활성용(타입 가드 3중의 클라이언트 층 — §7·§10).
-        const excludedAiTypes = [...excludedTypes(await blockRepository.readVocabulary())];
-        const payload = { ...shell, manifest, warnings, excludedAiTypes };
+        const excludedAiTypes = [...excludedTypes()];
+        const payload = { ...shell, document, warnings, excludedAiTypes, migrated: !isObjectTree };
         return send(res, 200, 'application/json; charset=utf-8',
           JSON.stringify(testSeed ? { ...payload, testSeed: true } : payload));
       }

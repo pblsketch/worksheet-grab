@@ -31,18 +31,33 @@ function stripComments(src) {
     .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 }
 
+// 기본 엔트리 집합 — 검수 체인(ValidateWorksheet) + 개체 트리 검증 체인(ValidateObjectTree, S1.2)
+// + 개체 트리 순수 render-core(RenderObjectTree, S2.1/C-5) + 페이지네이션 순수 계산부
+// (PaginateObjectTree, S2.5 — assignFlowToPages/computeAvailableHeightPx 만 순수, Chrome 측정
+// 어댑터(src/adapters/PaginationMeasurer.js)는 정적 import 되지 않으므로(생성자 duck-typed 주입)
+// 이 그래프에 등장하지 않는다 — 절대 화이트리스트에 등재하지 않는다). EditorHttpServer 는 entry
+// 인자 없이 호출하므로 이 배열이 실제 /src 서빙 화이트리스트의 시작점이다.
+const DEFAULT_ENTRIES = Object.freeze([
+  'src/usecases/ValidateWorksheet.js',
+  'src/usecases/ValidateObjectTree.js',
+  'src/usecases/RenderObjectTree.js',
+  'src/usecases/PaginateObjectTree.js',
+]);
+
 /**
  * entry 에서 시작해 상대경로 import/export 간선을 전이 순회한다.
  * @param {string} root 레포 루트(절대경로)
- * @param {string} entry 루트 기준 상대 엔트리(기본: 검수 체인)
+ * @param {string|string[]} entry 루트 기준 상대 엔트리(기본: DEFAULT_ENTRIES — 검수 체인 + 개체 트리 검증 체인).
+ *   배열을 주면 각 엔트리에서 시작한 그래프를 하나로 합쳐 순회한다(화이트리스트 합집합).
  * @returns {{files:string[], violations:{file:string, token:string}[]}}
  *   files: 루트 기준 forward-slash 상대경로(브라우저 fetch 경로와 1:1), 정렬됨.
  */
-export function resolveBrowserGraph(root, entry = 'src/usecases/ValidateWorksheet.js') {
+export function resolveBrowserGraph(root, entry = DEFAULT_ENTRIES) {
   const absRoot = resolve(root);
   const seen = new Set();
   const violations = [];
-  const queue = [resolve(absRoot, entry)];
+  const entries = Array.isArray(entry) ? entry : [entry];
+  const queue = entries.map((e) => resolve(absRoot, e));
 
   while (queue.length > 0) {
     const abs = queue.pop();

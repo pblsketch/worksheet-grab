@@ -1,96 +1,59 @@
-// history — 편집 전체를 덮는 단일 실행취소 스택(§3.1 E3).
+// history — 개체 트리 인메모리 조작 히스토리(S4.1, S2.4 정합). 전면 개정.
 //
-// 브라우저 기본 undo(execCommand('undo'))는 사용자의 직접 타이핑과 execCommand 편집만
-// 추적한다. 그런데 이 에디터의 특징 기능 — ⭐정답 표시(조상 unwrap)·✏️답란 삽입·
-// 프리셋 삽입·AI 적용·이미지 리사이즈 — 은 전부 DOM 직접 조작이라 그 스택 밖에 있었다.
-// 그래서 "정답 표시를 되돌릴 수 없다"는 문제가 났다.
+// 구판(editor-v3)은 문서 전체가 contenteditable 이라 되돌리기 단위가 DOM(.sheet innerHTML)
+// 스냅샷 하나뿐이었다. editor-v4 는 저장의 단일 진실이 개체 트리(core.js 의 document)로
+// 바뀌었으므로, 매 커밋마다 두 스냅샷을 함께 찍는다:
+//   1) document(개체 트리) 의 깊은 복사 — /save 왕복·검증의 근거, undo/redo 의 "진짜" 상태.
+//   2) 그 순간 캔버스 .sheet 들의 innerHTML — undo/redo 시 화면을 값싸게 되돌리는 수단
+//      (개체별 재렌더 파이프라인 없이도 정확하다 — RenderObjectTree 는 순수 함수라 같은
+//      document 입력이면 항상 같은 HTML 을 내므로, 커밋 시점의 DOM 스냅샷은 그 document
+//      스냅샷의 정확한 렌더 결과와 항상 같다).
+// 두 스냅샷은 항상 같은 commit() 호출 안에서 함께 찍히므로 서로 어긋나지 않는다.
 //
-// 두 스택을 병행하면 타이핑과 명령이 교차될 때 되돌리는 순서가 어긋난다(사용자가
-// 친 순서와 무관하게 풀림). 그래서 되돌리기를 통째로 이 모듈이 소유하고, 브라우저
-// 기본 undo 는 호출부에서 가로채 무력화한다.
-//
-// 저장 단위는 .sheet 별 innerHTML 스냅샷이다. 복원 시 실제로 바뀐 시트만 교체해
-// 스크롤·다른 쪽 레이아웃을 흔들지 않는다. 캐럿은 childNodes 인덱스 경로로 복원한다.
+// 조작 단위(op): 텍스트 편집(coalesced noteInput)·float 이동(드래그 종료)·기타 명령(run) —
+// 전부 이 스택 하나로 합류한다. 브라우저 기본 undo(execCommand('undo'))는 이 스택 밖이므로
+// editor.js 가 beforeinput(historyUndo/historyRedo) 을 가로채 이 스택으로 돌린다.
 
-const MAX_DEPTH = 80; // 스냅샷 × 깊이 — 활동지(수십 KB)에서 메모리가 문제되지 않는 선
+const MAX_DEPTH = 80; // 스냅샷 × 깊이 — 활동지(수십 KB) 규모에서 메모리가 문제되지 않는 선
 const TYPING_IDLE_MS = 500; // 연속 타이핑을 한 단계로 묶는 유휴 시간
 
-/** 루트 기준 childNodes 인덱스 경로. 루트 밖 노드면 null. */
-function nodePath(root, node) {
-  const path = [];
-  let cur = node;
-  while (cur && cur !== root) {
-    const parent = cur.parentNode;
-    if (!parent) return null;
-    path.unshift([...parent.childNodes].indexOf(cur));
-    cur = parent;
-  }
-  return cur === root ? path : null;
-}
-
-/** nodePath 의 역함수. 경로가 끊기면(구조 변경) null. */
-function nodeFromPath(root, path) {
-  let cur = root;
-  for (const i of path) {
-    if (!cur.childNodes || !cur.childNodes[i]) return null;
-    cur = cur.childNodes[i];
-  }
-  return cur;
-}
-
-export function createHistory({ getDoc, onRestore = () => {} } = {}) {
+/**
+ * @param {{core:object, getDoc:() => Document|null, onRestore?:() => void}} deps
+ *   core: core.js 의 createDocumentStore() 인스턴스(getDocument/setDocument).
+ *   getDoc: 현재 teacher iframe 의 contentDocument(없으면 null) — 되돌리기 대상 캔버스.
+ *   onRestore: undo/redo 로 문서·DOM 이 바뀐 뒤 호출(selection.js 의 refreshVisual 재적용 등).
+ */
+export function createHistory({ core, getDoc, onRestore = () => {} } = {}) {
   let stack = [];
   let index = -1;
   let typingTimer = null;
-  let restoring = false; // 복원 중 발생하는 이벤트로 재기록되는 것 차단
+  let restoring = false; // 복원 중 발생하는 DOM 이벤트로 재기록되는 것 차단
 
   const sheetsOf = (doc) => [...doc.querySelectorAll('.sheet')];
-
-  function captureSelection(doc) {
-    const sel = doc.getSelection();
-    if (!sel || sel.rangeCount === 0) return null;
-    const range = sel.getRangeAt(0);
-    const sheets = sheetsOf(doc);
-    const i = sheets.findIndex((s) => s.contains(range.startContainer));
-    if (i < 0) return null;
-    const start = nodePath(sheets[i], range.startContainer);
-    const end = nodePath(sheets[i], range.endContainer);
-    if (!start || !end) return null;
-    return { sheet: i, start, startOffset: range.startOffset, end, endOffset: range.endOffset };
-  }
 
   function capture() {
     const doc = getDoc();
     if (!doc) return null;
-    return { sheets: sheetsOf(doc).map((s) => s.innerHTML), sel: captureSelection(doc) };
+    return {
+      document: structuredClone(core.getDocument()),
+      sheets: sheetsOf(doc).map((s) => s.innerHTML),
+    };
   }
 
-  const sameContent = (a, b) =>
+  const sameSheets = (a, b) =>
     a && b && a.sheets.length === b.sheets.length && a.sheets.every((h, i) => h === b.sheets[i]);
 
   function restore(state) {
-    const doc = getDoc();
-    if (!doc || !state) return;
+    if (!state) return;
     restoring = true;
     try {
-      const sheets = sheetsOf(doc);
-      // 바뀐 시트만 교체 — 전체를 다시 쓰면 스크롤이 튀고 재레이아웃 비용도 커진다.
-      for (let i = 0; i < sheets.length && i < state.sheets.length; i++) {
-        if (sheets[i].innerHTML !== state.sheets[i]) sheets[i].innerHTML = state.sheets[i];
-      }
-      const s = state.sel;
-      if (s && sheets[s.sheet]) {
-        const startNode = nodeFromPath(sheets[s.sheet], s.start);
-        const endNode = nodeFromPath(sheets[s.sheet], s.end);
-        if (startNode && endNode) {
-          try {
-            const range = doc.createRange();
-            range.setStart(startNode, Math.min(s.startOffset, startNode.childNodes?.length ?? startNode.length ?? 0));
-            range.setEnd(endNode, Math.min(s.endOffset, endNode.childNodes?.length ?? endNode.length ?? 0));
-            const sel = doc.getSelection();
-            sel.removeAllRanges();
-            sel.addRange(range);
-          } catch { /* 경로가 어긋나면 캐럿 복원만 포기한다(내용 복원은 이미 성공) */ }
+      core.setDocument(structuredClone(state.document));
+      const doc = getDoc();
+      if (doc) {
+        const sheets = sheetsOf(doc);
+        // 바뀐 시트만 교체 — 전체를 다시 쓰면 스크롤이 튀고 재레이아웃 비용도 커진다.
+        for (let i = 0; i < sheets.length && i < state.sheets.length; i++) {
+          if (sheets[i].innerHTML !== state.sheets[i]) sheets[i].innerHTML = state.sheets[i];
         }
       }
     } finally {
@@ -99,15 +62,15 @@ export function createHistory({ getDoc, onRestore = () => {} } = {}) {
     onRestore();
   }
 
-  /** 현재 상태를 한 단계로 확정한다. 직전 단계와 내용이 같으면 캐럿만 갱신. */
+  /** 현재 상태를 한 단계로 확정한다. 직전 단계와 화면이 같으면 새 단계로 세지 않는다. */
   function commit() {
     if (restoring) return;
     clearTimeout(typingTimer);
     typingTimer = null;
     const state = capture();
     if (!state) return;
-    if (index >= 0 && sameContent(stack[index], state)) {
-      stack[index].sel = state.sel; // 선택만 바뀐 경우 — 새 단계로 세지 않는다
+    if (index >= 0 && sameSheets(stack[index], state)) {
+      stack[index] = state; // 내용은 같고 document 메타만 바뀐 경우(드물다) — 갱신만
       return;
     }
     stack = stack.slice(0, index + 1); // 되돌린 뒤 새로 편집하면 redo 꼬리는 버린다
@@ -117,7 +80,7 @@ export function createHistory({ getDoc, onRestore = () => {} } = {}) {
   }
 
   return {
-    /** 문서를 처음 열었을 때·재조립 후 기준점을 새로 잡는다. */
+    /** 문서를 처음 열었을 때·iframe 재조립 후 기준점을 새로 잡는다. */
     reset() {
       clearTimeout(typingTimer);
       typingTimer = null;
@@ -131,10 +94,7 @@ export function createHistory({ getDoc, onRestore = () => {} } = {}) {
       clearTimeout(typingTimer);
       typingTimer = setTimeout(commit, TYPING_IDLE_MS);
     },
-    /**
-     * 명령(정답 표시·프리셋 삽입·서식 등) 실행 래퍼.
-     * 실행 전에 대기 중인 타이핑을 먼저 확정해 "타이핑 → 명령" 순서를 보존한다.
-     */
+    /** 명령(이동 등) 실행 래퍼 — 대기 중인 타이핑을 먼저 확정한 뒤 실행하고 한 단계로 확정한다. */
     run(fn) {
       if (typingTimer) commit();
       const result = fn();

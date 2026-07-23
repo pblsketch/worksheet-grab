@@ -86,19 +86,21 @@ test('§6 수용 e2e: 문서 A 에서 저장한 프리셋을 문서 B 에서 재
     const preset = listB.presets.find((p) => p.id === '나의-안내문');
     assert.ok(preset, '다른 문서 서버에서 재사용 가능');
 
-    // B 문서에 삽입 저장(클라이언트 삽입 시뮬레이션: manifest 에 블록 추가 → /save)
+    // B 문서에 삽입 저장(클라이언트 삽입 시뮬레이션: S4.0 개체 트리 직송 — B 는 구 manifest 세션이라
+    // /shell.json 이 지연 마이그레이션해 서빙한 document 를 그대로 편집해 되돌린다). 프리셋의 임의
+    // 블록 타입(directive 등)은 ObjectCatalog 10종 밖이라 richtext 탈출구 개체로 삽입한다.
     const shellB = await (await fetch(`${b.url}/shell.json`)).json();
-    const manifest = shellB.manifest;
-    manifest.pages[0].push({ type: preset.type, html: preset.html });
+    const document = shellB.document;
+    document.pages[0].flow.push({ id: 'preset-1', type: 'richtext', placement: 'flow', html: preset.html, sourceType: preset.type });
     const saveRes = await fetch(`${b.url}/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ manifest }),
+      body: JSON.stringify({ document }),
     });
     assert.equal((await saveRes.json()).meta.revision, 2);
     const savedManifest = JSON.parse(await readFile(join(base, '문서B', 'worksheet.manifest.json'), 'utf8'));
-    assert.ok(savedManifest.pages[0].some((blk) => (blk.html ?? '').includes('모둠별로 토의해 보자')),
-      'B manifest 에 프리셋 블록 잔존(§6 수용)');
+    assert.ok(savedManifest.pages[0].flow.some((o) => (o.html ?? '').includes('모둠별로 토의해 보자')),
+      'B 개체 트리에 프리셋 개체 잔존(§6 수용)');
   } finally {
     await new Promise((r) => a.server.close(r));
     await new Promise((r) => b.server.close(r));

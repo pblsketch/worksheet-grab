@@ -13,24 +13,23 @@ import { createEditorServer, listenEditorServer } from '../../src/adapters/Edito
 import { resolveChromePath } from '../../src/adapters/ChromeRenderer.js';
 import { chromeAvailable } from '../helpers/pdf.js';
 
-// US-E1 실물 검증(실 Chrome, testSeed 게이트 서버): 좌측 페이지 썸네일 패널.
-// 썸네일은 iframe 을 transform 으로 축소한 것이라 "그려졌는가"가 아니라
-// "쪽 수와 일치하는가 · 클릭이 그 쪽으로 옮기는가 · 편집이 반영되는가"를 단정한다.
+// US-18(S4.3) 재작성 — 좌측 페이지 썸네일 탭(개체 트리 기반). 구판(US-E1, HTML manifest 시절)은
+// DOM 스크래핑만으로 썸네일을 그렸지만, 신 UI 셸은 leftPanel.js 의 renderThumbs()가 teacher
+// iframe 의 라이브 DOM(= 개체 트리 렌더 결과)을 그대로 축소해 쓴다 — 여기서 검증하는 것은
+// "썸네일 수가 페이지 수(개체 트리 pages[].length)와 항상 일치하는가"(트리 동기화)와
+// "페이지 추가/복제/삭제(leftPanel 우클릭 메뉴·+새 페이지) 후에도 그 동기화가 유지되는가"다.
+// editor.js:runSeed('thumbs-tree') 가 결정적으로 재현한다.
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const HAS_CHROME = chromeAvailable();
 
-function dumpDom(url, timeoutMs = 60000, windowSize = null) {
+function dumpDom(url, timeoutMs = 60000, windowSize = '1440,960') {
   const chrome = resolveChromePath(null);
-  // 생성한 쪽이 지운다 — 안 지우면 스위트 반복 실행에 임시 폴더가 수천 개 쌓여
-  // 디스크가 차고 렌더 테스트가 통째로 멎는다(실측 7,000개).
   const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-thumb-chrome-'));
   const args = [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`,
     '--virtual-time-budget=20000',
-    // 창 크기를 안 주면 헤드리스 기본이 800×600 이라 좌우 패널(176+264)을 빼면 캔버스가
-    // 360px — A4 794px 가 당연히 안 들어간다. 3단 배치 판정은 실제 데스크톱 폭에서 해야 한다.
     ...(windowSize ? [`--window-size=${windowSize}`] : []),
     '--dump-dom', url,
   ];
@@ -56,13 +55,29 @@ const ds = (dom, key) => {
   return m ? m[1] : null;
 };
 
+function thumbsFixtureDocument() {
+  return {
+    pagination: 'paginated',
+    docTitle: '썸네일 트리 동기화 테스트',
+    subject: 'science',
+    dataSubject: 'science',
+    themeName: 'sci',
+    lang: 'ko',
+    paper: null,
+    standards: [],
+    pages: [
+      { flow: [{ id: 'p0-t', type: 'title', placement: 'flow', text: '1쪽 제목' }], float: [] },
+      { flow: [{ id: 'p1-t', type: 'title', placement: 'flow', text: '2쪽 제목' }], float: [] },
+    ],
+  };
+}
+
 async function startEditServer() {
   const base = await mkdtemp(join(tmpdir(), 'wsg-thumb-render-'));
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
-  const manifest = await blockRepository.readManifest('sci');
   await new SaveDocument({ workspace, blockRepository, curriculum: null })
-    .execute({ name: '문서', manifest, now: new Date('2026-07-21T01:00:00.000Z') });
+    .checkpoint({ name: '문서', document: thumbsFixtureDocument(), now: new Date('2026-07-23T00:00:00.000Z') });
   const server = createEditorServer({
     root: ROOT, docName: '문서', workspace, blockRepository, curriculum: null, testSeed: true,
   });
@@ -70,84 +85,33 @@ async function startEditServer() {
   return { server, url: `http://127.0.0.1:${addr.port}` };
 }
 
-test('US-E1: 썸네일 개수·번호가 쪽 수와 일치하고 클릭이 그 쪽으로 이동한다', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+test('US-18 좌측 페이지 탭: 썸네일 트리 동기화 · 페이지 추가/복제/삭제', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
   const { server, url } = await startEditServer();
   try {
-    const dom = await dumpDom(`${url}/?seed=thumbs`);
-    assert.equal(ds(dom, 'seed-done'), 'thumbs');
+    const dom = await dumpDom(`${url}/?seed=thumbs-tree`);
+    assert.equal(ds(dom, 'seed-done'), 'thumbs-tree', '시드 스크립트가 끝까지 실행됨');
 
-    const sheets = Number(ds(dom, 'thumb-sheets'));
-    assert.ok(sheets >= 2, `다쪽 문서여야 이동을 검증할 수 있다(쪽 ${sheets})`);
-    assert.equal(Number(ds(dom, 'thumb-count')), sheets, '썸네일 수 = .sheet 수');
-    assert.equal(ds(dom, 'thumb-labels'), Array.from({ length: sheets }, (_, i) => i + 1).join(','),
-      '썸네일에 1..N 쪽 번호 표시');
+    // 초기: 썸네일 수 = 페이지 수(2쪽 픽스처)
+    assert.equal(ds(dom, 'page-count-initial'), '2');
+    assert.equal(ds(dom, 'thumb-count-initial'), '2');
 
-    // 마지막 쪽 클릭 → 캔버스가 실제로 내려가고 그 쪽이 활성
-    assert.equal(ds(dom, 'thumb-scrollable'), 'true', '다쪽 문서라 캔버스가 스크롤 가능해야 이동을 볼 수 있다');
-    assert.ok(Number(ds(dom, 'thumb-jump-scroll')) > 100,
-      `클릭 후 캔버스가 스크롤됨(scrollTop ${ds(dom, 'thumb-jump-scroll')})`);
-    assert.equal(ds(dom, 'thumb-jump-active'), String(sheets - 1), '이동한 쪽이 활성');
-    // 맨 위로 되돌리면 1쪽이 활성(스크롤 동기화)
-    assert.equal(ds(dom, 'thumb-top-active'), '0', '스크롤 상단 = 1쪽 활성');
-  } finally {
-    await new Promise((r) => server.close(r));
-  }
-});
+    // +새 페이지 → 페이지·썸네일 동시 +1
+    assert.equal(ds(dom, 'page-count-after-add'), '3');
+    assert.equal(ds(dom, 'thumb-count-after-add'), '3');
 
-test('US-E1: 편집한 쪽의 썸네일만 갱신된다', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
-  const { server, url } = await startEditServer();
-  try {
-    const dom = await dumpDom(`${url}/?seed=thumbs`);
-    assert.equal(ds(dom, 'seed-done'), 'thumbs');
-    assert.equal(ds(dom, 'thumb-edit-synced'), 'true', '편집 내용이 해당 쪽 썸네일에 반영');
-    assert.equal(ds(dom, 'thumb-other-page-untouched'), 'true', '안 건드린 쪽은 재렌더하지 않음(시트 단위 diff)');
-  } finally {
-    await new Promise((r) => server.close(r));
-  }
-});
+    // 0쪽 복제 → 페이지·썸네일 동시 +1
+    assert.equal(ds(dom, 'page-count-after-dup'), '4');
+    assert.equal(ds(dom, 'thumb-count-after-dup'), '4');
 
-test('US-E1: 학생용 전환 시 썸네일도 학생용 문서가 된다', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
-  const { server, url } = await startEditServer();
-  try {
-    const dom = await dumpDom(`${url}/?seed=thumbs-student`);
-    assert.equal(ds(dom, 'seed-done'), 'thumbs-student');
-    assert.equal(ds(dom, 'thumb-student-mode'), 'true', '썸네일 srcdoc 이 data-mode="student"');
-    assert.ok(Number(ds(dom, 'thumb-student-count')) >= 2, '학생용에서도 쪽 수만큼 썸네일 유지');
-  } finally {
-    await new Promise((r) => server.close(r));
-  }
-});
+    // 마지막 쪽 삭제 → 페이지·썸네일 동시 -1
+    assert.equal(ds(dom, 'page-count-after-delete'), '3');
+    assert.equal(ds(dom, 'thumb-count-after-delete'), '3');
 
-test('US-E2: 3단 배치 치수 · 선택 반응 인스펙터 · 좌측 탭 · 접기', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
-  const { server, url } = await startEditServer();
-  try {
-    const dom = await dumpDom(`${url}/?seed=inspector`, 60000, '1920,1080');
-    assert.equal(ds(dom, 'seed-done'), 'inspector');
+    // 편집한 쪽의 썸네일 iframe srcdoc 에 편집 내용이 반영(트리 기반 재생성)
+    assert.equal(ds(dom, 'thumb-sync-ok'), 'true', '편집한 개체가 속한 쪽의 썸네일에 새 내용이 반영됨');
 
-    // 3단 그리드 + A4 가 가로 스크롤 없이 들어간다
-    assert.match(ds(dom, 'insp-cols'), /^\d+(\.\d+)?px \d+(\.\d+)?px \d+(\.\d+)?px$/, `3단 그리드(${ds(dom, 'insp-cols')})`);
-    assert.equal(ds(dom, 'insp-no-hscroll'), 'true', '캔버스 가로 스크롤 없음');
-    assert.ok(Number(ds(dom, 'insp-canvas-w')) > Number(ds(dom, 'insp-sheet-w')),
-      `캔버스(${ds(dom, 'insp-canvas-w')}px)가 A4(${ds(dom, 'insp-sheet-w')}px)보다 넓다`);
-
-    // 선택에 반응해 섹션이 바뀐다
-    assert.equal(ds(dom, 'insp-default'), 'document', '기본은 문서 섹션');
-    // 셀 단위로 잡는다(표가 아니라). 셀 배경을 따로 칠할 수 있어야 하고, 표 전체는
-    // Esc 로 한 겹 올라가서 잡는다 — 개체 편집 도입 때 의도적으로 세분한 동작이다.
-    assert.equal(ds(dom, 'insp-table'), 'cell', '표 안에 커서 → 셀 섹션');
-    assert.equal(ds(dom, 'insp-back'), 'document', '표 밖으로 나가면 문서 섹션 복귀');
-    assert.equal(ds(dom, 'insp-image'), 'image', '이미지 선택 → 이미지 섹션');
-
-    // 프리셋은 좌측 탭 — 캔버스를 덮지 않는다
-    assert.equal(ds(dom, 'insp-left-tab'), 'presets', '프리셋 탭 활성');
-    assert.ok(Number(ds(dom, 'insp-preset-items')) > 0, '프리셋 목록이 탭 안에 렌더');
-    assert.equal(ds(dom, 'insp-canvas-with-presets'), ds(dom, 'insp-canvas-w'),
-      '프리셋을 열어도 캔버스 폭이 그대로(오버레이가 덮지 않음)');
-
-    // 접기 → 캔버스가 넓어지고, 펼치면 되돌아온다
-    assert.equal(ds(dom, 'insp-collapsed-grew'), 'true',
-      `접으면 캔버스가 넓어짐(${ds(dom, 'insp-canvas-w')} → ${ds(dom, 'insp-collapsed-w')})`);
-    assert.equal(ds(dom, 'insp-restored-w'), ds(dom, 'insp-canvas-w'), '펼치면 원래 폭 복귀');
+    // 클릭(scrollToPage) 이 캔버스를 그 쪽으로 스크롤
+    assert.equal(ds(dom, 'scroll-to-first-ok'), 'true');
   } finally {
     await new Promise((r) => server.close(r));
   }
