@@ -53,6 +53,7 @@ model: opus
   - 행동과 표현: 이해를 표현하는 방식이 쓰기 하나뿐이지 않은가 — 분류·선택·그리기 답란 대안.
 - **루브릭 품질**(area: `rubric-quality`): 루브릭·점검표 기준이 성실성·태도 중심이 아닌가(성취 기반), 등급 간 차이가 관찰 가능한 행동으로 설명되는가.
 - **brief 정합**(area: `brief-fidelity`): `_workspace/00_brief.json` 존재 시에만 — `lessonIntent`·`assessmentEvidence`·`misconceptions`·`inquiryLadder` 중 `02_outline.json`/HTML 에 반영되지 않은 요소를 구조적으로 열거한다. (협의 비용의 관측 신호이자, brief 를 엔진이 직접 소비하는 후속 승격 판단의 데이터 근거. brief 는 읽기 전용.)
+- **학습목표-성취기준 대응**(area: `objectives-alignment`, 2026-07-23 학습목표 표기 전환): `std-box.objectives`가 있으면, 각 학습목표 문장이 `std-box.codes`가 참조하는 성취기준에서 무리 없이 도출됐는지(문장이 성취기준 범위를 벗어나 창작되지 않았는지) 확인해 권고한다 — 확정 판정이 아니라 사람이 다시 볼 신호다. `codes`(조회 전용)와 `objectives`(저작 영역)의 구분 자체는 fail-closed 대상이 아니지만(원칙 3은 성취기준 원문에만 적용), 목표가 성취기준과 지나치게 동떨어지면 advisory로 표시한다.
 
 ## 작업 원칙
 - `general-purpose` 타입으로 동작한다(검증 스크립트·렌더 실행 필요, 읽기 전용 아님).

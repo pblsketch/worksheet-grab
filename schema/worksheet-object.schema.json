@@ -267,7 +267,12 @@
         "id": { "$ref": "#/$defs/commonProps/id" },
         "type": { "const": "std-box" },
         "placement": { "const": "flow" },
-        "codes": { "type": "array", "items": { "type": "string" }, "description": "manifest.standards 코드 배열 참조." }
+        "codes": { "type": "array", "items": { "type": "string" }, "description": "manifest.standards 코드 배열 참조." },
+        "objectives": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "학습 목표 문장 배열(예: '전압과 전류의 관계를 설명할 수 있다.', 2~3개 권장). codes 와 달리 저작 영역이다 — 성취기준을 해당 차시 수업에 맞게 구체화한 문장으로, designer(또는 교사)가 codes 가 가리키는 성취기준에서 도출해 채운다(원칙 3은 '성취기준 원문' 창작 금지만 다루며 objectives 는 그 대상이 아니다). 비어 있으면(하위호환) 렌더러가 현행 성취기준 박스를 그대로 표시한다."
+        }
       },
       "additionalProperties": false
     }

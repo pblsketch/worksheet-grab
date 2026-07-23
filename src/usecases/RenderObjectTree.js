@@ -241,18 +241,48 @@ function renderRichtext(obj) {
   return typeof obj.html === 'string' ? obj.html : '';
 }
 
-/**
- * std-box = 성취기준 원문 주입 전용(원칙 3 — 창작 금지). RenderObjectTree 는 순수 함수라 CSV/MCP 를
- * 조회하지 않는다 — 호출부가 codes 를 이미 원문으로 해석해 meta.standards 로 주입해야 원문이 실린다
- * (AssembleWorksheet#renderStandardLabel 과 동형 마크업). 미해석 코드는 코드만 표기한다.
- */
-function renderStdBox(obj, ctx) {
-  const codes = Array.isArray(obj.codes) ? obj.codes : [];
-  const lis = codes.map((rawCode) => {
+/** codes[] → `<li><b>[코드]</b> 원문</li>` 목록(std-box 공용 — 미해석 코드는 코드만 표기). */
+function renderStandardCodeList(codes, ctx) {
+  return codes.map((rawCode) => {
     const code = String(rawCode).replace(/^\[|\]$/g, '');
     const text = ctx.standardsByCode.get(code);
     return `      <li><b>[${escapeHtml(code)}]</b>${text ? ` ${escapeHtml(text)}` : ''}</li>`;
   }).join('\n');
+}
+
+/**
+ * std-box = 성취기준 참조 + (선택) 학습목표 저작 전용. RenderObjectTree 는 순수 함수라 CSV/MCP 를
+ * 조회하지 않는다 — 호출부가 codes 를 이미 원문으로 해석해 meta.standards 로 주입해야 원문이 실린다
+ * (AssembleWorksheet#renderStandardLabel 과 동형 마크업). 미해석 코드는 코드만 표기한다.
+ *
+ * objectives(2026-07-23 학습목표 표기 전환): 현장 관행상 활동지 상단에는 성취기준 원문이 아니라 해당
+ * 차시에 맞게 구체화한 **학습목표**("~할 수 있다")를 제시한다 — objectives 가 있으면 학생/교사 공통
+ * "학습 목표" 박스를 렌더하고, 그 아래 교사 전용 "근거 성취기준"(코드+원문)을 data-mode CSS
+ * 메커니즘(assets/blocks.css `.std-ref`)으로만 숨긴다(정답과 달리 비밀이 아니므로 물리 제거 불필요).
+ * objectives 가 없으면(하위호환) 현행 성취기준 박스를 그대로 렌더한다 — 기존 문서 무회귀.
+ */
+function renderStdBox(obj, ctx) {
+  const codes = Array.isArray(obj.codes) ? obj.codes : [];
+  const objectives = Array.isArray(obj.objectives) ? obj.objectives : [];
+
+  if (objectives.length > 0) {
+    const goalLis = objectives.map((goal) => `      <li>${escapeHtml(goal)}</li>`).join('\n');
+    const refLis = renderStandardCodeList(codes, ctx);
+    return `<div class="std-box">
+    <div class="std-head">▣ 학습 목표</div>
+    <ul>
+${goalLis}
+    </ul>
+  </div>
+  <div class="std-box std-ref">
+    <div class="std-head">▣ 근거 성취기준 (2022 개정 교육과정)</div>
+    <ul>
+${refLis}
+    </ul>
+  </div>`;
+  }
+
+  const lis = renderStandardCodeList(codes, ctx);
   return `<div class="std-box">
     <div class="std-head">▣ 관련 성취기준 (2022 개정 교육과정)</div>
     <ul>

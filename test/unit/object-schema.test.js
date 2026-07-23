@@ -100,3 +100,18 @@ test('std-box: 2차 델타 이후에도 완전 불변 — codes 밖 필드는 �
   assert.equal(ok, false);
   assert.ok(findings.some((f) => f.rule === 'slot-invariant'));
 });
+
+// ── 학습목표 표기 전환(2026-07-23): std-box.objectives(저작 영역, codes 와 별개) ──
+
+test('std-box: objectives(학습목표 문장 배열)는 카탈로그 필드라 PASS', () => {
+  const { ok, findings } = validateObjectShape({
+    id: 's3', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'],
+    objectives: ['전압과 전류의 관계를 설명할 수 있다.', '옴의 법칙을 활용해 저항을 구할 수 있다.'],
+  });
+  assert.equal(ok, true, JSON.stringify(findings));
+});
+
+test('std-box: objectives 없이 codes 만 있어도(하위호환) 여전히 PASS', () => {
+  const { ok, findings } = validateObjectShape({ id: 's4', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] });
+  assert.equal(ok, true, JSON.stringify(findings));
+});

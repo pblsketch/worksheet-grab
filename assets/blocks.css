@@ -28,6 +28,11 @@
 .std-box ul { margin: 0; padding: 7px 14px 7px 30px; }
 .std-box li { font-size: 9pt; margin: 2px 0; color: #333; }
 .std-box li b { color: var(--c); margin-right: 4px; }
+.std-box + .std-box { margin-top: 2mm; }
+/* 근거 성취기준(교사 전용, 학습목표 표기 전환 2026-07-23): 정답이 아니라 참조용 정보라 비밀이
+   아니다 — .answer 처럼 학생용에서 물리 제거하지 않고 CSS 표시 제어(data-mode)만으로 숨긴다. */
+.std-ref { display: none; }
+[data-mode="teacher"] .std-ref { display: block; }
 
 /* ---- directive (활동 지시문) ---- 교과별 글리프는 data-subject 분기 ---- */
 .direct { display: flex; gap: 8px; align-items: flex-start; margin: 7mm 0 3mm; font-weight: 700; font-size: 11pt; }

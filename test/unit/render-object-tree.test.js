@@ -115,6 +115,46 @@ test('std-box: meta.standards 미주입이면 코드만 표기(원문 창작 없
   assert.match(html, /\[9과14-02\]/);
 });
 
+// ── 학습목표 표기 전환(2026-07-23): objectives 유무 3분기 ──
+
+test('std-box: objectives 없으면(하위호환) 현행 "관련 성취기준" 박스만 렌더 — 무회귀', () => {
+  const document = docWith([{ id: 'sb1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] }]);
+  const { html } = new RenderObjectTree().execute(document, ASSETS, {
+    standards: [{ code: '[9과14-02]', text: '전기 회로에서 전류를 모형으로 설명한다.' }],
+  });
+  assert.match(html, /▣ 관련 성취기준/);
+  assert.ok(!html.includes('▣ 학습 목표'), 'objectives 없으면 학습 목표 박스가 없어야 함');
+  assert.ok(!html.includes('class="std-ref"'), 'objectives 없으면 근거 성취기준(교사전용) 박스가 없어야 함');
+});
+
+test('std-box: objectives 있으면 학생/교사 공통 "학습 목표" 박스를 렌더', () => {
+  const document = docWith([{
+    id: 'sb1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'],
+    objectives: ['전류와 전압의 관계를 설명할 수 있다.', '옴의 법칙으로 저항을 구할 수 있다.'],
+  }]);
+  const { html } = new RenderObjectTree().execute(document, ASSETS, {
+    standards: [{ code: '[9과14-02]', text: '전기 회로에서 전류를 모형으로 설명한다.' }],
+  });
+  assert.match(html, /▣ 학습 목표/);
+  assert.ok(html.includes('전류와 전압의 관계를 설명할 수 있다.'), '학습목표 문장이 방출되어야 함');
+  assert.ok(html.includes('옴의 법칙으로 저항을 구할 수 있다.'), '학습목표 문장이 방출되어야 함');
+  assert.ok(!html.includes('▣ 관련 성취기준'), 'objectives 있으면 현행 성취기준 박스 제목은 방출되지 않아야 함');
+});
+
+test('std-box: objectives 있으면 "근거 성취기준"(코드+원문)이 교사전용(.std-ref) 클래스로 함께 방출', () => {
+  const document = docWith([{
+    id: 'sb1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'],
+    objectives: ['전류와 전압의 관계를 설명할 수 있다.'],
+  }]);
+  const { html } = new RenderObjectTree().execute(document, ASSETS, {
+    standards: [{ code: '[9과14-02]', text: '전기 회로에서 전류를 모형으로 설명한다.' }],
+  });
+  assert.match(html, /class="std-box std-ref"/, '근거 성취기준 박스는 .std-ref 클래스(교사전용 data-mode CSS)를 가져야 함');
+  assert.match(html, /▣ 근거 성취기준/);
+  assert.match(html, /\[9과14-02\]/, '근거 성취기준 박스에 코드가 표기되어야 함');
+  assert.ok(html.includes('전기 회로에서 전류를 모형으로 설명한다.'), '근거 성취기준 박스에 성취기준 원문이 표기되어야 함');
+});
+
 test('editMode: 개체 경계 래퍼가 data-oid 기반', () => {
   const document = docWith([{ id: 'obj-42', type: 'divider', placement: 'flow' }]);
   const { html } = new RenderObjectTree().execute(document, ASSETS, {}, { editMode: true });

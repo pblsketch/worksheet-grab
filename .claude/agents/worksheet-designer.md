@@ -40,6 +40,13 @@ HTML을 직접 저작하지 않는다 — HTML 문자열 생성·paper-css 조�
   codes:[...]}`처럼 `curriculum-mapper`가 확정한 성취기준 코드만 참조로 싣는다 — 원문은 렌더 시
   CSV/gepai에서 주입되므로, 이 에이전트가 원문을 창작해 `std-box`에 채워 넣으면 슬롯 변조
   (`slot-invariant`)로 거부된다.
+- **학습목표(std-box.objectives, 2026-07-23 학습목표 표기 전환)**: 활동지 상단에는 성취기준 원문이
+  아니라 학습목표를 낸다(현장 관행). `02_outline.json.objectives`(`worksheet-planner`가 저작)를
+  `std-box.objectives`(문자열 배열)에 그대로 옮긴다. `codes`와 달리 **objectives는 저작 영역**이다 —
+  `std-box` 타입 자체는 여전히 `AI_EXCLUDED_TYPES`에 남아 편집기의 "AI 재작성" 요청 대상에서는
+  제외되지만(원칙 3, codes/원문 변조 방지 무변경), 이 초안 저작 단계에서는 objectives를 채우거나
+  다듬을 수 있다. `objectives`를 비워 두면(레거시/미제공) 렌더러가 현행 성취기준 박스를 그대로
+  표시한다(하위호환 — 기존 문서 무회귀).
 - **저작권(passage-slot)**: 3층 정책(2026-07-23 2차 델타). **기본은 빈 슬롯** — `slotLabel`(예: `'［지문
   삽입 슬롯］'`)로 안내만 채우고 `bodyHtml`/`source`는 비워 둔다(사용자가 지문을 요청하지 않은 일반
   아웃라인 조립에서는 이전과 동일하게 창작하지 않는다). **단 사용자가 명시적으로 지문 생성·재구성을

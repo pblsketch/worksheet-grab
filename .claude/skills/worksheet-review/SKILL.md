@@ -48,6 +48,7 @@ const gated = new ValidateWorksheet().execute(objectTreeDoc, renderedHtml); // �
 - **UDL 3장벽**(area: `udl`) — 참여(선택권·짧은 성공 경험)·표상(한 가지 방식만 아닌지)·행동과 표현(쓰기 하나뿐 아닌지).
 - **루브릭 품질**(area: `rubric-quality`) — 성취 기반인지, 등급 차이가 관찰 가능한 행동으로 설명되는지.
 - **brief 정합**(area: `brief-fidelity`) — `00_brief.json` 존재 시에만, `lessonIntent`·`assessmentEvidence`·`misconceptions`·`inquiryLadder` 미반영 요소 열거.
+- **학습목표-성취기준 대응**(area: `objectives-alignment`, 2026-07-23 학습목표 표기 전환) — `std-box.objectives`(학습목표, 저작 영역)가 있으면 각 목표 문장이 `std-box.codes`가 참조하는 성취기준에서 무리 없이 도출됐는지(성취기준 범위를 벗어난 창작이 아닌지) 확인해 권고. 확정 판정 아님.
 
 ## 범교과성(1층 slot-invariant 보조 + 육안)
 - 교과색은 CSS 변수(`--c` 등)로만, 하드코딩 금지(엔진 `validate` 의 `hardcoded-subject-color` warning 교차 확인).

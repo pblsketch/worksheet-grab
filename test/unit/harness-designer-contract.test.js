@@ -81,6 +81,26 @@ test('std-box 는 codes 참조만 담는다 — 성취기준 원문 창작 필�
   assert.ok(Array.isArray(std.codes) && std.codes.length > 0);
 });
 
+// ── 학습목표 표기 전환(2026-07-23): std-box.objectives — codes 와 별개인 저작 영역 필드 ──
+
+test('worksheet-designer 는 std-box.objectives(학습목표, 저작 영역)를 채운 픽스처도 ValidateObjectTree PASS', () => {
+  const doc = designerScaffoldFixture();
+  const std = doc.pages[0].flow.find((o) => o.type === 'std-box');
+  std.objectives = ['전압과 전류의 관계를 설명할 수 있다.', '옴의 법칙을 활용해 저항을 구할 수 있다.'];
+  const { ok, findings } = new ValidateObjectTree().execute(doc);
+  assert.equal(ok, true, JSON.stringify(findings));
+});
+
+test('std-box.objectives 는 codes 와 달리 저작 영역이다 — 원문 창작 금지(원칙 3)는 codes 에만 적용된다', () => {
+  const doc = designerScaffoldFixture();
+  const std = doc.pages[0].flow.find((o) => o.type === 'std-box');
+  std.objectives = ['전압과 전류의 관계를 설명할 수 있다.'];
+  // objectives 는 designer(또는 planner)가 성취기준에서 구체화해 저작하는 문장 — codes 처럼 조회
+  // 전용 참조가 아니다. 이 계약을 명시적으로 단정한다(원칙 3 은 "성취기준 원문" 창작 금지만 다룸).
+  assert.ok(Array.isArray(std.objectives) && std.objectives.length > 0, 'objectives 는 저작된 문장 배열');
+  assert.ok(Array.isArray(std.codes) && std.codes.length > 0, 'codes 는 여전히 조회 참조만 담음(원문 없음)');
+});
+
 test('passage-slot 기본값(3층 정책, 2026-07-23 2차 델타): 사용자가 지문 생성을 명시 요청하지 않은 일반 조립에서는 slotLabel 안내만 담는다 — bodyHtml 을 창작해 채우지 않는다', () => {
   const doc = designerScaffoldFixture();
   const passage = doc.pages[0].flow.find((o) => o.type === 'passage-slot');

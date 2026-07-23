@@ -235,9 +235,13 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         break;
       }
       case 'std-box': {
-        const codes = el('input', { type: 'text', id: 'insp-std-codes', value: (obj.codes || []).join(', ') });
-        codes.addEventListener('change', () => patch({ codes: codes.value.split(',').map((s) => s.trim()).filter(Boolean) }));
-        root.appendChild(field('성취기준 코드(쉼표 구분)', codes));
+        // codes 는 curriculum-mapper 가 확정한 조회 참조라 편집기에서 직접 고치지 않는다(읽기 전용).
+        const codes = el('input', { type: 'text', id: 'insp-std-codes', value: (obj.codes || []).join(', '), readonly: 'readonly' });
+        root.appendChild(field('성취기준 코드(읽기 전용)', codes));
+        // objectives = 학습목표(저작 영역) — codes 와 달리 교사가 편집기에서 직접 다듬을 수 있다.
+        const objectives = el('textarea', { id: 'insp-std-objectives', rows: '4', text: (obj.objectives || []).join('\n') });
+        objectives.addEventListener('change', () => patch({ objectives: objectives.value.split('\n').map((s) => s.trim()).filter(Boolean) }));
+        root.appendChild(field('학습 목표(줄바꿈으로 구분)', objectives));
         break;
       }
       default: break;

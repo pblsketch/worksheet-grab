@@ -101,14 +101,29 @@ export class AssembleWorksheet {
     return this.repo.loadBlockHtml(entry.file);
   }
 
+  // 학습목표 표기 전환(2026-07-23): 이 경로(결정적 엔진, gen:'standard-label')는 AI 저작이 아니라
+  // 성취기준 CSV/MCP 원문을 그대로 조립하므로 새 학습목표 문장을 스스로 지을 수 없다 — 대신 기계
+  // 변환으로 표기만 개선한다. 학생/교사 공통 박스 제목은 "학습 목표"로 바꾸고, 목록에는 코드를 뗀
+  // 성취기준 문장만 실어 문장 자체가 목표 서술문처럼 읽히게 한다. 코드+원문 병기("근거 성취기준")는
+  // 별도 박스에 담아 교사용에서만 보이게 한다(`.std-ref`, assets/blocks.css [data-mode] 분기 —
+  // 성취기준은 비밀이 아니므로 물리 제거가 아니라 CSS 표시 제어로 충분하다).
   #renderStandardLabel(standards) {
-    const lis = standards
+    const goalLis = standards
+      .map((s) => `      <li>${escapeHtml(s.text)}</li>`)
+      .join('\n');
+    const refLis = standards
       .map((s) => `      <li><b>${s.bracketedCode()}</b> ${escapeHtml(s.text)}</li>`)
       .join('\n');
     return `<div class="std-box">
-    <div class="std-head">▣ 관련 성취기준 (2022 개정 교육과정)</div>
+    <div class="std-head">▣ 학습 목표</div>
     <ul>
-${lis}
+${goalLis}
+    </ul>
+  </div>
+  <div class="std-box std-ref">
+    <div class="std-head">▣ 근거 성취기준 (2022 개정 교육과정)</div>
+    <ul>
+${refLis}
     </ul>
   </div>`;
   }

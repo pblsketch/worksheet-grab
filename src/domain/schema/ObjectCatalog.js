@@ -70,7 +70,12 @@ export const TYPE_SPECS = Object.freeze({
   'std-box': Object.freeze({
     placements: Object.freeze(['flow']),
     required: Object.freeze([]),
-    optional: Object.freeze(['codes']),
+    // objectives: 학습목표 문장 배열 — codes(조회 전용 참조, 원문 창작 금지)와 달리 **저작 영역**이다
+    // (성취기준을 해당 차시에 맞게 구체화한 문장, "~할 수 있다" 형식 — 원칙 3의 예외가 아니라 애초에
+    // 원칙 3의 대상 밖: 원칙 3은 "성취기준 원문"에만 적용된다). std-box 타입 자체는 여전히
+    // AI_EXCLUDED_TYPES 에 남아 편집기 AI 재작성(aiBridge) 요청 대상에서는 제외되지만, designer 의
+    // 초안 저작 시점에는 이 필드를 채운다(2026-07-23 학습목표 표기 전환).
+    optional: Object.freeze(['codes', 'objectives']),
   }),
 });
 

@@ -130,6 +130,9 @@ test('S4.1 개체 우선 조작 코어: 선택·편집·Esc·다중선택·float
     // 편집 불가 타입(std-box) 더블클릭 → 선택만, 편집 진입 없음
     assert.equal(ds(dom, 'std-editing-id'), '(none)');
     assert.equal(ds(dom, 'std-selected'), 'true');
+    // 학습목표 표기 전환(2026-07-23): 인스펙터에 objectives 편집 필드가 뜨고 codes 는 읽기 전용
+    assert.equal(ds(dom, 'std-insp-objectives-field'), 'true', 'std-box 인스펙터에 학습 목표 편집 필드가 있어야 함');
+    assert.equal(ds(dom, 'std-insp-codes-readonly'), 'true', 'std-box 인스펙터의 성취기준 코드 필드는 읽기 전용이어야 함');
 
     // question 편집 — qnum 배지가 prompt 에 섞이지 않는다(stripSelector)
     assert.ok(ds(dom, 'q-prompt-synced').includes('(수정)'), 'question.prompt 가 편집 내용 반영');

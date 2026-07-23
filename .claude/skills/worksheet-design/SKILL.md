@@ -52,10 +52,16 @@ true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정
   게 아니라 개체 자체가 학생 문서에 존재하지 않게 된다.
 
 ## 슬롯 불변(성취기준, 원문 창작 금지) / 저작권 지문(3층 정책, 명시 요청 시 AI 허용)
-- **`std-box`**: `{id, type:'std-box', placement:'flow', codes:['[코드]', ...]}`만 싣는다. 성취기준
-  원문 텍스트를 절대 개체에 쓰지 않는다 — `curriculum-mapper`가 확정한 `codes`만 참조하고, 원문은
-  렌더 시 성취기준 CSV/gepai에서 주입된다. `text`/`html`/`bodyHtml` 등 자유 필드를 실으면 슬롯 변조
-  (`slot-invariant`)로 거부된다. 이 규칙은 변경 없음(원칙 3).
+- **`std-box`**: `{id, type:'std-box', placement:'flow', codes:['[코드]', ...], objectives?:[...]}`만
+  싣는다. 성취기준 원문 텍스트를 절대 개체에 쓰지 않는다 — `curriculum-mapper`가 확정한 `codes`만
+  참조하고, 원문은 렌더 시 성취기준 CSV/gepai에서 주입된다. `text`/`html`/`bodyHtml` 등 자유 필드를
+  실으면 슬롯 변조(`slot-invariant`)로 거부된다. 이 규칙은 변경 없음(원칙 3).
+  - **`objectives`(학습목표, 2026-07-23 학습목표 표기 전환)**: `codes`와 달리 **저작 영역**이다.
+    활동지 상단에는 성취기준 원문이 아니라 해당 차시 학습목표를 낸다(현장 관행) — `02_outline.json`
+    (`worksheet-plan`이 저작)의 `objectives[]`를 그대로 옮긴다(문자열 배열, `"~할 수 있다"` 형식
+    2~3개 권장). `objectives`가 있으면 렌더러가 학생/교사 공통 "학습 목표" 박스 + 교사 전용
+    "근거 성취기준"(코드+원문, data-mode CSS로만 숨김 — 정답이 아니므로 물리 제거 없음)을 렌더한다.
+    `objectives`가 없으면(하위호환) 현행 성취기준 박스를 그대로 렌더한다.
 - **`passage-slot`**(2026-07-23 2차 델타): **기본은 빈 슬롯** — `slotLabel`(필수, 예: `'［지문 삽입
   슬롯］'`)로 안내만 채우고 `bodyHtml`/`source`는 비워 둔다(사용자가 지문을 요청하지 않은 일반 아웃라인
   조립에서는 이전과 동일). **사용자가 명시적으로 지문 생성·재구성을 요청하면** `bodyHtml`을 (a) 순수
@@ -81,7 +87,8 @@ true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정
 2. 아웃라인 블록 순서대로 개체를 만든다(어떤 옛 블록 패턴이 어느 타입으로 착지하는지
    → `references/block-library.md`).
 3. 성취기준은 `std-box.codes`에 코드만 참조로 싣는다(원문 창작 금지, `01_curriculum_standards.json`
-   확정 코드 사용).
+   확정 코드 사용). `02_outline.json.objectives`가 있으면 `std-box.objectives`에 그대로 옮긴다(학습목표
+   표기 전환 — 위 "슬롯 불변" 절 참조).
 4. 저작권 지문은 기본적으로 `passage-slot`(`slotLabel` 안내만)으로 — 사용자가 지문 생성/재구성을
    명시적으로 요청한 경우에만 위 "저작권 지문(3층 정책)" 절 규칙에 따라 `bodyHtml`을 채운다.
 5. `03_manifest.json`에 사용 타입 집계·`richtext` 탈출구 사용 목록·KaTeX/웹폰트 플래그 기록.
