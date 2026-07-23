@@ -60,14 +60,29 @@ test('E6 서버 export 실측: A4 2벌 MediaBox 595×842pt → unsafe 후 studen
     }
 
     // 누출 저장 → export: student.pdf 물리 부재 + teacher 존재 (fail-closed 실증)
-    const leakyManifest = structuredClone(await fx.workspace.readManifest('내보내기문서'));
-    leakyManifest.pages[0].push({ type: 'content', html: `<div class="answer">${ANSWER}</div>` });
-    leakyManifest.pages[0].push({ type: 'content', html: `<p>참고: ${ANSWER}</p>` });
+    // US-20(S4.5): EditorHttpServer 의 /save 는 이제 개체 트리(document)만 받는다(구 {manifest:…}
+    // 계약은 400 — 아래에서 확인). GET /shell.json 이 레거시 manifest 를 지연 마이그레이션해
+    // 개체 트리로 승격 서빙하므로, 그 개체 트리를 받아 누출 개체 2종(정답 마킹 개체 + 같은 텍스트를
+    // 담은 평문 개체)을 얹어 POST /save 한다 — 구 테스트와 동일한 "정답 텍스트가 마크 밖으로
+    // 새는" 픽스처 의도를 개체 트리로 재현한다.
+    const shellNow = await (await fetch(`${url}/shell.json`)).json();
+    const mutatedDoc = structuredClone(shellNow.document);
+    mutatedDoc.pages[0].flow.push(
+      { id: 'leak-answer', type: 'richtext', placement: 'flow', html: `<div>${ANSWER}</div>`, answer: true },
+      { id: 'leak-plain', type: 'richtext', placement: 'flow', html: `<p>참고: ${ANSWER}</p>` },
+    );
     const savedLeaky = await (await fetch(`${url}/save`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ manifest: leakyManifest }),
+      body: JSON.stringify({ document: mutatedDoc }),
     })).json();
     assert.equal(savedLeaky.unsafe, true, '픽스처 전제: 누출 저장');
+
+    // 구 {manifest:…} 계약은 신 서버에서 400(개체 트리 document 만 허용) — 계약 이관 회귀 방어.
+    const legacyBody = await (await fetch(`${url}/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ manifest: mutatedDoc }),
+    }));
+    assert.equal(legacyBody.status, 400, '구 manifest 계약은 더 이상 허용되지 않는다(S4.0 계약 이관)');
 
     const blocked = await (await fetch(`${url}/export`, { method: 'POST' })).json();
     assert.equal(blocked.skipped.student, 'unsafe');

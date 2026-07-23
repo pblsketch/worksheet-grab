@@ -20,6 +20,13 @@ model: opus
 - **출력**: `_workspace/01_curriculum_standards.json`
   - `{ standards: [{code, text, subject}], rationale, suggestedFlow }`
 
+## std-box 소비 정합 (S3.1 연동)
+`worksheet-designer`는 성취기준 원문을 개체에 직접 쓰지 않고 `std-box.codes`에 이 산출물의
+`standards[].code`를 참조 문자열로만 싣는다(슬롯 불변 — 원칙 3). 렌더 시 `RenderObjectTree`가
+`code`를 대괄호 제거 후 이 산출물의 `standards[].code→text`로 구성된 조회표에서 원문을 찾아 주입하므로,
+`code` 표기(예: `[9과14-02]`)는 이후 `std-box.codes`에 그대로 옮겨질 수 있도록 **글자 그대로 확정**해
+둔다 — 조회 실패(코드 불일치)는 std-box가 코드만 표기하고 원문 없이 렌더되는 결과로 이어진다.
+
 ## 에러 핸들링
 - MCP·CSV 둘 다 실패하면 임의 생성 금지. `status:"unresolved"`로 표시하고 오케스트레이터에 보고하여 교사에게 코드 직접 입력을 요청한다.
 - 조회 결과가 주제와 안 맞으면 후보를 나열하고 planner에게 선택을 요청한다.

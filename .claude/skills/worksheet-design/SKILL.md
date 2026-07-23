@@ -1,58 +1,96 @@
 ---
 name: worksheet-design
-description: 활동지 아웃라인을 실제 A4 HTML(paper-css)로 저작하고 편집한다. 블록 라이브러리·교과 테마를 조립하고 학생용/교사용을 data-mode로 마킹. "활동지 디자인/HTML 제작", "문항 추가·삭제·수정" 편집 요청 시 사용. 범교과 — 교과색은 CSS 변수로만.
+description: 활동지 아웃라인을 닫힌 카탈로그 10종의 **개체 트리 JSON**으로 저작하고 편집한다(HTML 직저작 금지). 정답은 answer:true 속성, AI는 좌표(rect)를 만들지 않는다(flow 전용). "활동지 개체 저작/편집", "문항 추가·삭제·수정" 편집 요청 시 사용. 범교과 — 교과색은 themeName 참조로만.
 ---
 
-# worksheet-design (활동지 HTML 저작·편집)
+# worksheet-design (활동지 개체 트리 저작·편집)
 
-아웃라인(`02_outline.json`)을 실제 인쇄 가능한 A4 HTML로 만든다. PoC(`E:/github/worksheet-grab/poc/worksheet.html`, `science.html`)가 검증된 기준 템플릿이다 — 새로 짜기 전에 참고하라.
+아웃라인(`02_outline.json`)을 `docs/HANDOFF-object-schema.md` 동결 스키마를 준수하는 **개체 트리 JSON**
+으로 만든다. **HTML 문자열을 직접 저작하지 않는다** — paper-css 조립·`.sheet` 페이지 골격·CSS 변수
+주입은 렌더 코어(`RenderObjectTree`, M2 소관)의 책임이다. 이 스킬은 "무엇을 어떤 타입으로 표현할지"만
+결정한다.
 
-## 엔진 배선 (worksheet-grab CLI)
-M1/M2 엔진이 블록·테마·성취기준을 결정적으로 조립한다(paper-css 정형화·범교과 var 처리 내장). 루트: `E:/github/worksheet-grab`.
-- **템플릿 경로(권장)**: `generate <학년교과> <주제>` — 교과 템플릿(`templates/science.json`·`korean.json`)에 성취기준·주제를 채워 `03_worksheet.html` 상당의 HTML 산출. 콘텐츠는 슬롯(교사/AI 저작).
-- **매니페스트 경로**: 블록 순서를 직접 지정하려면 `manifests/*.json` 형태로 기술 후 `assemble <manifest> --out 03_worksheet.html`.
-- 블록/테마 자원: `blocks/`, `themes/{ko,sci}.css`, `assets/paper.css`·`blocks.css`. 교과색은 `var(--*)` + 테마 `:root` 로만(하드코딩 금지).
-- 저작·편집 후 `validate` 로 즉시 자가 점검(정답 누출·하드코딩색). 아래는 HTML 패턴 참고(수동 저작 시).
+## 단일 진실 원천
+- **스키마 계약**: `docs/HANDOFF-object-schema.md`(사람이 읽는 요약) +
+  `schema/worksheet-object.schema.json`(계약 문서) + `src/domain/schema/ObjectCatalog.js`(런타임 상수).
+  이 세 산출물이 갈라지면 무조건 코드(`ObjectCatalog.js`/`validateObjectShape.js`)가 맞다.
+- **검증**: `src/usecases/ValidateObjectTree.js` — 저작·편집 후 개체 트리가 이 검증을 PASS해야 한다.
 
-## 레이아웃 베이스 (paper-css)
-- `@page{size:A4;margin:0}` + `.sheet{width:210mm;min-height:297mm;padding:16mm 15mm 14mm;page-break-after:always}`
-- `body{ font-family:"Pretendard","Malgun Gothic",sans-serif; word-break:keep-all; -webkit-print-color-adjust:exact }`
-- 각 페이지 = `<section class="sheet">`. 인쇄 시 `margin:0`, 화면 시 그림자.
+## 닫힌 카탈로그 10종 (신규 타입 창설 금지)
+`title` · `passage-slot` · `question`(qtype 7종: multiple-choice/short-answer/essay/fill-blank/
+true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정) · `image-slot` ·
+`answer-area`(`style:line|box|dots`) · `divider` · `shape`(float 전용, **디자이너는 만들지 않음** —
+교사 편집 전용) · `richtext`(html 탈출구) · `std-box`(성취기준 원문 주입 전용, `codes`만).
 
-## 인쇄 안전 규칙 (검수에서 걸리는 것들)
-- 문항 단위에 `break-inside:avoid`(페이지 경계 잘림 방지).
-- 본문 최소 9pt+, 절대 하한 유지. 한글은 `word-break:keep-all`로 단어 중간 분리 금지.
-- 원격 이미지 인라인 금지 → 슬롯/로컬 애셋.
+표현하고 싶은 구조가 10종 어디에도 맞지 않으면 **새 타입을 발명하지 말고 `richtext`로 원본 의도를
+담는다**(`sourceType`에 원래 이름을 남겨 리뷰 대상 표시). 어떤 옛 블록 패턴이 어느 타입으로 착지하는지는
+`references/block-library.md` 매핑표를 참조한다.
+
+## 공통 속성과 배치 규칙
+- 모든 개체는 `{id, type, placement, answer?}` 공통 속성을 갖는다.
+- **`placement:'flow'`(문서 흐름) 고정, `rect` 절대 금지**: 이 스킬로 저작하는 모든 개체는
+  `placement:'flow'`이며 `rect`(좌표) 필드를 싣지 않는다. AI는 좌표를 만들지 않는다(원칙 3) —
+  `placement:'float'`(자유배치, `rect`{xMm,yMm,wMm,hMm} 필수)는 **교사가 편집기에서 직접 만드는 것만
+  허용되는 편집 전용 기능**이며, 저작·편집 스킬이 스스로 float 개체를 생성하면 `ValidateObjectTree`가
+  `rect-forbidden-in-flow`로 거부한다.
+- **`pagination:'scaffold'`**: 문서는 `{ pagination:'scaffold', pages:[{ flow:[...전체 개체 순서
+  그대로...], float:[] }] }` 단일 스캐폴드 페이지로 산출한다. 몇 페이지로 나눌지는 계산하지 않는다 —
+  실제 경계는 Chrome 측정 페이지네이션 패스(S3.5)가 산출해 `pagination:'paginated'`로 승격한다.
+  `scaffold` 문서는 export가 거부된다(`checkExportGate`, 이 스킬의 책임 밖).
+
+## 교과 테마 (themeName 참조만, CSS 직접 작성 금지)
+교과색은 문서 메타의 `themeName` 필드로만 지정한다(`references/themes.md`의 이름 목록). 렌더러가
+`themes/${themeName}.css`를 로드해 CSS 변수를 주입하므로, 이 스킬은 CSS를 작성하지 않는다.
+
+## 정답 모델
+- `answer:true` 속성을 실을 수 있는 타입은 **`title`·`question`·`table`·`richtext` 4종뿐**이다(다른
+  타입에 실으면 `unknown-field`로 거부 — 예: `answer-area`는 그 자체가 "빈 여백"이라 별도 플래그가
+  무의미).
+- 인접한 정답 콘텐츠는 별도 개체로 흩어 두지 말고 `question.answerKey`(`{text, html}`)로 해당 질문
+  개체에 합쳐 담는다.
+- 학생용에서는 `answer:true`인 개체 전체가 물리 제거된다(BuildVariants, S2.2) — 시각적으로만 숨기는
+  게 아니라 개체 자체가 학생 문서에 존재하지 않게 된다.
+
+## 슬롯 불변(성취기준, 원문 창작 금지) / 저작권 지문(3층 정책, 명시 요청 시 AI 허용)
+- **`std-box`**: `{id, type:'std-box', placement:'flow', codes:['[코드]', ...]}`만 싣는다. 성취기준
+  원문 텍스트를 절대 개체에 쓰지 않는다 — `curriculum-mapper`가 확정한 `codes`만 참조하고, 원문은
+  렌더 시 성취기준 CSV/gepai에서 주입된다. `text`/`html`/`bodyHtml` 등 자유 필드를 실으면 슬롯 변조
+  (`slot-invariant`)로 거부된다. 이 규칙은 변경 없음(원칙 3).
+- **`passage-slot`**(2026-07-23 2차 델타): **기본은 빈 슬롯** — `slotLabel`(필수, 예: `'［지문 삽입
+  슬롯］'`)로 안내만 채우고 `bodyHtml`/`source`는 비워 둔다(사용자가 지문을 요청하지 않은 일반 아웃라인
+  조립에서는 이전과 동일). **사용자가 명시적으로 지문 생성·재구성을 요청하면** `bodyHtml`을 (a) 순수
+  창작 또는 (b) 교사가 넣은 기존 글의 재구성/수준 조정/요약으로 채울 수 있다 — **실존 저작물의 원문을
+  그대로 재현하는 것은 금지**(프롬프트 계약 수준, 창작 또는 재구성만). `source`에 성격을 표기한다
+  (예: `'AI 창작'` / `'원문 ○○ 재구성'`). `slot-invariant`는 여전히 카탈로그 밖 필드만 막는다(`title`·
+  `bodyHtml`·`source`·`footnotes`는 카탈로그 필드라 걸리지 않음).
 
 ## 삽화(생성 이미지) 필요 시 (F5)
 1. 사용자 로컬 `codex-image` 스킬로 생성한다(gpt-image-2·OAuth·무API — 장당 약 2~6분 소요).
 2. 산출 PNG를 `worksheets/<문서명>/assets/`에 저장한다(안전문자 파일명·`.png`). 교사 보유 이미지도
    동일 경로로 다룬다(에디터 픽커·붙여넣기·DnD 또는 파일 직접 복사 — `POST /assets`, 5MB·SVG 제외).
-3. 블록 HTML: `<img src="assets/<파일명>" style="width:__mm" alt="설명">`.
-   - **mm 단위 폭 지정**(페이지 폭 초과 금지) · **alt 필수** · **흑백 인쇄 대비**(색상만으로 구분되는
-     범례는 피하거나 명도차·패턴으로 보완 — 학교 인쇄는 흑백/회색조가 흔하다).
-4. 원격 URL 인라인은 여전히 금지(위 인쇄 안전 규칙과 동일) — `src` 는 항상 `assets/` 상대경로.
-
-## 정답 모델 (학생용/교사용 한 파일)
-- `<html data-mode="MODE_TOKEN">` — export가 student/teacher로 치환.
-- 정답은 반드시 `.answer`(또는 그래프 오버레이 `.plot-ans`) 안에만.
-  ```css
-  .answer{ display:none; }
-  [data-mode="teacher"] .answer{ display:block; color:#1a5fb4; }
-  ```
-- 학생용에서 정답이 DOM에 남더라도 시각적으로만 숨는 게 아니라, **민감 정답은 아예 비노출** 설계를 우선(누출 게이트 통과 목적).
+3. 개체: `{id, type:'image-slot', placement:'flow', src:'assets/<파일명>', alt:'설명'[, caption]}`.
+   - **`alt` 필수**(스크린리더·인쇄 실패 대체).
+   - 크기(mm 폭) 지정 필드는 스키마에 없다 — flow 배치에서는 렌더러가 기본 폭을 적용한다. 교사가
+     편집기에서 float로 전환해 `rect`로 크기·위치를 조정하는 것은 편집 전용 기능(M4)이다.
+   - **흑백 인쇄 대비**: 색상만으로 구분되는 이미지(예: 색깔별 범례)는 피하거나 명도차·패턴으로
+     보완한다(학교 인쇄는 흑백/회색조가 흔하다).
+4. 원격 URL 인라인은 금지 — `src`는 항상 `assets/` 상대경로.
 
 ## 조립 절차
-1. 아웃라인의 `theme`로 교과 색 토큰을 `:root`에 주입한다 → `references/themes.md`.
-2. 블록 순서대로 공통 코어 + 교과 팩 블록을 조립한다 → `references/block-library.md`(블록별 HTML/CSS 패턴·슬롯).
-3. 성취기준 라벨에 `01_curriculum_standards.json`의 원문을 **그대로** 넣는다(창작 금지).
-4. 저작권 지문은 `[지문 삽입 슬롯]` 박스로.
-5. 매니페스트 `03_manifest.json`(사용 블록·테마·폰트/수식 플래그) 기록.
+1. 아웃라인의 `theme`를 문서 메타 `themeName`으로 그대로 옮긴다 → `references/themes.md`.
+2. 아웃라인 블록 순서대로 개체를 만든다(어떤 옛 블록 패턴이 어느 타입으로 착지하는지
+   → `references/block-library.md`).
+3. 성취기준은 `std-box.codes`에 코드만 참조로 싣는다(원문 창작 금지, `01_curriculum_standards.json`
+   확정 코드 사용).
+4. 저작권 지문은 기본적으로 `passage-slot`(`slotLabel` 안내만)으로 — 사용자가 지문 생성/재구성을
+   명시적으로 요청한 경우에만 위 "저작권 지문(3층 정책)" 절 규칙에 따라 `bodyHtml`을 채운다.
+5. `03_manifest.json`에 사용 타입 집계·`richtext` 탈출구 사용 목록·KaTeX/웹폰트 플래그 기록.
 
 ## 편집 모드 (대화형)
-- 기존 `03_worksheet.html`을 대상으로 지시된 블록만 수정, 나머지 보존. 전면 재생성은 사용자 명시 시만.
-- 편집 후 반드시 reviewer 재검수를 거친다.
+- 기존 `03_worksheet.json`을 대상으로 지시된 개체(`id`)만 추가·수정·삭제, 나머지는 `id` 보존한 채
+  그대로 둔다. 전면 재생성은 사용자 명시 시만.
+- 편집 후 반드시 `ValidateObjectTree` 자가 점검 → reviewer 재검수를 거친다.
 
 ## 참조
-- `references/block-library.md` — 12+ 블록 HTML/CSS 패턴과 슬롯 정의
-- `references/themes.md` — 교과별 CSS 변수 토큰
+- `references/block-library.md` — 옛 블록 패턴 → 닫힌 카탈로그 10종 매핑표
+- `references/themes.md` — 교과별 `themeName` 목록

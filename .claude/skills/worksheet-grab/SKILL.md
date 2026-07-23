@@ -55,10 +55,11 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 | 순서 | 에이전트 | 스킬 | 산출물 |
 |---|---|---|---|
 | 1 | curriculum-mapper | worksheet-curriculum | `01_curriculum_standards.json` |
-| 2 | worksheet-planner | worksheet-plan | `02_outline.json` |
-| 3 | worksheet-designer | worksheet-design | `03_worksheet.html` + `03_manifest.json` |
-| 4 | worksheet-reviewer | worksheet-review | `04_review.json` (PASS/FAIL) |
-| 5 | worksheet-exporter | worksheet-export | `{제목}_{subject}_student.pdf` / `_teacher.pdf` |
+| 2 | worksheet-planner | worksheet-plan | `02_outline.json`(블록 `type`은 닫힌 카탈로그 10종·`questionType`은 qtype 7종 어휘) |
+| 3 | worksheet-designer | worksheet-design | `03_worksheet.json`(개체 트리, `pagination:'scaffold'`) + `03_manifest.json` |
+| 4 | worksheet-reviewer | worksheet-review | `04_review.json`(1층 구조 검증 + 2층 렌더 실측 findings, PASS/FAIL) |
+| — | *(페이지네이션 패스 — S3.5/US-14 예정, 아직 팀 에이전트 미배선)* | — | `03_worksheet.json`의 `pagination`을 `scaffold→paginated`로 승격(Chrome 측정 경계 산출). 이 단계가 서기 전까지 `worksheet-exporter`는 `paginated` 문서만 받는다(`scaffold` 는 exporter 가 거부). |
+| 5 | worksheet-exporter | worksheet-export | `{제목}_{subject}_student.pdf` / `_teacher.pdf`(입력 문서는 `pagination:'paginated'` 필수) |
 
 > **`00_brief.json` 연동(Phase 1.5 산출물이 있을 때만):** planner 가 optional 입력으로 소비하고, reviewer 가 brief-fidelity advisory 로 반영도를 계측한다(verdict 불변). curriculum-mapper 는 `brief.meta.groundedStandards` 를 seed 로 대조하되 **자기 해결이 권위** — 재조정 결과는 brief 가 아니라 자기 산출물 `01_curriculum_standards.json` 에 기록하고(brief 는 consult write-once, 팀은 읽기 전용), 불일치 시 brief 종속 필드(inquiryLadder·assessmentEvidence 등)를 unresolved 취급으로 planner 에 통지한다. consult 는 대화형 독립 단계이지 팀 에이전트가 아니다.
 
