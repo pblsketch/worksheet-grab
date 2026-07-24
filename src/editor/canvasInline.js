@@ -12,8 +12,45 @@
 
 import { CATALOG_ITEMS } from './objectFactory.js';
 
+const MM_TO_PX = 96 / 25.4;
+
 function closeAll(popupsHost) {
   popupsHost.replaceChildren();
+}
+
+/** 상단·좌측 눈금자(#2)를 .sheet 마다 붙인다(숫자=cm). 표시 여부는 body.wg-show-ruler(CSS)가 정하고,
+ *  이 함수는 DOM(눈금 숫자)만 idempotent 하게 만든다 — 줌 변형과 함께 스케일되도록 mm 단위로 배치한다. */
+function decorateRulers(doc) {
+  const show = doc.body?.classList.contains('wg-show-ruler');
+  for (const sheet of doc.querySelectorAll('.sheet')) {
+    let top = sheet.querySelector(':scope > .wg-ruler-top');
+    let left = sheet.querySelector(':scope > .wg-ruler-left');
+    if (!show) { top?.remove(); left?.remove(); continue; }
+    if (getComputedStyle(sheet).position === 'static') sheet.style.position = 'relative';
+    const cs = getComputedStyle(sheet);
+    const wMm = Math.round((parseFloat(cs.width) || 0) / MM_TO_PX);
+    const hMm = Math.round((parseFloat(cs.height) || 0) / MM_TO_PX);
+    if (top && left && top.dataset.mm === String(wMm) && left.dataset.mm === String(hMm)) continue;
+    top?.remove(); left?.remove();
+    sheet.appendChild(buildRuler(doc, 'top', wMm));
+    sheet.appendChild(buildRuler(doc, 'left', hMm));
+  }
+}
+
+function buildRuler(doc, axis, lenMm) {
+  const bar = doc.createElement('div');
+  bar.className = axis === 'top' ? 'wg-ruler-top' : 'wg-ruler-left';
+  bar.dataset.mm = String(lenMm);
+  bar.setAttribute('aria-hidden', 'true');
+  for (let cm = 1; cm * 10 < lenMm; cm++) {
+    const num = doc.createElement('span');
+    num.className = 'wg-ruler-num';
+    num.textContent = String(cm);
+    if (axis === 'top') num.style.left = `${cm * 10}mm`;
+    else num.style.top = `${cm * 10}mm`;
+    bar.appendChild(num);
+  }
+  return bar;
 }
 
 /**
@@ -153,35 +190,49 @@ export function createCanvasInline(deps) {
     }
   }
 
+  // 연속 재정렬·페이지 넘나들기(#1·#2 2차): 드래그 중 포인터 y 위치에 맞춰 objEl 을 모든 .sheet 의
+  // .wg-obj 사이 어디로든 실시간 이동(insertBefore)하고, 드롭 시 DOM 최종 순서를 "페이지별 id 배열"로
+  // 읽어 한 번에 커밋한다. 예전엔 한 스텝마다 decorateFlowHandles 로 손잡이를 다시 그려 포인터 캡처가
+  // 끊겨 한 칸씩만 움직였다 — 드래그 중에는 손잡이를 재장식하지 않는다.
   let dragState = null;
   function startFlowDrag(e, handleEl) {
     const id = handleEl.dataset.forOid;
     const objEl = currentDoc.querySelector(`[data-oid="${cssEscape(id)}"]`);
     if (!objEl) return;
     e.preventDefault();
-    dragState = { id, lastY: e.screenY };
-    handleEl.setPointerCapture?.(e.pointerId);
+    // try/catch: 합성 이벤트 등 활성 포인터가 없으면 setPointerCapture 가 throw 한다 — 캡처 실패해도
+    // 드래그 자체는 handleEl 에 건 pointermove/up 로 계속되어야 하므로 삼킨다(selection.js 와 동형).
+    try { handleEl.setPointerCapture(e.pointerId); } catch { /* 캡처 불가 환경 */ }
+    objEl.classList.add('wg-flow-dragging');
+    dragState = { id, objEl };
     const onMove = (ev) => {
       if (!dragState) return;
-      const dy = ev.screenY - dragState.lastY;
-      const rowHeight = objEl.getBoundingClientRect().height || 40;
-      if (Math.abs(dy) < rowHeight / 2) return;
-      const direction = dy > 0 ? 'down' : 'up';
-      const sib = direction === 'down' ? objEl.nextElementSibling : objEl.previousElementSibling;
-      if (sib && sib.matches?.('.wg-obj[data-oid]')) {
-        if (direction === 'down') objEl.parentNode.insertBefore(sib, objEl);
-        else objEl.parentNode.insertBefore(objEl, sib);
-        deps.onReorderStep(id, direction);
-        dragState.lastY = ev.screenY;
-        decorateFlowHandles(currentDoc);
+      const y = ev.clientY;
+      const candidates = [...currentDoc.querySelectorAll('.sheet .wg-obj[data-oid]')].filter((el) => el !== objEl);
+      let placed = false;
+      for (const el of candidates) {
+        const r = el.getBoundingClientRect();
+        if (y < r.top + r.height / 2) {
+          if (el.previousElementSibling !== objEl) el.parentNode.insertBefore(objEl, el);
+          placed = true;
+          break;
+        }
+      }
+      if (!placed && candidates.length) {
+        const last = candidates[candidates.length - 1];
+        if (last.nextElementSibling !== objEl) last.parentNode.appendChild(objEl); // 마지막 개체 뒤(그 페이지 끝)
       }
     };
-    const onUp = () => {
+    const onUp = (ev) => {
+      try { handleEl.releasePointerCapture(ev.pointerId); } catch { /* 이미 해제 */ }
       handleEl.removeEventListener('pointermove', onMove);
       handleEl.removeEventListener('pointerup', onUp);
       handleEl.removeEventListener('lostpointercapture', onUp);
+      objEl.classList.remove('wg-flow-dragging');
       dragState = null;
-      deps.onReorderCommit();
+      const idsByPage = [...currentDoc.querySelectorAll('.sheet')].map((sheet) =>
+        [...sheet.querySelectorAll('.wg-obj[data-oid]')].map((el) => el.dataset.oid));
+      deps.onFlowReorder(idsByPage, id);
     };
     handleEl.addEventListener('pointermove', onMove);
     handleEl.addEventListener('pointerup', onUp);
@@ -209,7 +260,7 @@ export function createCanvasInline(deps) {
       ['AI 로 편집', () => deps.onAiOpen?.(id), aiDisabled, aiDisabled ? '(성취기준·저작권 슬롯 제외)' : '', 'ctx-ai'],
       ['복제', () => deps.onDuplicate(id), false, '', null],
       ['삭제', () => deps.onDelete(id), false, '', null],
-      ['flow⇄float 전환', () => deps.onFlowFloat(id), false, '', null],
+      ['본문 배치 ⇄ 자유 배치 전환', () => deps.onFlowFloat(id), false, '', null],
       ['내 블록으로 저장', () => deps.onSaveAsPreset(id), false, '', null],
       ['앞으로 보내기', null, true, '(스파이크 §4-5 후속)', null],
       ['뒤로 보내기', null, true, '(스파이크 §4-5 후속)', null],
@@ -230,6 +281,7 @@ export function createCanvasInline(deps) {
     currentDoc = doc;
     currentFrame = frameEl;
     decorateFlowHandles(doc);
+    decorateRulers(doc);
 
     doc.addEventListener('selectionchange', () => updateBubble());
     doc.addEventListener('mouseup', () => updateBubble());
@@ -270,7 +322,7 @@ export function createCanvasInline(deps) {
   }
 
   function refreshDecoration() {
-    if (currentDoc) decorateFlowHandles(currentDoc);
+    if (currentDoc) { decorateFlowHandles(currentDoc); decorateRulers(currentDoc); }
   }
 
   return { attach, refreshDecoration, closeAll: () => closeAll(popupsHost) };

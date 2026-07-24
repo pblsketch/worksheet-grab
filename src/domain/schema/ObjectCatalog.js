@@ -40,7 +40,9 @@ export const TYPE_SPECS = Object.freeze({
   'table': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
     required: Object.freeze(['splittable', 'rows']),
-    optional: Object.freeze(['caption', 'headerRows', 'headerCol', 'answer']),
+    // borderColor/borderWidth: 표 테두리 서식(편집기에서 직접 지정, #5 2차) — 셀 내부(w/colspan/rowspan/
+    // merged)는 셀 오브젝트가 자유롭게 갖는다(validator 는 top-level 필드만 검사).
+    optional: Object.freeze(['caption', 'headerRows', 'headerCol', 'answer', 'borderColor', 'borderWidth']),
   }),
   'image-slot': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
@@ -60,7 +62,8 @@ export const TYPE_SPECS = Object.freeze({
   'shape': Object.freeze({
     placements: Object.freeze(['float']),
     required: Object.freeze(['shapeKind']),
-    optional: Object.freeze(['strokeColor', 'fillColor']),
+    // strokeWidth(mm 아닌 px 상대값)·dash(solid|dashed|dotted): 선 두께·유형 서식(#5 2차).
+    optional: Object.freeze(['strokeColor', 'fillColor', 'strokeWidth', 'dash']),
   }),
   'richtext': Object.freeze({
     placements: Object.freeze(['flow', 'float']),

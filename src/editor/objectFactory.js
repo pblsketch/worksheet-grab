@@ -36,7 +36,7 @@ export const CATALOG_ITEMS = Object.freeze([
   { key: 'shape', type: 'shape', label: '도형', floatable: true, floatOnly: true },
   { key: 'divider', type: 'divider', label: '구분선', floatable: true },
   { key: 'passage-slot', type: 'passage-slot', label: '지문 슬롯', floatable: false },
-  { key: 'std-box', type: 'std-box', label: '성취기준 박스', floatable: false },
+  { key: 'std-box', type: 'std-box', label: '학습목표 박스', floatable: false },
 ]);
 
 export const QTYPE_LABELS = Object.freeze({
@@ -44,6 +44,7 @@ export const QTYPE_LABELS = Object.freeze({
   'true-false': '참/거짓', matching: '연결형', ordering: '순서배열',
 });
 export const SHAPE_KINDS = Object.freeze(['rect', 'circle', 'line']);
+export const DASH_STYLES = Object.freeze(['solid', 'dashed', 'dotted']); // 선 유형(#5 2차)
 export const ANSWER_AREA_STYLES = Object.freeze(['line', 'dots', 'box']);
 
 export function questionDefaults(qtype) {
@@ -60,14 +61,24 @@ export function defaultFieldsFor(type, { qtype = 'short-answer' } = {}) {
   switch (type) {
     case 'title': return { text: '새 제목', level: 1 };
     case 'passage-slot': return { slotLabel: '［지문 삽입 슬롯］' };
-    case 'question': return { qtype: QUESTION_TYPES.includes(qtype) ? qtype : 'short-answer', prompt: '새 문항', ...questionDefaults(qtype) };
+    case 'question': {
+      const qt = QUESTION_TYPES.includes(qtype) ? qtype : 'short-answer';
+      // qtype 별 시작 발문 — 삽입 직후에도 유형이 한눈에 구분되도록(#12). qtype 전환 시엔
+      // questionDefaults(구조 필드만) 로 병합하므로 사용자 발문을 덮어쓰지 않는다.
+      const prompt = qt === 'fill-blank' ? '다음 빈칸에 알맞은 말을 쓰시오: ( ______ )'
+        : qt === 'true-false' ? '다음 설명이 맞으면 O, 틀리면 X 하시오.'
+          : '새 문항';
+      return { qtype: qt, prompt, ...questionDefaults(qt) };
+    }
     case 'table': return { splittable: false, rows: [[{ text: '', header: true }, { text: '', header: true }], [{ text: '' }, { text: '' }]] };
     case 'image-slot': return {};
     case 'answer-area': return { style: 'line', lines: 3 };
     case 'divider': return {};
-    case 'shape': return { shapeKind: 'rect', strokeColor: '#111827', fillColor: 'none' };
+    case 'shape': return { shapeKind: 'rect', strokeColor: '#111827', fillColor: 'none', strokeWidth: 1.6, dash: 'solid' };
     case 'richtext': return { html: '<p>텍스트를 입력하세요.</p>' };
-    case 'std-box': return { codes: [] };
+    // std-box: objectives(학습목표, 저작 영역) 기본 1줄을 담아 삽입 즉시 "학습 목표" 박스로 보이게 한다
+    // (2026-07-23 학습목표 표기 전환·사용자 피드백 #13). codes(성취기준 조회 참조)는 비워 시작한다.
+    case 'std-box': return { codes: [], objectives: ['핵심 학습목표를 입력하세요 (~할 수 있다).'] };
     default: throw new Error(`objectFactory: 닫힌 카탈로그 밖 타입: ${type}`);
   }
 }
@@ -160,6 +171,62 @@ export function moveFlow(document, id, direction) {
   const to = direction === 'up' ? loc.index - 1 : loc.index + 1;
   if (to < 0 || to >= list.length) return document;
   [list[loc.index], list[to]] = [list[to], list[loc.index]];
+  return { ...document, pages };
+}
+
+/**
+ * DOM 드래그가 확정한 "페이지별 flow id 순서"로 pages[].flow 를 재구성한다(#1·#2 2차 — 연속 재정렬·
+ * 페이지 넘나들기). float 은 원 페이지 그대로 둔다. idsByPage 에서 빠진 flow 개체(방어)는 원 페이지
+ * 끝에 되붙여 유실을 막는다. 이후 scheduleReflow 가 높이 기준으로 경계를 최종 확정한다(D-A).
+ */
+export function applyFlowOrder(document, idsByPage) {
+  const pages = clonePages(document);
+  const byId = new Map();
+  for (const p of pages) for (const o of (p.flow || [])) byId.set(o.id, o);
+  const placed = new Set();
+  const nextPages = pages.map((p, i) => {
+    const ids = Array.isArray(idsByPage[i]) ? idsByPage[i] : [];
+    const flow = [];
+    for (const id of ids) {
+      const o = byId.get(id);
+      if (o && !placed.has(id)) { flow.push(o); placed.add(id); }
+    }
+    return { ...p, flow, float: p.float || [] };
+  });
+  // 방어: 어느 페이지에도 배정되지 않은 flow 개체는 원 페이지 끝에 되붙인다(유실 방지).
+  pages.forEach((p, i) => {
+    for (const o of (p.flow || [])) {
+      if (!placed.has(o.id)) { (nextPages[i] || nextPages[nextPages.length - 1]).flow.push(o); placed.add(o.id); }
+    }
+  });
+  return { ...document, pages: nextPages };
+}
+
+/** float 개체를 다른 페이지로 이관한다(#2 2차) — rect(mm)은 새 페이지 기준으로 보정해 전달받는다. */
+export function moveFloatToPage(document, id, pageIndex, rect = null) {
+  const pages = clonePages(document);
+  const loc = locate(pages, id);
+  if (!loc || loc.bucket !== 'float' || !pages[pageIndex] || pageIndex === loc.page) return document;
+  const [obj] = pages[loc.page].float.splice(loc.index, 1);
+  if (rect) obj.rect = { ...obj.rect, ...rect };
+  pages[pageIndex].float.push(obj);
+  return { ...document, pages };
+}
+
+/** float 개체를 dxMm/dyMm 만큼 상대 이동한다(방향키 넛지, US-E2). flow·미존재·rect 없음은 무변경.
+ *  좌표는 소수 1자리로 반올림(selection.js 드래그 round1 관례와 동일). 페이지 밖으로 나가는 것은
+ *  막지 않는다(드래그 이동과 동일 정책 — 사용자가 소량씩 제어). */
+export function nudgeFloat(document, id, dxMm, dyMm) {
+  const pages = clonePages(document);
+  const loc = locate(pages, id);
+  if (!loc || loc.bucket !== 'float') return document;
+  const obj = pages[loc.page][loc.bucket][loc.index];
+  if (!obj.rect) return document;
+  obj.rect = {
+    ...obj.rect,
+    xMm: Math.round((obj.rect.xMm + dxMm) * 10) / 10,
+    yMm: Math.round((obj.rect.yMm + dyMm) * 10) / 10,
+  };
   return { ...document, pages };
 }
 

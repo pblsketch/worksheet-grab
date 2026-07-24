@@ -46,7 +46,7 @@ function round1(n) {
  *   호출(editor.js 가 history 커밋·자동저장 타이머를 여기서 건다 — selection.js 는 history 를
  *   모른다, 관심사 분리).
  */
-export function createSelectionController({ core, onDirty = () => {}, onSelectionChange = () => {} } = {}) {
+export function createSelectionController({ core, onDirty = () => {}, onSelectionChange = () => {}, onFloatPageChange = () => {} } = {}) {
   const state = { selectedIds: new Set(), editingId: null };
   let currentDoc = null;
   let swallowNextClick = false; // 드래그 직후 따라오는 click 1회를 삼킨다(스파이크 §4-5 실증 패턴)
@@ -62,7 +62,14 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
   }
 
   function readField(targetEl, spec) {
-    if (spec.field === 'html' || spec.field === 'bodyHtml') return targetEl.innerHTML;
+    if (spec.field === 'html' || spec.field === 'bodyHtml') {
+      // 편집 크롬(자유 개체 드래그 ⠿ 손잡이·리사이즈 손잡이)이 richtext/지문 innerHTML 에 섞여
+      // 저장되지 않도록 걸러낸다(자유 개체 richtext 는 래퍼 자신이 편집 대상이라 손잡이가 자식으로 들어온다).
+      if (!targetEl.querySelector('.wg-float-handle, .wg-resize-handle')) return targetEl.innerHTML;
+      const clone = targetEl.cloneNode(true);
+      for (const n of clone.querySelectorAll('.wg-float-handle, .wg-resize-handle')) n.remove();
+      return clone.innerHTML;
+    }
     if (spec.stripSelector) {
       const clone = targetEl.cloneNode(true);
       for (const n of clone.querySelectorAll(spec.stripSelector)) n.remove();
@@ -98,11 +105,36 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     }
   }
 
+  const RESIZE_DIRS = Object.freeze(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']);
+
+  /** 단일 선택된(편집 중이 아닌) 자유 개체에 8방향 리사이즈 손잡이를 붙인다(마우스 크기 조정, #8).
+   *  편집 진입 시(editingId) 손잡이를 떼어 richtext innerHTML 오염을 막는다(readField 방어와 짝). */
+  function refreshResizeHandles(doc) {
+    const singleFloat = state.selectedIds.size === 1 && !state.editingId
+      ? [...state.selectedIds][0] : null;
+    for (const el of doc.querySelectorAll('.wg-float[data-oid]')) {
+      const want = el.dataset.oid === singleFloat;
+      const has = !!el.querySelector(':scope > .wg-resize-handle');
+      if (want && !has) {
+        for (const dir of RESIZE_DIRS) {
+          const h = doc.createElement('div');
+          h.className = `wg-resize-handle wg-rh-${dir}`;
+          h.dataset.dir = dir;
+          h.setAttribute('aria-hidden', 'true');
+          el.appendChild(h);
+        }
+      } else if (!want && has) {
+        for (const h of el.querySelectorAll(':scope > .wg-resize-handle')) h.remove();
+      }
+    }
+  }
+
   /** 선택·편집·float 손잡이 상태를 DOM 클래스/속성에 되비춘다. undo/redo 로 .sheet 를 통째로
    *  교체한 뒤(history.js)에도 이걸 다시 부르면 화면이 즉시 정합해진다. */
   function refreshVisual() {
     if (!currentDoc) return;
     decorateFloats(currentDoc);
+    refreshResizeHandles(currentDoc);
     for (const el of currentDoc.querySelectorAll('[data-oid]')) {
       const id = el.dataset.oid;
       el.classList.toggle('wg-selected', state.selectedIds.has(id));
@@ -264,8 +296,82 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
       el.removeEventListener('lostpointercapture', onUp);
       if (moved) {
         swallowNextClick = true; // editor.js:664-667(구) / 스파이크 swallowNextClick 과 동형 방어
-        onDirty('move');
+        // 페이지 넘나들기(#2 2차): 드롭 지점이 다른 .sheet 위면 그 페이지로 이관하고 rect 를 새 페이지
+        // 기준으로 보정한다(줌 스케일 반영). 같은 페이지면 좌표만 커밋.
+        const target = crossPageTarget(el, ev.clientX, ev.clientY);
+        if (target) onFloatPageChange(id, target.pageIndex, target.rect);
+        else onDirty('move');
       }
+    };
+    try { el.setPointerCapture(e.pointerId); } catch { /* 캡처 불가 환경 */ }
+    el.addEventListener('pointermove', onMove);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('lostpointercapture', onUp);
+  }
+
+  /** 드롭 지점이 현재 페이지가 아닌 .sheet 위면 {pageIndex, rect(새 페이지 기준 mm)} 반환, 아니면 null. */
+  function crossPageTarget(el, clientX, clientY) {
+    if (!currentDoc) return null;
+    const sheets = [...currentDoc.querySelectorAll('.sheet')];
+    const curIdx = sheets.findIndex((s) => s.contains(el));
+    const targetIdx = sheets.findIndex((s) => {
+      const r = s.getBoundingClientRect();
+      return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
+    });
+    if (targetIdx < 0 || targetIdx === curIdx) return null;
+    const sheet = sheets[targetIdx];
+    const sr = sheet.getBoundingClientRect();
+    const scale = sheet.offsetWidth ? sr.width / sheet.offsetWidth : 1;
+    const fr = el.getBoundingClientRect();
+    return {
+      pageIndex: targetIdx,
+      rect: {
+        xMm: round1((fr.left - sr.left) / scale / MM_TO_PX),
+        yMm: round1((fr.top - sr.top) / scale / MM_TO_PX),
+      },
+    };
+  }
+
+  /** 리사이즈 손잡이 드래그 — dir(nw/n/ne/e/se/s/sw/w)에 따라 rect{wMm/hMm(+xMm/yMm)}을 갱신한다.
+   *  좌표는 startFloatDrag 와 동일하게 screen 기준(iframe 경계 무관), 최소 10mm 로 클램프. */
+  function startFloatResize(e, el, id, dir) {
+    if (state.editingId === id) return;
+    const found = core.findObject(id);
+    if (!found || !found.obj.rect) return;
+    e.preventDefault();
+    e.stopPropagation();
+    select(id);
+    const startX = e.screenX;
+    const startY = e.screenY;
+    const base = { ...found.obj.rect };
+    const MIN = 10;
+    let moved = false;
+    const onMove = (ev) => {
+      const dxMm = (ev.screenX - startX) / MM_TO_PX;
+      const dyMm = (ev.screenY - startY) / MM_TO_PX;
+      if (Math.abs(dxMm) + Math.abs(dyMm) > 0.5) moved = true;
+      const r = { ...base };
+      if (dir.includes('e')) r.wMm = base.wMm + dxMm;
+      if (dir.includes('s')) r.hMm = base.hMm + dyMm;
+      if (dir.includes('w')) { r.wMm = base.wMm - dxMm; r.xMm = base.xMm + dxMm; }
+      if (dir.includes('n')) { r.hMm = base.hMm - dyMm; r.yMm = base.yMm + dyMm; }
+      if (r.wMm < MIN) { if (dir.includes('w')) r.xMm = base.xMm + (base.wMm - MIN); r.wMm = MIN; }
+      if (r.hMm < MIN) { if (dir.includes('n')) r.yMm = base.yMm + (base.hMm - MIN); r.hMm = MIN; }
+      found.obj.rect.xMm = round1(r.xMm);
+      found.obj.rect.yMm = round1(r.yMm);
+      found.obj.rect.wMm = round1(r.wMm);
+      found.obj.rect.hMm = round1(r.hMm);
+      el.style.left = `${found.obj.rect.xMm}mm`;
+      el.style.top = `${found.obj.rect.yMm}mm`;
+      el.style.width = `${found.obj.rect.wMm}mm`;
+      el.style.height = `${found.obj.rect.hMm}mm`;
+    };
+    const onUp = (ev) => {
+      try { el.releasePointerCapture(ev.pointerId); } catch { /* 이미 해제됨 */ }
+      el.removeEventListener('pointermove', onMove);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('lostpointercapture', onUp);
+      if (moved) { swallowNextClick = true; onDirty('move'); onSelectionChange(); }
     };
     try { el.setPointerCapture(e.pointerId); } catch { /* 캡처 불가 환경 */ }
     el.addEventListener('pointermove', onMove);
@@ -304,6 +410,12 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     });
 
     doc.addEventListener('pointerdown', (e) => {
+      const handle = e.target.closest('.wg-resize-handle');
+      if (handle) {
+        const floatEl = handle.closest('.wg-float[data-oid]');
+        if (floatEl) startFloatResize(e, floatEl, floatEl.dataset.oid, handle.dataset.dir);
+        return;
+      }
       const el = e.target.closest('.wg-float[data-oid]');
       if (!el) return;
       startFloatDrag(e, el, el.dataset.oid);

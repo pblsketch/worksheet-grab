@@ -84,11 +84,48 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .passage .fn { border-top: 1px dotted #ccc; margin-top: 8px; padding-top: 5px; font-size: 8.3pt; color: #555; }
 .passage .fn p { margin: 1px 0; text-indent: 0; }
 
+/* ---- 개체 트리 표(공통) — 테두리 색/두께는 --wg-tb-color/--wg-tb-width 로 조절(#5) ---- */
+.obj-table { border-collapse: collapse; width: 100%; margin: 2mm 0; }
+.obj-table th, .obj-table td {
+  border: var(--wg-tb-width, 1px) solid var(--wg-tb-color, #cbd5c0);
+  padding: 6px 9px; font-size: 9.5pt; vertical-align: top; min-height: 24px;
+}
+.obj-table th { background: var(--clite); color: var(--cink); font-weight: 700; }
+.obj-table caption { font-size: 9pt; color: #555; margin-bottom: 3px; caption-side: top; }
+
 /* ---- question + answer slot (공통) ---- */
 .q { margin: 2.5mm 0 1.5mm; font-weight: 600; }
 .ans-line { border-bottom: 1px solid #ccc; height: 20px; margin: 8px 0; }
 .ans-line.tall { height: 34px; }
 .ansbox { border: 1px solid #ccc; border-radius: 6px; min-height: 50px; margin-top: 5px; padding: 8px 10px; }
+
+/* ---- 문항 유형별 보조 렌더(#12) — qtype 마다 시각적으로 구분된다 ---- */
+.q-choices { list-style: none; margin: 3px 0 0; padding: 0; }
+.q-choices li { margin: 3px 0; font-size: 9.5pt; display: flex; gap: 6px; align-items: baseline; }
+.q-choices .q-mark { color: var(--c); font-weight: 700; flex: none; }
+.q-tf { display: flex; gap: 24px; margin: 4px 0 2px; font-size: 9.5pt; }
+.q-tf label { display: inline-flex; align-items: center; gap: 6px; }
+.q-box { display: inline-block; width: 13px; height: 13px; border: 1.4px solid #888; border-radius: 3px; }
+.q-tf-list { list-style: none; margin: 3px 0 0; padding: 0; }
+.q-tf-list li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 6px; align-items: baseline; }
+.q-tf-list .q-mark { color: var(--c); font-weight: 700; flex: none; }
+.q-tf-list .q-tf-stmt { flex: 1; }
+.q-tf-list .q-tf-ox { flex: none; color: #555; white-space: nowrap; letter-spacing: 1px; }
+.q-match { border-collapse: collapse; margin: 4px 0 2px; width: 100%; }
+.q-match td { padding: 4px 8px; font-size: 9.5pt; vertical-align: middle; }
+.q-match .q-match-l { border: 1px solid #cbd5c0; border-radius: 6px; width: 40%; background: #fbfcfb; }
+.q-match .q-match-r { border: 1px solid #cbd5c0; border-radius: 6px; width: 40%; background: #fbfcfb; }
+.q-match .q-match-mid { width: 20%; text-align: center; color: #aaa; letter-spacing: 2px; }
+.q-order { list-style: none; margin: 3px 0 0; padding: 0; }
+.q-order li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 8px; align-items: center; }
+.q-order-box { display: inline-block; width: 22px; height: 20px; border: 1.2px solid #999; border-radius: 4px; flex: none; }
+.q-short { margin: 6px 0 2px; }
+.q-short-line { display: block; border-bottom: 1px solid #bbb; height: 20px; }
+.q-essay { margin: 5px 0 2px; }
+.q-bank { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 5px 0 2px;
+  border: 1.2px dashed var(--c2); border-radius: 6px; padding: 6px 10px; background: #fbfcfb; }
+.q-bank-label { font-weight: 700; color: var(--cink); font-size: 8.7pt; margin-right: 4px; }
+.q-bank-chip { border: 1px solid #cbd5c0; border-radius: 12px; padding: 2px 10px; font-size: 9pt; background: #fff; }
 
 /* ---- teacher answer (교과 무관 고정 블루) ---- */
 .answer { display: none; }

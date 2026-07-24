@@ -125,8 +125,8 @@ function renderByType(obj, ctx) {
   switch (obj.type) {
     case 'title': return renderTitle(obj);
     case 'passage-slot': return renderPassageSlot(obj);
-    case 'question': return renderQuestion(obj);
-    case 'table': return renderTable(obj);
+    case 'question': return renderQuestion(obj, ctx);
+    case 'table': return renderTable(obj, ctx);
     case 'image-slot': return renderImageSlot(obj);
     case 'answer-area': return renderAnswerArea(obj);
     case 'divider': return renderDivider();
@@ -167,13 +167,11 @@ function renderPassageSlot(obj) {
 </div>`;
 }
 
-function renderQuestion(obj) {
+function renderQuestion(obj, ctx = {}) {
   const qnum = obj.qnum != null ? `<span class="qnum">${escapeHtml(String(obj.qnum))}</span>` : '';
   const parts = [`<div class="q">${qnum}${escapeHtml(obj.prompt)}</div>`];
-  if (Array.isArray(obj.choices) && obj.choices.length > 0) {
-    const lis = obj.choices.map((c) => `<li>${escapeHtml(String(c))}</li>`).join('');
-    parts.push(`<ol class="choices">${lis}</ol>`);
-  }
+  const body = renderQuestionBody(obj, ctx);
+  if (body) parts.push(body);
   if (obj.answerKey) {
     // answerKey.html 은 마이그레이션이 보존한 원본 마크업(무손실) — 그대로 방출, escape 하지 않는다.
     const akHtml = typeof obj.answerKey.html === 'string' ? obj.answerKey.html : escapeHtml(String(obj.answerKey.text ?? ''));
@@ -184,19 +182,127 @@ function renderQuestion(obj) {
 </div>`;
 }
 
+const CIRCLED = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩'];
+
+/** 보기/좌우/항목 원소는 문자열이거나 {id,text} 객체 둘 다 될 수 있다(마이그레이션·저작 경로 차이). */
+function cellText(x) {
+  if (x == null) return '';
+  if (typeof x === 'string' || typeof x === 'number') return String(x);
+  if (typeof x.text === 'string') return x.text;
+  if (typeof x.label === 'string') return x.label;
+  return '';
+}
+
+/**
+ * qtype 7종을 시각적으로 구분되게 렌더한다(전엔 prompt 만 그려 모든 유형이 같은 블록으로 보였다 —
+ * 사용자 피드백 #12). 객관식=보기 목록, 참/거짓=문장별 O/X, 연결형=좌우 2열 연결표, 순서배열=번호칸,
+ * 단답형=한 줄 답란, 서술형=여러 줄 답란, 빈칸=낱말상자(있을 때). 정답 표기는 answerKey/answer 소관.
+ */
+/** 선지·항목 등 편집 가능한 조각(#3) — editMode 에서 data-part(배열명)·data-i(인덱스)를 실어
+ *  partEdit.js 가 더블클릭 인라인 편집으로 배열 원소를 되쓴다. 인쇄 모드에선 평범한 span. */
+function part(text, field, i, ctx, extraClass = '') {
+  const cls = `q-part${extraClass ? ` ${extraClass}` : ''}`;
+  const attrs = ctx.editMode ? ` data-part="${field}" data-i="${i}"` : '';
+  return `<span class="${cls}"${attrs}>${escapeHtml(text)}</span>`;
+}
+
+function renderQuestionBody(obj, ctx = {}) {
+  switch (obj.qtype) {
+    case 'multiple-choice': {
+      const choices = Array.isArray(obj.choices) ? obj.choices : [];
+      if (choices.length === 0) return '';
+      const lis = choices.map((c, i) =>
+        `<li><span class="q-mark">${CIRCLED[i] || `${i + 1}.`}</span>${part(cellText(c), 'choices', i, ctx)}</li>`).join('');
+      return `<ul class="q-choices">${lis}</ul>`;
+    }
+    case 'true-false': {
+      // 참/거짓은 판별할 문장을 choices 에 담는다(마이그레이션 데이터) — 문장마다 O/X 칸을 준다.
+      // 문장이 없으면(신규 저작 기본) 단일 참/거짓 선택칸을 보인다.
+      const stmts = Array.isArray(obj.choices) ? obj.choices : [];
+      if (stmts.length === 0) {
+        return '<div class="q-tf"><label><span class="q-box"></span> 참(O)</label><label><span class="q-box"></span> 거짓(X)</label></div>';
+      }
+      const lis = stmts.map((s, i) =>
+        `<li><span class="q-mark">${CIRCLED[i] || `${i + 1}.`}</span>${part(cellText(s), 'choices', i, ctx, 'q-tf-stmt')}`
+        + '<span class="q-tf-ox">( &nbsp; O &nbsp;/ &nbsp; X &nbsp;)</span></li>').join('');
+      return `<ul class="q-tf-list">${lis}</ul>`;
+    }
+    case 'matching': {
+      const left = Array.isArray(obj.left) ? obj.left : [];
+      const right = Array.isArray(obj.right) ? obj.right : [];
+      const n = Math.max(left.length, right.length);
+      if (n === 0) return '';
+      const rows = Array.from({ length: n }, (_, i) => {
+        const l = left[i] != null ? part(cellText(left[i]), 'left', i, ctx) : '';
+        const r = right[i] != null ? part(cellText(right[i]), 'right', i, ctx) : '';
+        return `<tr><td class="q-match-l">${l}</td><td class="q-match-mid">·&nbsp;&nbsp;&nbsp;·</td><td class="q-match-r">${r}</td></tr>`;
+      }).join('');
+      return `<table class="q-match"><tbody>${rows}</tbody></table>`;
+    }
+    case 'ordering': {
+      const items = Array.isArray(obj.items) ? obj.items : [];
+      if (items.length === 0) return '';
+      const lis = items.map((it, i) => `<li><span class="q-order-box"></span>${part(cellText(it), 'items', i, ctx)}</li>`).join('');
+      return `<ul class="q-order">${lis}</ul>`;
+    }
+    case 'short-answer':
+      return '<div class="q-short"><span class="q-short-line"></span></div>';
+    case 'essay': {
+      const lines = Math.max(1, Number(obj.lines) || 4);
+      return `<div class="q-essay">${Array.from({ length: lines }, () => '<div class="ans-line"></div>').join('')}</div>`;
+    }
+    case 'fill-blank': {
+      // 빈칸은 발문(prompt) 안에 인라인으로 들어간다 — 보기(낱말상자)가 있으면 함께 제시한다.
+      const bank = Array.isArray(obj.choices) ? obj.choices : [];
+      if (bank.length === 0) return '';
+      const chips = bank.map((c, i) => part(cellText(c), 'choices', i, ctx, 'q-bank-chip')).join('');
+      return `<div class="q-bank"><span class="q-bank-label">낱말 상자</span>${chips}</div>`;
+    }
+    default:
+      return '';
+  }
+}
+
 /** 표 = break-inside:avoid(분할 금지, splittable:false 불변식과 짝을 이루는 인쇄 안전 CSS). */
-function renderTable(obj) {
+function renderTable(obj, ctx = {}) {
   const rows = Array.isArray(obj.rows) ? obj.rows : [];
-  const trs = rows.map((row) => {
-    const cells = (Array.isArray(row) ? row : []).map((cell) => {
+  // 열 너비(%)는 첫 행 셀의 w 필드에 저장한다(top-level table 필드는 스키마가 닫혀 있어 colWidths 를
+  // 새로 못 두지만, 셀 내부 필드는 검증 대상이 아니다 — 열 경계 드래그(#10)가 여기에 쓴다). colspan
+  // 이 섞이면 colgroup 열 수와 어긋날 수 있어, w 가 하나라도 있을 때만 colgroup 을 낸다.
+  const firstRow = Array.isArray(rows[0]) ? rows[0] : [];
+  const hasWidths = firstRow.some((c) => typeof c?.w === 'number');
+  let colgroup = '';
+  if (hasWidths) {
+    let colCount = 0;
+    for (const c of firstRow) colCount += Math.max(1, Number(c?.colspan) || 1);
+    const cols = [];
+    for (const c of firstRow) {
+      const span = Math.max(1, Number(c?.colspan) || 1);
+      for (let s = 0; s < span; s++) {
+        const w = typeof c?.w === 'number' ? ` style="width:${(c.w / span).toFixed(2)}%"` : '';
+        cols.push(`<col${w}>`);
+      }
+    }
+    colgroup = `\n    <colgroup>${cols.join('')}</colgroup>`;
+  }
+  const trs = rows.map((row, r) => {
+    const cells = (Array.isArray(row) ? row : []).map((cell, c) => {
+      if (cell?.merged) return ''; // 병합으로 흡수된 셀은 렌더하지 않는다(#10 셀 병합).
       const tag = cell?.header ? 'th' : 'td';
-      const colspan = cell?.colspan ? ` colspan="${Number(cell.colspan)}"` : '';
-      return `<${tag}${colspan}>${escapeHtml(cell?.text ?? '')}</${tag}>`;
+      const colspan = cell?.colspan > 1 ? ` colspan="${Number(cell.colspan)}"` : '';
+      const rowspan = cell?.rowspan > 1 ? ` rowspan="${Number(cell.rowspan)}"` : '';
+      // editMode 에서만 셀 좌표를 실어 편집기(tableEdit.js)가 DOM↔rows[] 를 정확히 매핑한다(#10).
+      const coord = ctx.editMode ? ` data-r="${r}" data-c="${c}"` : '';
+      return `<${tag}${colspan}${rowspan}${coord}>${escapeHtml(cell?.text ?? '')}</${tag}>`;
     }).join('');
     return `    <tr>${cells}</tr>`;
   }).join('\n');
   const caption = obj.caption ? `\n    <caption>${escapeHtml(obj.caption)}</caption>` : '';
-  return `<table class="obj-table keep" style="break-inside:avoid;">${caption}
+  // 표 테두리 서식(#5 2차) — blocks.css `.obj-table` 가 --wg-tb-color/--wg-tb-width 변수로 셀 테두리를 그린다.
+  const tbColor = typeof obj.borderColor === 'string' && obj.borderColor ? ` --wg-tb-color:${escapeHtml(obj.borderColor)};` : '';
+  const tbWidth = Number.isFinite(obj.borderWidth) && obj.borderWidth > 0 ? ` --wg-tb-width:${obj.borderWidth}px;` : '';
+  const styleAttr = `break-inside:avoid;${tbColor}${tbWidth}`;
+  return `<table class="obj-table keep" style="${styleAttr}">${caption}${colgroup}
 ${trs}
   </table>`;
 }
@@ -229,11 +335,24 @@ function renderDivider() {
 // 속성을 항상 이긴다 — SVG/CSS 명세) — 그 결과 obj.strokeColor/fillColor 를 지정해도 렌더에는
 // 반영되지 않고 항상 기본값(#333/none)으로 보였다(실 Chrome 렌더 테스트로 발견). --wg-stroke/
 // --wg-fill 커스텀 프로퍼티를 래퍼 div 에 인라인으로 실어 CSS 변수 경로로 값을 넘긴다.
+const DASH_MAP = { solid: '0', dashed: '5 3', dotted: '1.5 3' };
+
 function renderShape(obj) {
   const strokeColor = obj.strokeColor || '#333';
   const fillColor = obj.fillColor || 'none';
-  const style = ` style="--wg-stroke:${escapeHtml(strokeColor)}; --wg-fill:${escapeHtml(fillColor)};"`;
-  return `<div class="wg-shape" data-shape="${escapeHtml(obj.shapeKind)}"${style}><svg width="100%" height="100%"></svg></div>`;
+  const kind = obj.shapeKind;
+  // 전엔 <svg> 안이 비어 있어 도형이 아무것도 그려지지 않았다(사용자 피드백 #11) — shapeKind 별
+  // 실제 도형 요소를 방출한다. inset:0 로 자유 개체(.wg-float) 를 가득 채우고, viewBox+
+  // preserveAspectRatio:none 으로 가로·세로 리사이즈에 함께 늘어난다. stroke/fill/두께/유형은 blocks.css
+  // 의 `.wg-shape > *`(=svg) 규칙이 CSS 변수(--wg-stroke/--wg-fill/--wg-sw/--wg-dash)로 받아 자식에 상속.
+  let inner;
+  if (kind === 'circle') inner = '<ellipse cx="50" cy="50" rx="48" ry="48" vector-effect="non-scaling-stroke"/>';
+  else if (kind === 'line') inner = '<line x1="2" y1="98" x2="98" y2="2" vector-effect="non-scaling-stroke"/>';
+  else inner = '<rect x="2" y="2" width="96" height="96" vector-effect="non-scaling-stroke"/>';
+  const sw = Number.isFinite(obj.strokeWidth) && obj.strokeWidth > 0 ? ` --wg-sw:${obj.strokeWidth};` : '';
+  const dash = obj.dash && DASH_MAP[obj.dash] != null ? ` --wg-dash:${DASH_MAP[obj.dash]};` : '';
+  const style = ` style="position:absolute; inset:0; --wg-stroke:${escapeHtml(strokeColor)}; --wg-fill:${escapeHtml(fillColor)};${sw}${dash}"`;
+  return `<div class="wg-shape" data-shape="${escapeHtml(kind)}"${style}><svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none">${inner}</svg></div>`;
 }
 
 /** richtext = 탈출구 — 보존 HTML 그대로 방출(무손실, S1.3 마이그레이션 계약과 정합). */

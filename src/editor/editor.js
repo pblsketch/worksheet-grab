@@ -14,6 +14,8 @@ import { createLeftPanel } from '/editor/leftPanel.js';
 import { createInspector } from '/editor/inspector.js';
 import { createContextToolbar } from '/editor/contextToolbar.js';
 import { createCanvasInline } from '/editor/canvasInline.js';
+import { createTableEditor } from '/editor/tableEdit.js';
+import { createPartEditor } from '/editor/partEdit.js';
 import { createAiPanel } from '/editor/ai.js';
 import * as ObjOps from '/editor/objectFactory.js';
 import { ValidateWorksheet } from '/src/usecases/ValidateWorksheet.js';
@@ -32,6 +34,7 @@ docTitleEl.textContent = shell.docTitle || '(제목 없음)';
 const core = createDocumentStore(shell.document);
 let currentRevision = shell.meta?.revision ?? null;
 let dirty = false; // 마지막 저장 이후 편집 여부(자동저장·beforeunload 가드 기준)
+let studentStale = false; // US-E1: 교사 편집 후 학생용 미리보기가 최신 편집을 반영하지 못하는 상태
 let autosaveTimer = null;
 
 function renderRev() {
@@ -58,6 +61,7 @@ function resetAutosaveTimer() {
 }
 function markDirty() {
   dirty = true;
+  studentStale = true; // US-E1: 편집이 생겼으니 학생용 미리보기는 다음 전환 때 다시 렌더해야 한다.
   resetAutosaveTimer();
 }
 
@@ -95,7 +99,16 @@ function onSelectionChange() {
   updateAll();
 }
 
-const selection = createSelectionController({ core, onDirty: onSelectionDirty, onSelectionChange });
+const selection = createSelectionController({
+  core,
+  onDirty: onSelectionDirty,
+  onSelectionChange,
+  // #2(2차) 자유 개체를 다른 페이지로 이관(드롭 지점의 .sheet 로).
+  onFloatPageChange: (id, pageIndex, rect) => {
+    const next = ObjOps.moveFloatToPage(core.getDocument(), id, pageIndex, rect);
+    applyDocOp(next, { selectId: id });
+  },
+});
 
 // ── S4.2(M4a) flow 리플로우 — 편집 직후 디바운스(300ms) 후 페이지 귀속 재계산 ──
 const REFLOW_DEBOUNCE_MS = 300;
@@ -168,7 +181,7 @@ window.addEventListener('beforeunload', (e) => {
 // ── 캔버스: teacher(편집)/student(파생 미리보기) iframe 지연 생성 ──
 const frames = { teacher: null, student: null };
 let mode = 'teacher';
-const viewState = { margins: true, ruler: true, grid: false };
+const viewState = { margins: true, ruler: true, grid: false, gridAlpha: 0.08 };
 
 function ensureFrame(m) {
   if (frames[m]) return Promise.resolve(frames[m]);
@@ -201,7 +214,10 @@ function applyViewState() {
     d.body.classList.toggle('wg-show-margins', viewState.margins);
     d.body.classList.toggle('wg-show-ruler', viewState.ruler);
     d.body.classList.toggle('wg-show-grid', viewState.grid);
+    d.body.style.setProperty('--wg-grid-alpha', String(viewState.gridAlpha ?? 0.08));
   }
+  // 눈금자(#2) DOM 은 teacher 문서에만 그린다(편집 보조) — 토글 즉시 반영되도록 재장식한다.
+  canvasInline.refreshDecoration();
 }
 
 /** 개체 경계 시각화(선택/편집 외곽선) + float 미선택 pointer-events:none 정책 + flow 오버레이
@@ -223,6 +239,31 @@ function injectEditorStyle(doc) {
       background: #111827; color: #fff; border-radius: 4px; font-size: 11px;
       pointer-events: auto; cursor: grab; user-select: none;
     }
+    /* 자유 개체 8방향 리사이즈 손잡이(#8) — 단일 선택·비편집 상태에서만 selection.js 가 붙인다. */
+    .wg-resize-handle {
+      position: absolute; width: 11px; height: 11px; z-index: 7; background: #2563eb;
+      border: 1.5px solid #fff; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.2);
+      pointer-events: auto; user-select: none;
+    }
+    .wg-rh-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+    .wg-rh-n  { top: -6px; left: calc(50% - 5.5px); cursor: ns-resize; }
+    .wg-rh-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+    .wg-rh-e  { top: calc(50% - 5.5px); right: -6px; cursor: ew-resize; }
+    .wg-rh-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+    .wg-rh-s  { bottom: -6px; left: calc(50% - 5.5px); cursor: ns-resize; }
+    .wg-rh-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+    .wg-rh-w  { top: calc(50% - 5.5px); left: -6px; cursor: ew-resize; }
+    /* 문항 선지·항목 인라인 편집(#3 2차) */
+    .q-part[data-part] { cursor: text; }
+    .q-part.wg-part-editing { outline: 2px solid #dc2626; background: rgba(255,235,59,.12); border-radius: 3px; }
+    /* 표 셀 편집·병합·열 너비(#10) */
+    td[data-r], th[data-r] { cursor: text; }
+    .wg-cell-active { outline: 2px solid #2563eb !important; outline-offset: -2px; background: rgba(37,99,235,.07); }
+    .wg-cell-editing { outline: 2px solid #dc2626 !important; background: rgba(255,235,59,.10); }
+    .wg-col-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+    .wg-col-handle { position: absolute; top: 0; bottom: 0; width: 7px; pointer-events: auto; cursor: col-resize; }
+    .wg-col-handle::after { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: #2563eb; opacity: .3; }
+    .wg-col-handle:hover::after { opacity: 1; width: 2px; }
     .wg-flow-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
     .wg-flow-handle {
       position: absolute; left: -22px; width: 18px; height: 18px; display: flex; align-items: center;
@@ -236,22 +277,36 @@ function injectEditorStyle(doc) {
       pointer-events: auto; cursor: pointer;
     }
     .wg-flow-insert:hover { opacity: 1; }
+    /* 기본 개체 연속 드래그 재정렬 중 시각 피드백(#1·#2 2차) */
+    .wg-flow-dragging { opacity: .55; outline: 2px dashed #2563eb; outline-offset: 1px; }
     body.wg-show-margins .sheet::after {
       content: ""; position: absolute; inset: var(--sheet-pad, 12mm 15mm 10mm 15mm);
       border: 1px dashed rgba(37,99,235,.55); pointer-events: none; z-index: 3;
     }
-    body.wg-show-ruler .sheet::before {
-      content: ""; position: absolute; left: -14px; top: -14px; right: -14px; bottom: -14px;
-      border: 1px solid rgba(0,0,0,.15); pointer-events: none; z-index: 2;
-      background-image:
-        repeating-linear-gradient(90deg, rgba(0,0,0,.3) 0 1px, transparent 1px 10mm),
-        repeating-linear-gradient(0deg, rgba(0,0,0,.3) 0 1px, transparent 1px 10mm);
-    }
+    /* 격자(#1) — 투명도는 --wg-grid-alpha(툴바 보기 메뉴 슬라이더가 body 에 세팅) 로 조절한다. */
     body.wg-show-grid .sheet {
       background-image:
-        repeating-linear-gradient(0deg, rgba(37,99,235,.08) 0 1px, transparent 1px 5mm),
-        repeating-linear-gradient(90deg, rgba(37,99,235,.08) 0 1px, transparent 1px 5mm);
+        repeating-linear-gradient(0deg, rgba(37,99,235,var(--wg-grid-alpha,.08)) 0 1px, transparent 1px 5mm),
+        repeating-linear-gradient(90deg, rgba(37,99,235,var(--wg-grid-alpha,.08)) 0 1px, transparent 1px 5mm);
     }
+    /* 눈금자(#2) — canvasInline.decorateRulers 가 .sheet 마다 상단·좌측 자를 붙이고, 여기 CSS 가
+       body.wg-show-ruler 일 때만 표시한다. 눈금·숫자는 mm 단위로 배치해 줌 변형과 함께 스케일된다. */
+    .wg-ruler-top, .wg-ruler-left { display: none; }
+    body.wg-show-ruler .wg-ruler-top, body.wg-show-ruler .wg-ruler-left {
+      display: block; position: absolute; z-index: 4; pointer-events: none;
+      background: rgba(248,250,252,.92); color: #64748b; font-size: 7px; line-height: 1;
+    }
+    body.wg-show-ruler .wg-ruler-top {
+      top: 0; left: 0; right: 0; height: 5.2mm; border-bottom: 1px solid #cbd5e1;
+      background-image: repeating-linear-gradient(90deg, #94a3b8 0 1px, transparent 1px 5mm);
+    }
+    body.wg-show-ruler .wg-ruler-left {
+      top: 0; left: 0; bottom: 0; width: 5.2mm; border-right: 1px solid #cbd5e1;
+      background-image: repeating-linear-gradient(0deg, #94a3b8 0 1px, transparent 1px 5mm);
+    }
+    .wg-ruler-num { position: absolute; color: #475569; }
+    .wg-ruler-top .wg-ruler-num { top: 0.7mm; transform: translateX(1px); }
+    .wg-ruler-left .wg-ruler-num { left: 0.6mm; transform: translateY(-3px); }
     /* US-19 AI 산출 졸업 배지 — data-ai-fresh는 일시적: 사용자가 그 개체를 편집하는 순간 제거된다. */
     [data-ai-fresh="true"] { position: relative; }
     [data-ai-fresh="true"]::after {
@@ -269,6 +324,8 @@ function initTeacherEditing(f, { resetHistory = true } = {}) {
   injectEditorStyle(doc);
   selection.attach(doc);
   canvasInline.attach(doc, f);
+  tableEditor.attach(doc);
+  partEditor.attach(doc);
   doc.addEventListener('keydown', onKeydown);
   doc.addEventListener('beforeinput', (e) => {
     if (e.inputType === 'historyUndo') { e.preventDefault(); history.undo(); updateAll(); }
@@ -281,8 +338,111 @@ function initTeacherEditing(f, { resetHistory = true } = {}) {
   leftPanel.renderThumbs(doc);
 }
 
+/** 선택된 개체(단일/다중)를 문서에서 제거한다(#7 Delete/Backspace). 리플로우 예약(빈 자리 재계산). */
+function deleteSelectedObjects() {
+  const ids = [...selection.state.selectedIds];
+  if (ids.length === 0) return;
+  let next = core.getDocument();
+  for (const id of ids) next = ObjOps.removeObject(next, id);
+  selection.clearAll();
+  applyDocOp(next, { reflow: true });
+}
+
+/** 텍스트 편집 중이거나 폼 필드/제목에 포커스가 있으면 개체 단축키(삭제·넛지·복사/붙여넣기)를
+ *  가로채지 않는다 — 정상 글자 입력/삭제/복사가 우선(#7·US-E2·US-E3 공통 가드). */
+function isTypingContext() {
+  if (selection.state.editingId) return true;
+  const ae = document.activeElement;
+  return !!(ae && (ae.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)));
+}
+
+/** 단일 선택된 float 개체를 dxMm/dyMm 넛지한다(US-E2). 전체 재로드 없이 라이브 DOM 의 해당
+ *  float 좌표만 갱신하고(드래그 커밋과 동형 — flow 경계 불변이라 리플로우 불필요) history 1 op 로
+ *  확정한다. nudgeFloat 순수 연산으로 다음 문서를 계산해 core 에 반영한다. */
+function nudgeSelectedFloat(dxMm, dyMm) {
+  const id = currentSingleSelectedId();
+  const found = id ? core.findObject(id) : null;
+  if (!found || found.obj.placement !== 'float' || !found.obj.rect) return false;
+  const next = ObjOps.nudgeFloat(core.getDocument(), id, dxMm, dyMm);
+  core.setDocument(next);
+  const nObj = core.findObject(id)?.obj;
+  const doc = frames.teacher?.contentDocument;
+  const escId = window.CSS && CSS.escape ? CSS.escape(id) : id;
+  const el = doc?.querySelector(`[data-oid="${escId}"]`);
+  if (el && nObj?.rect) { el.style.left = `${nObj.rect.xMm}mm`; el.style.top = `${nObj.rect.yMm}mm`; }
+  history.commit();
+  markDirty();
+  updateAll();
+  return true;
+}
+
+const NUDGE_DELTAS = Object.freeze({
+  ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+});
+
+// US-E3: 개체 복사·붙여넣기용 인메모리 클립보드. 시스템 클립보드가 아니라 앱 내부 버퍼 —
+// 개체 트리 구조를 통째로 담아 같은 문서 안 다른 위치/페이지로 재삽입한다(원본은 지워져도 무관).
+let objectClipboard = [];
+
+/** 선택된 개체(단일/다중)를 클립보드에 깊은 복사한다(Ctrl+C). 편집/폼 컨텍스트나 빈 선택이면 무동작. */
+function copySelectedObjects() {
+  const ids = [...selection.state.selectedIds];
+  if (ids.length === 0) return false;
+  const clones = [];
+  for (const id of ids) {
+    const found = core.findObject(id);
+    if (found) clones.push(structuredClone(found.obj));
+  }
+  if (clones.length === 0) return false;
+  objectClipboard = clones;
+  return true;
+}
+
+/** 클립보드 개체를 새 id 로 붙여넣는다(Ctrl+V). flow 는 현재 선택 개체 뒤(없으면 마지막 페이지 끝),
+ *  float 은 +8mm 오프셋으로 현재 선택 개체의 페이지에 삽입한다 — 앵커가 현재 선택이므로 다른
+ *  페이지의 개체를 고른 뒤 붙여넣으면 그 페이지로 들어간다(페이지 간 붙여넣기). applyDocOp 단일
+ *  관문·리플로우 예약을 거치고 첫 새 개체를 선택한다. */
+async function pasteObjects() {
+  if (objectClipboard.length === 0) return false;
+  const anchorId = currentSingleSelectedId();
+  let next = core.getDocument();
+  let runningAnchor = anchorId;
+  const newIds = [];
+  for (const src of objectClipboard) {
+    const obj = { ...structuredClone(src), id: ObjOps.generateId(src.type) };
+    if (obj.placement === 'float') {
+      if (obj.rect) obj.rect = { ...obj.rect, xMm: (obj.rect.xMm || 0) + 8, yMm: (obj.rect.yMm || 0) + 8 };
+      next = ObjOps.insertFloat(next, obj, { nearId: anchorId });
+    } else {
+      next = ObjOps.insertFlow(next, obj, { afterId: runningAnchor });
+      runningAnchor = obj.id; // 다음 개체는 방금 붙여넣은 개체 뒤(붙여넣기 순서 보존)
+    }
+    newIds.push(obj.id);
+  }
+  selection.clearAll();
+  await applyDocOp(next, { reflow: true, selectId: newIds[0] ?? null });
+  return true;
+}
+
 function onKeydown(e) {
   if (e.key === 'Escape') return; // selection.js 가 자체 처리
+  // Delete/Backspace = 선택 개체 삭제(#7). 단, 텍스트 편집 중이거나 폼 필드/제목 편집에 포커스가
+  // 있으면 개입하지 않는다(정상 글자 삭제가 우선). 개체 선택만 된 상태에서만 개체를 지운다.
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (isTypingContext()) return;
+    if (selection.state.selectedIds.size === 0) return;
+    e.preventDefault();
+    deleteSelectedObjects();
+    return;
+  }
+  // 방향키 = 단일 선택된 자유 개체 미세 이동(1mm, Shift=10mm) — US-E2. 텍스트/폼 편집 중엔 무개입.
+  if (NUDGE_DELTAS[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (isTypingContext()) return;
+    const [dx, dy] = NUDGE_DELTAS[e.key];
+    const step = e.shiftKey ? 10 : 1;
+    if (nudgeSelectedFloat(dx * step, dy * step)) e.preventDefault();
+    return;
+  }
   if (!(e.ctrlKey || e.metaKey)) return;
   const key = e.key.toLowerCase();
   if (key === 's') {
@@ -294,6 +454,14 @@ function onKeydown(e) {
   } else if ((key === 'z' && e.shiftKey) || key === 'y') {
     e.preventDefault();
     history.redo();
+  } else if (key === 'c') {
+    // 개체 복사(US-E3) — 텍스트 편집/폼 컨텍스트면 브라우저 기본 복사가 우선.
+    if (isTypingContext()) return;
+    if (copySelectedObjects()) e.preventDefault();
+  } else if (key === 'v') {
+    // 개체 붙여넣기(US-E3) — 텍스트 편집/폼 컨텍스트면 브라우저 기본 붙여넣기가 우선.
+    if (isTypingContext()) return;
+    if (objectClipboard.length) { e.preventDefault(); pasteObjects(); }
   }
 }
 window.addEventListener('keydown', onKeydown);
@@ -303,11 +471,36 @@ async function setMode(m) {
   document.getElementById('btn-teacher').classList.toggle('active', m === 'teacher');
   document.getElementById('btn-student').classList.toggle('active', m === 'student');
   const f = await ensureFrame(m);
+  // US-E1: 학생용 미리보기는 교사 편집을 반영해야 한다 — 편집이 있었으면(studentStale) 저장 후
+  // 서버가 새로 조립한 studentHtml 로 프레임을 교체한다(초기 스냅샷 재사용 금지 = stale 방지).
+  if (m === 'student' && studentStale) await refreshStudentFrame();
   for (const [name, frame] of Object.entries(frames)) {
     if (frame) frame.classList.toggle('hidden', name !== m);
   }
-  fitFrame(f);
+  fitFrame(frames[m] || f);
   document.body.dataset.mode = m;
+}
+
+/** 학생용 미리보기를 현재 저장 문서 기준으로 다시 렌더한다(US-E1 — stale 제거). dirty 면 먼저
+ *  저장해 서버 student 변형(BuildVariants.executeObjectTree, 정답 물리 제거)이 최신 편집을 담게 한
+ *  뒤, /shell.json 이 새로 조립한 studentHtml 로 프레임 srcdoc 를 교체한다. 네트워크 실패 시 기존
+ *  프레임을 유지한다(그레이스풀 — 오래된 미리보기라도 보여주되 stale 플래그는 해제하지 않는다). */
+async function refreshStudentFrame() {
+  if (!frames.student) return;
+  // 저장 실패(네트워크/500)면 서버엔 최신 편집이 없다 — 마지막 저장본으로 교체해 "최신"으로
+  // 오표기하지 않도록 조기 반환한다(저장 실패 배너는 save() 가 이미 띄웠고 studentStale 는 유지된다).
+  if (dirty && !(await save())) return;
+  let html = null;
+  try {
+    const fresh = await (await fetch(`/shell.json?_=${Date.now()}`)).json();
+    html = fresh?.studentHtml ?? null;
+  } catch { /* 네트워크 실패 — 기존 프레임 유지 */ }
+  if (!html) return;
+  await new Promise((resolve) => {
+    frames.student.addEventListener('load', () => { applyViewState(); fitFrame(frames.student); resolve(); }, { once: true });
+    frames.student.srcdoc = html;
+  });
+  studentStale = false;
 }
 
 document.getElementById('btn-teacher').addEventListener('click', () => setMode('teacher'));
@@ -345,6 +538,8 @@ function updateAll() {
     obj: sel.mode === 'single' ? sel.obj : null,
     ids: sel.mode === 'multi' ? sel.ids : [],
     editingType,
+    // US-E4: 더블클릭 편집 가능한 타입(EDIT_FIELD 등재)을 단일 선택했으면 편집 발견성 힌트를 노출.
+    editable: sel.mode === 'single' && selection.isEditableType(sel.obj.type),
   });
 
   if (sel.mode === 'none') {
@@ -355,6 +550,8 @@ function updateAll() {
   } else {
     inspector.render({ mode: 'object', obj: sel.obj });
   }
+  // #10: 표 선택 시 열 너비 손잡이·활성 셀 하이라이트를 선택 상태에 맞춰 갱신(reload 없이).
+  tableEditor?.refresh();
 }
 
 // ══════════════════════════ 검수 상태 칩(ValidateWorksheet) ══════════════════════════
@@ -440,6 +637,28 @@ function applyFormat(cmd, value = null) {
   const found = editingId ? core.findObject(editingId) : null;
   if (!doc || !found || found.obj.type !== 'richtext') return;
   doc.execCommand(cmd, false, value);
+  selection.syncEditingField();
+  onSelectionDirty('text');
+}
+
+/** 폰트 종류·크기 적용(#3) — richtext 편집 중 선택 범위에만. 크기는 execCommand 가 1~7 만 받으므로
+ *  size=7 로 감싼 뒤 그 래퍼만 CSS font-size(pt)로 치환하는 표준 우회를 쓴다(편집 개체 내부로 스코프 한정). */
+function applyFont(kind, value) {
+  const doc = frames.teacher?.contentDocument;
+  const editingId = selection.state.editingId;
+  const found = editingId ? core.findObject(editingId) : null;
+  if (!doc || !found || found.obj.type !== 'richtext') return;
+  if (kind === 'family') {
+    doc.execCommand('fontName', false, value);
+  } else if (kind === 'size') {
+    doc.execCommand('fontSize', false, '7');
+    const escId = window.CSS && CSS.escape ? CSS.escape(editingId) : editingId;
+    const scope = doc.querySelector(`[data-oid="${escId}"]`) || doc;
+    for (const f of scope.querySelectorAll('font[size="7"]')) {
+      f.removeAttribute('size');
+      f.style.fontSize = value;
+    }
+  }
   selection.syncEditingField();
   onSelectionDirty('text');
 }
@@ -563,29 +782,99 @@ docTitleEl.addEventListener('keydown', (e) => {
 
 // ══════════════════════════ 미리보기 · PDF 내보내기 ══════════════════════════
 
-document.getElementById('btn-preview').addEventListener('click', () => {
+// 미리보기(#6) — 전엔 저장 전이면 서버가 404(저장본 없음)를 내 img 가 깨진 채로 떴다. dirty 면
+// 먼저 저장하고, PNG 를 fetch 해 에러(409 busy·404·unsafe 409·500)를 모달에 글로 보여준다.
+document.getElementById('btn-preview').addEventListener('click', () => openPreview());
+async function openPreview() {
   const modal = document.getElementById('preview-modal');
   const img = document.getElementById('preview-img');
-  img.src = `/preview.png?mode=${mode}&_=${Date.now()}`;
+  const status = document.getElementById('preview-status');
   modal.classList.remove('hidden');
-});
+  img.classList.add('hidden');
+  status.classList.remove('hidden');
+  status.textContent = '미리보기 생성 중… (저장 후 Chrome 렌더 — 수 초 걸릴 수 있어요)';
+  try {
+    if (dirty) await save();
+    const res = await fetch(`/preview.png?mode=${mode}&_=${Date.now()}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      status.textContent = `미리보기 실패: ${body.message || body.error || `HTTP ${res.status}`}`;
+      return;
+    }
+    const url = URL.createObjectURL(await res.blob());
+    img.onload = () => { if (img.dataset.url) URL.revokeObjectURL(img.dataset.url); img.dataset.url = url; };
+    img.src = url;
+    img.classList.remove('hidden');
+    status.classList.add('hidden');
+  } catch (e) {
+    status.textContent = `미리보기 실패: ${e.message}`;
+  }
+}
 document.getElementById('preview-close').addEventListener('click', () => {
   document.getElementById('preview-modal').classList.add('hidden');
 });
 
-document.getElementById('btn-export').addEventListener('click', async () => {
-  let res;
+// 내보내기(#5) — 진행표시(버튼 비활성+배너) → dirty 면 save-first → /export → 결과 토스트에
+// 파일/폴더 '열기' 버튼(서버가 OS 기본 앱으로 연다). Chrome 렌더는 수십 초 걸릴 수 있다.
+document.getElementById('btn-export').addEventListener('click', () => doExport());
+async function doExport() {
+  const btn = document.getElementById('btn-export');
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '내보내는 중…';
+  showBanner('warn', 'PDF 내보내는 중… (Chrome 렌더 — 수십 초 걸릴 수 있어요)');
   try {
-    res = await fetch('/export', { method: 'POST' });
+    if (dirty) await save();
+    const res = await fetch('/export', { method: 'POST' });
+    const result = await res.json().catch(() => ({}));
+    if (!res.ok) { showBanner('error', `내보내기 실패: ${result.error ?? result.message ?? res.status}`); return; }
+    const skippedMsg = result.skipped?.student ? ` (학생용 생략: ${result.reason || result.skipped.student})` : '';
+    showBanner(result.unsafe ? 'warn' : 'ok', `PDF 내보내기 완료 (${(result.rendered || []).length}벌)${skippedMsg}`);
+    showExportResult(result, skippedMsg);
   } catch (e) {
     showBanner('error', `내보내기 실패: ${e.message}`);
-    return;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = origText;
   }
-  const result = await res.json().catch(() => ({}));
-  if (!res.ok) { showBanner('error', `내보내기 실패: ${result.error ?? result.message ?? res.status}`); return; }
-  const skippedMsg = result.skipped?.student ? ` (학생용 생략: ${result.reason || result.skipped.student})` : '';
-  showBanner(result.unsafe ? 'warn' : 'ok', `PDF 내보내기 완료(${(result.rendered || []).length}벌)${skippedMsg}`);
-});
+}
+
+function openExportTarget(target) {
+  return async () => {
+    try {
+      const r = await fetch('/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); showBanner('error', `열기 실패: ${e.error || `HTTP ${r.status}`}`); }
+    } catch (e) { showBanner('error', `열기 실패: ${e.message}`); }
+  };
+}
+
+function showExportResult(result, skippedMsg) {
+  const host = document.getElementById('export-result');
+  host.replaceChildren();
+  const title = document.createElement('div');
+  title.className = 'export-result-title';
+  title.textContent = `✔ PDF 내보내기 완료 (${(result.rendered || []).length}벌)${skippedMsg}`;
+  host.appendChild(title);
+  const actions = document.createElement('div');
+  actions.className = 'export-result-actions';
+  const rendered = result.rendered || [];
+  const mkBtn = (label, target) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('click', openExportTarget(target));
+    return b;
+  };
+  if (rendered.some((r) => r.variant === 'teacher')) actions.appendChild(mkBtn('교사용 PDF 열기', 'teacher-pdf'));
+  if (rendered.some((r) => r.variant === 'student')) actions.appendChild(mkBtn('학생용 PDF 열기', 'student-pdf'));
+  actions.appendChild(mkBtn('폴더 열기', 'folder'));
+  const close = document.createElement('button');
+  close.className = 'export-result-close';
+  close.textContent = '닫기';
+  close.addEventListener('click', () => host.classList.add('hidden'));
+  actions.appendChild(close);
+  host.appendChild(actions);
+  host.classList.remove('hidden');
+}
 
 // ══════════════════════════ 저장 ══════════════════════════
 
@@ -676,8 +965,10 @@ const contextToolbar = createContextToolbar({
   onDelete: (id) => { const next = ObjOps.removeObject(core.getDocument(), id); selection.clearAll(); applyDocOp(next, { reflow: true }); },
   onFlowFloat: (id) => { const next = ObjOps.toggleFlowFloat(core.getDocument(), id); applyDocOp(next, { reflow: true, selectId: id }); },
   onFormat: (cmd, value) => applyFormat(cmd, value),
+  onFont: (kind, value) => applyFont(kind, value),
   onAnswerToggle: (id) => { const next = ObjOps.toggleAnswer(core.getDocument(), id); applyDocOp(next, { selectId: id }); },
   onTableRow: (action) => handleTableRow(action),
+  onTableMerge: (dir) => tableEditor.merge(dir),
   onImageReplace: (id) => triggerImageUpload(id),
   onShapeColor: (kind, hex) => {
     const id = currentSingleSelectedId();
@@ -687,6 +978,7 @@ const contextToolbar = createContextToolbar({
   },
   onZoom: (pct) => { stage.style.transform = `scale(${pct / 100})`; },
   onViewToggle: (key, val) => { viewState[key] = val; applyViewState(); },
+  onGridOpacity: (alpha) => { viewState.gridAlpha = alpha; applyViewState(); },
 });
 
 const inspector = createInspector({
@@ -734,13 +1026,32 @@ const canvasInline = createCanvasInline({
   onDelete: (id) => { const next = ObjOps.removeObject(core.getDocument(), id); selection.clearAll(); applyDocOp(next, { reflow: true }); },
   onFlowFloat: (id) => { const next = ObjOps.toggleFlowFloat(core.getDocument(), id); applyDocOp(next, { reflow: true, selectId: id }); },
   onSaveAsPreset: (id) => saveObjectAsPreset(id),
-  onReorderStep: (id, direction) => { core.setDocument(ObjOps.moveFlow(core.getDocument(), id, direction)); markDirty(); },
-  onReorderCommit: () => { history.commit(); leftPanel.renderThumbs(frames.teacher?.contentDocument ?? null); updateAll(); scheduleReflow(); },
+  onFlowReorder: (idsByPage, draggedId) => {
+    const next = ObjOps.applyFlowOrder(core.getDocument(), idsByPage);
+    applyDocOp(next, { reflow: true, selectId: draggedId ?? null });
+  },
+});
+
+// #10 표 셀 편집(인라인)·병합/분할·열 너비 조정 — 셀 텍스트는 reload 없이 즉시 변이(리플로우만 예약),
+// 구조 변경(rows 교체)만 applyDocOp 로 문서 교체·재로드한다.
+const tableEditor = createTableEditor({
+  findObject: (id) => core.findObject(id),
+  getSelectionState: () => selection.state,
+  onCellText: () => onSelectionDirty('text'),
+  onTablePatch: (id, patch) => { const next = ObjOps.patchObject(core.getDocument(), id, patch); applyDocOp(next, { reflow: true, selectId: id }); },
+});
+
+// #3(2차) 선지·항목 인라인 편집 — 셀 편집과 동형(직접 변이+리플로우 예약, reload 없음).
+const partEditor = createPartEditor({
+  findObject: (id) => core.findObject(id),
+  onPartText: () => onSelectionDirty('text'),
 });
 
 // ── 초기 모드: teacher 는 항상 먼저 만들어 둔다(썸네일·검수는 teacher 문서가 진실). ──
 await ensureFrame('teacher');
 await setMode(location.hash === '#student' ? 'student' : 'teacher');
+// #4: 프레임이 보이게 된 뒤(레이아웃 확정) 썸네일을 다시 그린다 — 최초 렌더는 hidden 이라 0 치수였다.
+requestAnimationFrame(() => leftPanel.renderThumbs(frames.teacher?.contentDocument ?? null));
 try {
   if (sessionStorage.getItem('wgReflowAfterPaperChange') === '1') {
     sessionStorage.removeItem('wgReflowAfterPaperChange');
@@ -1584,6 +1895,115 @@ async function runSeed(seed) {
     const saved = await save();
     document.body.dataset.savedOk = String(saved != null && saved.unsafe === false);
     document.body.dataset.savedPagination = core.getDocument().pagination;
+  } else if (seed === 'student-fresh') {
+    // US-E1: 교사 편집(제목) → '학생용' 전환 시 학생 프레임이 최신 편집을 반영하고, 편집 크롬 없이
+    // (비 editMode = data-oid 래퍼 부재) answer 개체가 물리 제거된 학생 변형으로 렌더되는지 확인.
+    const titleEl = doc.querySelector('[data-oid="t1"]');
+    titleEl.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const target = titleEl.querySelector('.title-box h1, .title-box h2');
+    target.textContent = '학생 미리보기 최신화 확인 제목';
+    target.dispatchEvent(new Event('input', { bubbles: true }));
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wait(650); // 타이핑 유휴 커밋(TYPING_IDLE_MS)
+
+    document.body.dataset.studentStaleBeforeSwitch = String(studentStale);
+    await setMode('student');
+    await pollUntil(() => {
+      const sf = frames.student?.contentDocument;
+      return !!sf && sf.body && sf.body.textContent.includes('학생 미리보기 최신화 확인 제목');
+    }, { timeoutMs: 20000 }).catch(() => {});
+    const sdoc = frames.student?.contentDocument;
+    document.body.dataset.studentHasEdit = String(!!sdoc && sdoc.body.textContent.includes('학생 미리보기 최신화 확인 제목'));
+    // 학생용은 편집 모드가 아니다 — data-oid 편집 래퍼가 없어야 한다.
+    document.body.dataset.studentNoEditWrappers = String(!!sdoc && sdoc.querySelectorAll('[data-oid]').length === 0);
+    // answer:true 개체(rt-ans)의 정답 텍스트는 학생용에 물리적으로 없어야 한다(BuildVariants student).
+    document.body.dataset.studentAnswerHidden = String(!!sdoc && !sdoc.body.textContent.includes('정답전용텍스트'));
+    document.body.dataset.studentStaleAfterSwitch = String(studentStale);
+  } else if (seed === 'nudge') {
+    // US-E2: 자유 개체 선택 후 방향키 넛지(1mm)·Shift 큰 이동(10mm)·다른 축 불변·undo 원복.
+    const f1 = doc.querySelector('[data-oid="f1"]');
+    f1.click(); // float 선택(합성 클릭은 pointer-events 와 무관하게 대상에 발화)
+    document.body.dataset.nudgeSelected = String(selection.state.selectedIds.has('f1'));
+    const rect0 = { ...core.findObject('f1').obj.rect };
+
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    const rectR = { ...core.findObject('f1').obj.rect };
+    document.body.dataset.nudgeRightDx = String(Math.round((rectR.xMm - rect0.xMm) * 10) / 10);
+    document.body.dataset.nudgeRightYUnchanged = String(rectR.yMm === rect0.yMm);
+
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, shiftKey: true }));
+    const rectD = { ...core.findObject('f1').obj.rect };
+    document.body.dataset.nudgeShiftDownDy = String(Math.round((rectD.yMm - rectR.yMm) * 10) / 10);
+
+    history.undo();
+    history.undo();
+    const rectU = core.findObject('f1').obj.rect;
+    document.body.dataset.nudgeUndone = String(rectU.xMm === rect0.xMm && rectU.yMm === rect0.yMm);
+
+    // flow 개체는 방향키에 반응하지 않는다(넛지는 float 전용).
+    doc.querySelector('.sheet').click();
+    const q1 = doc.querySelector('[data-oid="q1"]');
+    q1.click();
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    document.body.dataset.nudgeFlowNoRect = String(core.findObject('q1').obj.rect === undefined);
+  } else if (seed === 'copy-paste') {
+    // US-E3: 개체 복사(Ctrl+C) → 다른 개체 선택 → 붙여넣기(Ctrl+V): 개체 수 +1, 새 id≠원본,
+    // 필드 복제, 원본 보존, 새 개체 자동 선택, undo 로 원복. 붙여넣기 앵커는 현재 선택(t1) 뒤.
+    const q1 = doc.querySelector('[data-oid="q1"]');
+    q1.click();
+    const beforeCount = core.allObjects().length;
+    const q1Prompt = core.findObject('q1').obj.prompt;
+
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true, bubbles: true }));
+    document.body.dataset.cpClipboardCount = String(objectClipboard.length);
+
+    const t1 = doc.querySelector('[data-oid="t1"]');
+    t1.click();
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true }));
+    // applyDocOp 은 비동기(core.setDocument → await reloadTeacherFrame → selection.select 순) — 개체
+    // 수 증가만이 아니라 선택 확정까지 기다린다(카운트만 보면 selection.select 이전에 읽는 경합).
+    await pollUntil(() => {
+      const sel = [...selection.state.selectedIds];
+      return core.allObjects().length === beforeCount + 1
+        && sel.length === 1 && sel[0] !== 't1' && core.findObject(sel[0])?.obj?.type === 'question';
+    }, { timeoutMs: 15000 }).catch(() => {});
+    document.body.dataset.cpCountIncreased = String(core.allObjects().length === beforeCount + 1);
+
+    const newId = [...selection.state.selectedIds][0];
+    const newObj = newId ? core.findObject(newId)?.obj : null;
+    document.body.dataset.cpNewSelected = String(!!newId && newId !== 'q1');
+    document.body.dataset.cpNewIsQuestion = String(newObj?.type === 'question');
+    document.body.dataset.cpNewPromptMatches = String(newObj?.prompt === q1Prompt);
+    document.body.dataset.cpOriginalPreserved = String(!!core.findObject('q1') && core.findObject('q1').obj.prompt === q1Prompt);
+    // 붙여넣은 개체는 앵커(t1, index 0) 바로 뒤에 온다.
+    const flow0 = core.getDocument().pages[0].flow.map((o) => o.id);
+    document.body.dataset.cpPastedAfterAnchor = String(flow0[0] === 't1' && flow0[1] === newId);
+
+    history.undo();
+    await wait(60);
+    document.body.dataset.cpUndone = String(core.allObjects().length === beforeCount);
+  } else if (seed === 'affordance') {
+    // US-E4: 교사 친화 표현(배치 전환 버튼에 원시 용어 없음) + 색상 라벨 + 편집 발견성 힌트.
+    const q1 = doc.querySelector('[data-oid="q1"]');
+    q1.click();
+    const flowfloatTitle = document.getElementById('tb-flowfloat')?.title || '';
+    document.body.dataset.affFlowfloatNoRawTerm = String(!flowfloatTitle.includes('기본 개체') && !flowfloatTitle.includes('자유 개체'));
+    // 편집 가능 개체(question) 선택 → 편집 힌트 존재.
+    document.body.dataset.affEditHintOnEditable = String(!!document.getElementById('tb-edit-hint'));
+    // 글자색 컨트롤에 식별용 title(라벨) 존재.
+    const colorInput = document.getElementById('tb-color');
+    document.body.dataset.affColorHasTitle = String(!!colorInput && colorInput.title.length > 0);
+    // 인스펙터 헤더 배치 라벨에 원시 용어 없음(question=본문 배치).
+    const inspHeader = document.querySelector('#right-panel h3')?.textContent || '';
+    document.body.dataset.affInspNoRawTerm = String(!inspHeader.includes('기본 개체') && !inspHeader.includes('자유 개체'));
+    document.body.dataset.affInspHasFriendly = String(inspHeader.includes('본문 배치'));
+
+    // std-box(비편집) 선택 → 편집 힌트 없음.
+    doc.querySelector('.sheet').click();
+    const s1 = doc.querySelector('[data-oid="s1"]');
+    s1.click();
+    document.body.dataset.affNoHintOnStdBox = String(!document.getElementById('tb-edit-hint'));
   }
   document.body.dataset.seedDone = seed;
 }

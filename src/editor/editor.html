@@ -52,7 +52,7 @@
       <button id="btn-add-page" type="button" class="panel-add-btn">+ 새 페이지</button>
     </div>
     <div data-panel="insert" class="panel hidden">
-      <label class="insert-float-toggle"><input type="checkbox" id="insert-float-toggle"> 자유배치(float)로 삽입</label>
+      <label class="insert-float-toggle"><input type="checkbox" id="insert-float-toggle"> 자유 배치로 삽입</label>
       <div id="insert-grid" class="insert-grid"></div>
     </div>
     <div data-panel="myblocks" class="panel hidden">
@@ -65,9 +65,11 @@
   <aside id="right-panel" class="right-panel" aria-label="인스펙터"></aside>
 </div><!-- /#workspace -->
 <div id="popups-host"></div><!-- 버블 툴바·슬래시 메뉴·우클릭 메뉴(부모 문서 fixed 오버레이) -->
+<div id="export-result" class="export-result hidden" role="status"></div><!-- #5 내보내기 결과 토스트(열기 버튼) -->
 <div id="preview-modal" class="preview-modal hidden">
   <div class="preview-modal-inner">
     <button id="preview-close" type="button" class="preview-close">닫기</button>
+    <div id="preview-status" class="preview-status hidden"></div>
     <img id="preview-img" alt="정밀 미리보기">
   </div>
 </div>

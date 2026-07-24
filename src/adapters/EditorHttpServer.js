@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { readFile, rm, writeFile, rename, mkdir, readdir } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
@@ -41,6 +42,20 @@ function readJsonBody(req) {
 function suffixName(name, n) {
   const dot = name.lastIndexOf('.');
   return dot > 0 ? `${name.slice(0, dot)}-${n}${name.slice(dot)}` : `${name}-${n}`;
+}
+
+// #5 내보내기 후 '열기' — OS 기본 앱(또는 탐색기)으로 파일/폴더를 연다. 대상 경로는 서버가
+// workspace.layout 으로 고정 파생하므로(클라 임의 경로 불가) 로컬 편집 도구로서 안전하다.
+// detached + unref 로 서버 프로세스 수명과 분리한다.
+function openWithOs(target) {
+  if (process.platform === 'win32') {
+    // cmd start — 첫 "" 는 창 제목 자리(경로에 공백 있어도 안전). 셸 특수문자는 로컬 신뢰 경로라 무관.
+    spawn('cmd', ['/c', 'start', '', target], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  } else if (process.platform === 'darwin') {
+    spawn('open', [target], { detached: true, stdio: 'ignore' }).unref();
+  } else {
+    spawn('xdg-open', [target], { detached: true, stdio: 'ignore' }).unref();
+  }
 }
 
 // 이미지 업로드용 바이너리 본문 리더(cap=5MB). 상한 초과 시 스트림을 끊고 거부한다.
@@ -233,6 +248,30 @@ export function createEditorServer({
           return send(res, 200, 'application/json; charset=utf-8', JSON.stringify(result));
         } finally {
           renderBusy = false;
+        }
+      }
+      // #5 내보내기 결과 열기: target(teacher-pdf|student-pdf|folder)만 받아 서버가 경로를 고정 파생한다.
+      if (req.method === 'POST' && path === '/open') {
+        let body;
+        try {
+          body = await readJsonBody(req);
+        } catch (e) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
+        }
+        const layout = workspace.layout(docName);
+        const targets = { 'teacher-pdf': layout.teacherPdfPath, 'student-pdf': layout.studentPdfPath, folder: layout.dir };
+        const target = targets[body?.target];
+        if (!target) {
+          return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: 'target 은 teacher-pdf|student-pdf|folder 여야 합니다.' }));
+        }
+        if (!existsSync(target)) {
+          return send(res, 404, 'application/json; charset=utf-8', JSON.stringify({ error: '대상이 아직 없습니다 — 먼저 내보내기하세요.' }));
+        }
+        try {
+          openWithOs(target);
+          return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({ ok: true }));
+        } catch (e) {
+          return send(res, 500, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
       }
       // E6 용지 변경(§3.3): manifest 레벨 변이라 /save(DOM 역동기화)와 분리 —

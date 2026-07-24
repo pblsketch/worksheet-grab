@@ -24,6 +24,49 @@ function btn({ id, title, iconName, label, onClick, disabled = false }) {
 
 const QUICK_INSERT_KEYS = ['title', 'richtext', 'table', 'image-slot', 'question:short-answer', 'shape'];
 
+// 폰트 컨트롤(#3) — 자유 텍스트(richtext) 편집 중에만 서식이 보존된다(us16.md 한계와 동형).
+// value 는 CSS font-family / font-size 그대로 넘긴다.
+const FONT_FAMILIES = [
+  ['', '글꼴'], ['Pretendard, sans-serif', 'Pretendard'], ['"Malgun Gothic","맑은 고딕",sans-serif', '맑은 고딕'],
+  ['"NanumGothic","나눔고딕",sans-serif', '나눔고딕'], ['Batang,"바탕",serif', '바탕'],
+  ['Dotum,"돋움",sans-serif', '돋움'], ['Gulim,"굴림",sans-serif', '굴림'],
+];
+const FONT_SIZES = ['', '9pt', '10pt', '11pt', '12pt', '14pt', '16pt', '18pt', '20pt', '24pt', '28pt'];
+
+function selectEl({ id, options, title, disabled, onChange }) {
+  const sel = document.createElement('select');
+  sel.className = 'tb-select';
+  if (id) sel.id = id;
+  if (title) sel.title = title;
+  sel.disabled = disabled;
+  for (const opt of options) {
+    const [value, label] = Array.isArray(opt) ? opt : [opt, opt || '크기'];
+    const o = document.createElement('option');
+    o.value = value; o.textContent = label;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => { if (sel.value) onChange(sel.value); sel.selectedIndex = 0; });
+  return sel;
+}
+
+// 색상 컨트롤(US-E4) — 무엇을 바꾸는지 식별되도록 텍스트 라벨 + title 을 붙인 색상 입력.
+// raw <input type=color> 스와치만 두면 글자색인지 채우기인지 알 수 없다.
+function colorField({ id, title, label, value, disabled = false, onInput }) {
+  const wrap = document.createElement('label');
+  wrap.className = 'tb-color-field';
+  wrap.title = title;
+  wrap.appendChild(document.createTextNode(label));
+  const input = document.createElement('input');
+  input.type = 'color';
+  input.id = id;
+  input.title = title;
+  if (value) input.value = value;
+  input.disabled = disabled;
+  input.addEventListener('input', () => onInput(input.value));
+  wrap.appendChild(input);
+  return wrap;
+}
+
 /**
  * @param {{
  *   root: HTMLElement, // 툴바 루트 — 좌(#tb-left)·가운데(#tb-middle)·우(#tb-right) 컨테이너 포함
@@ -75,7 +118,7 @@ export function createContextToolbar(opts) {
   viewMenu.id = 'tb-view-dropdown';
   viewMenu.className = 'view-dropdown hidden';
   const viewState = { margins: true, ruler: true, grid: false };
-  for (const [key, label] of [['margins', '여백선'], ['ruler', '눈금자'], ['grid', '격자']]) {
+  for (const [key, label] of [['margins', '여백선'], ['ruler', '눈금자(상·좌 cm)'], ['grid', '격자(5mm)']]) {
     const label2 = document.createElement('label');
     const cb = document.createElement('input');
     cb.type = 'checkbox';
@@ -86,6 +129,21 @@ export function createContextToolbar(opts) {
     label2.appendChild(document.createTextNode(label));
     viewMenu.appendChild(label2);
   }
+  // 격자 투명도 슬라이더(#1) — 0.02~0.35 알파. 슬라이더 조작 시 격자를 자동으로 켠다.
+  const opRow = document.createElement('label');
+  opRow.className = 'view-op-row';
+  opRow.appendChild(document.createTextNode('격자 진하기'));
+  const opSlider = document.createElement('input');
+  opSlider.type = 'range'; opSlider.id = 'tb-grid-alpha';
+  opSlider.min = '2'; opSlider.max = '35'; opSlider.step = '1'; opSlider.value = '8';
+  opSlider.addEventListener('input', () => {
+    opts.onGridOpacity?.(Number(opSlider.value) / 100);
+    const gridCb = viewMenu.querySelector('input[data-view-key="grid"]');
+    if (gridCb && !gridCb.checked) { gridCb.checked = true; viewState.grid = true; opts.onViewToggle('grid', true); }
+  });
+  opSlider.addEventListener('click', (e) => e.stopPropagation());
+  opRow.appendChild(opSlider);
+  viewMenu.appendChild(opRow);
   right.appendChild(viewMenu);
   viewBtn.addEventListener('click', (e) => { e.stopPropagation(); viewMenu.classList.toggle('hidden'); });
   document.addEventListener('click', () => viewMenu.classList.add('hidden'));
@@ -105,12 +163,13 @@ export function createContextToolbar(opts) {
     }));
     wrap.appendChild(btn({ title: '복제', iconName: 'copy', id: 'tb-duplicate', onClick: () => opts.onDuplicate(id) }));
     wrap.appendChild(btn({ title: '삭제', iconName: 'trash', id: 'tb-delete', onClick: () => opts.onDelete(id) }));
-    wrap.appendChild(btn({ title: 'flow⇄float 전환', iconName: 'layers', id: 'tb-flowfloat', onClick: () => opts.onFlowFloat(id) }));
+    wrap.appendChild(btn({ title: '본문 배치 ⇄ 자유 배치 전환', iconName: 'layers', id: 'tb-flowfloat', onClick: () => opts.onFlowFloat(id) }));
     return wrap;
   }
 
   /**
-   * @param {{mode:'empty'|'text'|'table'|'image'|'shape'|'object'|'multi', obj?:object, ids?:string[], editingType?:string|null}} state
+   * @param {{mode:'empty'|'text'|'table'|'image'|'shape'|'object'|'multi', obj?:object, ids?:string[],
+   *   editingType?:string|null, editable?:boolean}} state
    */
   function render(state) {
     root.dataset.tbMode = state.mode;
@@ -145,6 +204,13 @@ export function createContextToolbar(opts) {
       g.appendChild(btn({ title: '열 삭제', label: '-열', id: 'tb-del-col', onClick: () => opts.onTableRow('del-col') }));
       g.appendChild(btn({ title: '헤더 토글', label: '헤더', id: 'tb-toggle-header', onClick: () => opts.onTableRow('toggle-header') }));
       middle.appendChild(g);
+      // 셀 병합/분할(#10) — 셀을 클릭해 활성 셀을 고른 뒤 병합한다. 셀 편집은 캔버스에서 셀 더블클릭.
+      const g2 = document.createElement('div');
+      g2.className = 'tb-group';
+      g2.appendChild(btn({ title: '오른쪽 셀과 병합', label: '병합→', id: 'tb-merge-right', onClick: () => opts.onTableMerge?.('right') }));
+      g2.appendChild(btn({ title: '아래 셀과 병합', label: '병합↓', id: 'tb-merge-down', onClick: () => opts.onTableMerge?.('down') }));
+      g2.appendChild(btn({ title: '병합 해제', label: '병합해제', id: 'tb-merge-split', onClick: () => opts.onTableMerge?.('split') }));
+      middle.appendChild(g2);
     } else if (obj?.type === 'image-slot') {
       const g = document.createElement('div');
       g.className = 'tb-group';
@@ -153,33 +219,52 @@ export function createContextToolbar(opts) {
     } else if (obj?.type === 'shape') {
       const g = document.createElement('div');
       g.className = 'tb-group';
-      const stroke = document.createElement('input');
-      stroke.type = 'color'; stroke.id = 'tb-shape-stroke';
-      stroke.value = /^#[0-9a-f]{6}$/i.test(obj.strokeColor) ? obj.strokeColor : '#111827';
-      stroke.addEventListener('input', () => opts.onShapeColor('stroke', stroke.value));
-      const fill = document.createElement('input');
-      fill.type = 'color'; fill.id = 'tb-shape-fill';
-      fill.value = /^#[0-9a-f]{6}$/i.test(obj.fillColor) ? obj.fillColor : '#ffffff';
-      fill.addEventListener('input', () => opts.onShapeColor('fill', fill.value));
-      g.appendChild(stroke);
-      g.appendChild(fill);
+      g.appendChild(colorField({
+        id: 'tb-shape-stroke', title: '선 색', label: '선',
+        value: /^#[0-9a-f]{6}$/i.test(obj.strokeColor) ? obj.strokeColor : '#111827',
+        onInput: (v) => opts.onShapeColor('stroke', v),
+      }));
+      g.appendChild(colorField({
+        id: 'tb-shape-fill', title: '채우기 색', label: '채움',
+        value: /^#[0-9a-f]{6}$/i.test(obj.fillColor) ? obj.fillColor : '#ffffff',
+        onInput: (v) => opts.onShapeColor('fill', v),
+      }));
       middle.appendChild(g);
     } else {
       // 텍스트 서식(richtext 편집 중에만 실제 적용) — title/question/answer-area 도 편집 중엔
       // 버튼을 노출하되 disabled(us16.md 한계 안내, 상세 서식은 후속 스토리).
       const g = document.createElement('div');
       g.className = 'tb-group';
+      // 폰트 종류·크기(#3) — 자유 텍스트 편집 중에만 활성.
+      g.appendChild(selectEl({
+        id: 'tb-font-family', options: FONT_FAMILIES, title: '글꼴', disabled: !isRichtextEditing,
+        onChange: (v) => opts.onFont?.('family', v),
+      }));
+      g.appendChild(selectEl({
+        id: 'tb-font-size', options: FONT_SIZES, title: '글자 크기', disabled: !isRichtextEditing,
+        onChange: (v) => opts.onFont?.('size', v),
+      }));
       g.appendChild(btn({ title: '굵게', iconName: 'bold', id: 'tb-bold', disabled: !isRichtextEditing, onClick: () => opts.onFormat('bold') }));
       g.appendChild(btn({ title: '기울임', iconName: 'italic', id: 'tb-italic', disabled: !isRichtextEditing, onClick: () => opts.onFormat('italic') }));
       g.appendChild(btn({ title: '밑줄', iconName: 'underline', id: 'tb-underline', disabled: !isRichtextEditing, onClick: () => opts.onFormat('underline') }));
-      const color = document.createElement('input');
-      color.type = 'color'; color.id = 'tb-color'; color.disabled = !isRichtextEditing;
-      color.addEventListener('input', () => opts.onFormat('foreColor', color.value));
-      g.appendChild(color);
+      g.appendChild(colorField({
+        id: 'tb-color', title: '글자 색', label: '글자색', disabled: !isRichtextEditing,
+        onInput: (v) => opts.onFormat('foreColor', v),
+      }));
       g.appendChild(btn({ title: '왼쪽 정렬', iconName: 'alignLeft', id: 'tb-align-left', disabled: !isRichtextEditing, onClick: () => opts.onFormat('justifyLeft') }));
       g.appendChild(btn({ title: '가운데 정렬', iconName: 'alignCenter', id: 'tb-align-center', disabled: !isRichtextEditing, onClick: () => opts.onFormat('justifyCenter') }));
       g.appendChild(btn({ title: '오른쪽 정렬', iconName: 'alignRight', id: 'tb-align-right', disabled: !isRichtextEditing, onClick: () => opts.onFormat('justifyRight') }));
       middle.appendChild(g);
+    }
+
+    // 편집 발견성 힌트(US-E4) — 더블클릭으로 편집 가능한 개체를 선택했고 아직 편집 중이 아니면
+    // "더블클릭하여 편집" 안내를 노출한다(비편집 타입 std-box/표/이미지/도형/구분선엔 노출 안 함).
+    if (obj && state.editable && !state.editingType) {
+      const hint = document.createElement('span');
+      hint.id = 'tb-edit-hint';
+      hint.className = 'tb-edit-hint';
+      hint.textContent = '더블클릭하여 편집';
+      middle.appendChild(hint);
     }
 
     if (obj) {

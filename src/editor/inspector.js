@@ -8,7 +8,7 @@
 // 관례와 동형).
 
 import { icon } from './icons.js';
-import { QTYPE_LABELS, SHAPE_KINDS, ANSWER_AREA_STYLES } from './objectFactory.js';
+import { QTYPE_LABELS, SHAPE_KINDS, DASH_STYLES, ANSWER_AREA_STYLES } from './objectFactory.js';
 import { ANSWERABLE_TYPES, QUESTION_TYPES } from '/src/domain/schema/index.js';
 import { PAPER_PRESETS, resolvePaper, matchPreset } from '/src/usecases/paper.js';
 
@@ -28,6 +28,14 @@ const ALIGN_BUTTONS = [
   ['left', '왼쪽 정렬', 'alignLeft'], ['center-h', '가로 가운데', 'alignCenter'], ['right', '오른쪽 정렬', 'alignRight'],
   ['top', '위 정렬', 'alignLeft'], ['middle-v', '세로 가운데', 'alignCenter'], ['bottom', '아래 정렬', 'alignRight'],
 ];
+
+// 개체 타입 → 사용자용 한국어 이름(인스펙터 헤더). 내부 데이터 모델은 계속 영문 타입명을 쓴다.
+const TYPE_LABELS = Object.freeze({
+  title: '제목', question: '문항', table: '표', 'image-slot': '이미지', 'answer-area': '답란',
+  richtext: '자유 텍스트', shape: '도형', divider: '구분선', 'passage-slot': '지문 슬롯', 'std-box': '학습목표 박스',
+});
+// placement(flow/float) → 사용자용 한국어(#9): float=자유 배치, flow=본문 배치(교사 친화 표현, US-E4).
+const PLACEMENT_LABEL = Object.freeze({ float: '자유 배치', flow: '본문 배치' });
 
 /**
  * @param {{
@@ -92,7 +100,8 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
 
   // ── 단일 선택 ──
   function renderSingle(obj) {
-    root.appendChild(el('h3', { text: `개체 · ${obj.type}`, 'data-insp-type': obj.type }));
+    const typeName = TYPE_LABELS[obj.type] || obj.type;
+    root.appendChild(el('h3', { text: `${typeName} · ${PLACEMENT_LABEL[obj.placement] || ''}`, 'data-insp-type': obj.type }));
 
     if (obj.placement === 'float' && obj.rect) {
       const grid = el('div', { class: 'insp-grid4' });
@@ -106,7 +115,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
 
     const flowFloatBtn = el('button', {
       type: 'button', id: 'insp-flowfloat-toggle', class: 'insp-btn',
-      html: `${icon('layers')}<span>${obj.placement === 'float' ? 'flow 로 전환' : 'float 로 전환'}</span>`,
+      html: `${icon('layers')}<span>${obj.placement === 'float' ? '본문 배치로 전환' : '자유 배치로 전환'}</span>`,
       onclick: () => onToggleFlowFloat(obj.id),
     });
     root.appendChild(flowFloatBtn);
@@ -137,6 +146,18 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         level.appendChild(el('option', { value: '2', text: '작은 제목(h2)', selected: obj.level === 2 ? 'selected' : null }));
         level.addEventListener('change', () => patch({ level: Number(level.value) }));
         root.appendChild(field('제목 크기', level));
+        // 제목 상단 배지(예: "중1 · 1차시")·모서리 표기·출처는 meta 로 저작 — 편집기에서 직접 수정(#6).
+        const meta = obj.meta || {};
+        const patchMeta = (k, v) => patch({ meta: { ...meta, [k]: v || undefined } });
+        const pill = el('input', { type: 'text', id: 'insp-title-pill', value: meta.pill || '' });
+        pill.addEventListener('change', () => patchMeta('pill', pill.value.trim()));
+        root.appendChild(field('상단 배지(학년·차시 등)', pill));
+        const page = el('input', { type: 'text', id: 'insp-title-page', value: meta.page || '' });
+        page.addEventListener('change', () => patchMeta('page', page.value.trim()));
+        root.appendChild(field('모서리 표기', page));
+        const source = el('input', { type: 'text', id: 'insp-title-source', value: meta.source || '' });
+        source.addEventListener('change', () => patchMeta('source', source.value.trim()));
+        root.appendChild(field('출처 표기', source));
         break;
       }
       case 'question': {
@@ -168,9 +189,17 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         const delCol = el('button', { type: 'button', class: 'insp-btn', text: '- 열 삭제' });
         delCol.addEventListener('click', () => { if ((rows[0] || []).length > 1) patch({ rows: rows.map((r) => r.slice(0, -1)) }); });
         root.appendChild(el('div', { class: 'insp-row-buttons' }, [addRow, delRow, addCol, delCol]));
+        root.appendChild(el('p', { class: 'insp-note', text: '셀 편집: 캔버스에서 셀 더블클릭 · 병합: 셀 클릭 후 툴바 · 열 너비: 열 경계 드래그' }));
         const caption = el('input', { type: 'text', id: 'insp-caption', value: obj.caption || '' });
         caption.addEventListener('change', () => patch({ caption: caption.value }));
         root.appendChild(field('캡션', caption));
+        // 표 테두리 색·두께(#5 2차) — CSS 변수로 렌더에 반영.
+        const bColor = el('input', { type: 'color', id: 'insp-table-border-color', value: /^#[0-9a-f]{6}$/i.test(obj.borderColor) ? obj.borderColor : '#cbd5c0' });
+        bColor.addEventListener('input', () => patch({ borderColor: bColor.value }));
+        root.appendChild(field('테두리 색', bColor));
+        const bWidth = el('input', { type: 'number', id: 'insp-table-border-width', min: '0', max: '6', step: '0.5', value: String(obj.borderWidth ?? 1) });
+        bWidth.addEventListener('change', () => patch({ borderWidth: Math.max(0, Number(bWidth.value) || 0) }));
+        root.appendChild(field('테두리 두께(px)', bWidth));
         break;
       }
       case 'image-slot': {
@@ -199,13 +228,22 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         break;
       }
       case 'shape': {
+        const SHAPE_KIND_LABELS = { rect: '사각형', circle: '원', line: '선' };
+        const DASH_LABELS = { solid: '실선', dashed: '파선', dotted: '점선' };
         const kindSel = el('select', { id: 'insp-shape-kind' });
-        for (const k of SHAPE_KINDS) kindSel.appendChild(el('option', { value: k, text: k, selected: obj.shapeKind === k ? 'selected' : null }));
+        for (const k of SHAPE_KINDS) kindSel.appendChild(el('option', { value: k, text: SHAPE_KIND_LABELS[k] || k, selected: obj.shapeKind === k ? 'selected' : null }));
         kindSel.addEventListener('change', () => patch({ shapeKind: kindSel.value }));
         root.appendChild(field('종류', kindSel));
         const stroke = el('input', { type: 'color', id: 'insp-shape-stroke', value: /^#[0-9a-f]{6}$/i.test(obj.strokeColor) ? obj.strokeColor : '#111827' });
         stroke.addEventListener('input', () => patch({ strokeColor: stroke.value }));
         root.appendChild(field('선 색', stroke));
+        const width = el('input', { type: 'number', id: 'insp-shape-width', min: '0.5', max: '12', step: '0.5', value: String(obj.strokeWidth ?? 1.6) });
+        width.addEventListener('change', () => patch({ strokeWidth: Math.max(0.5, Number(width.value) || 1.6) }));
+        root.appendChild(field('선 두께', width));
+        const dashSel = el('select', { id: 'insp-shape-dash' });
+        for (const d of DASH_STYLES) dashSel.appendChild(el('option', { value: d, text: DASH_LABELS[d] || d, selected: (obj.dash || 'solid') === d ? 'selected' : null }));
+        dashSel.addEventListener('change', () => patch({ dash: dashSel.value }));
+        root.appendChild(field('선 유형', dashSel));
         const fill = el('input', { type: 'color', id: 'insp-shape-fill', value: /^#[0-9a-f]{6}$/i.test(obj.fillColor) ? obj.fillColor : '#ffffff' });
         fill.addEventListener('input', () => patch({ fillColor: fill.value }));
         root.appendChild(field('채우기', fill));
@@ -252,7 +290,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
   function renderMulti(ids, allFloat) {
     root.appendChild(el('h3', { text: `개체 ${ids.length}개 선택` }));
     if (!allFloat) {
-      root.appendChild(el('p', { class: 'insp-note', text: '정렬/분배는 float(자유배치) 개체만 지원합니다.' }));
+      root.appendChild(el('p', { class: 'insp-note', text: '정렬/분배는 자유 배치 개체만 지원합니다.' }));
       return;
     }
     const grid = el('div', { class: 'align-grid' });

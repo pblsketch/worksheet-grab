@@ -48,10 +48,22 @@ export function createLeftPanel({ root, onThumbSelect, onPageAction, onInsertIte
     while (thumbList.children.length > sheets.length) thumbList.lastElementChild.remove();
     thumbCache.length = sheets.length;
 
+    const view = doc.defaultView;
     sheets.forEach((sheet, i) => {
+      // 치수 산출(#4): 최초 렌더는 teacher iframe 이 아직 hidden 이라 getBoundingClientRect 가 0 을 줘
+      // 썸네일이 가로줄로 납작해졌다. rect 가 0 이면 computed style(줌 무관 레이아웃 폭)로, 그마저
+      // 0 이면 A4 96dpi(794×1123) 로 폴백한다 — 프레임이 보이게 되면 editor.js 가 한 번 더 그린다.
       const rect = sheet.getBoundingClientRect();
+      let sheetW = rect.width;
+      let sheetH = rect.height;
+      if (!sheetW || !sheetH) {
+        const cs = view ? view.getComputedStyle(sheet) : null;
+        sheetW = (cs && parseFloat(cs.width)) || sheetW;
+        sheetH = (cs && parseFloat(cs.height)) || sheetH;
+      }
+      if (!sheetW || !sheetH) { sheetW = 794; sheetH = 1123; }
       const width = 148;
-      const scale = rect.width ? width / rect.width : 0.19;
+      const scale = width / sheetW;
       let li = thumbList.children[i];
       if (!li) {
         li = document.createElement('li');
@@ -69,10 +81,10 @@ export function createLeftPanel({ root, onThumbSelect, onPageAction, onInsertIte
       li.querySelector('.thumb-no').textContent = String(i + 1);
       const box = li.querySelector('.thumb-frame');
       box.style.width = `${width}px`;
-      box.style.height = `${Math.round(rect.height * scale)}px`;
+      box.style.height = `${Math.round(sheetH * scale)}px`;
       const frame = box.querySelector('iframe');
-      frame.style.width = `${rect.width}px`;
-      frame.style.height = `${rect.height}px`;
+      frame.style.width = `${sheetW}px`;
+      frame.style.height = `${sheetH}px`;
       frame.style.transform = `scale(${scale})`;
       const html = srcdocFor(doc, sheet, styles);
       if (thumbCache[i] !== html) { frame.srcdoc = html; thumbCache[i] = html; }
@@ -131,7 +143,7 @@ export function createLeftPanel({ root, onThumbSelect, onPageAction, onInsertIte
     btn.type = 'button';
     btn.dataset.insertKey = item.key;
     btn.innerHTML = `${icon(iconFor(item.type))}<span>${item.label}</span>`;
-    btn.title = item.floatOnly ? `${item.label}(자유배치 전용)` : item.label;
+    btn.title = item.floatOnly ? `${item.label}(자유 배치 전용)` : item.label;
     btn.addEventListener('click', () => {
       const float = item.floatOnly || (item.floatable && !!floatToggle?.checked);
       onInsertItem(item, { float });
