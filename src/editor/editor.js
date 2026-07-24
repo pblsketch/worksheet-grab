@@ -160,18 +160,31 @@ function bumpDataset(key) {
   document.body.dataset[key] = String((Number(document.body.dataset[key]) || 0) + 1);
 }
 
-/** 새 pages[] 를 반영한 전체 HTML 로 teacher iframe 을 다시 로드하고 조작 리스너를 재배선한다. */
+/** 새 pages[] 를 반영해 teacher iframe 을 다시 그린다. 같은 iframe 에 srcdoc 을 덮으면 문서가
+ *  헐렸다가 다시 그려져 흰 화면이 한 번 깜빡인다(삽입·삭제·붙여넣기·리플로우 등 모든 구조 변경에서).
+ *  대신 <body> 내용만 교체한다 — 동기 DOM 치환이라 흰 깜빡임이 없다. head(스타일)·주입 편집 스타일·
+ *  document 레벨 조작 리스너(selection/canvasInline/tableEdit/partEdit·keydown·beforeinput)는 같은
+ *  document 라 그대로 유지되므로 재배선하지 않는다(재배선하면 리스너가 중복 누적된다). 호출부
+ *  (applyDocOp/runReflow)가 이후 refreshVisual/refreshDecoration/updateAll 로 새 내용에 맞춰 장식·
+ *  툴바를 갱신한다. body 의 뷰 상태 클래스(wg-show-*)·격자 알파는 attribute 라 innerHTML 치환에
+ *  영향받지 않는다. KaTeX 문서만 수식을 수동 재렌더한다(innerHTML 로 삽입된 <script> 는 실행 안 됨). */
 function reloadTeacherFrame(nextDoc) {
   const f = frames.teacher;
-  if (!f) return Promise.resolve();
+  if (!f || !f.contentDocument?.body) return Promise.resolve();
+  const doc = f.contentDocument;
   const html = buildFullHtml(nextDoc, { renderMeta: buildRenderMeta(nextDoc), styleTag: teacherStyleTag });
-  return new Promise((resolveFrame) => {
-    f.addEventListener('load', () => {
-      initTeacherEditing(f, { resetHistory: false });
-      resolveFrame();
-    }, { once: true });
-    f.srcdoc = html;
-  });
+  const parsed = new DOMParser().parseFromString(html, 'text/html');
+  doc.body.innerHTML = parsed.body.innerHTML;
+  const win = f.contentWindow;
+  if (win && typeof win.renderMathInElement === 'function') {
+    try {
+      win.renderMathInElement(doc.body, {
+        delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
+      });
+    } catch { /* KaTeX 재렌더 실패 무시(수식 없는 문서·설정 차이) */ }
+  }
+  runReview();
+  return Promise.resolve();
 }
 
 window.addEventListener('beforeunload', (e) => {
