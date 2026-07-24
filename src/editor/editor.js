@@ -245,6 +245,11 @@ function injectEditorStyle(doc) {
     [data-oid].wg-editing { outline: 2px solid #dc2626 !important; background: rgba(255,235,59,.08); }
     [contenteditable="true"] { outline: 2px solid #dc2626 !important; cursor: text; }
     .wg-float:not(.wg-selected) { pointer-events: none; }
+    /* 미선택 자유 개체의 "내용"은 클릭 가능(개체 몸통 클릭=선택, 이어서 드래그=이동 — 슬라이드/캔바
+       관례). 래퍼 자신은 pointer-events:none 을 유지해 내용이 없는 빈 영역은 아래 flow 로 클릭이
+       통과한다(스파이크 §4-5 z-order 완화 취지 보존 — 내용 위 클릭만 개체를 잡는다). 드래그 역학은
+       ⠿ 핸들 경로와 동일(pointerdown → startFloatDrag: 선택 후 이동, 실마우스 검증된 pointer capture). */
+    .wg-float:not(.wg-selected) > * { pointer-events: auto; }
     .wg-float.wg-selected, .wg-float.wg-editing { pointer-events: auto; cursor: grab; }
     .wg-float-handle {
       position: absolute; top: -9px; left: -9px; width: 18px; height: 18px; z-index: 5;
