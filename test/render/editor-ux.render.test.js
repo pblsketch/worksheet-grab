@@ -20,6 +20,8 @@ import { chromeAvailable } from '../helpers/pdf.js';
 //   US-E2 nudge         : 자유 개체 방향키 미세 이동(1mm)·Shift 큰 이동(10mm)·undo·flow 무영향
 //   US-E3 copy-paste    : 개체 복사(Ctrl+C)·붙여넣기(Ctrl+V) — +1·새 id·원본 보존·앵커·undo
 //   US-E4 affordance    : 교사 친화 배치 용어·색상 라벨·편집 발견성 힌트(비편집 타입엔 없음)
+//   zoom                : 확대(>100%) 시 좌우·상하 잘림 제거 — 스케일된 콘텐츠가 스크롤로 접근됨
+//   format-text         : 문항/제목 인라인 서식(굵게) — promptHtml 저장·렌더·저장왕복·하위호환
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const HAS_CHROME = chromeAvailable();
@@ -170,6 +172,46 @@ test('US-E4 교사 친화 표현 + 편집 발견성: 배치 용어·색상 라�
     // 편집 발견성: 편집 가능 개체엔 힌트, 비편집(std-box)엔 없음.
     assert.equal(ds(dom, 'aff-edit-hint-on-editable'), 'true', '편집 가능 개체 선택 시 편집 힌트 노출');
     assert.equal(ds(dom, 'aff-no-hint-on-std-box'), 'true', 'std-box(비편집)에는 편집 힌트 없음');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('확대 잘림 수정: 150% 확대 시 스케일된 콘텐츠가 스크롤로 접근되고 100% 복귀 시 여백 해제', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url } = await startEditServer();
+  try {
+    const dom = await dumpDom(`${url}/?seed=zoom`);
+    assert.equal(ds(dom, 'seed-done'), 'zoom', '시드 스크립트가 끝까지 실행됨');
+
+    assert.equal(ds(dom, 'zoom-label'), '150%', '확대가 150% 로 반영');
+    // 핵심: 스케일된 콘텐츠 전체가 스크롤 영역 안에 들어와 좌우·상하가 잘리지 않는다.
+    assert.equal(ds(dom, 'zoom-scroll-width-ok'), 'true', '150% 에서 스크롤 폭이 스케일된 콘텐츠를 담음(좌우 잘림 없음)');
+    assert.equal(ds(dom, 'zoom-scroll-height-ok'), 'true', '150% 에서 스크롤 높이가 스케일된 콘텐츠를 담음(상하 잘림 없음)');
+    assert.equal(ds(dom, 'zoom-origin-at150-left'), 'true', '확대 시 origin 좌상단 기준(넘침을 스크롤 가능 방향으로)');
+    assert.equal(ds(dom, 'zoom-margin-reserved'), 'true', '확대 시 스케일 초과분 여백 예약');
+
+    // 100% 복귀 시 여백 해제 + 가운데 정렬 origin 복귀.
+    assert.equal(ds(dom, 'zoom-label-back'), '100%', '축소가 100% 로 복귀');
+    assert.equal(ds(dom, 'zoom-origin-back-center'), 'true', '100% 복귀 시 가운데 정렬 origin');
+    assert.equal(ds(dom, 'zoom-margin-cleared'), 'true', '100% 복귀 시 예약 여백 해제');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('문항/제목 인라인 서식: 굵게 적용 → promptHtml 저장·렌더 반영·저장 왕복·하위호환', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url } = await startEditServer();
+  try {
+    const dom = await dumpDom(`${url}/?seed=format-text`);
+    assert.equal(ds(dom, 'seed-done'), 'format-text', '시드 스크립트가 끝까지 실행됨');
+
+    assert.equal(ds(dom, 'ft-bold-enabled'), 'true', '문항 편집 중 굵게 버튼이 활성화됨');
+    assert.equal(ds(dom, 'ft-prompt-html-has-markup'), 'true', '굵게 적용 시 promptHtml 에 서식 태그 저장');
+    assert.equal(ds(dom, 'ft-plain-prompt-preserved'), 'true', '평문 prompt 는 태그 없이 병행 보존(누출 스캔·diff용)');
+    assert.equal(ds(dom, 'ft-rendered-markup'), 'true', '재렌더 시 발문에 서식 요소가 반영됨');
+    assert.equal(ds(dom, 'ft-plain-title-no-html'), 'true', '평문만 편집한 제목엔 textHtml 이 생기지 않음(하위호환)');
+    assert.equal(ds(dom, 'ft-save-ok'), 'true', '저장 성공(unsafe 아님)');
+    assert.equal(ds(dom, 'ft-saved-prompt-html-persisted'), 'true', '저장 왕복 후 서버 저장본에 promptHtml 지속');
   } finally {
     await new Promise((r) => server.close(r));
   }

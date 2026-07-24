@@ -64,15 +64,24 @@ export function assignFlowToPages(items, availableHeightPx, opts = {}) {
   return { pageOfId, pageOfIndex, pageCount: page + 1 };
 }
 
+// 페이지 경계 안전 버퍼(px) — 실측 근거: 측정은 flow 전체를 단일 논리 페이지로 평탄화해 개체 높이를
+// next.top-cur.top 델타로 잰다(인접 개체의 상하 마진은 margin-collapsing 으로 상쇄된 값). 그러나 실제
+// 인쇄에서 각 페이지의 "첫 개체"는 상단 마진이 이전 페이지 마지막 개체와 상쇄되지 않고 그대로 살아나
+// 페이지 콘텐츠가 델타 합보다 조금 커진다. 콘텐츠가 페이지를 거의 가득 채우면(밀도 높은 활동지) 이
+// 누출분(대략 한 블록 상단 마진, ~10~20px)만큼 A4 를 미세 초과해 Chrome 인쇄가 그 페이지를 다음 물리
+// 페이지로 쪼갠다(하드 동치 붕괴). 한 줄 남짓의 헤드룸을 예약해 이 누출을 흡수한다 — 편집기 리플로우와
+// 엔진 페이지네이터가 같은 함수를 쓰므로 둘의 하드 동치는 유지된다(reflow.js·PaginateObjectTree 공통).
+export const PAGE_BOUNDARY_BUFFER_PX = 24;
+
 /**
- * 문서 paper 설정 → 페이지 가용 콘텐츠 높이(px, 상하 여백 제외). 순수 함수(paper.js 순수 코어 재사용).
+ * 문서 paper 설정 → 페이지 가용 콘텐츠 높이(px, 상하 여백 + 경계 안전 버퍼 제외). 순수 함수.
  * @param {object|null|undefined} paper manifest.paper 와 동형(미지정이면 A4 세로 기본)
  */
 export function computeAvailableHeightPx(paper) {
   const resolved = resolvePaper(paper) ?? resolvePaper({});
   const { h } = paperDims(resolved);
   const m = paperMargins(resolved);
-  return (h - m.top - m.bottom) * MM_TO_PX;
+  return (h - m.top - m.bottom) * MM_TO_PX - PAGE_BOUNDARY_BUFFER_PX;
 }
 
 /**

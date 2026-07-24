@@ -86,6 +86,7 @@
         "placement": { "const": "flow" },
         "level": { "type": "integer", "enum": [1, 2], "default": 1, "description": "1=문서 대제목(h1), 2=섹션 소제목(h2)." },
         "text": { "type": "string" },
+        "textHtml": { "type": "string", "description": "인라인 서식(굵게/기울임 등)이 적용된 제목의 살균 HTML(선택). 있으면 렌더가 text 대신 이스케이프 없이 방출한다(richtext.html 과 동형). text 는 평문으로 병행 보관(정답 누출 스캔·diff용)." },
         "meta": {
           "type": "object",
           "description": "R5/§SS3: 자유 확장 object 금지(탈출구 봉쇄) — 스파이크에서 실관측된 header 부가정보만 명시 필드로 허용한 닫힌 형태.",
@@ -134,6 +135,8 @@
           "description": "객관식·단답·서술·빈칸·참거짓·짝짓기·순서."
         },
         "prompt": { "type": "string" },
+        "promptHtml": { "type": "string", "description": "발문에 인라인 서식이 적용됐을 때의 살균 HTML(선택, title.textHtml 과 동형). qnum 배지는 미포함. 없으면 prompt 를 이스케이프해 렌더(하위호환)." },
+        "lines": { "type": "integer", "minimum": 0, "description": "서술형(essay) 내장 답란 줄 수. 0 이면 내장 답란 없음(마이그레이션 문항 — 별도 answer-area 개체가 답 공간을 제공). 미지정이면 렌더 기본 4줄." },
         "choices": {
           "type": "array",
           "description": "qtype='multiple-choice' 전용.",

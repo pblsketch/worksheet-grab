@@ -84,7 +84,8 @@ export function createCanvasInline(deps) {
     const { editingId } = deps.getSelectionState();
     if (!editingId) return;
     const found = deps.findObject(editingId);
-    if (!found || found.obj.type !== 'richtext') return;
+    // richtext + title/question 편집 중에만 버블 서식 툴바를 띄운다(서식 보존 필드 3종, selection.js).
+    if (!found || !['richtext', 'title', 'question'].includes(found.obj.type)) return;
     const sel = currentDoc.defaultView.getSelection();
     if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
     const range = sel.getRangeAt(0);

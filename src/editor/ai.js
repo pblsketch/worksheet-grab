@@ -179,6 +179,9 @@ export function sanitizeObject(obj) {
   const clone = structuredClone(obj);
   if (typeof clone.html === 'string') clone.html = sanitizeAiHtml(clone.html);
   if (typeof clone.bodyHtml === 'string') clone.bodyHtml = sanitizeAiHtml(clone.bodyHtml);
+  // title.textHtml·question.promptHtml(인라인 서식 보존 HTML)도 정제 대상(richtext.html 과 동형).
+  if (typeof clone.textHtml === 'string') clone.textHtml = sanitizeAiHtml(clone.textHtml);
+  if (typeof clone.promptHtml === 'string') clone.promptHtml = sanitizeAiHtml(clone.promptHtml);
   if (clone.answerKey && typeof clone.answerKey.html === 'string') {
     clone.answerKey = { ...clone.answerKey, html: sanitizeAiHtml(clone.answerKey.html) };
   }

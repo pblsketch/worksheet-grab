@@ -101,7 +101,10 @@ function buildPassageSlot(id, html) {
 }
 
 function buildQuestion(id, html) {
-  return { id, type: 'question', placement: 'flow', qtype: 'essay', prompt: stripTags(html) };
+  // lines:0 = essay 내장 답란을 끈다. 원본 활동지에서 답란은 문항과 별도 블록으로 저작돼 마이그레이션이
+  // 별도 answer-area 개체로 분리하므로, essay 가 답란을 또 그리면 답 공간이 이중이 되어 인쇄 페이지가
+  // 넘친다(하드 동치 붕괴 — 서술형 렌더링 도입 회귀). 신규 저작 essay(lines 미지정)는 기본 4줄 유지.
+  return { id, type: 'question', placement: 'flow', qtype: 'essay', prompt: stripTags(html), lines: 0 };
 }
 
 /** 원본 HTML 안의 첫 <table>...</table> 을 rows(2차원 셀 배열)로 구조 파싱(DOM 없이 정규식). */

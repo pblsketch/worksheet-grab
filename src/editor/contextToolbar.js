@@ -1,10 +1,10 @@
 // contextToolbar.js — editor-v4 S4.3 컨텍스트 툴바. 좌측 undo/redo·우측 줌/보기 메뉴는 고정,
 // 가운데는 선택 상태에 따라 통째로 교체한다(빠른 삽입 / 텍스트 서식 / 표 / 이미지 / 도형 / 공통).
 //
-// richtext 개체만 B/I/U·색·정렬 서식이 실제로 보존된다(us16.md 기록 한계 — title/question/
-// answer-area 는 평문 필드라 서식을 걸어도 동기화 시 textContent 만 읽어 태그가 소실된다,
-// selection.js EDIT_FIELD 주석과 동형). 이 툴바는 그 한계를 그대로 존중해 richtext 편집 중에만
-// 서식 버튼을 활성화한다(상세 서식 필드별 재설계는 이번 스토리 범위 밖).
+// richtext + title/question 편집 중에만 B/I/U·색·정렬·글꼴 서식이 활성화된다 — 이 세 타입은
+// 서식 보존 필드(richtext.html · title.textHtml · question.promptHtml)로 살균 HTML 을 되읽어
+// 태그가 유지된다(selection.js syncEditingField). answer-area 등 나머지 평문 필드는 textContent 만
+// 읽어 태그가 소실되므로 서식 버튼을 비활성화한다.
 
 import { icon } from './icons.js';
 import { CATALOG_ITEMS } from './objectFactory.js';
@@ -194,7 +194,9 @@ export function createContextToolbar(opts) {
     }
 
     const obj = state.obj;
-    const isRichtextEditing = state.editingType === 'richtext';
+    // 인라인 서식이 실제로 보존되는 편집 타입(richtext + title/question — textHtml/promptHtml 서식
+    // 보존 필드). 이 타입을 편집 중일 때만 서식 버튼을 활성화한다.
+    const isTextFormatting = ['richtext', 'title', 'question'].includes(state.editingType);
     if (obj?.type === 'table') {
       const g = document.createElement('div');
       g.className = 'tb-group';
@@ -237,23 +239,23 @@ export function createContextToolbar(opts) {
       g.className = 'tb-group';
       // 폰트 종류·크기(#3) — 자유 텍스트 편집 중에만 활성.
       g.appendChild(selectEl({
-        id: 'tb-font-family', options: FONT_FAMILIES, title: '글꼴', disabled: !isRichtextEditing,
+        id: 'tb-font-family', options: FONT_FAMILIES, title: '글꼴', disabled: !isTextFormatting,
         onChange: (v) => opts.onFont?.('family', v),
       }));
       g.appendChild(selectEl({
-        id: 'tb-font-size', options: FONT_SIZES, title: '글자 크기', disabled: !isRichtextEditing,
+        id: 'tb-font-size', options: FONT_SIZES, title: '글자 크기', disabled: !isTextFormatting,
         onChange: (v) => opts.onFont?.('size', v),
       }));
-      g.appendChild(btn({ title: '굵게', iconName: 'bold', id: 'tb-bold', disabled: !isRichtextEditing, onClick: () => opts.onFormat('bold') }));
-      g.appendChild(btn({ title: '기울임', iconName: 'italic', id: 'tb-italic', disabled: !isRichtextEditing, onClick: () => opts.onFormat('italic') }));
-      g.appendChild(btn({ title: '밑줄', iconName: 'underline', id: 'tb-underline', disabled: !isRichtextEditing, onClick: () => opts.onFormat('underline') }));
+      g.appendChild(btn({ title: '굵게', iconName: 'bold', id: 'tb-bold', disabled: !isTextFormatting, onClick: () => opts.onFormat('bold') }));
+      g.appendChild(btn({ title: '기울임', iconName: 'italic', id: 'tb-italic', disabled: !isTextFormatting, onClick: () => opts.onFormat('italic') }));
+      g.appendChild(btn({ title: '밑줄', iconName: 'underline', id: 'tb-underline', disabled: !isTextFormatting, onClick: () => opts.onFormat('underline') }));
       g.appendChild(colorField({
-        id: 'tb-color', title: '글자 색', label: '글자색', disabled: !isRichtextEditing,
+        id: 'tb-color', title: '글자 색', label: '글자색', disabled: !isTextFormatting,
         onInput: (v) => opts.onFormat('foreColor', v),
       }));
-      g.appendChild(btn({ title: '왼쪽 정렬', iconName: 'alignLeft', id: 'tb-align-left', disabled: !isRichtextEditing, onClick: () => opts.onFormat('justifyLeft') }));
-      g.appendChild(btn({ title: '가운데 정렬', iconName: 'alignCenter', id: 'tb-align-center', disabled: !isRichtextEditing, onClick: () => opts.onFormat('justifyCenter') }));
-      g.appendChild(btn({ title: '오른쪽 정렬', iconName: 'alignRight', id: 'tb-align-right', disabled: !isRichtextEditing, onClick: () => opts.onFormat('justifyRight') }));
+      g.appendChild(btn({ title: '왼쪽 정렬', iconName: 'alignLeft', id: 'tb-align-left', disabled: !isTextFormatting, onClick: () => opts.onFormat('justifyLeft') }));
+      g.appendChild(btn({ title: '가운데 정렬', iconName: 'alignCenter', id: 'tb-align-center', disabled: !isTextFormatting, onClick: () => opts.onFormat('justifyCenter') }));
+      g.appendChild(btn({ title: '오른쪽 정렬', iconName: 'alignRight', id: 'tb-align-right', disabled: !isTextFormatting, onClick: () => opts.onFormat('justifyRight') }));
       middle.appendChild(g);
     }
 

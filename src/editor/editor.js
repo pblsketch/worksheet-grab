@@ -631,11 +631,15 @@ async function handlePageAction(action, index) {
   await applyDocOp(next, { reflow: false });
 }
 
+// 인라인 서식(B/I/U·색·정렬·글꼴)이 실제로 보존되는 편집 타입 — richtext(html) + title/question
+// (textHtml/promptHtml 서식 보존 필드, selection.js syncEditingField 가 살균 HTML 로 되읽음).
+const FORMATTABLE_TYPES = new Set(['richtext', 'title', 'question']);
+
 function applyFormat(cmd, value = null) {
   const doc = frames.teacher?.contentDocument;
   const editingId = selection.state.editingId;
   const found = editingId ? core.findObject(editingId) : null;
-  if (!doc || !found || found.obj.type !== 'richtext') return;
+  if (!doc || !found || !FORMATTABLE_TYPES.has(found.obj.type)) return;
   doc.execCommand(cmd, false, value);
   selection.syncEditingField();
   onSelectionDirty('text');
@@ -647,7 +651,7 @@ function applyFont(kind, value) {
   const doc = frames.teacher?.contentDocument;
   const editingId = selection.state.editingId;
   const found = editingId ? core.findObject(editingId) : null;
-  if (!doc || !found || found.obj.type !== 'richtext') return;
+  if (!doc || !found || !FORMATTABLE_TYPES.has(found.obj.type)) return;
   if (kind === 'family') {
     doc.execCommand('fontName', false, value);
   } else if (kind === 'size') {
@@ -976,7 +980,26 @@ const contextToolbar = createContextToolbar({
     const next = ObjOps.patchObject(core.getDocument(), id, kind === 'stroke' ? { strokeColor: hex } : { fillColor: hex });
     applyDocOp(next, { selectId: id });
   },
-  onZoom: (pct) => { stage.style.transform = `scale(${pct / 100})`; },
+  onZoom: (pct) => {
+    // 확대(>100%) 시 transform 은 레이아웃 박스를 키우지 않아 스케일된 넘침이 스크롤로 접근되지
+    // 않는다(좌우·상하 잘림). origin 을 top-left 로 돌리고 스케일 초과분만큼 여백을 예약해 스크롤
+    // 영역을 넓힌다. 100% 이하는 넘침이 없어 top-center 로 되돌려 가운데 정렬을 유지한다(#stage
+    // margin:0 auto 로 복귀). transform:scale 은 유지하므로 드래그·표 열너비의 스케일 보정
+    // (getBoundingClientRect/offsetWidth 비율)은 영향받지 않는다.
+    const f = pct / 100;
+    stage.style.transform = `scale(${f})`;
+    if (f > 1) {
+      stage.style.transformOrigin = 'top left';
+      stage.style.marginLeft = '0';
+      stage.style.marginRight = `${stage.offsetWidth * (f - 1)}px`;
+      stage.style.marginBottom = `${stage.offsetHeight * (f - 1)}px`;
+    } else {
+      stage.style.transformOrigin = 'top center';
+      stage.style.marginLeft = '';
+      stage.style.marginRight = '';
+      stage.style.marginBottom = '';
+    }
+  },
   onViewToggle: (key, val) => { viewState[key] = val; applyViewState(); },
   onGridOpacity: (alpha) => { viewState.gridAlpha = alpha; applyViewState(); },
 });
@@ -2004,6 +2027,74 @@ async function runSeed(seed) {
     const s1 = doc.querySelector('[data-oid="s1"]');
     s1.click();
     document.body.dataset.affNoHintOnStdBox = String(!document.getElementById('tb-edit-hint'));
+  } else if (seed === 'zoom') {
+    // 이월 항목: 확대(>100%) 시 좌우·상하 잘림 수정 — 스케일된 콘텐츠 전체가 스크롤로 접근되는지 실측.
+    const canvasWrap = document.getElementById('canvas-wrap');
+    const zoomIn = document.getElementById('tb-zoom-in');
+    for (let i = 0; i < 5; i++) zoomIn.click(); // 100 → 150%
+    await wait(60);
+    document.body.dataset.zoomLabel = document.getElementById('tb-zoom-label').textContent;
+    const rect = stage.getBoundingClientRect();
+    // 스크롤 영역이 스케일된 콘텐츠 전체를 담아야(좌우/상하 접근 가능) 잘리지 않는다.
+    document.body.dataset.zoomScrollWidthOk = String(canvasWrap.scrollWidth + 2 >= Math.round(rect.width));
+    document.body.dataset.zoomScrollHeightOk = String(canvasWrap.scrollHeight + 2 >= Math.round(rect.height));
+    document.body.dataset.zoomOriginAt150Left = String(/left/.test(stage.style.transformOrigin)); // 브라우저는 'top left'를 'left top'으로 직렬화
+    document.body.dataset.zoomMarginReserved = String(parseFloat(stage.style.marginRight) > 0 && parseFloat(stage.style.marginBottom) > 0);
+    // 100% 복귀 시 여백 해제 + 가운데 정렬 origin 복귀.
+    const zoomOut = document.getElementById('tb-zoom-out');
+    for (let i = 0; i < 5; i++) zoomOut.click(); // 150 → 100%
+    await wait(60);
+    document.body.dataset.zoomLabelBack = document.getElementById('tb-zoom-label').textContent;
+    document.body.dataset.zoomOriginBackCenter = String(/center/.test(stage.style.transformOrigin));
+    document.body.dataset.zoomMarginCleared = String(!stage.style.marginRight && !stage.style.marginBottom);
+  } else if (seed === 'format-text') {
+    // 이월 항목: 문항/제목 인라인 서식(굵게) — 편집 중 선택 텍스트에 bold 적용 → promptHtml 저장,
+    // 평문 prompt 유지, 렌더에 서식 반영, 저장 왕복, 하위호환(평문 편집은 htmlField 미생성).
+    const win = doc.defaultView;
+    const qEl = doc.querySelector('[data-oid="q1"]');
+    qEl.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const qTarget = qEl.querySelector('.q');
+    document.body.dataset.ftBoldEnabled = String(!document.getElementById('tb-bold')?.disabled);
+
+    // .q 안 프롬프트 텍스트 노드(qnum 배지 제외) 일부를 선택한 뒤 굵게.
+    const walker = doc.createTreeWalker(qTarget, NodeFilter.SHOW_TEXT);
+    let textNode = null;
+    while (walker.nextNode()) { if (!walker.currentNode.parentElement.closest('.qnum')) { textNode = walker.currentNode; break; } }
+    const range = doc.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, Math.min(2, textNode.textContent.length));
+    const sel = win.getSelection();
+    sel.removeAllRanges(); sel.addRange(range);
+    document.getElementById('tb-bold').click();
+    await wait(30);
+    const q1 = core.findObject('q1').obj;
+    document.body.dataset.ftPromptHtmlHasMarkup = String(typeof q1.promptHtml === 'string' && /<(b|strong|i|em|u|span|font)\b/i.test(q1.promptHtml));
+    document.body.dataset.ftPlainPromptPreserved = String(typeof q1.prompt === 'string' && !/</.test(q1.prompt));
+
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    history.commit();
+    // 재렌더로 promptHtml 이 렌더 DOM 에 서식 요소로 반영되는지 확인(qnum 은 별도 span 이라 제외).
+    await reloadTeacherFrame(core.getDocument());
+    doc = frames.teacher.contentDocument;
+    const qAfter = doc.querySelector('[data-oid="q1"] .q');
+    document.body.dataset.ftRenderedMarkup = String(!!qAfter && !!qAfter.querySelector('b, strong, i, em, u, [style*="bold"], [style*="font-weight"]'));
+
+    // 하위호환: 평문만 편집한 제목엔 textHtml 이 생기지 않는다.
+    const t1El = doc.querySelector('[data-oid="t1"]');
+    t1El.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const tTarget = t1El.querySelector('.title-box h1, .title-box h2');
+    tTarget.textContent = '평문만 제목';
+    tTarget.dispatchEvent(new Event('input', { bubbles: true }));
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    document.body.dataset.ftPlainTitleNoHtml = String(core.findObject('t1').obj.textHtml === undefined);
+
+    const saved = await save();
+    document.body.dataset.ftSaveOk = String(saved != null && saved.unsafe === false);
+    // 저장 왕복 후 서버 저장본에도 promptHtml 이 실렸는지 교차 확인.
+    const shell2 = await (await fetch(`/shell.json?_=${Date.now()}`)).json();
+    const savedQ = shell2.document.pages.flatMap((p) => p.flow).find((o) => o.id === 'q1');
+    document.body.dataset.ftSavedPromptHtmlPersisted = String(typeof savedQ?.promptHtml === 'string' && /<(b|strong|i|em|u|span|font)\b/i.test(savedQ.promptHtml));
   }
   document.body.dataset.seedDone = seed;
 }

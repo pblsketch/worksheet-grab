@@ -25,7 +25,11 @@ export const TYPE_SPECS = Object.freeze({
   'title': Object.freeze({
     placements: Object.freeze(['flow']),
     required: Object.freeze(['text']),
-    optional: Object.freeze(['level', 'meta', 'answer']),
+    // textHtml: 인라인 서식(굵게/기울임 등)이 적용된 제목의 살균 HTML(선택). 있으면 렌더가 text 대신
+    // 이걸 그대로 방출한다(richtext.html·passage bodyHtml 과 동형 — 입력에서 살균, 렌더는 이스케이프
+    // 없이 방출). 없으면 text 를 이스케이프해 렌더(하위호환). text 는 항상 평문으로 병행 보관(정답
+    // 누출 스캔·diff·평문 소비자용).
+    optional: Object.freeze(['level', 'textHtml', 'meta', 'answer']),
   }),
   'passage-slot': Object.freeze({
     placements: Object.freeze(['flow']),
@@ -35,7 +39,11 @@ export const TYPE_SPECS = Object.freeze({
   'question': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
     required: Object.freeze(['qtype', 'prompt']),
-    optional: Object.freeze(['qnum', 'choices', 'blanks', 'left', 'right', 'items', 'answerKey', 'answer']),
+    // promptHtml: 발문에 인라인 서식이 적용됐을 때의 살균 HTML(선택, title.textHtml 과 동형). qnum
+    // 배지는 포함하지 않는다(렌더가 qnum 을 별도로 붙임). 없으면 prompt 를 이스케이프해 렌더(하위호환).
+    // lines: 서술형(essay) 내장 답란 줄 수. 0 이면 내장 답란 없음(마이그레이션 문항 — 별도 answer-area
+    // 개체가 답 공간을 제공), 미지정이면 렌더 기본 4줄.
+    optional: Object.freeze(['qnum', 'promptHtml', 'lines', 'choices', 'blanks', 'left', 'right', 'items', 'answerKey', 'answer']),
   }),
   'table': Object.freeze({
     placements: Object.freeze(['flow', 'float']),

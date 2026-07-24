@@ -1,28 +1,31 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assignFlowToPages, computeAvailableHeightPx, MM_TO_PX, DEFAULT_TOLERANCE_PX,
+  assignFlowToPages, computeAvailableHeightPx, MM_TO_PX, DEFAULT_TOLERANCE_PX, PAGE_BOUNDARY_BUFFER_PX,
 } from '../../src/usecases/PaginateObjectTree.js';
 import { resolvePaper, paperDims, paperMargins } from '../../src/usecases/paper.js';
 
 // S2.5 순수 계산부 수용 기준(과제 지시 §산출 1): 높이 배열 입력→페이지 배정, 넘침 이동,
 // 표(높이 큰 개체) 통째 이동, 허용오차(±2px) 내 경계 판정 안정성. Chrome/FS 무접촉(순수 함수만).
+// 가용 높이는 (용지 - 상하 여백) 에서 페이지 경계 마진 누출 안전 버퍼(PAGE_BOUNDARY_BUFFER_PX)를
+// 뺀 값이다 — 실제 인쇄에서 각 페이지 첫 개체의 상단 마진이 상쇄되지 않아 밀도 높은 콘텐츠가 A4 를
+// 미세 초과해 물리 페이지가 쪼개지는 하드 동치 붕괴를 막는다(PaginateObjectTree 주석 참조).
 
-test('computeAvailableHeightPx: A4 기본(미지정) = (297-12-10)mm * MM_TO_PX', () => {
+test('computeAvailableHeightPx: A4 기본(미지정) = (297-12-10)mm * MM_TO_PX − 경계 버퍼', () => {
   const resolved = resolvePaper({});
   const { h } = paperDims(resolved);
   const m = paperMargins(resolved);
-  const expected = (h - m.top - m.bottom) * MM_TO_PX;
+  const expected = (h - m.top - m.bottom) * MM_TO_PX - PAGE_BOUNDARY_BUFFER_PX;
   assert.equal(computeAvailableHeightPx(null), expected);
   assert.equal(computeAvailableHeightPx(undefined), expected);
 });
 
-test('computeAvailableHeightPx: A3 가로 등 커스텀 paper 도 paper.js 파생과 일치', () => {
+test('computeAvailableHeightPx: A3 가로 등 커스텀 paper 도 paper.js 파생 − 경계 버퍼와 일치', () => {
   const paper = { size: 'A3', orientation: 'landscape' };
   const resolved = resolvePaper(paper);
   const { h } = paperDims(resolved);
   const m = paperMargins(resolved);
-  const expected = (h - m.top - m.bottom) * MM_TO_PX;
+  const expected = (h - m.top - m.bottom) * MM_TO_PX - PAGE_BOUNDARY_BUFFER_PX;
   assert.equal(computeAvailableHeightPx(paper), expected);
 });
 

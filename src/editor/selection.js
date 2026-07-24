@@ -24,12 +24,38 @@ const MM_TO_PX = 96 / 25.4; // editor.js 구 관례와 동일(고정, zoom/DPR �
  * 더블클릭해도 선택만 유지된다(us16.md 비활성 목록 기록).
  */
 const EDIT_FIELD = Object.freeze({
-  title: Object.freeze({ field: 'text', selector: '.title-box h1, .title-box h2' }),
-  question: Object.freeze({ field: 'prompt', selector: '.q', stripSelector: '.qnum' }),
+  // htmlField(선택): 인라인 서식(굵게/기울임 등)을 적용하면 그 살균 HTML 을 이 필드에 병행 저장한다
+  // (평문 field 는 그대로 유지 — 정답 누출 스캔·diff·평문 소비자용). 렌더는 htmlField 가 있으면
+  // 그걸, 없으면 평문 field 를 이스케이프해 방출한다(RenderObjectTree, 하위호환).
+  title: Object.freeze({ field: 'text', htmlField: 'textHtml', selector: '.title-box h1, .title-box h2' }),
+  question: Object.freeze({ field: 'prompt', htmlField: 'promptHtml', selector: '.q', stripSelector: '.qnum' }),
   richtext: Object.freeze({ field: 'html', selector: null }),
   'answer-area': Object.freeze({ field: 'label', selector: '.aa-label' }),
   'passage-slot': Object.freeze({ field: 'bodyHtml', selector: '.passage-body, .slot' }),
 });
+
+// contenteditable 산출·붙여넣기 HTML 을 안전하게 정제(ai.js sanitizeAiHtml 과 동형 규약을 이 저수준
+// 모듈에 로컬 복제 — selection 이 기능 모듈 ai.js 에 역방향 의존하지 않도록). script·on* 핸들러·
+// javascript: URL 제거.
+function sanitizeInlineHtml(html) {
+  const doc = new DOMParser().parseFromString(`<body>${html || ''}</body>`, 'text/html');
+  for (const s of doc.querySelectorAll('script')) s.remove();
+  for (const node of doc.body.querySelectorAll('*')) {
+    for (const attr of [...node.attributes]) {
+      if (/^on/i.test(attr.name)) node.removeAttribute(attr.name);
+      else if (/^(href|src|xlink:href|action|formaction)$/i.test(attr.name) && /^\s*javascript:/i.test(attr.value)) {
+        node.removeAttribute(attr.name);
+      }
+    }
+  }
+  return doc.body.innerHTML;
+}
+
+// 인라인 서식/줄바꿈 마크업이 있는지(=평문이 아닌지) 판정 — 있을 때만 htmlField 를 저장한다(순수
+// 평문이면 htmlField 를 지워 렌더가 이스케이프 평문으로 폴백 = 하위호환·문서 정갈).
+function hasInlineMarkup(html) {
+  return /<(b|strong|i|em|u|s|sub|sup|font|span|mark|br)\b/i.test(html);
+}
 
 function cssEscapeId(id) {
   if (window.CSS && typeof CSS.escape === 'function') return CSS.escape(id);
@@ -78,6 +104,14 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     return targetEl.textContent.trim();
   }
 
+  /** 편집 대상의 서식 보존 HTML 을 읽는다(qnum 배지·편집 크롬 제외 후 정제). title/question 전용. */
+  function readHtmlField(targetEl, spec) {
+    const clone = targetEl.cloneNode(true);
+    for (const n of clone.querySelectorAll('.wg-float-handle, .wg-resize-handle')) n.remove();
+    if (spec.stripSelector) for (const n of clone.querySelectorAll(spec.stripSelector)) n.remove();
+    return sanitizeInlineHtml(clone.innerHTML.trim());
+  }
+
   /** 현재 편집 중인 개체의 DOM 내용을 obj 필드로 되읽는다(편집 종료·매 input 이벤트에 호출). */
   function syncEditingField() {
     if (!state.editingId) return;
@@ -88,7 +122,13 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     const el = objEl(state.editingId);
     const target = editTarget(el, found.obj.type);
     if (!target) return;
-    found.obj[spec.field] = readField(target, spec);
+    found.obj[spec.field] = readField(target, spec); // 평문 필드(text/prompt/label/html/bodyHtml)
+    // 서식 보존 필드(title.textHtml·question.promptHtml) — 실제 서식이 있을 때만 저장, 없으면 삭제.
+    if (spec.htmlField) {
+      const html = readHtmlField(target, spec);
+      if (hasInlineMarkup(html)) found.obj[spec.htmlField] = html;
+      else delete found.obj[spec.htmlField];
+    }
   }
 
   /** float 래퍼에 항상 클릭 가능한 작은 손잡이를 붙인다(미선택 float pointer-events:none 정책의

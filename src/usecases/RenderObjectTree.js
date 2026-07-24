@@ -145,8 +145,11 @@ function renderTitle(obj) {
   const pill = meta.pill ? `<span class="pill">${escapeHtml(meta.pill)}</span>\n    ` : '';
   const page = meta.page ? `<span class="corner-ref">${escapeHtml(meta.page)}</span>\n    ` : '';
   const source = meta.source ? `\n    <div class="title-src">${escapeHtml(meta.source)}</div>` : '';
+  // textHtml(인라인 서식 살균 HTML)이 있으면 그대로 방출(richtext.html 관례 — 이스케이프 없음),
+  // 없으면 평문 text 를 이스케이프(하위호환).
+  const titleInner = typeof obj.textHtml === 'string' && obj.textHtml !== '' ? obj.textHtml : escapeHtml(obj.text);
   return `<div class="title-wrap">
-    ${pill}${page}<div class="title-box"><${tag}>${escapeHtml(obj.text)}</${tag}></div>${source}
+    ${pill}${page}<div class="title-box"><${tag}>${titleInner}</${tag}></div>${source}
   </div>`;
 }
 
@@ -169,7 +172,9 @@ function renderPassageSlot(obj) {
 
 function renderQuestion(obj, ctx = {}) {
   const qnum = obj.qnum != null ? `<span class="qnum">${escapeHtml(String(obj.qnum))}</span>` : '';
-  const parts = [`<div class="q">${qnum}${escapeHtml(obj.prompt)}</div>`];
+  // promptHtml(인라인 서식 살균 HTML)이 있으면 그대로 방출, 없으면 평문 prompt 이스케이프(하위호환).
+  const promptInner = typeof obj.promptHtml === 'string' && obj.promptHtml !== '' ? obj.promptHtml : escapeHtml(obj.prompt);
+  const parts = [`<div class="q">${qnum}${promptInner}</div>`];
   const body = renderQuestionBody(obj, ctx);
   if (body) parts.push(body);
   if (obj.answerKey) {
@@ -248,6 +253,9 @@ function renderQuestionBody(obj, ctx = {}) {
     case 'short-answer':
       return '<div class="q-short"><span class="q-short-line"></span></div>';
     case 'essay': {
+      // lines:0 = 내장 답란 없음(마이그레이션 문항 — 별도 answer-area 개체가 답 공간을 제공하므로
+      // 이중 답란·페이지 넘침을 막는다). 미지정이면 신규 저작 기본 4줄.
+      if (obj.lines === 0) return '';
       const lines = Math.max(1, Number(obj.lines) || 4);
       return `<div class="q-essay">${Array.from({ length: lines }, () => '<div class="ans-line"></div>').join('')}</div>`;
     }
