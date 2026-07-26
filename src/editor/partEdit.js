@@ -57,9 +57,14 @@ export function createPartEditor({ findObject, onPartText }) {
       e.stopPropagation(); // 캡처 단계 — selection.js 의 prompt 편집 진입을 막는다
       begin(el);
     }, true);
+    // IME 조합 중에는 되읽지 않는다(composition.js 규약) — 조합 확정 때 한 번만 반영한다.
     doc.addEventListener('input', (e) => {
+      if (e.isComposing) return;
       const el = e.target.closest('.q-part[data-part]');
       if (el && el === editingEl) sync(el);
+    });
+    doc.addEventListener('compositionend', () => {
+      if (editingEl) sync(editingEl);
     });
     doc.addEventListener('keydown', (e) => {
       if (editingEl && e.key === 'Escape') { e.stopPropagation(); finish(); }

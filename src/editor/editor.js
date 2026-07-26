@@ -18,6 +18,7 @@ import { createTableEditor } from '/editor/tableEdit.js';
 import { createPartEditor } from '/editor/partEdit.js';
 import { createAiPanel } from '/editor/ai.js';
 import { createPageActionHandler } from '/editor/pageOperations.js';
+import { attachComposition, isComposing, onCompositionEnd, releaseComposition } from '/editor/composition.js';
 import * as ObjOps from '/editor/objectFactory.js';
 import { ValidateWorksheet } from '/src/usecases/ValidateWorksheet.js';
 
@@ -132,14 +133,28 @@ const REFLOW_DEBOUNCE_MS = 300;
 let reflowTimer = null;
 let reflowInFlight = null;
 let reflowQueued = false;
+let reflowDeferredByComposition = false;
 
 function scheduleReflow() {
   clearTimeout(reflowTimer);
   reflowTimer = setTimeout(() => { runReflow(); }, REFLOW_DEBOUNCE_MS);
 }
 
+// 조합이 끝나면 미뤄둔 리플로우를 다시 예약한다. selection/tableEdit/partEdit 의 compositionend
+// 동기화가 onDirty('text') 로 예약해 주는 경우가 대부분이지만, 편집 대상이 없는 경로(구조 변경이
+// 조합 중에 겹친 경우)에서 리플로우가 영영 유실되지 않도록 여기서 한 번 더 보장한다.
+onCompositionEnd(() => {
+  if (!reflowDeferredByComposition) return;
+  reflowDeferredByComposition = false;
+  scheduleReflow();
+});
+
 /** 리플로우 1회 실행: 측정→재배정→(바뀌었으면) 문서·DOM 갱신→즉시 커밋. 동시 실행은 직렬화한다. */
 function runReflow() {
+  // IME 조합 중에는 절대 DOM 을 갈아끼우지 않는다 — 조합 중 노드 교체는 확정 시 문자 중복을
+  // 만든다(composition.js 주석의 CDP 실조합 재현: '학' → '학학'). 조합이 끝나면 위 onCompositionEnd
+  // 훅이 다시 예약한다.
+  if (isComposing()) { reflowDeferredByComposition = true; return; }
   if (reflowInFlight) { reflowQueued = true; return reflowInFlight; }
   const run = (async () => {
     try {
@@ -150,6 +165,10 @@ function runReflow() {
       const { document: nextDoc, changed } = await reflowDocument(doc, { styleTag: teacherStyleTag, tolerancePx: 2 });
       bumpDataset('reflowRuns');
       if (!changed) return;
+      // 진입 시점 검사만으로는 부족하다 — 측정(await reflowDocument)이 도는 동안 교사가 조합을
+      // 시작했을 수 있고, 그 상태로 아래 <body> 치환이 들어가면 조합 중 노드가 교체돼 문자가
+      // 중복된다(US-P3-1 과 같은 실패 모드). DOM 을 건드리기 직전에 한 번 더 확인한다.
+      if (isComposing()) { reflowDeferredByComposition = true; return; }
       core.setDocument(nextDoc);
       // srcdoc 교체는 편집 포커스를 파괴한다 — 재로드 전 캐럿을 캡처했다가 복원하지 않으면
       // 리플로우 직후의 타이핑이 body 로 흘러 조용히 사라진다.
@@ -194,6 +213,9 @@ function reloadTeacherFrame(nextDoc) {
   const html = buildFullHtml(nextDoc, { renderMeta: buildRenderMeta(nextDoc), styleTag: teacherStyleTag });
   const parsed = new DOMParser().parseFromString(html, 'text/html');
   doc.body.innerHTML = parsed.body.innerHTML;
+  // 치환으로 조합 중이던 노드가 사라지면 compositionend 가 오지 않을 수 있다 — 여기서 풀지
+  // 않으면 조합 플래그가 굳어 리플로우가 영구히 멈춘다.
+  releaseComposition();
   const win = f.contentWindow;
   if (win && typeof win.renderMathInElement === 'function') {
     try {
@@ -359,6 +381,7 @@ function injectEditorStyle(doc) {
 function initTeacherEditing(f, { resetHistory = true } = {}) {
   const doc = f.contentDocument;
   injectEditorStyle(doc);
+  attachComposition(doc); // IME 조합 게이트를 가장 먼저 건다(리플로우·되읽기 억제의 근거).
   selection.attach(doc);
   canvasInline.attach(doc, f);
   tableEditor.attach(doc);

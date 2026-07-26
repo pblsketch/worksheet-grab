@@ -708,6 +708,42 @@ export async function runEditorTestSeed(seed, {
     const assetRes = await fetch(`/${assetPath}`);
     document.body.dataset.assetGet = String(assetRes.status);
 
+    // US-P3-5: 이미지 캡션 — ① 캡션이 없으면 더블클릭해도 편집으로 들어가지 않고 선택만 남는다
+    // (editMode 전용 빈 figcaption 을 그리지 않기 때문 — R2-1 편집==인쇄 하드 동치 보존).
+    doc = frames.teacher.contentDocument;
+    let imgNow = doc.querySelector('[data-oid="img1"]');
+    document.body.dataset.imgCapAbsent = String(!imgNow.querySelector('figcaption'));
+    imgNow.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await wait(50);
+    document.body.dataset.imgNoCaptionNoEdit = String(
+      selection.state.editingId === null && selection.state.selectedIds.has('img1'),
+    );
+
+    // ② 인스펙터에서 캡션을 달면 figcaption 이 생기고, 그때부터 캔버스 더블클릭으로 편집된다.
+    imgNow.click();
+    await wait(50);
+    const capInput = document.getElementById('insp-image-caption');
+    document.body.dataset.imgCaptionFieldExists = String(!!capInput);
+    capInput.value = '그림 1. 광합성 장치';
+    capInput.dispatchEvent(new Event('change', { bubbles: true }));
+    await pollUntil(() => core.findObject('img1')?.obj?.caption === '그림 1. 광합성 장치', { timeoutMs: 10000 }).catch(() => {});
+    doc = frames.teacher.contentDocument;
+    imgNow = doc.querySelector('[data-oid="img1"]');
+    const capEl = imgNow.querySelector('figcaption');
+    document.body.dataset.imgCaptionRendered = String(!!capEl && capEl.textContent.includes('광합성 장치'));
+
+    imgNow.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    await wait(50);
+    document.body.dataset.imgCaptionEditEnter = String(selection.state.editingId === 'img1');
+    const capTarget = imgNow.querySelector('figcaption');
+    if (capTarget) {
+      capTarget.textContent = '그림 1. 수정된 캡션';
+      capTarget.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wait(50);
+    document.body.dataset.imgCaptionEdited = String(core.findObject('img1')?.obj?.caption === '그림 1. 수정된 캡션');
+
     doc = frames.teacher.contentDocument;
     const ansEl = doc.querySelector('[data-oid="rt-ans"]');
     ansEl.click();
@@ -1198,6 +1234,50 @@ export async function runEditorTestSeed(seed, {
     const shell2 = await (await fetch(`/shell.json?_=${Date.now()}`)).json();
     const savedQ = shell2.document.pages.flatMap((p) => p.flow).find((o) => o.id === 'q1');
     document.body.dataset.ftSavedPromptHtmlPersisted = String(typeof savedQ?.promptHtml === 'string' && /<(b|strong|i|em|u|span|font)\b/i.test(savedQ.promptHtml));
+  } else if (seed === 'enter-edit') {
+    // US-P3-4: 더블클릭과 Enter 가 같은 판정 지점(enterEdit)을 거친다 — 편집 가능 타입은 진입하고
+    // 편집 불가 타입은 선택만 유지된다. 실입력(실브라우저 CDP) 검증은 별도로 수행했고, 이 시드는
+    // 회귀 방어용이다(핸들러가 e.key/state 만 보므로 합성 keydown 으로 충분).
+    const q1 = doc.querySelector('[data-oid="q1"]');
+    const t1 = doc.querySelector('[data-oid="t1"]');
+    const std = doc.querySelector('[data-ot="std-box"]');
+
+    // 1) 편집 가능 타입: 선택 → Enter → 편집 진입
+    q1.click();
+    document.body.dataset.eeSelectedBefore = String(selection.state.editingId === null);
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await wait(30);
+    document.body.dataset.eeEnterOpenedEdit = String(selection.state.editingId === 'q1');
+
+    // 2) Escape 는 선택 상태로 복귀
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wait(30);
+    document.body.dataset.eeEscapeToSelect = String(
+      selection.state.editingId === null && selection.state.selectedIds.has('q1'),
+    );
+
+    // 3) 제목(다른 편집 가능 타입)도 같은 경로로 진입
+    t1.click();
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await wait(30);
+    document.body.dataset.eeEnterOpenedTitle = String(selection.state.editingId === 't1');
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await wait(30);
+
+    // 4) 편집 불가 타입(std-box): Enter 로 빈 편집이 열리지 않고 선택만 남는다
+    std.click();
+    const stdId = std.dataset.oid;
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await wait(30);
+    document.body.dataset.eeNonEditableNoEdit = String(
+      selection.state.editingId === null && selection.state.selectedIds.has(stdId),
+    );
+
+    // 5) 수식 키가 붙은 Enter 는 개입하지 않는다(단축키 충돌 방지)
+    q1.click();
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true }));
+    await wait(30);
+    document.body.dataset.eeShiftEnterIgnored = String(selection.state.editingId === null);
   }
   document.body.dataset.seedDone = seed;
 }

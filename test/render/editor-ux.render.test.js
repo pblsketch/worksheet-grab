@@ -216,3 +216,22 @@ test('문항/제목 인라인 서식: 굵게 적용 → promptHtml 저장·렌�
     await new Promise((r) => server.close(r));
   }
 });
+
+// US-P3-4(Phase 3) — 더블클릭과 Enter 가 같은 판정 지점(selection.js enterEdit)을 거친다.
+// 실입력 검증(실 Chrome CDP 키 이벤트)은 별도 수행했고, 이 시드는 회귀 방어다.
+test('Enter 편집 진입: 편집 가능 타입은 진입·Escape 복귀, 편집 불가 타입은 선택만', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url } = await startEditServer();
+  try {
+    const dom = await dumpDom(`${url}/?seed=enter-edit`);
+    assert.equal(ds(dom, 'seed-done'), 'enter-edit', '시드 스크립트가 끝까지 실행됨');
+
+    assert.equal(ds(dom, 'ee-selected-before'), 'true', '선택만 한 상태에서는 편집 중이 아님');
+    assert.equal(ds(dom, 'ee-enter-opened-edit'), 'true', 'Enter 로 문항 편집에 진입');
+    assert.equal(ds(dom, 'ee-escape-to-select'), 'true', 'Escape 는 편집 종료 후 선택 상태로 복귀');
+    assert.equal(ds(dom, 'ee-enter-opened-title'), 'true', 'Enter 로 제목 편집에도 진입(같은 경로)');
+    assert.equal(ds(dom, 'ee-non-editable-no-edit'), 'true', '편집 불가 타입(std-box)은 Enter 로 빈 편집이 열리지 않고 선택만 유지');
+    assert.equal(ds(dom, 'ee-shift-enter-ignored'), 'true', 'Shift+Enter 는 편집 진입에 개입하지 않음');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});

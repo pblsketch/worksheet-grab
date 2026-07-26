@@ -89,6 +89,15 @@ test('F1: 이미지 업로드→개체 반영→GET 200, + 정답 마킹된 이�
       assert.equal(ds(dom, 'seed-done'), 'image-workflow');
       assert.match(ds(dom, 'asset-path'), /^assets\/.+\.png$/, '업로드 경로 반환(assets/<name>.png)');
       assert.equal(ds(dom, 'asset-get'), '200', 'GET /assets/<path> 200(자산 서빙)');
+
+      // US-P3-5 이미지 캡션 부분 편집 — 캡션 신설은 인스펙터, 수정은 캔버스 더블클릭.
+      assert.equal(ds(dom, 'img-cap-absent'), 'true', '업로드 직후에는 캡션이 없다');
+      assert.equal(ds(dom, 'img-no-caption-no-edit'), 'true', '캡션이 없으면 더블클릭해도 유령 편집 상태가 되지 않고 선택만 남는다');
+      assert.equal(ds(dom, 'img-caption-field-exists'), 'true', '이미지 인스펙터에 캡션 입력란이 있다');
+      assert.equal(ds(dom, 'img-caption-rendered'), 'true', '캡션을 달면 figcaption 으로 렌더된다');
+      assert.equal(ds(dom, 'img-caption-edit-enter'), 'true', '캡션이 있으면 캔버스 더블클릭으로 캡션 편집에 진입한다');
+      assert.equal(ds(dom, 'img-caption-edited'), 'true', '캔버스에서 고친 캡션이 개체 필드에 반영된다');
+
       assert.equal(ds(dom, 'ans-marked'), 'true', '이미지 포함 개체 정답 마킹');
       assert.equal(ds(dom, 'saved-ok'), 'true');
 

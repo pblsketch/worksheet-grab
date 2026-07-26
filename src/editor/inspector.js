@@ -212,6 +212,14 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         const alt = el('input', { type: 'text', id: 'insp-alt', value: obj.alt || '' });
         alt.addEventListener('change', () => patch({ alt: alt.value }));
         root.appendChild(field('대체 텍스트(alt)', alt));
+        // 캡션(US-P3-5) — 렌더는 obj.caption 을 <figcaption> 으로 내보내는데 여기 입력란이 없어
+        // 캡션을 붙일 방법 자체가 없었다. 캡션을 단 뒤에는 캔버스에서 figcaption 더블클릭으로
+        // 직접 고칠 수 있다(selection.js EDIT_FIELD). 캡션 신설을 인스펙터에 두는 이유는
+        // editMode 전용 빈 요소를 그리면 "편집==인쇄 하드 동치"(R2-1)가 깨지기 때문이다.
+        const imgCaption = el('input', { type: 'text', id: 'insp-image-caption', value: obj.caption || '' });
+        imgCaption.addEventListener('change', () => patch({ caption: imgCaption.value }));
+        root.appendChild(field('캡션', imgCaption));
+        root.appendChild(el('p', { class: 'insp-note', text: '캡션 편집: 캔버스에서 캡션 더블클릭' }));
         break;
       }
       case 'answer-area': {

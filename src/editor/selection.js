@@ -8,6 +8,8 @@
 // DOM 은 RenderObjectTree(editMode:true) 가 낸 data-oid 래퍼(.wg-obj = flow, .wg-float = float)를
 // 그대로 쓴다 — 클라이언트가 새로 마크업을 주입하지 않는다(개체↔DOM 동기화는 data-oid 매칭만).
 
+import { normalizePastedHtml, normalizePastedText } from '/editor/pasteNormalize.js';
+
 const MM_TO_PX = 96 / 25.4; // editor.js 구 관례와 동일(고정, zoom/DPR 무관)
 
 /**
@@ -32,6 +34,12 @@ const EDIT_FIELD = Object.freeze({
   richtext: Object.freeze({ field: 'html', selector: null }),
   'answer-area': Object.freeze({ field: 'label', selector: '.aa-label' }),
   'passage-slot': Object.freeze({ field: 'bodyHtml', selector: '.passage-body, .slot' }),
+  // 이미지 캡션(US-P3-5) — **이미 캡션이 있을 때만** 편집 대상이 생긴다. editMode 전용 빈
+  // <figcaption> 을 새로 그리지 않는 이유: 리플로우 측정은 editMode:true, 인쇄는 false 라
+  // editMode 에만 있는 요소는 높이를 만들어 "편집==인쇄 하드 동치"(R2-1)를 깨뜨린다
+  // (그래서 기존 editMode 추가물은 data-r/data-c 처럼 레이아웃에 영향 없는 속성뿐이다).
+  // 캡션이 없는 이미지에 캡션을 **새로 다는 것**은 인스펙터(insp-caption) 담당이다.
+  'image-slot': Object.freeze({ field: 'caption', selector: 'figcaption' }),
 });
 
 // contenteditable 산출·붙여넣기 HTML 을 안전하게 정제(ai.js sanitizeAiHtml 과 동형 규약을 이 저수준
@@ -276,10 +284,14 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     const spec = EDIT_FIELD[found.obj.type];
     if (!spec) { select(id); return; }
     if (state.editingId === id) return;
+    // 편집 대상 DOM 이 실제로 없으면(예: 캡션이 아직 없는 image-slot) 편집 상태로 들어가지
+    // 않는다 — 캐럿 없는 유령 편집 상태를 만들지 않기 위함이다(선택만 남긴다).
+    if (!editTarget(objEl(id), found.obj.type)) { select(id); return; }
     if (state.editingId) exitEdit();
     state.selectedIds = new Set([id]);
     state.editingId = id;
     refreshVisual();
+    // refreshVisual() 이 DOM 을 건드리므로 편집 대상은 여기서 다시 잡는다.
     const target = editTarget(objEl(id), found.obj.type);
     // passage-slot 이 아직 본문 없이 슬롯 플레이스홀더(slotLabel 안내 문구)만 보이는 상태라면,
     // 편집 진입 시 안내 문구를 지우고 빈 칸에서 시작한다 — 그러지 않으면 안내 문구 뒤에 이어
@@ -441,10 +453,45 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
 
     // 편집 중 입력마다 obj 필드를 즉시 되읽는다 — history 스냅샷(idle 코얼레싱)이 언제 찍히든
     // core.document 가 항상 최신이어야 한다(디바운스 유휴 스냅샷이 낡은 값을 찍지 않도록).
+    // 단 IME 조합 중(e.isComposing)에는 되읽지 않는다 — 조합 중 되읽기는 리플로우를 예약해
+    // 편집 노드를 교체시키고, 그러면 확정 시 문자가 중복된다(composition.js 주석의 실측 근거).
     doc.addEventListener('input', (e) => {
+      if (e.isComposing) return;
       if (!state.editingId) return;
       const el = e.target.closest('[data-oid]');
       if (!el || el.dataset.oid !== state.editingId) return;
+      syncEditingField();
+      onDirty('text');
+    });
+
+    // 붙여넣기는 항상 정규화해서 넣는다 — Word/HWP/웹의 style·class·표 마크업이 그대로 들어오면
+    // 테마 CSS 를 덮어써 활동지 서식이 깨진다(pasteNormalize.js 정책 주석 참조).
+    // 편집 중이 아닐 때는 개입하지 않는다(브라우저 기본 동작 우선 — 폼 필드·인스펙터 입력 등).
+    doc.addEventListener('paste', (e) => {
+      if (!state.editingId) return;
+      const el = e.target.closest('[data-oid]');
+      if (!el || el.dataset.oid !== state.editingId) return;
+      const data = e.clipboardData;
+      if (!data) return;
+      const html = data.getData('text/html');
+      // HTML 이 정규화 후 비면(예: 이미지만 복사한 경우) 평문으로 되돌아간다 — 그러지 않으면
+      // 기본 동작만 막고 아무것도 넣지 않아 붙여넣기가 조용히 사라진다.
+      let clean = html ? normalizePastedHtml(html) : '';
+      if (!clean) clean = normalizePastedText(data.getData('text/plain'));
+      e.preventDefault();
+      if (!clean) return;
+      // insertHTML 은 현재 선택 범위를 대체하고 캐럿을 삽입 끝으로 옮긴다(브라우저 기본 undo 스택
+      // 과도 정합 — beforeinput historyUndo 훅이 이 편집기의 history 로 되돌린다).
+      currentDoc.execCommand('insertHTML', false, clean);
+      syncEditingField();
+      onDirty('text');
+    });
+
+    // 조합 확정 시 한 번만 동기화한다 — 조합 한 번 = undo 1스텝(자모 단위로 쪼개지지 않는다).
+    // Chrome 은 compositionend 뒤 isComposing:false 인 input 을 한 번 더 줄 수 있는데, 그 경우
+    // 위 리스너가 같은 값으로 다시 동기화할 뿐이라 무해하다(멱등).
+    doc.addEventListener('compositionend', () => {
+      if (!state.editingId) return;
       syncEditingField();
       onDirty('text');
     });
@@ -463,6 +510,16 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
 
     doc.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') { e.preventDefault(); handleEscape(); }
+      // Enter = 더블클릭과 같은 편집 진입(PRD §3.2 "더블클릭 또는 Enter로 개체 내용 편집").
+      // 두 경로 모두 enterEdit() 한 곳을 거치므로 어떤 타입이 편집 가능한지 판정은 EDIT_FIELD
+      // 한 군데에만 있다 — 편집 불가 타입은 enterEdit 이 select() 로 떨어뜨린다.
+      else if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+        // 이미 무언가를 편집 중이면(개체 본문·표 셀·부분요소) Enter 는 줄바꿈이다 — 개입 금지.
+        if (state.editingId || e.target.closest?.('[contenteditable="true"]')) return;
+        if (state.selectedIds.size !== 1) return;
+        e.preventDefault();
+        enterEdit([...state.selectedIds][0]);
+      }
     });
   }
 
