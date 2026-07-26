@@ -10,6 +10,9 @@ progress.txt
 .omc/
 .fablize/
 .playwright-mcp/
+# 루프 실행 상태·게이트 증거(Chrome 프로파일 캐시·검증 PNG 포함, 수십 MB) — 추적 안 함
+.omo/
+.omx/
 
 # 오케스트레이터 임시 산출물(감사·재실행용 로컬 보존, 추적 안 함)
 _workspace/
