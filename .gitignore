@@ -24,3 +24,5 @@ scratchpad/
 # 임시 검증 스크린샷(루트)
 /verify-*.png
 /verify-*.jpeg
+# PDF 텍스트 추출 덤프(지문 확인용 임시본) — 추적 안 함
+/pdf_text*.txt
