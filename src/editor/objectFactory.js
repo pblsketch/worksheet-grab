@@ -8,7 +8,13 @@
 // 타입별 필드는 ObjectCatalog.TYPE_SPECS(src/domain/schema)와 항상 정합해야 한다 — 여기서 만드는
 // 개체가 ValidateObjectTree 를 통과하지 못하면 저장이 거부된다.
 
-import { QUESTION_TYPES, TYPE_SPECS, OBJECT_TYPES, ANSWERABLE_TYPES } from '/src/domain/schema/index.js';
+import {
+  QUESTION_TYPES,
+  TYPE_SPECS,
+  OBJECT_TYPES,
+  ANSWERABLE_TYPES,
+  createUniquePageId,
+} from '/src/domain/schema/index.js';
 
 let counter = 0;
 /** 클라이언트 개체 id — 시각+카운터+난수(충돌 회피, 결정성 불필요). */
@@ -112,7 +118,7 @@ function locate(pages, id) {
 /** flow 개체를 afterId 바로 뒤(없으면 마지막 페이지 끝)에 삽입한 새 문서. */
 export function insertFlow(document, obj, { afterId = null, pageIndex = null } = {}) {
   const pages = clonePages(document);
-  if (pages.length === 0) pages.push({ flow: [], float: [] });
+  if (pages.length === 0) pages.push({ id: createUniquePageId(pages), flow: [], float: [] });
   const loc = afterId ? locate(pages, afterId) : null;
   if (loc && loc.bucket === 'flow') {
     pages[loc.page].flow.splice(loc.index + 1, 0, obj);
@@ -127,7 +133,7 @@ export function insertFlow(document, obj, { afterId = null, pageIndex = null } =
 /** float 개체를 지정 페이지(없으면 선택 개체의 페이지, 그마저 없으면 0쪽)에 삽입한 새 문서. */
 export function insertFloat(document, obj, { pageIndex = null, nearId = null } = {}) {
   const pages = clonePages(document);
-  if (pages.length === 0) pages.push({ flow: [], float: [] });
+  if (pages.length === 0) pages.push({ id: createUniquePageId(pages), flow: [], float: [] });
   let target = pageIndex;
   if (target == null && nearId) {
     const loc = locate(pages, nearId);
@@ -316,11 +322,39 @@ export function alignFloats(document, ids, mode) {
   return { ...document, pages };
 }
 
+const Z_MODES = Object.freeze(['front', 'back', 'forward', 'backward']);
+
+/** float 개체의 z-순서(= 같은 페이지 float[] 배열 내 위치)를 바꾼다. 배열 뒤 = 앞면(위), 앞 = 뒷면
+ *  (아래) — RenderObjectTree 가 float 을 배열 순서대로 .sheet 직속 형제로 방출하고 .wg-float 에
+ *  z-index 가 없어 DOM 순서(=배열 순서)가 곧 페인트 순서다(편집 캔버스=인쇄 동일). front=맨앞,
+ *  back=맨뒤, forward/backward=한 칸. flow·미존재·단일원소·이미 끝단이면 원본 참조 그대로 반환
+ *  (불필요한 dirty/커밋 방지 — 호출부가 참조 동일성으로 무동작 판단). */
+export function reorderFloat(document, id, mode) {
+  if (!Z_MODES.includes(mode)) return document;
+  const pages = clonePages(document);
+  const loc = locate(pages, id);
+  if (!loc || loc.bucket !== 'float') return document;
+  const list = pages[loc.page].float;
+  if (list.length < 2) return document;
+  const i = loc.index;
+  const last = list.length - 1;
+  if ((mode === 'front' || mode === 'forward') && i === last) return document;
+  if ((mode === 'back' || mode === 'backward') && i === 0) return document;
+  const [obj] = list.splice(i, 1);
+  let to;
+  if (mode === 'front') to = list.length;
+  else if (mode === 'back') to = 0;
+  else if (mode === 'forward') to = i + 1;
+  else to = i - 1;
+  list.splice(to, 0, obj);
+  return { ...document, pages };
+}
+
 /** 새 빈 페이지를 index 뒤(생략 시 문서 끝)에 삽입한 새 문서. */
 export function addPage(document, { afterIndex = null } = {}) {
   const pages = clonePages(document);
   const at = afterIndex == null ? pages.length : afterIndex + 1;
-  pages.splice(at, 0, { flow: [], float: [] });
+  pages.splice(at, 0, { id: createUniquePageId(pages), flow: [], float: [] });
   return { ...document, pages };
 }
 
@@ -331,8 +365,43 @@ export function duplicatePage(document, index) {
   if (!src) return document;
   const clonedFlow = (src.flow || []).map((o) => ({ ...structuredClone(o), id: generateId(o.type) }));
   const clonedFloat = (src.float || []).map((o) => ({ ...structuredClone(o), id: generateId(o.type) }));
-  pages.splice(index + 1, 0, { flow: clonedFlow, float: clonedFloat });
+  pages.splice(index + 1, 0, {
+    ...src,
+    id: createUniquePageId(pages),
+    flow: clonedFlow,
+    float: clonedFloat,
+  });
   return { ...document, pages };
+}
+
+export function movePage(document, fromIndex, toIndex) {
+  const pages = clonePages(document);
+  if (!pages[fromIndex] || fromIndex === toIndex || toIndex < 0 || toIndex >= pages.length) return document;
+  const [page] = pages.splice(fromIndex, 1);
+  pages.splice(toIndex, 0, page);
+  return { ...document, pages };
+}
+
+export function reorderPages(document, pageIds) {
+  const pages = document.pages || [];
+  if (!Array.isArray(pageIds) || pageIds.length !== pages.length) return document;
+  const byId = new Map(pages.map((page) => [page.id, page]));
+  if (byId.size !== pages.length || new Set(pageIds).size !== pageIds.length) return document;
+  if (pageIds.some((id) => !byId.has(id))) return document;
+  if (pageIds.every((id, index) => pages[index].id === id)) return document;
+  return { ...document, pages: pageIds.map((id) => structuredClone(byId.get(id))) };
+}
+
+export function setPageRole(document, pageId, role) {
+  const pages = document.pages || [];
+  const index = pages.findIndex((page) => page.id === pageId);
+  if (index < 0) return document;
+  const normalizedRole = typeof role === 'string' && role.trim() ? role.trim() : null;
+  if ((pages[index].role ?? null) === normalizedRole) return document;
+  const nextPages = clonePages(document);
+  if (normalizedRole == null) delete nextPages[index].role;
+  else nextPages[index].role = normalizedRole;
+  return { ...document, pages: nextPages };
 }
 
 /** index 페이지를 제거한다(최소 1쪽은 유지). flow 개체는 다음(없으면 이전) 페이지로 이관해

@@ -1,3 +1,5 @@
+import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
+
 // MigrateManifestToObjectTree — S1.3(M1) 마이그레이션 + 무손실·개체화율 게이트 산출물.
 // 결정 A1(06_plan_final.md 40~46행): 온-오픈 지연 마이그레이션 + richtext 폴백.
 //
@@ -329,7 +331,10 @@ export async function migrateManifestToObjectTree(manifest, deps = {}) {
   for (let pIdx = 0; pIdx < sourcePages.length; pIdx++) {
     pages.push(await migratePage(sourcePages[pIdx], pIdx, cloned, blockRepository));
   }
-  return { pagination: 'paginated', pages };
+  return normalizePageIdentity(
+    { pagination: 'paginated', pages },
+    deps.pageIdGenerator ? { idGenerator: deps.pageIdGenerator } : undefined,
+  );
 }
 
 /** 개체화율(비-richtext 비율) 계량 — 개체화율 게이트(S1.3, 목표 ≥70%·하드 플로어 50%)의 분모/분자 집계. */

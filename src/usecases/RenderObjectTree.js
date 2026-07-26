@@ -72,7 +72,14 @@ export class RenderObjectTree {
       const floatHtml = float.map((obj) => renderFloatObject(obj, ctx)).join('\n');
       const bodyWithFloat = floatHtml ? `${bodyOut}\n\n  ${floatHtml}` : bodyOut;
 
-      return buildSheetSection({ pageNo, runHead, bodyOut: bodyWithFloat, footLeft, footRightPrefix });
+      return buildSheetSection({
+        pageNo,
+        pageId: page?.id,
+        runHead,
+        bodyOut: bodyWithFloat,
+        footLeft,
+        footRightPrefix,
+      });
     }).join('\n\n');
 
     const html = buildDocumentHtml({

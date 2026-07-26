@@ -24,13 +24,13 @@ const T1 = new Date('2026-07-23T01:00:00.000Z');
 const T2 = new Date('2026-07-23T02:00:00.000Z');
 const T3 = new Date('2026-07-23T03:00:00.000Z');
 
-function objDoc(flow) {
+function objDoc(flow, pageId = 'page-main') {
   return {
     docTitle: 'US-08 체크포인트 픽스처', subject: 'science', dataSubject: 'science',
     themeName: 'sci', lang: 'ko', runHead: 'US-08', runFoot: { left: 'US-08', rightPrefix: '' },
     standards: [], paper: null,
     pagination: 'paginated',
-    pages: [{ flow, float: [] }],
+    pages: [{ id: pageId, flow, float: [] }],
   };
 }
 
@@ -71,6 +71,33 @@ test('checkpoint 1회 = rev+1·스냅샷+1·meta 갱신·검증 실행 — 호�
   assert.equal((await workspace.listSnapshots('문서')).length, 3, '체크포인트 3회 호출 == 스냅샷 3개');
 });
 
+test('ID 없는 호환 입력은 반환 문서를 다음 checkpoint에 전파하면 같은 ID를 유지', async () => {
+  const { workspace, saver } = await fixture();
+  const legacyObjectTree = objDoc([QUESTION_BLOCK]);
+  delete legacyObjectTree.pages[0].id;
+
+  const first = await saver.checkpoint({ name: '호환문서', document: legacyObjectTree, now: T1 });
+  assert.match(first.document.pages[0].id, /^page-/);
+  const second = await saver.checkpoint({ name: '호환문서', document: first.document, now: T2 });
+  assert.equal(second.document.pages[0].id, first.document.pages[0].id);
+  assert.equal((await workspace.readManifest('호환문서')).pages[0].id, first.document.pages[0].id);
+});
+
+test('checkpoint는 공백·중복 페이지 ID를 자동 수리하지 않고 거부', async () => {
+  const { saver } = await fixture();
+  const duplicate = {
+    ...CLEAN_DOC,
+    pages: [
+      CLEAN_DOC.pages[0],
+      { ...CLEAN_DOC.pages[0], id: CLEAN_DOC.pages[0].id, flow: [] },
+    ],
+  };
+  await assert.rejects(() => saver.checkpoint({ name: '중복문서', document: duplicate, now: T1 }), /중복/);
+  const blank = structuredClone(CLEAN_DOC);
+  blank.pages[0].id = ' ';
+  await assert.rejects(() => saver.checkpoint({ name: '공백문서', document: blank, now: T1 }), /비어 있지 않은/);
+});
+
 test('명명 체크포인트: 이름이 meta.checkpoints 에 기록되고 그 일련번호로 스냅샷 복원 가능', async () => {
   const { workspace, saver } = await fixture();
   await saver.checkpoint({ name: '문서', document: CLEAN_DOC, now: T1 }); // rev1, 무명
@@ -82,11 +109,13 @@ test('명명 체크포인트: 이름이 meta.checkpoints 에 기록되고 그 �
   assert.ok(entry, '명명 체크포인트가 meta.checkpoints 이력에 기록됨');
   assert.equal(entry.revision, 2);
   assert.equal(entry.at, T2.toISOString());
+  const savedNamedDocument = await workspace.readManifest('문서');
+  assert.match(savedNamedDocument.pages[0].id, /^page-/);
 
   await saver.checkpoint({ name: '문서', document: CLEAN_DOC, now: T3 }); // rev3, 그 뒤 다시 편집
 
   const restored = await workspace.readSnapshot('문서', entry.serial);
-  assert.deepEqual(restored, NAMED_DOC, '이름으로 찾은 일련번호로 그 시점 문서 그대로 복원 가능');
+  assert.deepEqual(restored, savedNamedDocument, '이름으로 찾은 일련번호로 정규화된 저장 시점 문서 그대로 복원 가능');
 });
 
 test('rev==스냅샷개수 불변식 유지(checkCommitIntegrity 통과)', async () => {

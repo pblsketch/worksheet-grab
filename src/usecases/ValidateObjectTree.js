@@ -27,6 +27,7 @@ export class ValidateObjectTree {
 
     const findings = [];
     this.#checkPagination(document, findings);
+    this.#checkPageIdentity(document, findings);
     this.#checkPages(document, findings);
     this.#checkAdvisories(document, findings);
 
@@ -41,6 +42,38 @@ export class ValidateObjectTree {
         message: `pagination 은 ${PAGINATION_STATES.join('|')} 중 하나여야 합니다: ${document.pagination}`,
       });
     }
+  }
+
+  #checkPageIdentity(document, findings) {
+    const seen = new Set();
+    const pages = Array.isArray(document.pages) ? document.pages : [];
+    pages.forEach((page, pageIndex) => {
+      const pageId = typeof page?.id === 'string' ? page.id.trim() : '';
+      if (!pageId) {
+        findings.push({
+          rule: 'invalid-page-id',
+          message: `pages[${pageIndex}].id 는 비어 있지 않은 문자열이어야 합니다.`,
+          page: pageIndex,
+        });
+      } else if (seen.has(pageId)) {
+        findings.push({
+          rule: 'duplicate-page-id',
+          message: `페이지 ID가 중복되었습니다: ${pageId}`,
+          page: pageIndex,
+          pageId,
+        });
+      } else {
+        seen.add(pageId);
+      }
+      if (Object.hasOwn(page || {}, 'role')
+        && (typeof page.role !== 'string' || page.role.trim() === '')) {
+        findings.push({
+          rule: 'invalid-page-role',
+          message: `pages[${pageIndex}].role 은 지정할 경우 비어 있지 않은 문자열이어야 합니다.`,
+          page: pageIndex,
+        });
+      }
+    });
   }
 
   #checkPages(document, findings) {

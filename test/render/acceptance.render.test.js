@@ -125,7 +125,7 @@ test('render-core 수용: 마이그레이션된 과학(sci) 문서 = 3쪽', { sk
 test('render-core 수용: 주요 컴포넌트 존재(std-box 성취기준·페이지 컨테이너·표)', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
   const { html } = await renderMigratedPages('sci');
   assert.ok(html.includes('<!DOCTYPE html>'), '완전한 A4 문서');
-  assert.match(html, /<section class="sheet">/, 'paper-css .sheet 페이지 컨테이너 존재');
+  assert.match(html, /<section class="sheet" data-page-id="page-[^"]+">/, '영구 ID를 가진 paper-css .sheet 페이지 컨테이너 존재');
   assert.match(html, /class="std-box"/, '성취기준 std-box 존재');
   assert.ok(html.includes('전기 회로에서 전류를 모형으로 설명하고'), '성취기준 원문이 std-box 에 주입됨(원칙 3)');
   assert.match(html, /<table/, '표(옴의 법칙 데이터 표) 존재');

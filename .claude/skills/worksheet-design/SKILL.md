@@ -33,8 +33,9 @@ true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정
   `placement:'float'`(자유배치, `rect`{xMm,yMm,wMm,hMm} 필수)는 **교사가 편집기에서 직접 만드는 것만
   허용되는 편집 전용 기능**이며, 저작·편집 스킬이 스스로 float 개체를 생성하면 `ValidateObjectTree`가
   `rect-forbidden-in-flow`로 거부한다.
-- **`pagination:'scaffold'`**: 문서는 `{ pagination:'scaffold', pages:[{ flow:[...전체 개체 순서
-  그대로...], float:[] }] }` 단일 스캐폴드 페이지로 산출한다. 몇 페이지로 나눌지는 계산하지 않는다 —
+- **`pagination:'scaffold'`**: 문서는 `{ pagination:'scaffold', pages:[{ id:'page-...', flow:[...전체
+  개체 순서 그대로...], float:[] }] }` 단일 스캐폴드 페이지로 산출한다. 페이지 `id`는 문서 안에서
+  유일한 비어 있지 않은 문자열이며 index를 쓰지 않는다. 몇 페이지로 나눌지는 계산하지 않는다 —
   실제 경계는 Chrome 측정 페이지네이션 패스(S3.5)가 산출해 `pagination:'paginated'`로 승격한다.
   `scaffold` 문서는 export가 거부된다(`checkExportGate`, 이 스킬의 책임 밖).
 

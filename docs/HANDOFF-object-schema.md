@@ -11,9 +11,10 @@
 
 editor-v4 문서 모델은 **닫힌 카탈로그 10종**의 타입 있는 개체 트리다. `title`·`passage-slot`·`question`
 (qtype 7종)·`table`(분할불가)·`image-slot`·`answer-area`·`divider`·`shape`·`richtext`(탈출구)·`std-box`
-(성취기준 주입 전용). 공통 속성은 `{id, type, answer?, placement:'flow'|'float', rect?}`. 문서 수준
-`pagination:'scaffold'|'paginated'`(R2-4)가 페이지네이션 권한(D-A: Chrome 측정 패스 단일 귀속)의 영속
-경계를 표시한다.
+(성취기준 주입 전용). 공통 속성은 `{id, type, answer?, placement:'flow'|'float', rect?}`. 문서는
+`pages:[{id, role?, flow, float}]`를 사용하며 페이지 `id`도 문서 안에서 유일한 필수 문자열이다. 문서
+수준 `pagination:'scaffold'|'paginated'`(R2-4)가 페이지네이션 권한(D-A: Chrome 측정 패스 단일 귀속)의
+영속 경계를 표시한다.
 
 ## 1. 닫힌 카탈로그 10종
 

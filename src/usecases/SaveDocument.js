@@ -3,6 +3,7 @@ import { BuildVariants, ANSWER_CLASSES } from './BuildVariants.js';
 import { ValidateWorksheet, MIN_ANSWER_LEN, SLICE_LEN } from './ValidateWorksheet.js';
 import { collectTextInside, textOutside } from './html-scan.js';
 import { buildMeta, nextSnapshotSerial, snapshotName } from './workspace.js';
+import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
 
 // SaveDocument — 워크스페이스 문서 저장의 단일 진입점. E2 에디터 서버·CLI(doc save/
 // --doc/restore)가 전부 이 함수를 경유한다 → 정답 누출 방어선이 모든 경로에서 대칭.
@@ -126,12 +127,13 @@ export class SaveDocument {
    *   manifest 와 동형으로 메타데이터+pages 를 한 봉투에 담는다). standards 는 이미 해석된 원문이어야
    *   한다(RenderObjectTree 계약 — 여기서 CSV/MCP 를 조회하지 않는다, 원칙 3).
    *   checkpointName: 명명 체크포인트면 meta.checkpoints 이력에 기록(workspace.js#buildMeta).
-   * @returns {Promise<{name:string, paths:object, meta:object, unsafe:boolean, leakFindings:object[]}>}
+   * @returns {Promise<{name:string, paths:object, meta:object, document:object, unsafe:boolean, leakFindings:object[]}>}
    */
   async checkpoint({ name, document, checkpointName = null, now = new Date() }) {
     if (!document || typeof document !== 'object' || Array.isArray(document)) {
       throw new TypeError('SaveDocument.checkpoint 는 개체 트리 문서(document)가 필요합니다.');
     }
+    document = normalizePageIdentity(document, { repairInvalid: false });
     const layout = this.workspace.layout(name);
 
     const assets = {
@@ -174,6 +176,6 @@ export class SaveDocument {
     const meta = buildMeta(layout.name, document, { now, prev, unsafe, checkpointName, serial });
     await this.workspace.writeMeta(layout.name, meta);
 
-    return { name: layout.name, paths: layout, meta, unsafe, leakFindings };
+    return { name: layout.name, paths: layout, meta, document, unsafe, leakFindings };
   }
 }

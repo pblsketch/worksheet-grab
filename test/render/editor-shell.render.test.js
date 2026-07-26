@@ -83,6 +83,8 @@ test('S4.0 /shell.json: 신규 개체 트리 문서 왕복(migrated:false, resyn
 
     assert.equal(shell.migrated, false, '이미 개체 트리인 문서는 마이그레이션 미실행');
     assert.equal(shell.document.pagination, 'paginated');
+    assert.match(shell.document.pages[0].id, /^page-/);
+    assert.ok(shell.teacherHtml.includes(`data-page-id="${shell.document.pages[0].id}"`), 'Page Shell에 페이지 ID 방출');
     assert.deepEqual(shell.document.pages[0].flow.map((o) => o.id), ['o1', 'o2', 'o3', 'o4'], '개체 ID 왕복 보존');
     assert.ok(shell.teacherHtml.includes('전압과 전류의 관계를 설명할 수 있다.'), 'std-box 성취기준 원문 렌더');
     assert.ok(shell.teacherHtml.includes(ANSWER), 'teacher 는 정답 보존');
@@ -107,6 +109,8 @@ test('S4.0 /shell.json: 구 manifest 지연 마이그레이션(A1) — 원본은
     assert.equal(shell.migrated, true, '구 HTML manifest 문서는 지연 마이그레이션 승격');
     assert.equal(shell.document.pagination, 'paginated');
     assert.equal(shell.document.pages.length, legacyManifest.pages.length, '페이지 경계 승계');
+    assert.equal(new Set(shell.document.pages.map((page) => page.id)).size, shell.document.pages.length, '지연 마이그레이션 페이지 ID 고유');
+    assert.ok(shell.document.pages.every((page) => shell.teacherHtml.includes(`data-page-id="${page.id}"`)), '모든 Page Shell에 ID 방출');
     assert.ok(shell.teacherHtml.includes(LEGACY_ANSWER_SNIPPET), 'teacher 는 정답 보존(마이그레이션 무손실)');
     assert.ok(!shell.studentHtml.includes(LEGACY_ANSWER_SNIPPET), 'student 는 정답 물리 부재');
 
@@ -136,10 +140,14 @@ test('S4.0 /save: 개체 트리 직송 → SaveDocument.checkpoint 커밋(rev �
     assert.equal(saveRes.status, 200);
     const body = await saveRes.json();
     assert.equal(body.meta.revision, 2, 'checkpoint 커밋마다 rev 증가(체크포인트 1건 = rev 1건)');
+    assert.equal(body.document.pages[0].id, got.document.pages[0].id, '저장 응답이 정규화된 문서를 전파');
 
     const onDisk = await workspace.readManifest('저장문서');
     assert.equal(onDisk.pagination, 'paginated');
+    assert.equal(onDisk.pages[0].id, got.document.pages[0].id, '저장 시 페이지 ID 유지');
     assert.deepEqual(onDisk.pages[0].flow.map((o) => o.id), ['o1', 'o2', 'o3', 'o4', 'o5'], '워크스페이스에 직송 반영');
+    const reopened = await (await fetch(`${url}/shell.json`)).json();
+    assert.equal(reopened.document.pages[0].id, got.document.pages[0].id, '저장·재열기 후 페이지 ID 유지');
 
     // ValidateObjectTree 스키마 검증 실패 → 400(잘못된 pagination 상태)
     const bad = await fetch(`${url}/save`, {
@@ -148,6 +156,22 @@ test('S4.0 /save: 개체 트리 직송 → SaveDocument.checkpoint 커밋(rev �
     });
     assert.equal(bad.status, 400);
     assert.match((await bad.json()).error, /검증/);
+
+    const missingId = structuredClone(mutated);
+    delete missingId.pages[0].id;
+    const missingIdRes = await fetch(`${url}/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document: missingId }),
+    });
+    assert.equal(missingIdRes.status, 400, '저장 요청의 누락 ID를 조용히 수리하지 않음');
+
+    const duplicateId = structuredClone(mutated);
+    duplicateId.pages.push({ id: duplicateId.pages[0].id, flow: [], float: [] });
+    const duplicateIdRes = await fetch(`${url}/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document: duplicateId }),
+    });
+    assert.equal(duplicateIdRes.status, 400, '저장 요청의 중복 ID를 조용히 수리하지 않음');
 
     // document 필드 부재 → 400
     assert.equal((await fetch(`${url}/save`, {
@@ -176,6 +200,7 @@ test('S4.0 /save: 구 manifest 세션도 최초 저장에서 새 스키마로 �
 
     const onDisk = await workspace.readManifest('구문서저장');
     assert.equal(onDisk.pagination, 'paginated', '최초 저장에서 개체 트리 스키마로 승격 커밋');
+    assert.deepEqual(onDisk.pages.map((page) => page.id), got.document.pages.map((page) => page.id), '최초 저장에서 페이지 ID 고정');
   } finally {
     await new Promise((r) => server.close(r));
   }

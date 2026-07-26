@@ -98,6 +98,7 @@ function baseDocument() {
     pagination: 'paginated',
     pages: [
       {
+        id: 'page-main',
         flow: [
           { id: 'std1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] },
           { id: 'title1', type: 'title', placement: 'flow', text: '전압과 전류의 관계' },

@@ -16,8 +16,10 @@
       "description": "문서 페이지 배열. 각 페이지는 flow(리플로우 순서 배열)와 float(절대좌표 배열) 두 층을 갖는다(D-A: 경계는 Chrome 측정 패스가 채운 것으로 간주).",
       "items": {
         "type": "object",
-        "required": ["flow", "float"],
+        "required": ["id", "flow", "float"],
         "properties": {
+          "id": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "문서 안에서 영구적으로 유지되는 고유 페이지 ID." },
+          "role": { "type": "string", "minLength": 1, "pattern": "\\S", "description": "선택 페이지 용도 표식. 레이아웃이나 개체 타입을 강제하지 않는다." },
           "flow": { "type": "array", "items": { "$ref": "#/$defs/object" } },
           "float": { "type": "array", "items": { "$ref": "#/$defs/floatObject" } }
         },

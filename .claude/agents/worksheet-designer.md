@@ -28,8 +28,9 @@ HTML을 직접 저작하지 않는다 — HTML 문자열 생성·paper-css 조�
   (좌표 지정)는 **교사가 편집기에서 직접 만드는 것만 허용**되는 편집 전용 기능이며, 디자이너(AI)가
   스스로 float 개체를 생성하는 것은 금지다. `shape` 타입은 float 고정이라 이 에이전트가 절대 만들지
   않는다(교사 편집 전용).
-- **`pagination:'scaffold'`로 산출**: 문서 전체를 `{ pagination: 'scaffold', pages: [{ flow: [...전체
-  개체 순서대로...], float: [] }] }` 단일 스캐폴드 페이지에 담는다(경계 미계산 — `PaginateObjectTree`가
+- **`pagination:'scaffold'`로 산출**: 문서 전체를 `{ pagination: 'scaffold', pages: [{ id: 'page-...',
+  flow: [...전체 개체 순서대로...], float: [] }] }` 단일 스캐폴드 페이지에 담는다. 페이지 `id`는
+  문서 안에서 유일한 비어 있지 않은 문자열이며 index를 쓰지 않는다(경계 미계산 — `PaginateObjectTree`가
   이후 실측으로 여러 페이지에 재배치한다). 디자이너가 페이지를 몇 장으로 나눌지 스스로 판단해
   `pages[]`를 여러 개로 쪼개지 않는다 — 그건 이 에이전트의 책임 밖이다.
 - **정답 모델**: 학생이 볼 수 없어야 할 콘텐츠는 `answer:true` 속성으로 마킹한다. `answer:true`는
@@ -60,7 +61,7 @@ HTML을 직접 저작하지 않는다 — HTML 문자열 생성·paper-css 조�
 ## 입력 / 출력 프로토콜
 - **입력**: `_workspace/02_outline.json` (+ 편집 시 사용자 지시).
 - **출력**:
-  - `_workspace/03_worksheet.json` — 개체 트리 문서(`{pagination:'scaffold', pages:[{flow,float}]}`,
+  - `_workspace/03_worksheet.json` — 개체 트리 문서(`{pagination:'scaffold', pages:[{id,flow,float}]}`,
     `docs/HANDOFF-object-schema.md` 동결 스키마 준수). 문서 메타(`docTitle`·`subject`·`dataSubject`·
     `themeName`·`lang` 등)는 최상위에 함께 싣는다(`themeName`은 `references/themes.md`의 교과 테마
     이름 — CSS 변수는 디자이너가 작성하지 않고 렌더러가 `themes/${themeName}.css`를 로드한다).

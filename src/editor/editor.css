@@ -50,6 +50,16 @@ button { font: inherit; }
 }
 .save-btn kbd { font-size: 10px; font-weight: 400; opacity: .75; margin-left: 4px; }
 
+@media (max-width: 1100px) {
+  .appbar { gap: 6px; padding: 8px 10px; }
+  .appbar-left, .appbar-right { gap: 5px; }
+  .logo, .doc-title, .seg-btn, .appbar-btn, .review-chip, .save-btn { font-size: 12px; }
+  .doc-title { max-width: 160px; }
+  .seg-btn { padding: 5px 9px; white-space: nowrap; }
+  .appbar-btn, .review-chip { padding: 5px 8px; white-space: nowrap; }
+  .save-btn { padding: 6px 10px; white-space: nowrap; }
+}
+
 /* ── 컨텍스트 툴바 ── */
 .context-toolbar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: nowrap;
@@ -104,11 +114,26 @@ button { font: inherit; }
 .panel.hidden { display: none; }
 
 .thumb-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-.thumb { cursor: pointer; text-align: center; }
+.thumb { width: 150px; cursor: grab; text-align: center; border-radius: 6px; outline: none; touch-action: none; user-select: none; }
+.thumb:hover .thumb-frame { border-color: #8c959f; }
+.thumb:focus-visible { box-shadow: 0 0 0 2px #93c5fd; }
 .thumb-frame { border: 1px solid #d0d7de; background: #fff; overflow: hidden; border-radius: 4px; }
 .thumb-frame iframe { border: 0; transform-origin: top left; pointer-events: none; }
 .thumb.active .thumb-frame { border-color: #2563eb; box-shadow: 0 0 0 2px #93c5fd; }
-.thumb-no { display: block; font-size: 11px; color: #57606a; margin-top: 2px; }
+.thumb.dragging { opacity: .55; cursor: grabbing; }
+.thumb.drop-target { box-shadow: 0 -3px 0 #2563eb; }
+.thumb-meta { display: grid; grid-template-columns: 20px minmax(0, 1fr) 24px; gap: 4px; align-items: center; margin-top: 5px; }
+.thumb-no { font-size: 11px; color: #57606a; }
+.thumb-role {
+  min-width: 0; width: 100%; height: 24px; border: 1px solid #d0d7de; border-radius: 5px;
+  background: #fff; color: #24292f; font: inherit; font-size: 12px;
+}
+.thumb-role:focus-visible, .thumb-menu:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+.thumb-menu {
+  width: 24px; height: 24px; padding: 0; border: 1px solid #d0d7de; border-radius: 5px;
+  background: #fff; color: #57606a; cursor: pointer; font-weight: 700;
+}
+.thumb-menu:hover { border-color: #2563eb; color: #1d4ed8; background: #f0f6ff; }
 .panel-add-btn {
   width: 100%; margin-top: 8px; border: 1px dashed #8c959f; border-radius: 8px; background: transparent;
   padding: 8px; cursor: pointer; color: #57606a; font-size: 12.5px;
@@ -173,6 +198,7 @@ button { font: inherit; }
 .slash-menu, .ctx-menu { transform: none; background: #fff; color: #24292f; border: 1px solid #d0d7de; padding: 4px; min-width: 160px; }
 .slash-menu button, .ctx-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 7px 10px; cursor: pointer; border-radius: 5px; color: #24292f; }
 .slash-menu button:hover, .ctx-menu button:hover { background: #f0f6ff; }
+.ctx-menu button:focus-visible { outline: 2px solid #2563eb; outline-offset: -2px; background: #f0f6ff; }
 .ctx-menu button[disabled] { opacity: .45; cursor: not-allowed; }
 
 .preview-modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 80; display: flex; align-items: center; justify-content: center; }

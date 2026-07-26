@@ -116,3 +116,63 @@ test('US-18 좌측 페이지 탭: 썸네일 트리 동기화 · 페이지 추가
     await new Promise((r) => server.close(r));
   }
 });
+
+test('Phase 2 페이지 관리: ID 선택·role·키보드/포인터 재배치·구조 undo/redo', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url } = await startEditServer();
+  try {
+    const dom = await dumpDom(`${url}/?seed=page-management`);
+    assert.equal(ds(dom, 'seed-done'), 'page-management');
+
+    assert.match(ds(dom, 'pm-selected-id'), /^page-/);
+    assert.equal(ds(dom, 'pm-aria-current'), 'page');
+    assert.equal(ds(dom, 'pm-tab-index'), '0');
+    assert.equal(ds(dom, 'pm-has-menu-button'), 'true');
+    assert.equal(ds(dom, 'pm-keyboard-menu-count'), '6');
+    assert.equal(ds(dom, 'pm-keyboard-menu-focus'), '앞으로 이동');
+    assert.equal(ds(dom, 'pm-keyboard-menu-in-viewport'), 'true');
+    assert.equal(ds(dom, 'pm-keyboard-menu-nav-focus'), '복제');
+    assert.equal(ds(dom, 'pm-keyboard-menu-closed'), 'true');
+    assert.equal(ds(dom, 'pm-keyboard-menu-return-focus'), ds(dom, 'pm-selected-id'));
+    assert.equal(ds(dom, 'pm-keyboard-menu-activated'), 'true');
+    assert.equal(ds(dom, 'pm-keyboard-menu-page-delta'), '1');
+
+    assert.equal(ds(dom, 'pm-role-after'), 'reading');
+    assert.equal(ds(dom, 'pm-role-undo'), '');
+    assert.equal(ds(dom, 'pm-role-undo-active'), ds(dom, 'pm-selected-id'));
+    assert.equal(ds(dom, 'pm-role-redo'), 'reading');
+    assert.equal(ds(dom, 'pm-inactive-keyboard-active-retained'), 'true');
+    assert.equal(ds(dom, 'pm-inactive-keyboard-focus-retained'), 'true');
+
+    const selectedId = ds(dom, 'pm-selected-id');
+    assert.equal(ds(dom, 'pm-keyboard-order').split(',')[0], selectedId);
+    assert.equal(ds(dom, 'pm-keyboard-active'), selectedId);
+    assert.equal(ds(dom, 'pm-keyboard-focus'), selectedId);
+    assert.equal(ds(dom, 'pm-keyboard-scroll-matches'), 'true');
+    assert.equal(ds(dom, 'pm-keyboard-undo-order').split(',')[1], selectedId);
+    assert.equal(ds(dom, 'pm-keyboard-undo-scroll-matches'), 'true');
+    assert.equal(ds(dom, 'pm-keyboard-redo-scroll-matches'), 'true');
+    assert.equal(ds(dom, 'pm-keyboard-boundary-prevented'), 'true');
+    assert.equal(ds(dom, 'pm-pointer-cancel-restored'), 'true');
+    assert.equal(ds(dom, 'pm-pointer-down-prevented'), 'true');
+    assert.equal(ds(dom, 'pm-pointer-order').split(',').at(-1), selectedId);
+    assert.equal(ds(dom, 'pm-pointer-active'), selectedId);
+    assert.equal(ds(dom, 'pm-pointer-scroll-matches'), 'true');
+    assert.notEqual(ds(dom, 'pm-manual-scroll-active'), selectedId);
+
+    assert.equal(ds(dom, 'pm-add-id-unique'), 'true');
+    assert.equal(ds(dom, 'pm-add-active'), ds(dom, 'pm-add-redo-active'));
+    assert.equal(ds(dom, 'pm-add-sheets'), '3');
+    assert.equal(ds(dom, 'pm-add-undo-count'), '2');
+    assert.equal(ds(dom, 'pm-add-undo-sheets'), '2');
+
+    assert.notEqual(ds(dom, 'pm-delete-active'), ds(dom, 'pm-add-active'));
+    assert.equal(ds(dom, 'pm-delete-undo-active'), ds(dom, 'pm-add-active'));
+    assert.equal(ds(dom, 'pm-delete-undo-sheets'), '3');
+    assert.equal(ds(dom, 'pm-delete-redo-count'), '2');
+    assert.equal(ds(dom, 'pm-delete-redo-sheets'), '2');
+    assert.equal(ds(dom, 'pm-saved-ids'), ds(dom, 'pm-pointer-order'));
+    assert.equal(ds(dom, 'pm-saved-reading-role'), 'true');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});

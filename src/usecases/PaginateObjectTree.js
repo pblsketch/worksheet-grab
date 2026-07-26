@@ -1,5 +1,6 @@
 import { RenderObjectTree } from './RenderObjectTree.js';
 import { resolvePaper, paperDims, paperMargins } from './paper.js';
+import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
 
 // PaginateObjectTree — S2.5(M2) 페이지네이션 패스 모듈(06_plan_final.md 167~172행, D-A/R2-1).
 //
@@ -104,7 +105,7 @@ export function computeAvailableHeightPx(paper) {
  * @param {number} pageCount
  * @returns {Array<{flow:object[], float:object[]}>}
  */
-export function rebuildPaginatedPages(srcPages, pageOfId, pageCount) {
+export function rebuildPaginatedPages(srcPages, pageOfId, pageCount, { idGenerator } = {}) {
   const flatFlow = [];
   const floatByOriginalPage = [];
   for (const p of (Array.isArray(srcPages) ? srcPages : [])) {
@@ -112,7 +113,11 @@ export function rebuildPaginatedPages(srcPages, pageOfId, pageCount) {
     floatByOriginalPage.push(Array.isArray(p?.float) ? p.float : []);
   }
 
-  const pages = Array.from({ length: pageCount }, () => ({ flow: [], float: [] }));
+  const pages = Array.from({ length: pageCount }, (_, index) => ({
+    ...(srcPages[index] && typeof srcPages[index] === 'object' ? srcPages[index] : {}),
+    flow: [],
+    float: [],
+  }));
   for (const obj of flatFlow) {
     pages[pageOfId[obj.id] ?? 0].flow.push(obj);
   }
@@ -121,7 +126,10 @@ export function rebuildPaginatedPages(srcPages, pageOfId, pageCount) {
     const target = Math.min(origIdx, pageCount - 1);
     pages[target].float.push(...floats);
   });
-  return pages;
+  return normalizePageIdentity(
+    { pages },
+    idGenerator ? { idGenerator } : undefined,
+  ).pages;
 }
 
 export class PaginateObjectTree {
@@ -173,8 +181,13 @@ export class PaginateObjectTree {
 
     // float 재배치를 포함한 pages[] 재구성은 rebuildPaginatedPages(순수) 로 위임 — 브라우저
     // 편집기 리플로우(S4.2, reflow.js)가 이 Chrome 측정 경로와 동일한 함수를 호출해 하드 동치를 보장한다.
-    const pages = rebuildPaginatedPages(srcPages, pageOfId, pageCount);
+    const pages = rebuildPaginatedPages(
+      srcPages,
+      pageOfId,
+      pageCount,
+      opts.pageIdGenerator ? { idGenerator: opts.pageIdGenerator } : undefined,
+    );
 
-    return { document: { pagination: 'paginated', pages }, gating, pageOfId };
+    return { document: { ...document, pagination: 'paginated', pages }, gating, pageOfId };
   }
 }

@@ -80,6 +80,7 @@ function colorField({ id, title, label, value, disabled = false, onInput }) {
  *   onShapeColor: (kind:'stroke'|'fill', hex:string)=>void,
  *   onZoom: (pct:number)=>void,
  *   onViewToggle: (key:'margins'|'ruler'|'grid')=>void,
+ *   onZOrder?: (id:string, mode:'front'|'back'|'forward'|'backward')=>void, // float z-순서(배열 위치)
  *   excludedAiTypes: Set<string>, // US-19 — std-box(§7, 원칙 3) 는 AI 버튼 비활성(passage-slot 은
  *   3층 정책, 2026-07-23 2차 델타로 해제)
  *   onAiOpen: (id:string)=>void,  // US-19 — AI 패널을 이 개체로 연다
@@ -164,6 +165,12 @@ export function createContextToolbar(opts) {
     wrap.appendChild(btn({ title: '복제', iconName: 'copy', id: 'tb-duplicate', onClick: () => opts.onDuplicate(id) }));
     wrap.appendChild(btn({ title: '삭제', iconName: 'trash', id: 'tb-delete', onClick: () => opts.onDelete(id) }));
     wrap.appendChild(btn({ title: '본문 배치 ⇄ 자유 배치 전환', iconName: 'layers', id: 'tb-flowfloat', onClick: () => opts.onFlowFloat(id) }));
+    // z-순서(맨앞/맨뒤) — 자유 배치(float) 개체 전용. 겹친 자유 개체의 앞뒤를 바꾼다(같은 페이지
+    // float[] 배열 위치 = 페인트 순서, 편집 캔버스=인쇄 동일). flow 개체는 좌표·겹침이 없어 미노출.
+    if (obj.placement === 'float') {
+      wrap.appendChild(btn({ title: '맨 앞으로 (위로)', label: '맨앞', id: 'tb-z-front', onClick: () => opts.onZOrder?.(id, 'front') }));
+      wrap.appendChild(btn({ title: '맨 뒤로 (아래로)', label: '맨뒤', id: 'tb-z-back', onClick: () => opts.onZOrder?.(id, 'back') }));
+    }
     return wrap;
   }
 

@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { validateObjectShape, checkExportGate, OBJECT_TYPES } from '../../src/domain/schema/index.js';
 
 // S1.1 수용 기준(06_plan_final.md 132행): 각 타입 최소 픽스처 통과 / 미지정 타입 거부 /
@@ -74,6 +76,17 @@ test('pagination:scaffold 문서는 export 거부, paginated 는 허용(D-A/R2-4
 
 test('pagination 값이 scaffold|paginated 밖이면 예외', () => {
   assert.throws(() => checkExportGate({ pagination: 'draft' }), /pagination/);
+});
+
+test('canonical JSON schema는 페이지 id를 필수로 하고 role을 선택 속성으로 허용', async () => {
+  const schema = JSON.parse(await readFile(resolve('schema/worksheet-object.schema.json'), 'utf8'));
+  const pageSchema = schema.properties.pages.items;
+  assert.ok(pageSchema.required.includes('id'));
+  assert.equal(pageSchema.properties.id.minLength, 1);
+  assert.equal(pageSchema.properties.id.pattern, '\\S');
+  assert.equal(pageSchema.properties.role.minLength, 1);
+  assert.equal(pageSchema.properties.role.pattern, '\\S');
+  assert.equal(pageSchema.additionalProperties, false);
 });
 
 // ── 저작권 지문 3층 정책(2026-07-23, 2차 델타): 교사 직접 입력 + 명시 요청 시 AI 창작·재구성 허용 ──

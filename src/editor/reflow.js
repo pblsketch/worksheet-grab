@@ -167,7 +167,12 @@ export function applyReflow(document, heights, opts = {}) {
   const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0 }));
   const availableHeightPx = computeAvailableHeightPx(document?.paper ?? null);
   const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, { tolerancePx: opts.tolerancePx });
-  const pages = rebuildPaginatedPages(srcPages, pageOfId, pageCount);
+  const pages = rebuildPaginatedPages(
+    srcPages,
+    pageOfId,
+    pageCount,
+    opts.pageIdGenerator ? { idGenerator: opts.pageIdGenerator } : undefined,
+  );
 
   const changed = pageAssignmentChanged(srcPages, pages);
   return { document: { ...document, pages }, pageOfId, changed };

@@ -147,7 +147,7 @@ export function objectDisplayText(obj) {
 export function renderObjectFragment(obj, renderMeta = {}) {
   if (!obj) return '';
   try {
-    const doc = { pagination: 'scaffold', pages: [{ flow: [obj], float: [] }] };
+    const doc = { pagination: 'scaffold', pages: [{ id: 'page-ai-preview', flow: [obj], float: [] }] };
     const { html } = renderer.execute(doc, { paperCss: '', blocksCss: '', themeCss: '' }, renderMeta, { editMode: false });
     const parsed = new DOMParser().parseFromString(html, 'text/html');
     const sheet = parsed.querySelector('.sheet');

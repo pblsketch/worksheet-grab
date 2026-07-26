@@ -70,6 +70,8 @@ for (const fixture of [
     const document = await migrateManifestToObjectTree(manifest, { blockRepository });
     assert.equal(document.pagination, 'paginated');
     assert.equal(document.pages.length, manifest.pages.length, '구 manifest 의 페이지 경계를 그대로 승계해야 함');
+    assert.equal(new Set(document.pages.map((page) => page.id)).size, document.pages.length, '페이지 ID가 모두 고유해야 함');
+    assert.ok(document.pages.every((page) => /^page-/.test(page.id)), '모든 페이지에 영구 ID가 있어야 함');
 
     const { ok, findings } = new ValidateObjectTree().execute(document);
     assert.equal(ok, true, `ValidateObjectTree FAIL: ${JSON.stringify(findings)}`);

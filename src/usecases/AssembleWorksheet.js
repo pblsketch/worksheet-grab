@@ -190,8 +190,11 @@ export function wrapSheetBody(bodyHtml, columns) {
 }
 
 /** 페이지 1장(`<section class="sheet">`) — run-head/run-foot/mode-badge 크롬 + bodyOut. */
-export function buildSheetSection({ pageNo, runHead, bodyOut, footLeft, footRightPrefix }) {
-  return `<section class="sheet">
+export function buildSheetSection({ pageNo, pageId = null, runHead, bodyOut, footLeft, footRightPrefix }) {
+  const pageIdAttr = typeof pageId === 'string' && pageId
+    ? ` data-page-id="${escapeHtml(pageId).replaceAll('"', '&quot;').replaceAll("'", '&#39;')}"`
+    : '';
+  return `<section class="sheet"${pageIdAttr}>
   <span class="mode-badge"></span>
   <div class="run-head">${escapeHtml(runHead)}</div>
 

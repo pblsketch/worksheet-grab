@@ -18,6 +18,7 @@ function designerScaffoldFixture() {
     themeName: 'teal',
     pages: [
       {
+        id: 'page-designer',
         flow: [
           { id: 'std1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] },
           {

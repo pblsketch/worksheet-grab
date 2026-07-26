@@ -18,6 +18,7 @@ import { resolvePaper, paperToPx } from '../usecases/paper.js';
 import { sanitizeAssetName, assertAllowedImage, imageMimeFor, MAX_IMAGE_BYTES } from '../usecases/assets.js';
 import { AI_SCHEMA_VERSION, newRequestId, parseAction, assertTargetable, excludedTypes } from '../usecases/aiBridge.js';
 import { PAGINATION_STATES } from '../domain/schema/index.js';
+import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
 
 const MAX_SAVE_BODY = 20 * 1024 * 1024; // 로컬 편집 도구의 안전 상한
 
@@ -179,20 +180,22 @@ export function createEditorServer({
         if (!body || typeof body.document !== 'object' || body.document === null) {
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: 'document(개체 트리)가 필요합니다.' }));
         }
-        const { ok, findings } = new ValidateObjectTree().execute(body.document);
+        const document = body.document;
+        const { ok, findings } = new ValidateObjectTree().execute(document);
         if (!ok) {
           return send(res, 400, 'application/json; charset=utf-8',
             JSON.stringify({ error: '개체 트리 검증 실패', findings }));
         }
         const result = await saver.checkpoint({
           name: docName,
-          document: body.document,
+          document,
           checkpointName: typeof body.checkpointName === 'string' ? body.checkpointName : null,
         });
         return send(res, 200, 'application/json; charset=utf-8', JSON.stringify({
           unsafe: result.unsafe,
           leakFindings: result.leakFindings,
           meta: result.meta,
+          document: result.document,
         }));
       }
       // E4 프리셋(자산): SaveDocument 게이트 미경유 — 프리셋은 문서가 아니라 재사용 상용구다
@@ -445,7 +448,8 @@ export function createEditorServer({
         // 구 manifest 는 이 GET 경로에서 절대 쓰지 않는다 — 승격은 메모리 내에서만 일어나고,
         // 디스크 커밋은 클라이언트가 되돌려 보낸 문서를 POST /save 가 처리할 때 비로소 일어난다.
         const isObjectTree = PAGINATION_STATES.includes(raw?.pagination);
-        const document = isObjectTree ? raw : await buildLegacyDocument(raw, { blockRepository, curriculum });
+        const loadedDocument = isObjectTree ? raw : await buildLegacyDocument(raw, { blockRepository, curriculum });
+        const document = normalizePageIdentity(loadedDocument);
         const themes = await blockRepository.listThemes();
         const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
         const shell = await shellRenderer.executeObjectTree({ document, meta, knownSubjectHexes, docName });
