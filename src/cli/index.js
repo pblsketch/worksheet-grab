@@ -661,17 +661,31 @@ async function cmdAi(args, flags, { log, err }) {
       if (status === 'cancelled') { err(`✗ 취소된 요청입니다(terminal): ${id} — 응답할 수 없습니다.`); return 1; }
       if (status !== 'pending') { err(`✗ ${status} 상태 요청입니다: ${id} — pending 만 응답 가능합니다.`); return 1; }
       // 입력형별 리터럴 태깅: --from/--html → v1(단일 html), --blocks → v2(blocks[{slot,html}]),
-      // --objects → v3(objects[{id,object}], US-19 개체 ID 에코). AI_SCHEMA_VERSION 상수는 v3(현행
-      // 개체 트리 경로)에만 쓴다 — v1/v2 는 디스크에 남은 in-flight 요청의 고정 형태라 리터럴 유지
-      // (상수 승격이 과거 회신을 오태깅하는 것 방지, 위 v1/v2 분기와 동일 근거).
+      // --objects → v3(objects[{id,object}], US-19 개체 ID 에코), --ops → v4(ops[{op,…}], Phase 4
+      // 개수·종류가 자유로운 계획). AI_SCHEMA_VERSION 상수는 **현행 신규 쓰기(v4)** 에만 쓴다 —
+      // v1/v2/v3 는 디스크에 남은 in-flight 요청·기존 입력형의 고정 형태라 리터럴로 유지한다
+      // (상수 승격이 과거 회신을 오태깅하는 것 방지).
       let response;
-      if (typeof flags.objects === 'string') {
+      if (typeof flags.ops === 'string') {
+        const parsed = JSON.parse(await readFile(resolve(flags.ops), 'utf8'));
+        const ops = Array.isArray(parsed) ? parsed : parsed?.ops;
+        if (!Array.isArray(ops) || ops.length === 0) {
+          throw new Error('ai respond --ops: [{op,…}] 배열(또는 {ops:[…]}) JSON 파일이 필요합니다.');
+        }
+        response = { schemaVersion: AI_SCHEMA_VERSION, id, ops };
+        if (!validateResponse(response)) {
+          throw new Error("ai respond --ops: 응답 형태가 v4 스키마와 맞지 않습니다 — replace={op,id,object}, insert={op,object,afterId|beforeId}, delete={op,id}. insert 에 afterId 와 beforeId 를 동시에 줄 수 없습니다.");
+        }
+      } else if (typeof flags.objects === 'string') {
         const parsed = JSON.parse(await readFile(resolve(flags.objects), 'utf8'));
         const objects = Array.isArray(parsed) ? parsed : parsed?.objects;
         if (!Array.isArray(objects) || objects.length === 0) {
           throw new Error('ai respond --objects: [{id,object}] 배열(또는 {objects:[…]}) JSON 파일이 필요합니다.');
         }
-        response = { schemaVersion: AI_SCHEMA_VERSION, id, objects };
+        // v3 고정 형태(objects[] = 개체 ID 에코)라 리터럴 3 으로 태깅한다 — AI_SCHEMA_VERSION 은
+        // Phase 4 에서 4(ops[]) 로 승격됐고, 신규 쓰기 상수를 이 v3 shape 에 쓰면 형태-버전
+        // 불일치로 validateResponse 가 거부한다(위 v1/v2 리터럴 유지와 동일 근거).
+        response = { schemaVersion: 3, id, objects };
         if (!validateResponse(response)) {
           throw new Error('ai respond --objects: 응답 형태가 v3 스키마([{id,object:{id,type,…}}])와 맞지 않습니다.');
         }

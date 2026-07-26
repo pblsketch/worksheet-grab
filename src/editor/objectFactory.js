@@ -144,6 +144,83 @@ export function insertFloat(document, obj, { pageIndex = null, nearId = null } =
   return { ...document, pages };
 }
 
+/**
+ * AI 결과 계획(v4 ops)을 순서대로 적용한 새 문서 — Phase 4 핵심.
+ *
+ * v3 는 대상별 1:1 치환뿐이라 "문항 3개를 활동 1개로 합치기"·"표 1개를 표+설명문으로 나누기"를
+ * 표현할 수 없었다. 여기서는 replace·insert·delete 를 **AI 가 준 순서 그대로** 적용해 개수와
+ * 종류가 바뀌는 결과를 만든다. 호출부는 이 함수가 돌려준 문서를 applyDocOp 에 **한 번만** 넘겨
+ * undo 도 한 스텝이 되게 한다.
+ *
+ * 문서를 알아야 판정할 수 있는 안전장치가 여기 산다(aiBridge 는 프로토콜 형태만 본다):
+ *  - AI_EXCLUDED_TYPES(std-box) 개체는 수정·삭제 대상이 될 수 없다(원칙 3, 성취기준 원문 보존)
+ *  - 존재하지 않는 개체를 replace/delete 하거나 없는 위치에 insert 하면 **던진다** — 조용히
+ *    건너뛰면 교사는 "AI 가 반영됐다"고 믿는데 실제로는 일부만 반영된 상태가 된다.
+ *
+ * @param {object} document 개체 트리 문서
+ * @param {Array<{op:'replace'|'insert'|'delete', id?:string, object?:object, afterId?:string, beforeId?:string}>} ops
+ * @param {{excludedTypes?:Iterable<string>}} [opts]
+ * @returns {{document:object, resultIds:string[]}} 적용 문서와 결과(치환·신규) 개체 ID 목록
+ */
+export function applyAiOps(document, ops, { excludedTypes = [] } = {}) {
+  if (!Array.isArray(ops) || ops.length === 0) throw new Error('AI 결과 계획(ops)이 비어 있습니다.');
+  const excluded = new Set(excludedTypes);
+  let doc = document;
+  const resultIds = [];
+
+  const findObj = (d, id) => {
+    for (const page of d.pages || []) {
+      for (const bucket of ['flow', 'float']) {
+        const hit = (page[bucket] || []).find((o) => o && o.id === id);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  };
+  const assertTargetable = (d, id, verb) => {
+    const cur = findObj(d, id);
+    if (!cur) throw new Error(`AI ${verb} 대상 개체를 찾을 수 없습니다: ${id}`);
+    if (excluded.has(cur.type)) {
+      throw new Error(`"${cur.type}" 개체는 AI ${verb} 대상이 아닙니다 — 성취기준 원문은 보존됩니다(원칙 3).`);
+    }
+    return cur;
+  };
+
+  for (const op of ops) {
+    if (!op || typeof op !== 'object') throw new Error('AI 결과 계획에 빈 항목이 있습니다.');
+    if (op.op === 'replace') {
+      assertTargetable(doc, op.id, '수정');
+      doc = replaceObject(doc, op.id, op.object);
+      resultIds.push(op.id);
+    } else if (op.op === 'delete') {
+      assertTargetable(doc, op.id, '삭제');
+      doc = removeObject(doc, op.id);
+    } else if (op.op === 'insert') {
+      const anchorId = op.afterId ?? op.beforeId ?? null;
+      if (anchorId != null && !findObj(doc, anchorId)) {
+        throw new Error(`AI 삽입 기준 개체를 찾을 수 없습니다: ${anchorId}`);
+      }
+      // 신규 개체는 항상 새 id 를 받는다 — AI 가 준 id 를 그대로 쓰면 기존 개체와 충돌해
+      // locate 가 엉뚱한 것을 집을 수 있다(편집기 insert 모드와 동일 규약).
+      const obj = { ...op.object, id: generateId(op.object?.type || 'o') };
+      doc = op.beforeId ? insertFlowBefore(doc, obj, op.beforeId) : insertFlow(doc, obj, { afterId: op.afterId ?? null });
+      resultIds.push(obj.id);
+    } else {
+      throw new Error(`알 수 없는 AI op: ${op.op}`);
+    }
+  }
+  return { document: doc, resultIds };
+}
+
+/** flow 개체를 beforeId 개체 **앞**에 끼운 새 문서(insertFlow 의 afterId 대칭 — v4 insert 전용). */
+function insertFlowBefore(document, obj, beforeId) {
+  const pages = clonePages(document);
+  const loc = locate(pages, beforeId);
+  if (!loc || loc.bucket !== 'flow') return insertFlow(document, obj, { afterId: null });
+  pages[loc.page].flow.splice(loc.index, 0, obj);
+  return { ...document, pages };
+}
+
 /** id 개체를 문서에서 제거한 새 문서. */
 export function removeObject(document, id) {
   const pages = clonePages(document);

@@ -181,7 +181,7 @@ test('S4.0 /ai/*: 개체 ID 에코 요청 생성(docName 서버 주입)→answer
   }
 });
 
-test('S4.0 /ai/requests: v3 objects[] 저장(schemaVersion:3) + 집합 내 제외 타입 1개 → 전체 400', async () => {
+test('Phase 4 /ai/requests: v4 objects[] 저장(schemaVersion:4) + 집합 내 제외 타입 1개 → 전체 400', async () => {
   const { server, url, workspace } = await startServer();
   try {
     const { FsAiBridgeRepository } = await import('../../src/adapters/FsAiBridgeRepository.js');
@@ -198,7 +198,9 @@ test('S4.0 /ai/requests: v3 objects[] 저장(schemaVersion:3) + 집합 내 제�
     assert.equal(create.status, 200);
     const { id } = await create.json();
     const saved = await bridge.readRequest(id);
-    assert.equal(saved.schemaVersion, 3, '신규 요청은 v3 로 기록');
+    // Phase 4: 신규 요청은 v4 로 기록된다(요청 형태는 objects[] 유지 + pageId·pageVersion·scope 선택).
+    // 디스크의 v1/v2/v3 in-flight 파일은 계속 관용되며, 아래 v3 응답 왕복이 그 하위호환을 지킨다.
+    assert.equal(saved.schemaVersion, 4, '신규 요청은 v4 로 기록');
     assert.equal(saved.objects.length, 2, 'objects[] 보존');
     assert.equal(saved.docName, '문서', '서버 고정 docName');
 

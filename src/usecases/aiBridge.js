@@ -16,9 +16,22 @@ import { AI_EXCLUDED_TYPES } from '../domain/schema/index.js';
 // 응답 objects:[{id,object}](개체 ID 에코, worksheet-designer/US-10 계약과 정합). vocabulary 기반
 // bt/slot 타입 가드는 폐기(개체 타입 자체가 닫힌 카탈로그라 vocabulary 조회가 불필요해졌다).
 // 디스크에 남은 v1(단일 block)·v2(blocks[]) in-flight 요청/응답은 계속 유효해야 하므로
-// validateRequest/validateResponse 는 schemaVersion∈{1,2,3} 를 관용하고 형태-버전 정합만 강제한다.
-export const AI_SCHEMA_VERSION = 3;
-export const AI_SCHEMA_VERSIONS = new Set([1, 2, 3]);
+// validateRequest/validateResponse 는 schemaVersion∈{1,2,3,4} 를 관용하고 형태-버전 정합만 강제한다.
+//
+// AI_SCHEMA_VERSION=4(Phase 4): 응답이 **개수·종류가 자유로운 계획**이 된다 — v3 의
+// objects:[{id,object}] 는 대상 ID 에코라 1:1 치환만 표현할 수 있어서 "문항 3개를 활동 1개로
+// 합치기"·"표 1개를 표+설명문으로 나누기"·"이건 삭제"를 담지 못했다(PRD v2.1 §11.3 "응답은
+// target별 1:1 replacement를 강제하지 않는다"). v4 응답은 ops:[{op:'replace'|'insert'|'delete'}]
+// 로 계획을 그대로 싣는다. 요청은 v3 의 objects[] 를 유지하되 pageId·pageVersion·scope 를
+// 선택적으로 더 싣는다(각각 페이지 전체 scope·덮어쓰기 충돌 검사가 소비).
+//
+// **상수 사용 규약**: AI_SCHEMA_VERSION 은 "신규 쓰기" 형태(v4)에만 쓴다. v1/v2/v3 는 디스크에
+// 남은 in-flight 요청·기존 CLI 입력형의 고정 형태라 호출부에서 리터럴로 태깅한다 — 신규 쓰기
+// 상수를 옛 형태 페이로드에 쓰면 형태-버전 불일치로 validateRequest 가 거부한다.
+export const AI_SCHEMA_VERSION = 4;
+export const AI_SCHEMA_VERSIONS = new Set([1, 2, 3, 4]);
+/** v4 응답 계획의 연산 종류. */
+export const AI_OPS = ['replace', 'insert', 'delete'];
 export const AI_ACTIONS = ['rewrite', 'fill-example'];
 export const AI_STATUSES = ['pending', 'answered', 'cancelled', 'applied'];
 
@@ -93,6 +106,40 @@ function isValidEchoItem(e) {
     && typeof e.object.type === 'string' && !!e.object.type;
 }
 
+/** 개체 페이로드(응답이 싣는 개체 본문) 최소 형태 — id·type 존재. 타입별 필드 완전성은
+ *  ValidateObjectTree(문서 커밋 시점) 소관이다(v3 isValidEchoItem 과 동일 계층 규약). */
+function isValidObjectPayload(o) {
+  return !!o && typeof o === 'object' && !Array.isArray(o)
+    && typeof o.id === 'string' && !!o.id
+    && typeof o.type === 'string' && !!o.type;
+}
+
+/**
+ * v4 응답 op 형태 검증. 여기서는 **프로토콜 형태만** 본다 — "std-box 를 지우려 든다"·"없는
+ * afterId 를 가리킨다" 같은 판정은 문서를 알아야 하므로 적용 경로(objectFactory.applyAiOps)의
+ * 책임이다(요청 원소 검증이 타입별 완전성을 ValidateObjectTree 로 미루는 것과 같은 계층 규약).
+ */
+function isValidOpItem(o) {
+  if (!o || typeof o !== 'object' || Array.isArray(o)) return false;
+  if (!AI_OPS.includes(o.op)) return false;
+  if (o.op === 'delete') return typeof o.id === 'string' && !!o.id;
+  if (o.op === 'replace') return typeof o.id === 'string' && !!o.id && isValidObjectPayload(o.object);
+  // insert: 개체 본문 필수. 위치는 afterId 나 beforeId 중 **하나만** 허용한다 — 둘 다 주면
+  // 어느 쪽 기준인지 모호해 조용히 엉뚱한 자리에 꽂히므로 형태 단계에서 거부한다.
+  if (!isValidObjectPayload(o.object)) return false;
+  const hasAfter = typeof o.afterId === 'string' && !!o.afterId;
+  const hasBefore = typeof o.beforeId === 'string' && !!o.beforeId;
+  return !(hasAfter && hasBefore);
+}
+
+/** v4 요청의 선택 필드(pageId·pageVersion·scope) — 있으면 형태를 강제하고, 없으면 관용한다. */
+function hasValidOptionalPageFields(req) {
+  if (req.pageId != null && (typeof req.pageId !== 'string' || !req.pageId)) return false;
+  if (req.pageVersion != null && (typeof req.pageVersion !== 'string' || !req.pageVersion)) return false;
+  if (req.scope != null && !['objects', 'page'].includes(req.scope)) return false;
+  return true;
+}
+
 export function validateRequest(req) {
   if (!req || typeof req !== 'object') return false;
   if (!AI_SCHEMA_VERSIONS.has(req.schemaVersion)) return false;
@@ -101,9 +148,11 @@ export function validateRequest(req) {
   if (!AI_ACTIONS.includes(req.action)) return false;
   if (!AI_STATUSES.includes(req.status ?? 'pending')) return false;
   // 형태-버전 정합: v1 = 단일 block 필수, v2 = 비어있지 않은 blocks[] 필수,
-  // v3 = 비어있지 않은 objects[](개체 ID 에코) 필수.
+  // v3·v4 = 비어있지 않은 objects[](개체 ID 에코) 필수. v4 는 pageId·pageVersion·scope 를
+  // 선택적으로 더 싣는다(있으면 형태 강제 — 요청 형태가 바뀌는 건 응답이 아니라 이쪽뿐이다).
   if (req.schemaVersion === 1) return isValidBlock(req.block);
   if (req.schemaVersion === 2) return Array.isArray(req.blocks) && req.blocks.length > 0 && req.blocks.every(isValidBlock);
+  if (req.schemaVersion === 4 && !hasValidOptionalPageFields(req)) return false;
   return Array.isArray(req.objects) && req.objects.length > 0 && req.objects.every(isValidObjectItem);
 }
 
@@ -111,13 +160,17 @@ export function validateResponse(res) {
   if (!res || typeof res !== 'object') return false;
   if (!AI_SCHEMA_VERSIONS.has(res.schemaVersion)) return false;
   if (typeof res.id !== 'string' || !res.id) return false;
-  // v1 = 단일 html, v2 = blocks[{slot:정수≥0, html:비어있지 않음}], v3 = objects[{id,object}].
+  // v1 = 단일 html, v2 = blocks[{slot:정수≥0, html:비어있지 않음}], v3 = objects[{id,object}],
+  // v4 = ops[{op,…}](개수·종류가 자유로운 계획).
   if (res.schemaVersion === 1) return typeof res.html === 'string' && !!res.html.trim();
   if (res.schemaVersion === 2) {
     return Array.isArray(res.blocks) && res.blocks.length > 0 && res.blocks.every((b) =>
       !!b && typeof b === 'object'
       && Number.isInteger(b.slot) && b.slot >= 0
       && typeof b.html === 'string' && !!b.html.trim());
+  }
+  if (res.schemaVersion === 4) {
+    return Array.isArray(res.ops) && res.ops.length > 0 && res.ops.every(isValidOpItem);
   }
   return Array.isArray(res.objects) && res.objects.length > 0 && res.objects.every(isValidEchoItem);
 }
