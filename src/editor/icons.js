@@ -46,6 +46,7 @@ export const ICONS = Object.freeze({
   grid: SHELL('<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>'),
   ruler: SHELL('<path d="M3 17 17 3l4 4L7 21z"/><path d="M7.5 12.5 10 15"/><path d="M11 9l2.5 2.5"/><path d="M14.5 5.5 17 8"/>'),
   panelLeft: SHELL('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>'),
+  panelRight: SHELL('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/>'),
   sendBack: SHELL('<rect x="3" y="3" width="12" height="12" rx="1"/><path d="M9 21h9a2 2 0 0 0 2-2V9"/>'),
   columns: SHELL('<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/>'),
   move: SHELL('<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>'),

@@ -300,6 +300,31 @@ function applyViewState() {
   canvasInline.refreshDecoration();
 }
 
+// ── 좌/우 패널 접기(캔버스 공간 확보) — 뷰 상태라 localStorage 로만 보관한다(문서/ manifest 아님,
+// 원칙 4 경계). 셸 그리드 변수만 바꾸므로 iframe 내부=인쇄 산출은 불변(R2-1). ──
+const PANEL_STORAGE_KEYS = { left: 'wg-left-collapsed', right: 'wg-right-collapsed' };
+const workspaceEl = document.getElementById('workspace');
+function readPanelCollapsed(side) {
+  try { return localStorage.getItem(PANEL_STORAGE_KEYS[side]) === '1'; } catch { return false; }
+}
+function applyPanelState() {
+  for (const side of ['left', 'right']) {
+    const collapsed = readPanelCollapsed(side);
+    workspaceEl.classList.toggle(`${side}-collapsed`, collapsed);
+    document.getElementById(`tb-toggle-${side}`)?.classList.toggle('active', collapsed);
+  }
+  fitFrame(frames.teacher);
+}
+function togglePanel(side) {
+  if (side !== 'left' && side !== 'right') return;
+  const collapsed = workspaceEl.classList.toggle(`${side}-collapsed`);
+  try { localStorage.setItem(PANEL_STORAGE_KEYS[side], collapsed ? '1' : '0'); } catch { /* 저장 불가 환경 무시 */ }
+  document.getElementById(`tb-toggle-${side}`)?.classList.toggle('active', collapsed);
+  fitFrame(frames.teacher);
+  // 좌 패널을 펼칠 때 썸네일을 다시 그린다 — display:none 동안엔 rect 가 0 이라 폴백 치수로 그려졌을 수 있다.
+  if (side === 'left' && !collapsed) renderPageThumbs();
+}
+
 /** teacher iframe 로드마다 조작 리스너를 새로 배선한다. */
 function initTeacherEditing(f, { resetHistory = true } = {}) {
   const doc = f.contentDocument;
@@ -805,6 +830,7 @@ const contextToolbar = createContextToolbar({
     const next = ObjOps.reorderFloat(core.getDocument(), id, mode);
     applyDocOp(next, { selectId: id });
   },
+  onTogglePanel: (side) => togglePanel(side),
 });
 
 const inspector = createInspector({
@@ -929,6 +955,7 @@ await ensureFrame('teacher');
 await setMode(location.hash === '#student' ? 'student' : 'teacher');
 // #4: 프레임이 보이게 된 뒤(레이아웃 확정) 썸네일을 다시 그린다 — 최초 렌더는 hidden 이라 0 치수였다.
 requestAnimationFrame(() => renderPageThumbs());
+applyPanelState(); // 저장된 좌/우 패널 접힘 상태를 복원(localStorage, 문서 아님)
 try {
   if (sessionStorage.getItem('wgReflowAfterPaperChange') === '1') {
     sessionStorage.removeItem('wgReflowAfterPaperChange');

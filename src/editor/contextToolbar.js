@@ -93,6 +93,8 @@ export function createContextToolbar(opts) {
   const middle = root.querySelector('#tb-middle');
   const right = root.querySelector('#tb-right');
 
+  // 왼쪽 패널(페이지·삽입·내 블록) 접기/펼치기 — 캔버스 공간 확보. 상태·지속은 editor.js 소유.
+  left.appendChild(btn({ id: 'tb-toggle-left', title: '왼쪽 패널 접기/펼치기', iconName: 'panelLeft', onClick: () => opts.onTogglePanel?.('left') }));
   left.appendChild(btn({ id: 'tb-undo', title: '실행 취소 (Ctrl+Z)', iconName: 'undo', onClick: () => { history.undo(); opts.onStateChange?.(); } }));
   left.appendChild(btn({ id: 'tb-redo', title: '다시 실행 (Ctrl+Shift+Z)', iconName: 'redo', onClick: () => { history.redo(); opts.onStateChange?.(); } }));
 
@@ -145,6 +147,9 @@ export function createContextToolbar(opts) {
   opRow.appendChild(opSlider);
   viewMenu.appendChild(opRow);
   right.appendChild(viewMenu);
+  // 오른쪽 패널(인스펙터) 접기/펼치기 — 툴바 우측 끝에 둔다(인스펙터는 replaceChildren 로 내용을
+  // 갈아끼우므로 패널 내부에 정적 토글을 둘 수 없다).
+  right.appendChild(btn({ id: 'tb-toggle-right', title: '오른쪽 패널 접기/펼치기', iconName: 'panelRight', onClick: () => opts.onTogglePanel?.('right') }));
   // 위치(#보기): CSS 매직 offset 대신 보기 버튼 rect 기준으로 버튼 바로 아래에 고정 배치한다.
   function openViewMenu() {
     const r = viewBtn.getBoundingClientRect();
