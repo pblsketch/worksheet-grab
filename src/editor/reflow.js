@@ -154,7 +154,7 @@ export async function measureFlow(flatFlow, { renderMeta, styleTag, timeoutMs = 
 export function applyReflow(document, heights, opts = {}) {
   const srcPages = Array.isArray(document?.pages) ? document.pages : [];
   const flatFlow = flattenFlow(document);
-  const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0 }));
+  const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0, breakBefore: obj.type === 'page-break' }));
   const availableHeightPx = computeAvailableHeightPx(document?.paper ?? null);
   const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, { tolerancePx: opts.tolerancePx });
   const pages = rebuildPaginatedPages(

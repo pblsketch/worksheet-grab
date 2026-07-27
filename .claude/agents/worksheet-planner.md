@@ -25,6 +25,8 @@ model: opus
   쓴다 — 구 블록 이름(header/directive/variable-table 등)을 자유 표기하지 않아 designer 가 재번역할
   필요가 없게 한다. `type:'question'` 블록은 `questionType`에 qtype 7종(`multiple-choice`·
   `short-answer`·`essay`·`fill-blank`·`true-false`·`matching`·`ordering`) 중 하나만 쓴다. 카탈로그
+  (카탈로그에는 레이아웃 전용 2종 `spacer`·`page-break` 이 더 있으나 **교사가 편집기에서 넣는**
+  조판 도구라 아웃라인 어휘에는 넣지 않는다.)
   10종 어디에도 안 맞는 표현은 `type:'richtext'`로 담고 `purpose`에 원래 의도(예: `svg-graph`·
   `formula`)를 남긴다(신규 타입 발명 금지 — `worksheet-design/references/block-library.md` 매핑 참고).
 

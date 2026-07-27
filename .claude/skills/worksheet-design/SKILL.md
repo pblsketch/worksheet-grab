@@ -16,7 +16,11 @@ description: 활동지 아웃라인을 닫힌 카탈로그 10종의 **개체 트
   이 세 산출물이 갈라지면 무조건 코드(`ObjectCatalog.js`/`validateObjectShape.js`)가 맞다.
 - **검증**: `src/usecases/ValidateObjectTree.js` — 저작·편집 후 개체 트리가 이 검증을 PASS해야 한다.
 
-## 닫힌 카탈로그 10종 (신규 타입 창설 금지)
+## 닫힌 카탈로그 — 저작 대상 10종 (신규 타입 창설 금지)
+
+> 카탈로그 자체는 12종이다. 나머지 2종(`spacer` 빈 공간 · `page-break` 페이지 나누기)은
+> **레이아웃 전용이며 교사가 편집기에서 넣는다** — 저작 단계에서 만들어 내지 말고, 기존 문서에
+> 이미 있으면 그대로 보존하라.
 `title` · `passage-slot` · `question`(qtype 7종: multiple-choice/short-answer/essay/fill-blank/
 true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정) · `image-slot` ·
 `answer-area`(`style:line|box|dots`) · `divider` · `shape`(float 전용, **디자이너는 만들지 않음** —

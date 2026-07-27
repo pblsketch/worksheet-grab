@@ -403,9 +403,10 @@ test('US-18 신 UI 셸: 앱 바·컨텍스트 툴바 상태 교체·좌 3탭·�
     assert.equal(ds(dom, 'insp-on-clear'), 'document');
     assert.equal(ds(dom, 'review-list-present'), 'true');
 
-    // 슬래시 메뉴 — 닫힌 카탈로그만(카탈로그 10종+qtype 7종 = 16항목), 삽입 후 개체 증가
+    // 슬래시 메뉴 — 닫힌 카탈로그만. 콘텐츠 10종(question 은 qtype 7종으로 펼쳐져 +6) +
+    // 레이아웃 2종(빈 공간·페이지 나누기, 2026-07-28 신설) = 18항목.
     assert.equal(ds(dom, 'slash-open-captured'), 'true', '`/` 입력 시 슬래시 메뉴가 열림');
-    assert.equal(ds(dom, 'slash-item-count'), '16', '슬래시 메뉴는 닫힌 카탈로그(10종+qtype 7종=16)만 노출');
+    assert.equal(ds(dom, 'slash-item-count'), '18', '슬래시 메뉴는 닫힌 카탈로그(12종 · question 은 qtype 7종 전개 = 18)만 노출');
     assert.equal(ds(dom, 'slash-insert-increased'), 'true', '슬래시 메뉴 항목 클릭이 개체를 삽입');
   } finally {
     await new Promise((r) => server.close(r));

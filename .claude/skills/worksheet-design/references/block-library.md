@@ -68,6 +68,9 @@ PoC(`poc/worksheet.html` 국어, `poc/science.html` 과학)와 구 매니페스�
 `answer-area`(`style:'box'`, 학생이 채울 빈 여백), 텍스트가 채워져 있으면 `richtext`(정적 강조 텍스트).
 
 ## 매핑표 갱신 규칙
+(카탈로그의 나머지 2종 `spacer`·`page-break` 은 레이아웃 전용 — 교사가 편집기에서 넣으므로 이 매핑표
+대상이 아니다.)
+
 새 패턴을 다뤄야 하면: (1) 위 10종 중 구조가 합치하는 타입이 있는지 먼저 확인, (2) 없으면 `richtext`로
 흡수하고 `sourceType`에 이름을 남긴 뒤 이 문서에 임시 항목으로 등재, (3) `03_manifest.json`에
 `escapeHatch: true`로 표시해 리뷰 대상으로 넘긴다. 카탈로그 자체를 확장하는 결정은 이 스킬의 권한 밖이다

@@ -31,7 +31,7 @@ export const DEFAULT_TOLERANCE_PX = 2;
  * 개체 혼자서도 가용 높이를 넘는 경우(예: 매우 큰 표)는 그 개체 하나만 담은 페이지로 "최선을 다해"
  * 배치한다(분할이 불가능하므로 넘침 자체는 허용 — 인쇄 CSS 의 break-inside:avoid 가 조판 안전망).
  *
- * @param {Array<{id:string, heightPx:number}>} items 순서대로 배치할 flow 개체(이미 평평한 목록)
+ * @param {Array<{id:string, heightPx:number, breakBefore?:boolean}>} items 순서대로 배치할 flow 개체(평평한 목록). breakBefore 는 page-break 개체 표식.
  * @param {number} availableHeightPx 페이지 1개의 가용 콘텐츠 높이(px, 상하 여백 제외)
  * @param {{tolerancePx?:number}} [opts]
  * @returns {{pageOfId:Record<string,number>, pageOfIndex:number[], pageCount:number}}
@@ -50,6 +50,16 @@ export function assignFlowToPages(items, availableHeightPx, opts = {}) {
   let cursor = 0;
   let page = 0;
   for (const item of items) {
+    // page-break 개체: 여기서 페이지를 강제로 끊는다(높이 0). 그리디 패킹만으로는 "여기서
+    // 끊어라"를 표현할 방법이 없어 교사가 의도한 페이지 구성이 매 리플로우마다 되돌아갔다.
+    // ⚠ 페이지 '용량'을 늘리지는 않는다 — 끊는 위치만 정한다. 넘치는 분량은 여전히 뒤로 밀린다.
+    // 이미 새 페이지의 첫 자리(cursor===0)면 빈 페이지를 만들지 않도록 건너뛴다.
+    if (item?.breakBefore) {
+      if (cursor > 0) { page += 1; cursor = 0; }
+      pageOfIndex.push(page);
+      if (item?.id != null) pageOfId[item.id] = page;
+      continue;
+    }
     const h = Math.max(0, Number(item?.heightPx) || 0);
     // cursor>0(현재 페이지에 이미 개체가 있음) 이고, 더하면 허용오차를 넘어 넘치면 -> 통째로 다음
     // 페이지로. cursor===0(새 페이지의 첫 개체)이면 그 개체 혼자 용량을 넘겨도 분할 없이 그대로
@@ -175,7 +185,7 @@ export class PaginateObjectTree {
     // 측정은 어댑터 소관(document.fonts.ready + KaTeX onload 게이팅 이후에만 수행 — R2-1, 어댑터 계약).
     const { heights, gating } = await this.measurer.measure({ html, timeoutMs: opts.timeoutMs });
 
-    const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0 }));
+    const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0, breakBefore: obj.type === 'page-break' }));
     const availableHeightPx = computeAvailableHeightPx(meta.paper);
     const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, { tolerancePx: opts.tolerancePx });
 

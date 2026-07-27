@@ -66,6 +66,9 @@ export const CATALOG_ITEMS = Object.freeze([
   { key: 'divider', type: 'divider', label: '구분선', floatable: true },
   { key: 'passage-slot', type: 'passage-slot', label: '지문 슬롯', floatable: false },
   { key: 'std-box', type: 'std-box', label: '학습목표 박스', floatable: false },
+  // 레이아웃 전용 2종 — 내용이 아니라 조판 의도를 넣는다(둘 다 flow 전용).
+  { key: 'spacer', type: 'spacer', label: '빈 공간', floatable: false },
+  { key: 'page-break', type: 'page-break', label: '페이지 나누기', floatable: false },
 ]);
 
 export const QTYPE_LABELS = Object.freeze({
@@ -108,6 +111,9 @@ export function defaultFieldsFor(type, { qtype = 'short-answer' } = {}) {
     // std-box: objectives(학습목표, 저작 영역) 기본 1줄을 담아 삽입 즉시 "학습 목표" 박스로 보이게 한다
     // (2026-07-23 학습목표 표기 전환·사용자 피드백 #13). codes(성취기준 조회 참조)는 비워 시작한다.
     case 'std-box': return { codes: [], objectives: ['핵심 학습목표를 입력하세요 (~할 수 있다).'] };
+    // 20mm — 한 문단(약 2줄)에 해당하는 눈에 보이는 크기. 인스펙터에서 바로 조절한다.
+    case 'spacer': return { heightMm: 20 };
+    case 'page-break': return {};
     default: throw new Error(`objectFactory: 닫힌 카탈로그 밖 타입: ${type}`);
   }
 }

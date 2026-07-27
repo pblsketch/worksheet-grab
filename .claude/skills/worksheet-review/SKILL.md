@@ -5,7 +5,7 @@ description: 활동지 개체 트리(+렌더 산출)를 내보내기 전에 검�
 
 # worksheet-review (활동지 검수 게이트)
 
-내보내기 직전의 마지막 방어선이다. **모호한 지적은 금지** — 무엇이·어디서·왜·어떻게 고칠지를 적는다. 입력은 **개체 트리 JSON**(닫힌 카탈로그 10종, `ValidateObjectTree` 스키마) + 렌더 산출(student/teacher HTML)이다. 검수는 **2층 체계**다 — 1층은 코드가 결정적으로 판정하고, 2층은 코드로 못 잡는 항목을 렌더 실측으로 reviewer가 판단한다.
+내보내기 직전의 마지막 방어선이다. **모호한 지적은 금지** — 무엇이·어디서·왜·어떻게 고칠지를 적는다. 입력은 **개체 트리 JSON**(닫힌 카탈로그 12종 — 콘텐츠 10 + 레이아웃 2, `ValidateObjectTree` 스키마) + 렌더 산출(student/teacher HTML)이다. 검수는 **2층 체계**다 — 1층은 코드가 결정적으로 판정하고, 2층은 코드로 못 잡는 항목을 렌더 실측으로 reviewer가 판단한다.
 
 ## 1층 — 구조 검증 (결정적, 코드 판정 — reviewer는 실행·해석만)
 `node --test` 로 미리 검증된 순수 함수를 그대로 실행한다. 새 규칙을 직접 만들지 않는다.
@@ -16,7 +16,8 @@ import { ValidateWorksheet } from './src/usecases/ValidateWorksheet.js';
 const structural = new ValidateObjectTree().execute(objectTreeDoc);      // 구조만
 const gated = new ValidateWorksheet().execute(objectTreeDoc, renderedHtml); // 구조 + 2층 렌더 실측(선택)
 ```
-- **타입**: 닫힌 카탈로그(10종) 밖 타입 없는가(`unknown-type`).
+- **타입**: 닫힌 카탈로그(12종 — 콘텐츠 10 + 레이아웃 2) 밖 타입 없는가(`unknown-type`).
+  레이아웃 2종(`spacer`·`page-break`)은 교사가 편집기에서 넣는 조판 도구라 내용 판정 대상이 아니다.
 - **슬롯 불변**: `std-box`(성취기준 원문)에 **카탈로그 밖** 필드가 없는가(`slot-invariant`) — 원문 창작·변형은 이 규칙으로 자동 FAIL(원칙 3 무변경). `passage-slot`의 카탈로그 필드(`title`·`bodyHtml`·`source`·`footnotes`)는 교사 직접 입력 또는 사용자가 명시 요청한 AI 창작/재구성으로 채워지는 정상 필드라 여기 걸리지 않는다(3층 정책, 2026-07-23 2차 델타) — 저작권은 아래 advisory 로만 다룬다(더 이상 FAIL 사유 아님).
 - **answer 위치**: `answer:true`가 허용된 타입에만 실렸는가.
 - **표 분할불가**: `table.splittable === false`인가(`table-splittable-violation`).

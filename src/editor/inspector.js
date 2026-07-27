@@ -33,6 +33,7 @@ const ALIGN_BUTTONS = [
 const TYPE_LABELS = Object.freeze({
   title: '제목', question: '문항', table: '표', 'image-slot': '이미지', 'answer-area': '답란',
   richtext: '자유 텍스트', shape: '도형', divider: '구분선', 'passage-slot': '지문 슬롯', 'std-box': '학습목표 박스',
+  spacer: '빈 공간', 'page-break': '페이지 나누기',
 });
 // placement(flow/float) → 사용자용 한국어(#9): float=자유 배치, flow=본문 배치(교사 친화 표현, US-E4).
 const PLACEMENT_LABEL = Object.freeze({ float: '자유 배치', flow: '본문 배치' });
@@ -251,6 +252,20 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         const label = el('input', { type: 'text', id: 'insp-aa-label', value: obj.label || '' });
         label.addEventListener('change', () => patch({ label: label.value }));
         root.appendChild(field('라벨', label));
+        break;
+      }
+      case 'spacer': {
+        // 높이는 인쇄에도 그대로 반영된다(렌더가 인라인 height 로 방출 — 편집==인쇄).
+        const hMm = el('input', { type: 'number', min: '1', step: '1', id: 'insp-spacer-height', value: String(obj.heightMm || 20) });
+        hMm.addEventListener('change', () => patch({ heightMm: Math.max(1, Number(hMm.value) || 20) }));
+        root.appendChild(field('높이(mm)', hMm));
+        const sLabel = el('input', { type: 'text', id: 'insp-spacer-label', value: obj.label || '' });
+        sLabel.addEventListener('change', () => patch({ label: sLabel.value }));
+        root.appendChild(field('설명(화면 전용)', sLabel));
+        break;
+      }
+      case 'page-break': {
+        root.appendChild(el('p', { class: 'insp-note', text: '이 지점에서 페이지가 나뉩니다. 뒤따르는 내용이 새 페이지 첫머리가 되고 나머지는 뒤로 밀립니다 — 페이지가 담을 수 있는 양 자체가 늘지는 않습니다.' }));
         break;
       }
       case 'shape': {

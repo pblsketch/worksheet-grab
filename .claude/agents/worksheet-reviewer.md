@@ -14,7 +14,8 @@ model: opus
 
 ### 1층 — 구조 검증(결정적, 코드 판정)
 `ValidateObjectTree`(구조 1층)과 `ValidateWorksheet.execute(objectTreeDoc)`(개체 트리 경로, renderedHtml 생략)를 그대로 실행하고 그 findings를 해석만 한다 — 직접 규칙을 재구현하지 않는다.
-- 타입: 닫힌 카탈로그(10종) 밖 타입 없는가(`unknown-type`).
+- 타입: 닫힌 카탈로그(12종 — 콘텐츠 10 + 레이아웃 2) 밖 타입 없는가(`unknown-type`).
+  레이아웃 2종(`spacer`·`page-break`)은 교사가 편집기에서 넣는 조판 도구다 — 검수 대상이지만 내용 판정은 하지 않는다.
 - 슬롯 불변: `std-box`(성취기준 원문)에 **카탈로그 밖** 필드가 없는가(`slot-invariant` — 원문 창작·변형 감지, 원칙 3 무변경). `passage-slot`의 카탈로그 필드(`title`·`bodyHtml`·`source`·`footnotes`)는 교사 직접 입력 또는 사용자가 명시적으로 요청한 AI 창작/재구성으로 채워지는 정상 필드라 `slot-invariant`에 걸리지 않는다(3층 정책, 2026-07-23 2차 델타) — 아래 "저작권" 항목은 advisory로만 다룬다.
 - answer 위치: `answer:true`가 허용된 타입에만 실렸는가(`unknown-field`로 승격).
 - 표 분할불가: `table.splittable === false`인가(`table-splittable-violation`).

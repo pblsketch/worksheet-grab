@@ -9,14 +9,14 @@
 
 ## 0. 한 줄 요약
 
-editor-v4 문서 모델은 **닫힌 카탈로그 10종**의 타입 있는 개체 트리다. `title`·`passage-slot`·`question`
+editor-v4 문서 모델은 **닫힌 카탈로그 12종**(콘텐츠 10 + 레이아웃 2)의 타입 있는 개체 트리다. `title`·`passage-slot`·`question`
 (qtype 7종)·`table`(분할불가)·`image-slot`·`answer-area`·`divider`·`shape`·`richtext`(탈출구)·`std-box`
 (성취기준 주입 전용). 공통 속성은 `{id, type, answer?, placement:'flow'|'float', rect?}`. 문서는
 `pages:[{id, role?, flow, float}]`를 사용하며 페이지 `id`도 문서 안에서 유일한 필수 문자열이다. 문서
 수준 `pagination:'scaffold'|'paginated'`(R2-4)가 페이지네이션 권한(D-A: Chrome 측정 패스 단일 귀속)의
 영속 경계를 표시한다.
 
-## 1. 닫힌 카탈로그 10종
+## 1. 닫힌 카탈로그 12종 (콘텐츠 10 + 레이아웃 2)
 
 | type | 설명 | placement | 필수 필드(공통 제외) | 비고 |
 |---|---|---|---|---|
@@ -30,6 +30,8 @@ editor-v4 문서 모델은 **닫힌 카탈로그 10종**의 타입 있는 개체
 | `shape` | 자유 도형 | float 고정 | `rect`, `shapeKind` | ko.json 미검증(§6) |
 | `richtext` | 탈출구(무손실 흡수) | flow\|float | `html` | 개체화율 게이트(S1.3) 분모 포함·분자 제외 |
 | `std-box` | 성취기준 원문 주입 전용 | flow 고정 | 없음(`codes` 선택) | 슬롯 불변(§4) |
+| `spacer` | 빈 공간(레이아웃 전용) | flow 고정 | `heightMm` | 편집기 전용 — AI 저작 어휘 아님(§11) |
+| `page-break` | 페이지 나누기(레이아웃 전용) | flow 고정 | 없음 | 편집기 전용 — 페이지 용량을 늘리지 않는다(§11) |
 
 공통 속성: `id`(string, 필수) · `type`(enum 10종, 필수) · `placement`(`'flow'|'float'`, 필수) ·
 `rect`(`{xMm,yMm,wMm,hMm}`, `placement:'float'`일 때만 필수·`'flow'`일 때는 존재 자체가 위반) ·
@@ -158,3 +160,32 @@ test/unit/validate-object-tree.test.js S1.2 수용 기준(PASS + 위반 4계열 
   `pages[]` 영속화).
 - **M2/S3.5 이후**: `ExportDocument`가 `checkExportGate`를 fail-closed 게이트로 승격.
 - **M4**: float z-order 클릭 가로채기 UX 결정(§8), qtype별 인스펙터 UI, 실제 드래그·리플로우 편집기.
+
+
+## 11. 레이아웃 전용 2종 추가 (2026-07-28 — 동결본 이후 델타)
+
+`spacer`(빈 공간) · `page-break`(페이지 나누기)를 신설해 카탈로그가 10 → **12종**이 됐다.
+"신규 타입 창설 금지"(R5)의 취지는 *쓸모가 겹치는 타입을 늘리지 말라*는 것인데, 이 둘은 기존
+어느 타입도 대신하지 못한다.
+
+**왜 필요했나(실사용 근거)**
+- `spacer` — flow→float **실측 승격**이 들어오면서 개체가 흐름에서 빠지면 아래 내용이 그만큼
+  위로 당겨진다. 교사가 그 자리를 되찾으려 해도 flow 에는 "빈 공간"이라는 위치가 없다(순서만
+  있고 좌표가 없다). 그래서 자리를 **차지하는 개체**가 있어야 한다.
+- `page-break` — 페이지 소속은 `assignFlowToPages` 의 그리디 패킹이 매번 다시 계산하는 **파생값**
+  이다. 교사가 개체를 다른 쪽으로 끌어다 놔도 다음 리플로우가 앞 페이지의 남은 자리로 도로 당겨
+  올린다. "여기서 끊어라"를 표현할 어휘가 없었다.
+
+**계약**
+- 둘 다 **flow 전용**. float 은 흐름을 밀지 않으므로 빈 공간이 성립하지 않고, 페이지 경계와도 무관하다.
+- `spacer.heightMm` 은 렌더가 **인라인 height 로 방출**한다 — 편집 측정과 인쇄가 같은 선언을 써야
+  R2-1(편집==인쇄)이 성립한다. 편집 전용 CSS 로 높이를 주면 둘이 갈린다.
+- `page-break` 는 높이 0 이고 **CSS `break-before` 를 쓰지 않는다.** 페이지 경계의 단일 권한은
+  측정 패스이며(D-A), CSS 개행을 섞으면 `pages[]` 와 실제 인쇄가 어긋난다. 개행은
+  `assignFlowToPages` 가 `breakBefore` 표식을 만나 커서를 옮기는 것으로만 일어난다.
+  ⚠ **페이지 용량을 늘리지 않는다** — 끊는 위치만 정하고, 넘치는 분량은 여전히 뒤로 밀린다.
+- 두 `items` 구성 지점(`src/editor/reflow.js` 브라우저 측 · `PaginateObjectTree` Chrome 측정 측)이
+  `breakBefore` 를 **대칭으로** 실어야 한다 — 한쪽만 고치면 편집과 인쇄의 페이지 구성이 갈린다.
+- **AI 저작 어휘에는 넣지 않는다.** designer/planner 는 계속 콘텐츠 10종만 저작하고, 이 둘은 교사가
+  편집기에서 삽입한다(원칙 3 의 연장 — AI 는 내용을 만들고 조판은 교사와 리플로우가 정한다).
+  다만 기존 문서에 있으면 **보존**한다.

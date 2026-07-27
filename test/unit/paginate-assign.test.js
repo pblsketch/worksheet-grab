@@ -132,3 +132,71 @@ test('입력 검증: availableHeightPx 가 양수 아니면 던짐', () => {
   assert.throws(() => assignFlowToPages([], -10), /availableHeightPx/);
   assert.throws(() => assignFlowToPages([], NaN), /availableHeightPx/);
 });
+
+// ── page-break: "여기서 끊어라"를 표현하는 유일한 어휘(2026-07-28 신설) ──────────
+// 그리디 패킹만 있으면 교사가 개체를 다른 쪽으로 끌어다 놔도 다음 리플로우가 앞 페이지의 남은
+// 자리로 도로 당겨 올린다. 페이지 '용량'을 늘리는 기능이 아니라 **끊는 위치**를 정하는 표식이다.
+
+test('page-break: 자리가 남아도 그 지점에서 페이지를 끊는다', () => {
+  const items = [
+    { id: 'a', heightPx: 100 },
+    { id: 'pb', heightPx: 0, breakBefore: true },
+    { id: 'b', heightPx: 100 },
+  ];
+  const { pageOfId, pageOfIndex, pageCount } = assignFlowToPages(items, 1000);
+  assert.equal(pageCount, 2, '가용 높이가 남아도 강제 개행');
+  assert.deepEqual(pageOfIndex, [0, 1, 1]);
+  assert.deepEqual(pageOfId, { a: 0, pb: 1, b: 1 });
+});
+
+test('page-break: 높이를 차지하지 않는다(뒤 개체 용량에 영향 없음)', () => {
+  // 가용 300: 개행 뒤 b(150)+c(140)=290 이 한 페이지에 들어가야 한다 — 표식이 높이를 먹으면 갈린다.
+  const items = [
+    { id: 'a', heightPx: 50 },
+    { id: 'pb', heightPx: 0, breakBefore: true },
+    { id: 'b', heightPx: 150 },
+    { id: 'c', heightPx: 140 },
+  ];
+  const { pageOfIndex, pageCount } = assignFlowToPages(items, 300);
+  assert.equal(pageCount, 2);
+  assert.deepEqual(pageOfIndex, [0, 1, 1, 1]);
+});
+
+test('page-break: 이미 새 페이지 첫 자리면 빈 페이지를 만들지 않는다', () => {
+  // 연속 개행·문서 맨 앞 개행이 빈 페이지를 낳으면 인쇄에 백지가 섞인다.
+  const head = assignFlowToPages([
+    { id: 'pb', heightPx: 0, breakBefore: true },
+    { id: 'a', heightPx: 100 },
+  ], 1000);
+  assert.equal(head.pageCount, 1, '문서 맨 앞 개행은 빈 1쪽을 만들지 않는다');
+  assert.deepEqual(head.pageOfIndex, [0, 0]);
+
+  const twice = assignFlowToPages([
+    { id: 'a', heightPx: 100 },
+    { id: 'pb1', heightPx: 0, breakBefore: true },
+    { id: 'pb2', heightPx: 0, breakBefore: true },
+    { id: 'b', heightPx: 100 },
+  ], 1000);
+  assert.equal(twice.pageCount, 2, '연속 개행은 한 번만 끊는다');
+  assert.deepEqual(twice.pageOfIndex, [0, 1, 1, 1]);
+});
+
+test('page-break: 용량을 늘리지는 않는다 — 넘치는 분량은 여전히 뒤로 밀린다', () => {
+  // 가용 300, 개행 뒤 b(200)+c(200)=400 -> c 는 또 다음 페이지로. "꽉 찬 쪽에 더 넣기"는 불가능.
+  const items = [
+    { id: 'a', heightPx: 50 },
+    { id: 'pb', heightPx: 0, breakBefore: true },
+    { id: 'b', heightPx: 200 },
+    { id: 'c', heightPx: 200 },
+  ];
+  const { pageOfIndex, pageCount } = assignFlowToPages(items, 300);
+  assert.equal(pageCount, 3);
+  assert.deepEqual(pageOfIndex, [0, 1, 1, 2]);
+});
+
+test('breakBefore 없는 items 는 종전과 완전히 동일(하위호환)', () => {
+  const items = [{ id: 'a', heightPx: 150 }, { id: 'b', heightPx: 140 }, { id: 'c', heightPx: 50 }];
+  const before = assignFlowToPages(items, 300);
+  const withFalse = assignFlowToPages(items.map((i) => ({ ...i, breakBefore: false })), 300);
+  assert.deepEqual(withFalse, before);
+});

@@ -88,9 +88,25 @@ export const TYPE_SPECS = Object.freeze({
     // 초안 저작 시점에는 이 필드를 채운다(2026-07-23 학습목표 표기 전환).
     optional: Object.freeze(['codes', 'objectives']),
   }),
+  // ── 레이아웃 전용 2종(2026-07-28 신설) ─────────────────────────────────────
+  // 둘 다 "내용"이 아니라 **조판 의도**를 담는다. flow 전용인 이유가 각각 있다(아래 주석).
+  // 교사가 편집기에서 삽입하는 도구이며, designer AI 의 저작 어휘에는 넣지 않는다
+  // (AI 는 활동 내용을 만들고 조판은 리플로우와 교사가 정한다 — 원칙 3 의 연장).
+  'spacer': Object.freeze({
+    // float 은 흐름을 밀지 않으므로 "빈 공간"이 성립하지 않는다 — flow 전용.
+    placements: Object.freeze(['flow']),
+    required: Object.freeze(['heightMm']),
+    optional: Object.freeze(['label']),
+  }),
+  'page-break': Object.freeze({
+    // 페이지 경계를 강제하는 표식. 높이 0 이라 인쇄에는 아무것도 남기지 않는다.
+    placements: Object.freeze(['flow']),
+    required: Object.freeze([]),
+    optional: Object.freeze([]),
+  }),
 });
 
-/** 닫힌 카탈로그(10종). TYPE_SPECS 키 순서를 그대로 노출. */
+/** 닫힌 카탈로그(12종 — 콘텐츠 10 + 레이아웃 2). TYPE_SPECS 키 순서를 그대로 노출. */
 export const OBJECT_TYPES = Object.freeze(Object.keys(TYPE_SPECS));
 
 /**

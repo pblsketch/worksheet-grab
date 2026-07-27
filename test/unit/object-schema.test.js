@@ -18,10 +18,17 @@ const MIN_FIXTURES = {
   'shape': { id: 's1', type: 'shape', placement: 'float', rect: { xMm: 10, yMm: 10, wMm: 20, hMm: 5 }, shapeKind: 'rect' },
   'richtext': { id: 'r1', type: 'richtext', placement: 'flow', html: '<p>본문</p>' },
   'std-box': { id: 'sb1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] },
+  // 레이아웃 전용 2종(2026-07-28) — 내용이 아니라 조판 의도를 담는다. 둘 다 flow 전용.
+  'spacer': { id: 'sp1', type: 'spacer', placement: 'flow', heightMm: 20 },
+  'page-break': { id: 'pb1', type: 'page-break', placement: 'flow' },
 };
 
-test('닫힌 카탈로그는 10종이며 각 타입 최소 픽스처가 PASS', () => {
-  assert.equal(OBJECT_TYPES.length, 10);
+test('닫힌 카탈로그는 12종이며 각 타입 최소 픽스처가 PASS', () => {
+  // 10 → 12: spacer·page-break 신설(레이아웃 전용). 카탈로그를 닫아 두는 원칙(R5)은 "쓸모가
+  // 겹치는 타입을 늘리지 말라"는 뜻이고, 이 둘은 기존 어느 타입도 대신하지 못한다 —
+  // 빈 공간은 승격이 비운 자리를 되찾는 수단이고, 페이지 나누기는 "여기서 끊어라"를 표현할
+  // 유일한 어휘다(그리디 패킹만으로는 교사의 페이지 구성 의도가 매 리플로우마다 되돌아갔다).
+  assert.equal(OBJECT_TYPES.length, 12);
   for (const type of OBJECT_TYPES) {
     const fixture = MIN_FIXTURES[type];
     assert.ok(fixture, `${type} 최소 픽스처가 준비되어야 함`);

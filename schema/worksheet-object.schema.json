@@ -78,7 +78,9 @@
         { "$ref": "#/$defs/dividerObject" },
         { "$ref": "#/$defs/shapeObject" },
         { "$ref": "#/$defs/richtextObject" },
-        { "$ref": "#/$defs/stdBoxObject" }
+        { "$ref": "#/$defs/stdBoxObject" },
+        { "$ref": "#/$defs/spacerObject" },
+        { "$ref": "#/$defs/pageBreakObject" }
       ]
     },
     "floatObject": {
@@ -286,6 +288,32 @@
           "items": { "type": "string" },
           "description": "학습 목표 문장 배열(예: '전압과 전류의 관계를 설명할 수 있다.', 2~3개 권장). codes 와 달리 저작 영역이다 — 성취기준을 해당 차시 수업에 맞게 구체화한 문장으로, designer(또는 교사)가 codes 가 가리키는 성취기준에서 도출해 채운다(원칙 3은 '성취기준 원문' 창작 금지만 다루며 objectives 는 그 대상이 아니다). 비어 있으면(하위호환) 렌더러가 현행 성취기준 박스를 그대로 표시한다."
         }
+      },
+      "additionalProperties": false
+    },
+
+    "spacerObject": {
+      "type": "object",
+      "description": "빈 공간(레이아웃 전용). 흐름에서 heightMm 만큼 자리를 차지하고 인쇄에는 아무것도 그리지 않는다. flow 전용 — float 은 흐름을 밀지 않으므로 '빈 공간'이 성립하지 않는다. 자유 배치로 승격된 개체가 비운 자리를 교사가 되찾을 때 쓴다.",
+      "required": ["id", "type", "placement", "heightMm"],
+      "properties": {
+        "id": { "$ref": "#/$defs/commonProps/id" },
+        "type": { "const": "spacer" },
+        "placement": { "const": "flow" },
+        "heightMm": { "type": "number", "exclusiveMinimum": 0, "description": "차지할 세로 높이(mm). 렌더가 height 로 그대로 방출하므로 편집 화면과 인쇄가 같은 높이를 쓴다(R2-1)." },
+        "label": { "type": "string", "description": "편집 화면에만 보이는 설명(인쇄 제외). 예: '오려붙이기 공간'." }
+      },
+      "additionalProperties": false
+    },
+
+    "pageBreakObject": {
+      "type": "object",
+      "description": "페이지 나누기(레이아웃 전용). 이 지점에서 페이지 경계를 강제한다 — 뒤따르는 개체가 새 페이지 첫머리가 되고 나머지는 뒤로 밀린다. 높이 0 이라 인쇄에는 아무것도 남기지 않는다. 페이지 '용량'을 늘리지는 못한다(그건 물리적 한계) — 어디서 끊을지를 정할 뿐이다.",
+      "required": ["id", "type", "placement"],
+      "properties": {
+        "id": { "$ref": "#/$defs/commonProps/id" },
+        "type": { "const": "page-break" },
+        "placement": { "const": "flow" }
       },
       "additionalProperties": false
     }

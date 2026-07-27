@@ -171,8 +171,10 @@ function renderByType(obj, ctx) {
     case 'shape': return renderShape(obj);
     case 'richtext': return renderRichtext(obj);
     case 'std-box': return renderStdBox(obj, ctx);
+    case 'spacer': return renderSpacer(obj);
+    case 'page-break': return renderPageBreak();
     default:
-      throw new Error(`RenderObjectTree: 닫힌 카탈로그(10종) 밖의 타입입니다: ${obj?.type}`);
+      throw new Error(`RenderObjectTree: 닫힌 카탈로그(12종) 밖의 타입입니다: ${obj?.type}`);
   }
 }
 
@@ -374,6 +376,30 @@ function renderAnswerArea(obj) {
 
 function renderDivider() {
   return '<hr class="divider">';
+}
+
+/**
+ * 빈 공간 — 흐름에서 heightMm 만큼 자리만 차지하고 아무것도 그리지 않는다.
+ * 높이를 인라인으로 방출하는 이유: 편집 화면과 인쇄가 **같은 선언**을 써야 R2-1(편집==인쇄)이
+ * 성립한다. 편집 전용 CSS 로 높이를 주면 측정과 인쇄가 갈린다.
+ * label 은 편집 화면 전용이라 data 속성으로만 싣는다(인쇄에 글자가 남지 않는다).
+ */
+function renderSpacer(obj) {
+  const h = Number(obj?.heightMm);
+  const mm = Number.isFinite(h) && h > 0 ? h : 10;
+  const label = obj?.label ? ` data-spacer-label="${escapeHtml(String(obj.label))}"` : '';
+  return `<div class="wg-spacer" style="height:${mm}mm"${label}></div>`;
+}
+
+/**
+ * 페이지 나누기 — 인쇄에는 아무것도 남기지 않는 높이 0 표식이다.
+ * 실제 개행은 페이지네이션(assignFlowToPages)이 이 개체를 만나면 커서를 다음 페이지로 옮겨서
+ * 일으킨다. 여기서 CSS `break-before` 를 쓰지 않는 이유: 페이지 경계의 단일 권한은 측정 패스이고
+ * (D-A), CSS 개행을 섞으면 pages[] 와 실제 인쇄가 어긋난다.
+ * 편집 화면 표식은 editorStyle 이 ::after 로 그린다(레이아웃 박스 불변 — 높이 0 유지).
+ */
+function renderPageBreak() {
+  return '<div class="wg-pagebreak" style="height:0"></div>';
 }
 
 // US-20 버그 수정: blocks.css `.wg-shape > * { stroke: var(--wg-stroke,#333); fill: var(--wg-fill,none); }`

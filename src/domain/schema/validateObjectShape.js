@@ -4,7 +4,7 @@ import { OBJECT_TYPES, QUESTION_TYPES, PLACEMENTS, TYPE_SPECS, AI_EXCLUDED_TYPES
 // FS/DOM/Chrome 무접촉 — ValidateObjectTree(usecase)가 트리 순회 중 개체마다 위임 호출한다.
 //
 // rule 코드:
-//   unknown-type              — type 이 닫힌 카탈로그(10종) 밖
+//   unknown-type              — type 이 닫힌 카탈로그(12종) 밖
 //   unknown-placement         — placement 가 flow|float 밖
 //   placement-not-allowed     — 해당 타입이 허용하지 않는 placement(예: title 에 float)
 //   rect-forbidden-in-flow    — placement:'flow' 인데 rect 존재(AI 는 구조만, 좌표는 만들지 않는다 — 원칙 3)
@@ -42,7 +42,7 @@ export function validateObjectShape(obj) {
   const { type, placement } = obj;
 
   if (!OBJECT_TYPES.includes(type)) {
-    findings.push({ rule: 'unknown-type', message: `닫힌 카탈로그(10종) 밖의 타입입니다: ${type}`, objectId: obj.id ?? null });
+    findings.push({ rule: 'unknown-type', message: `닫힌 카탈로그(12종) 밖의 타입입니다: ${type}`, objectId: obj.id ?? null });
     return { ok: false, findings }; // 타입 미상이면 이후 필드별 검사가 무의미하다.
   }
 

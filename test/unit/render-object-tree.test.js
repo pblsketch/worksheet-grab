@@ -7,7 +7,7 @@ import { RenderObjectTree } from '../../src/usecases/RenderObjectTree.js';
 
 const ASSETS = { paperCss: '/* paper */', blocksCss: '/* blocks */', themeCss: '/* theme */' };
 
-// object-schema.test.js 의 MIN_FIXTURES 와 동형 최소 픽스처(카탈로그 10종 1:1 대응).
+// object-schema.test.js 의 MIN_FIXTURES 와 동형 최소 픽스처(카탈로그 12종 1:1 대응).
 const MIN_FIXTURES = {
   'title': { id: 't1', type: 'title', placement: 'flow', text: '선풍기 토론 활동지' },
   'passage-slot': { id: 'p1', type: 'passage-slot', placement: 'flow', slotLabel: '［지문 삽입 슬롯］' },
@@ -19,6 +19,8 @@ const MIN_FIXTURES = {
   'shape': { id: 's1', type: 'shape', placement: 'float', rect: { xMm: 10, yMm: 10, wMm: 20, hMm: 5 }, shapeKind: 'rect' },
   'richtext': { id: 'r1', type: 'richtext', placement: 'flow', html: '<p>본문 텍스트</p>' },
   'std-box': { id: 'sb1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] },
+  'spacer': { id: 'sp1', type: 'spacer', placement: 'flow', heightMm: 20 },
+  'page-break': { id: 'pb1', type: 'page-break', placement: 'flow' },
 };
 
 function docWith(flow = [], float = []) {
@@ -78,7 +80,7 @@ test('answer 미지정 개체는 .answer 래퍼가 없다(오탐 방지)', () =>
   assert.ok(!html.includes('class="answer"'), 'answer 미지정 개체에 .answer 래퍼가 생기면 안 됨');
 });
 
-test('카탈로그 10종 각각 최소 렌더 스냅샷(예외 없이 렌더되고 핵심 텍스트/구조 포함)', () => {
+test('카탈로그 12종 각각 최소 렌더 스냅샷(예외 없이 렌더되고 핵심 텍스트/구조 포함)', () => {
   for (const [type, fixture] of Object.entries(MIN_FIXTURES)) {
     const document = fixture.placement === 'float' ? docWith([], [fixture]) : docWith([fixture]);
     const { html } = new RenderObjectTree().execute(document, ASSETS, { docTitle: `${type} 스냅샷` });
@@ -223,4 +225,44 @@ test('페이지 경계 honor — document.pages[] 개수를 그대로 따른다(
   const { html } = new RenderObjectTree().execute(document, ASSETS);
   const sheetCount = (html.match(/<section class="sheet">/g) || []).length;
   assert.equal(sheetCount, 3, 'pages[] 개수(3) 를 그대로 존중해야 함');
+});
+
+// ── 레이아웃 전용 2종(2026-07-28) ──────────────────────────────────────────────
+// 둘 다 인쇄에는 "보이는 것"이 없다. 그래서 검증 대상은 **높이 선언**이다 — 편집 측정과 인쇄가
+// 같은 인라인 값을 써야 R2-1(편집==인쇄)이 성립한다(편집 전용 CSS 로 높이를 주면 갈린다).
+
+test('spacer: heightMm 를 인라인 height 로 방출하고 내용은 비운다', () => {
+  const { html } = new RenderObjectTree().execute(
+    docWith([{ id: 'sp1', type: 'spacer', placement: 'flow', heightMm: 32.5 }]), ASSETS);
+  assert.match(html, /<div class="wg-spacer" style="height:32\.5mm"><\/div>/);
+});
+
+test('spacer: label 은 data 속성으로만 실린다(인쇄에 글자가 남지 않는다)', () => {
+  const { html } = new RenderObjectTree().execute(
+    docWith([{ id: 'sp1', type: 'spacer', placement: 'flow', heightMm: 10, label: '오려붙이기 <공간>' }]), ASSETS);
+  assert.match(html, /data-spacer-label="오려붙이기 &lt;공간&gt;"/, 'label 은 이스케이프되어 data 속성으로');
+  assert.ok(!/>오려붙이기/.test(html), 'label 이 본문 텍스트로 새어 나오면 안 된다');
+});
+
+test('spacer: heightMm 이 불량이면 기본 10mm 로 떨어진다(NaNmm 방출 금지)', () => {
+  // 스키마가 number 를 요구하므로 여기 오는 불량값은 검증을 우회한 경우다. mm() 가 NaNmm 을
+  // 조용히 방출하면 조판이 소리 없이 깨지므로 렌더러가 마지막 방어선이 된다.
+  for (const bad of [undefined, null, 0, -5, NaN, Infinity, {}]) {
+    const { html } = new RenderObjectTree().execute(
+      docWith([{ id: 'sp1', type: 'spacer', placement: 'flow', heightMm: bad }]), ASSETS);
+    assert.match(html, /style="height:10mm"/, `불량 heightMm(${String(bad)}) 폴백 실패`);
+    assert.ok(!html.includes('NaNmm'), 'NaNmm 이 방출되면 조판이 조용히 깨진다');
+  }
+  // 숫자로 해석되는 문자열은 강제 변환해 받는다(mm() 등 기존 렌더 관례와 동형).
+  const { html } = new RenderObjectTree().execute(
+    docWith([{ id: 'sp1', type: 'spacer', placement: 'flow', heightMm: '20' }]), ASSETS);
+  assert.match(html, /style="height:20mm"/);
+});
+
+test('page-break: 높이 0 표식만 남기고 인쇄용 개행 CSS 를 쓰지 않는다', () => {
+  const { html } = new RenderObjectTree().execute(
+    docWith([{ id: 'pb1', type: 'page-break', placement: 'flow' }]), ASSETS);
+  assert.match(html, /<div class="wg-pagebreak" style="height:0"><\/div>/);
+  // 페이지 경계의 단일 권한은 측정 패스다(D-A) — CSS 개행을 섞으면 pages[] 와 실제 인쇄가 어긋난다.
+  assert.ok(!/wg-pagebreak[^>]*break-before/.test(html), 'break-before 를 직접 쓰면 안 된다');
 });

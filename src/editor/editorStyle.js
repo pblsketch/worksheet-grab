@@ -77,6 +77,25 @@ export function injectEditorStyle(doc) {
        선택이 이미 시작될 수 있어(실측: 10스텝 드래그에 23자) removeAllRanges 로 끊고 여기서
        재시작을 막는다. user-select 는 레이아웃 박스를 바꾸지 않으므로 위 R2-1 규약을 지킨다. */
     body.wg-body-dragging { user-select: none; }
+    /* 레이아웃 전용 개체 2종 — 인쇄에는 아무것도 안 보이므로 편집 화면에서만 표식을 준다.
+       ⚠ 위 R2-1 규약대로 **레이아웃 박스를 건드리지 않는다**: outline(흐름 밖) + position:relative
+       (박스 크기 불변) + 절대배치 ::after 만 쓴다. margin/padding/height 는 절대 쓰지 않는다 —
+       그러면 편집 측정과 인쇄 높이가 갈린다. 빈 공간의 height 와 페이지 나누기의 height:0 은
+       렌더가 인라인으로 방출하므로 편집·인쇄가 같은 값을 쓴다. */
+    .wg-spacer {
+      position: relative; outline: 1px dashed rgba(100,116,139,.5); outline-offset: -1px;
+      background: repeating-linear-gradient(135deg, rgba(100,116,139,.05) 0 6px, transparent 6px 12px);
+    }
+    .wg-spacer::after {
+      content: attr(data-spacer-label); position: absolute; top: 2px; left: 4px;
+      font-size: 8px; color: #94a3b8; pointer-events: none; white-space: nowrap;
+    }
+    .wg-pagebreak { position: relative; }
+    .wg-pagebreak::after {
+      content: "⎯⎯ 페이지 나누기 ⎯⎯"; position: absolute; left: 0; right: 0; top: -7px;
+      text-align: center; font-size: 8px; letter-spacing: .04em; color: #dc2626;
+      border-top: 1px dashed rgba(220,38,38,.55); pointer-events: none;
+    }
     body.wg-show-margins .sheet::after {
       content: ""; position: absolute; inset: var(--sheet-pad, 12mm 15mm 10mm 15mm);
       border: 1px dashed rgba(37,99,235,.55); pointer-events: none; z-index: 3;
