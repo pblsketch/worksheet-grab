@@ -22,14 +22,15 @@
     <div class="appbar-center">
       <div class="seg" role="tablist" aria-label="학생/교사 토글">
         <button id="btn-teacher" class="seg-btn active" role="tab">교사용 (편집)</button>
-        <button id="btn-student" class="seg-btn" role="tab">학생용 (미리보기)</button>
+        <button id="btn-student" class="seg-btn" role="tab">학생용 (보기)</button>
       </div>
     </div>
     <div class="appbar-right">
       <button id="btn-review" class="review-chip" data-review-status="unknown" title="검수 상태 — 클릭 시 인스펙터에 상세">검수 확인 중…</button>
-      <button id="btn-preview" class="appbar-btn" title="정밀 미리보기(PNG)">미리보기</button>
+      <button id="btn-preview" class="appbar-btn" title="정밀 미리보기(PNG)">PNG 미리보기</button>
       <button id="btn-export" class="appbar-btn" title="PDF 내보내기(학생/교사 2벌)">PDF 내보내기</button>
       <span id="ai-entry-slot" class="ai-entry-slot"></span><!-- US-19: ai.js 가 AI 진입 버튼을 여기에 마운트한다 -->
+      <button id="btn-help" class="appbar-btn" title="키보드 단축키 안내" aria-label="키보드 단축키 안내">단축키</button>
       <button id="btn-save" class="save-btn">저장 <kbd>Ctrl+S</kbd></button>
     </div>
   </header>

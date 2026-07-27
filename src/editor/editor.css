@@ -90,7 +90,7 @@ button { font: inherit; }
 .view-op-row { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #57606a; padding-top: 4px; border-top: 1px solid #eaeef2; }
 .view-op-row input[type="range"] { flex: 1; }
 .view-dropdown {
-  position: absolute; margin-top: 130px; right: 16px; background: #fff; border: 1px solid #d0d7de;
+  position: fixed; background: #fff; border: 1px solid #d0d7de;
   border-radius: 8px; box-shadow: 0 6px 16px rgba(0,0,0,.12); padding: 8px 12px; z-index: 40;
   display: flex; flex-direction: column; gap: 6px; font-size: 12.5px;
 }
@@ -209,6 +209,17 @@ button { font: inherit; }
 .preview-status.hidden { display: none; }
 #preview-img { max-width: 100%; display: block; }
 #preview-img.hidden { display: none; }
+
+/* 단축키 안내 시트(발견성) — shortcuts.js SHORTCUTS 단일 목록을 모달로 노출 */
+.shortcuts-modal { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 85; display: flex; align-items: center; justify-content: center; }
+.shortcuts-modal.hidden { display: none; }
+.shortcuts-inner { background: #fff; border-radius: 10px; padding: 18px 22px; min-width: 300px; max-width: 440px; box-shadow: 0 12px 28px rgba(0,0,0,.22); }
+.shortcuts-inner h3 { margin: 0 0 12px; font-size: 15px; }
+.shortcuts-list { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0 0 14px; font-size: 13px; align-items: center; }
+.shortcuts-list dt { margin: 0; }
+.shortcuts-list dd { margin: 0; color: #57606a; }
+.shortcuts-list kbd { font: inherit; font-size: 11px; background: #f6f8fa; border: 1px solid #d0d7de; border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
+.shortcuts-close { border: 0; border-radius: 8px; background: #2563eb; color: #fff; padding: 7px 16px; cursor: pointer; font: inherit; font-weight: 700; float: right; }
 
 /* #5 내보내기 결과 토스트(우하단) — 파일/폴더 열기 버튼 */
 .export-result {

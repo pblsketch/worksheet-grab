@@ -142,12 +142,28 @@ export function createContextToolbar(opts) {
     const gridCb = viewMenu.querySelector('input[data-view-key="grid"]');
     if (gridCb && !gridCb.checked) { gridCb.checked = true; viewState.grid = true; opts.onViewToggle('grid', true); }
   });
-  opSlider.addEventListener('click', (e) => e.stopPropagation());
   opRow.appendChild(opSlider);
   viewMenu.appendChild(opRow);
   right.appendChild(viewMenu);
-  viewBtn.addEventListener('click', (e) => { e.stopPropagation(); viewMenu.classList.toggle('hidden'); });
-  document.addEventListener('click', () => viewMenu.classList.add('hidden'));
+  // 위치(#보기): CSS 매직 offset 대신 보기 버튼 rect 기준으로 버튼 바로 아래에 고정 배치한다.
+  function openViewMenu() {
+    const r = viewBtn.getBoundingClientRect();
+    viewMenu.style.top = `${Math.round(r.bottom + 4)}px`;
+    viewMenu.style.right = `${Math.round(window.innerWidth - r.right)}px`;
+    viewMenu.classList.remove('hidden');
+  }
+  viewBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (viewMenu.classList.contains('hidden')) openViewMenu();
+    else viewMenu.classList.add('hidden');
+  });
+  // 닫힘(#보기): 바깥 클릭에서만 닫는다 — 메뉴/버튼 내부(체크박스·슬라이더) 클릭엔 유지한다
+  // (기존엔 상시 document 리스너가 내부 클릭까지 닫아, 토글 하나 켤 때마다 메뉴가 사라졌다).
+  document.addEventListener('click', (e) => {
+    if (viewMenu.classList.contains('hidden')) return;
+    if (viewMenu.contains(e.target) || viewBtn.contains(e.target)) return;
+    viewMenu.classList.add('hidden');
+  });
 
   function updateUndoRedo() {
     left.querySelector('#tb-undo').disabled = !history.canUndo();
@@ -168,8 +184,10 @@ export function createContextToolbar(opts) {
     // z-순서(맨앞/맨뒤) — 자유 배치(float) 개체 전용. 겹친 자유 개체의 앞뒤를 바꾼다(같은 페이지
     // float[] 배열 위치 = 페인트 순서, 편집 캔버스=인쇄 동일). flow 개체는 좌표·겹침이 없어 미노출.
     if (obj.placement === 'float') {
-      wrap.appendChild(btn({ title: '맨 앞으로 (위로)', label: '맨앞', id: 'tb-z-front', onClick: () => opts.onZOrder?.(id, 'front') }));
-      wrap.appendChild(btn({ title: '맨 뒤로 (아래로)', label: '맨뒤', id: 'tb-z-back', onClick: () => opts.onZOrder?.(id, 'back') }));
+      wrap.appendChild(btn({ title: '맨 앞으로', label: '맨앞', id: 'tb-z-front', onClick: () => opts.onZOrder?.(id, 'front') }));
+      wrap.appendChild(btn({ title: '한 단계 앞으로', label: '앞으로', id: 'tb-z-forward', onClick: () => opts.onZOrder?.(id, 'forward') }));
+      wrap.appendChild(btn({ title: '한 단계 뒤로', label: '뒤로', id: 'tb-z-backward', onClick: () => opts.onZOrder?.(id, 'backward') }));
+      wrap.appendChild(btn({ title: '맨 뒤로', label: '맨뒤', id: 'tb-z-back', onClick: () => opts.onZOrder?.(id, 'back') }));
     }
     return wrap;
   }

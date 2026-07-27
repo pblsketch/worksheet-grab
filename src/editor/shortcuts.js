@@ -12,6 +12,20 @@ const NUDGE_DELTAS = Object.freeze({
   ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
 });
 
+// 단축키 안내 시트(발견성)의 단일 원천 — 아래 onKeydown 이 실제로 처리하는 키와 1:1 대응한다.
+// editor.js 가 이 목록을 도움말 모달로 렌더한다(하드코딩 중복 금지).
+export const SHORTCUTS = Object.freeze([
+  { keys: 'Ctrl+S', desc: '저장' },
+  { keys: 'Ctrl+Z', desc: '실행 취소' },
+  { keys: 'Ctrl+Shift+Z / Ctrl+Y', desc: '다시 실행' },
+  { keys: 'Ctrl+C', desc: '선택 개체 복사' },
+  { keys: 'Ctrl+V', desc: '개체 붙여넣기' },
+  { keys: 'Delete / Backspace', desc: '선택 개체 삭제' },
+  { keys: '방향키', desc: '자유 배치 개체 1mm 이동' },
+  { keys: 'Shift+방향키', desc: '자유 배치 개체 10mm 이동' },
+  { keys: 'Esc', desc: '선택·편집 해제' },
+]);
+
 export function createShortcuts({
   core,
   history,

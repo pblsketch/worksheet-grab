@@ -21,7 +21,7 @@ import { createPageActionHandler } from '/editor/pageOperations.js';
 import { attachComposition, isComposing, onCompositionEnd, releaseComposition } from '/editor/composition.js';
 import * as ObjOps from '/editor/objectFactory.js';
 import { injectEditorStyle } from '/editor/editorStyle.js';
-import { createShortcuts } from '/editor/shortcuts.js';
+import { createShortcuts, SHORTCUTS } from '/editor/shortcuts.js';
 import { createBanner } from '/editor/banner.js';
 import { createSaveController } from '/editor/saveController.js';
 import { createExportController } from '/editor/exportController.js';
@@ -760,6 +760,13 @@ const contextToolbar = createContextToolbar({
   },
   onViewToggle: (key, val) => { viewState[key] = val; applyViewState(); },
   onGridOpacity: (alpha) => { viewState.gridAlpha = alpha; applyViewState(); },
+  // z-순서(맨앞/앞으로/뒤로/맨뒤) — float[] 배열 위치만 바꾼다(flow 경계 불변 → 리플로우 불필요).
+  // reorderFloat 는 무동작(끝단·flow·단일)이면 원본 참조를 반환하므로 applyDocOp 이 조기 반환한다
+  // (dirty·커밋 없음). Phase 5 분리 때 이 배선이 유실돼 맨앞/맨뒤 버튼이 no-op 였던 것을 복구한다.
+  onZOrder: (id, mode) => {
+    const next = ObjOps.reorderFloat(core.getDocument(), id, mode);
+    applyDocOp(next, { selectId: id });
+  },
 });
 
 const inspector = createInspector({
@@ -830,6 +837,54 @@ const partEditor = createPartEditor({
   findObject: (id) => core.findObject(id),
   onPartText: () => onSelectionDirty('text'),
 });
+
+// ── 단축키 안내 시트(발견성) — shortcuts.js 의 SHORTCUTS 단일 목록을 모달로 노출한다 ──
+const helpButton = document.getElementById('btn-help');
+if (helpButton) {
+  let helpModal = null;
+  const closeHelp = () => helpModal?.classList.add('hidden');
+  const openHelp = () => {
+    if (!helpModal) {
+      helpModal = document.createElement('div');
+      helpModal.className = 'shortcuts-modal hidden';
+      const inner = document.createElement('div');
+      inner.className = 'shortcuts-inner';
+      const heading = document.createElement('h3');
+      heading.textContent = '키보드 단축키';
+      inner.appendChild(heading);
+      const list = document.createElement('dl');
+      list.className = 'shortcuts-list';
+      for (const { keys, desc } of SHORTCUTS) {
+        const dt = document.createElement('dt');
+        // keys 는 코드 소유 상수(사용자 입력 아님) — 각 키를 <kbd>로 감싼다.
+        dt.replaceChildren(...keys.split(' / ').flatMap((key, i) => {
+          const kbd = document.createElement('kbd');
+          kbd.textContent = key;
+          return i === 0 ? [kbd] : [document.createTextNode(' / '), kbd];
+        }));
+        const dd = document.createElement('dd');
+        dd.textContent = desc;
+        list.appendChild(dt);
+        list.appendChild(dd);
+      }
+      inner.appendChild(list);
+      const closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'shortcuts-close';
+      closeBtn.textContent = '닫기';
+      closeBtn.addEventListener('click', closeHelp);
+      inner.appendChild(closeBtn);
+      helpModal.appendChild(inner);
+      helpModal.addEventListener('click', (e) => { if (e.target === helpModal) closeHelp(); });
+      document.getElementById('popups-host').appendChild(helpModal);
+    }
+    helpModal.classList.remove('hidden');
+  };
+  helpButton.addEventListener('click', openHelp);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && helpModal && !helpModal.classList.contains('hidden')) closeHelp();
+  });
+}
 
 // ── 초기 모드: teacher 는 항상 먼저 만들어 둔다(썸네일·검수는 teacher 문서가 진실). ──
 await ensureFrame('teacher');
