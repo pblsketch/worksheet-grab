@@ -122,7 +122,22 @@ export function createShortcuts({
   }
 
   function onKeydown(e) {
-    if (e.key === 'Escape') return; // selection.js 가 자체 처리
+    // Esc — 편집 종료/선택 해제의 주인은 selection.js 지만, 그 핸들러는 **teacher iframe 문서에만**
+    // 걸려 있다. 캔버스 개체를 실마우스로 클릭해도 포커스는 부모 문서에 남는다(실측: 부모
+    // activeElement=BODY, iframe 은 focus 아님) — 그래서 부모로 온 Esc 는 아무도 받지 못하고
+    // 선택이 풀리지 않았다. 나머지 단축키가 멀쩡했던 건 이 핸들러가 부모 window 에도 걸려
+    // 있기 때문이고, Esc 만 여기서 빠져나가고 있었다.
+    //
+    // **부모에 온 것만** 넘긴다: iframe 에서 온 이벤트까지 처리하면 selection.js 와 이중 실행되어
+    // Esc 한 번에 '편집 종료'와 '선택 해제'가 같이 일어난다(2단계여야 한다).
+    if (e.key === 'Escape') {
+      if (e.target?.ownerDocument === hostDocument) {
+        e.preventDefault();
+        selection.handleEscape();
+        updateAll();
+      }
+      return;
+    }
     // Delete/Backspace = 선택 개체 삭제(#7). 단, 텍스트 편집 중이거나 폼 필드/제목 편집에 포커스가
     // 있으면 개입하지 않는다(정상 글자 삭제가 우선). 개체 선택만 된 상태에서만 개체를 지운다.
     if (e.key === 'Delete' || e.key === 'Backspace') {
