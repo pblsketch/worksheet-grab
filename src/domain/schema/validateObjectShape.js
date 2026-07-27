@@ -1,4 +1,7 @@
-import { OBJECT_TYPES, QUESTION_TYPES, PLACEMENTS, TYPE_SPECS, AI_EXCLUDED_TYPES } from './ObjectCatalog.js';
+import {
+  OBJECT_TYPES, QUESTION_TYPES, PLACEMENTS, TYPE_SPECS, AI_EXCLUDED_TYPES,
+  SIZE_FIELDS, ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX,
+} from './ObjectCatalog.js';
 
 // validateObjectShape — 개체 하나의 구조 유효성(닫힌 카탈로그 + 공통 불변식)을 순수 검사한다.
 // FS/DOM/Chrome 무접촉 — ValidateObjectTree(usecase)가 트리 순회 중 개체마다 위임 호출한다.
@@ -18,6 +21,9 @@ import { OBJECT_TYPES, QUESTION_TYPES, PLACEMENTS, TYPE_SPECS, AI_EXCLUDED_TYPES
 //                                타입에 answer:true 를 실으면 카탈로그 밖 필드로 잡힌다)
 //   invalid-qtype             — question.qtype 이 7종 밖
 //   table-splittable-violation — table.splittable !== false(표는 분할 금지)
+//   size-forbidden-in-float   — placement:'float' 인데 크기 필드(SIZE_FIELDS) 존재. float 은 rect 가 이미
+//                                크기를 가지므로 한 가지 일에 수단을 둘 두지 않는다(rect-forbidden-in-flow 의 짝).
+//   invalid-size-value        — widthPct/minHeightMm/align 값이 허용 범위 밖
 
 // id/type/placement/rect(구조) + opacity/angle(자유 배치 표현 속성 — 전 타입 허용하되 렌더는 float
 // 에서만 적용, RenderObjectTree.renderFloatObject 참조). 표현값이라 슬롯 불변식(std-box)과 무관하다.
@@ -87,6 +93,41 @@ export function validateObjectShape(obj) {
       });
     } else {
       findings.push({ rule: 'unknown-field', message: `${type} 에 허용되지 않은 필드 '${key}' 가 있습니다.`, objectId: obj.id });
+    }
+  }
+
+  // 크기·정렬 필드(2026-07-28) — flow 전용 + 값 범위. 카탈로그가 허용하지 않는 타입(shape/spacer/
+  // page-break)에 실린 경우는 위의 unknown-field 검사가 이미 잡으므로 여기서는 중복 검사하지 않는다.
+  if (SIZE_FIELDS.some((f) => obj[f] !== undefined)) {
+    if (placement === 'float') {
+      findings.push({
+        rule: 'size-forbidden-in-float',
+        message: `placement:'float' 개체는 크기 필드(${SIZE_FIELDS.join('/')})를 가질 수 없습니다 — 크기는 rect 가 정합니다.`,
+        objectId: obj.id,
+      });
+    }
+    const pct = obj.widthPct;
+    if (pct !== undefined && !(typeof pct === 'number' && Number.isFinite(pct) && pct >= WIDTH_PCT_MIN && pct <= WIDTH_PCT_MAX)) {
+      findings.push({
+        rule: 'invalid-size-value',
+        message: `widthPct 는 ${WIDTH_PCT_MIN}~${WIDTH_PCT_MAX} 범위의 수여야 합니다: ${pct}`,
+        objectId: obj.id,
+      });
+    }
+    const minH = obj.minHeightMm;
+    if (minH !== undefined && !(typeof minH === 'number' && Number.isFinite(minH) && minH > 0)) {
+      findings.push({
+        rule: 'invalid-size-value',
+        message: `minHeightMm 는 0 보다 큰 수여야 합니다: ${minH}`,
+        objectId: obj.id,
+      });
+    }
+    if (obj.align !== undefined && !ALIGN_VALUES.includes(obj.align)) {
+      findings.push({
+        rule: 'invalid-size-value',
+        message: `align 은 ${ALIGN_VALUES.join('|')} 중 하나여야 합니다: ${obj.align}`,
+        objectId: obj.id,
+      });
     }
   }
 

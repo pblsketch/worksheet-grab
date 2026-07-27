@@ -65,6 +65,18 @@
       "angle": {
         "type": "number", "minimum": -180, "maximum": 180,
         "description": "자유 배치(float) 개체의 회전 각도(도, 기본 0). 렌더 transform:rotate(중심 기준)로 반영(인쇄 포함). ALWAYS_ALLOWED_FIELDS 로 전 타입 허용하되 float 렌더에서만 적용된다."
+      },
+      "widthPct": {
+        "type": "number", "minimum": 5, "maximum": 100,
+        "description": "본문 배치(flow) 개체의 폭 — 본문 폭(=.sheet-body 열 폭) 대비 %(5~100). mm 가 아닌 이유: 용지·단 수를 바꾸면 mm 는 열을 넘겨 클램프가 필요하고 클램프는 값을 되돌릴 수 없게 덮어쓴다(docs/DECISION-object-resize.md §1.2). 렌더가 .wg-obj 래퍼에 인라인 width 로 방출하며 편집·인쇄에 동일하게 들어간다(R2-1). float 에는 실을 수 없다(size-forbidden-in-float — 크기는 rect 가 정한다). AI 저작 어휘가 아니다(편집기 전용)."
+      },
+      "minHeightMm": {
+        "type": "number", "exclusiveMinimum": 0,
+        "description": "본문 배치(flow) 개체의 최소 높이(mm). 고정 height 가 아닌 이유: 내용이 넘치면 잘리는데 그 넘침은 페이지네이션 측정에 잡히지 않아 페이지 경계가 조용히 어긋난다(R2-1 붕괴). min- 은 내용이 늘면 따라 늘어난다. 순수 여백만 필요하면 spacer 타입을 쓴다. AI 저작 어휘가 아니다(편집기 전용)."
+      },
+      "align": {
+        "type": "string", "enum": ["left", "center", "right"], "default": "left",
+        "description": "widthPct 로 폭을 줄인 개체의 좌우 정렬(렌더 margin-inline). 높이에 영향이 없어 R2-1 위험이 없다. widthPct 가 없으면(=100% 폭) 시각적 효과가 없다. left 는 기본값이라 렌더가 선언 자체를 생략한다. AI 저작 어휘가 아니다(편집기 전용)."
       }
     },
 
@@ -110,7 +122,10 @@
           },
           "additionalProperties": false
         },
-        "answer": { "$ref": "#/$defs/commonProps/answer" }
+        "answer": { "$ref": "#/$defs/commonProps/answer" },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },
@@ -130,7 +145,10 @@
         "footnotes": { "type": "array", "items": { "type": "string" } },
         "borderColor": { "type": "string", "description": "지문 박스 테두리 색(CSS 색상 토큰 — #rrggbb 또는 색 이름). 렌더가 --wg-ps-border 커스텀 프로퍼티로 방출하고 blocks.css `.passage` 가 받는다. 미지정 시 기본 #bbb." },
         "borderWidth": { "type": "number", "minimum": 0, "description": "지문 박스 테두리 두께(px). 미지정 시 기본 1.5px. 0 이면 테두리 없음." },
-        "bgColor": { "type": "string", "description": "지문 박스 배경색(CSS 색상 토큰). 미지정 시 기본 #fcfcfa." }
+        "bgColor": { "type": "string", "description": "지문 박스 배경색(CSS 색상 토큰). 미지정 시 기본 #fcfcfa." },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },
@@ -174,7 +192,10 @@
           "type": ["object", "null"],
           "description": "정답 데이터. 인접 정답 콘텐츠 병합(마이그레이션 휴리스틱, S1.3 몫)의 착지점 — object.answer=true 와 별개 필드이며, answerKey 존재 여부와 무관하게 answer:true 인 객체 전체가 학생용에서 물리 제거된다."
         },
-        "answer": { "$ref": "#/$defs/commonProps/answer" }
+        "answer": { "$ref": "#/$defs/commonProps/answer" },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },
@@ -196,7 +217,10 @@
           "type": "array",
           "items": { "type": "array", "items": { "type": "object", "properties": { "text": { "type": "string" }, "colspan": { "type": "integer" }, "header": { "type": "boolean" } } } }
         },
-        "answer": { "$ref": "#/$defs/commonProps/answer" }
+        "answer": { "$ref": "#/$defs/commonProps/answer" },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },
@@ -212,7 +236,10 @@
         "rect": { "$ref": "#/$defs/commonProps/rect" },
         "src": { "type": ["string", "null"] },
         "alt": { "type": "string" },
-        "caption": { "type": "string" }
+        "caption": { "type": "string" },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },
@@ -228,7 +255,10 @@
         "rect": { "$ref": "#/$defs/commonProps/rect" },
         "style": { "type": "string", "enum": ["line", "box", "dots"], "description": "line=밑줄 1개, box=점선 박스, dots=여러 원(자기평가 등)." },
         "lines": { "type": "integer", "minimum": 1, "default": 1 },
-        "label": { "type": "string" }
+        "label": { "type": "string" },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },
@@ -241,7 +271,10 @@
         "id": { "$ref": "#/$defs/commonProps/id" },
         "type": { "const": "divider" },
         "placement": { "$ref": "#/$defs/commonProps/placement" },
-        "rect": { "$ref": "#/$defs/commonProps/rect" }
+        "rect": { "$ref": "#/$defs/commonProps/rect" },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },
@@ -273,7 +306,10 @@
         "rect": { "$ref": "#/$defs/commonProps/rect" },
         "html": { "type": "string", "description": "원본 블록 HTML 원문(무손실 보존)." },
         "sourceType": { "type": "string", "description": "마이그레이션 이전 원본 entry.type(감사용, 예: 'directive')." },
-        "answer": { "$ref": "#/$defs/commonProps/answer" }
+        "answer": { "$ref": "#/$defs/commonProps/answer" },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },
@@ -293,7 +329,10 @@
           "description": "학습 목표 문장 배열(예: '전압과 전류의 관계를 설명할 수 있다.', 2~3개 권장). codes 와 달리 저작 영역이다 — 성취기준을 해당 차시 수업에 맞게 구체화한 문장으로, designer(또는 교사)가 codes 가 가리키는 성취기준에서 도출해 채운다(원칙 3은 '성취기준 원문' 창작 금지만 다루며 objectives 는 그 대상이 아니다). 비어 있으면(하위호환) 렌더러가 현행 성취기준 박스를 그대로 표시한다."
         },
         "heading": { "type": "string", "description": "학습목표 박스 제목(기본 '학습 목표'). 학교·교과마다 부르는 이름이 달라 교사가 캔버스에서 직접 고칠 수 있다." },
-        "showStandards": { "type": "boolean", "default": false, "description": "근거 성취기준(코드+원문) 박스를 교사용에 함께 낼지. 기본 false — 현장에서 활동지에 얹는 것은 학습목표뿐이라는 실사용 피드백에 따른 기본값(2026-07-28). true 일 때만 .std-ref 박스를 렌더하며, 그 경우에도 학생용에서는 data-mode CSS 로 숨는다. 표시 여부만 정할 뿐 codes 는 그대로 보존된다." }
+        "showStandards": { "type": "boolean", "default": false, "description": "근거 성취기준(코드+원문) 박스를 교사용에 함께 낼지. 기본 false — 현장에서 활동지에 얹는 것은 학습목표뿐이라는 실사용 피드백에 따른 기본값(2026-07-28). true 일 때만 .std-ref 박스를 렌더하며, 그 경우에도 학생용에서는 data-mode CSS 로 숨는다. 표시 여부만 정할 뿐 codes 는 그대로 보존된다." },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
       },
       "additionalProperties": false
     },

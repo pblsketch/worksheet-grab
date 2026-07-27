@@ -104,10 +104,10 @@ function renderFlowObject(obj, ctx) {
 ```js
 function renderFlowObject(obj, ctx) {
   const inner = renderAnswerWrap(obj, renderByType(obj, ctx));
-  const sizeStyle = flowSizeStyle(obj);          // '' | 'width:60%;' | 'min-height:40mm;' | 둘 다
-  if (!ctx.editMode && !sizeStyle) return inner; // 크기 없는 개체의 인쇄 출력은 기준선과 바이트 동일
+  const boxStyle = flowBoxStyle(obj);            // '' | width / min-height / margin-inline 조합
+  if (!ctx.editMode && !boxStyle) return inner;  // 선언 없는 개체의 인쇄 출력은 기준선과 바이트 동일
   const oid = ctx.editMode ? ` data-oid="…" data-ot="…"` : '';
-  const style = sizeStyle ? ` style="${sizeStyle}"` : '';
+  const style = boxStyle ? ` style="${boxStyle}"` : '';
   return `<div class="wg-obj"${oid}${style}>${inner}</div>`;
 }
 ```
@@ -199,8 +199,8 @@ npm run test:render               # 기준 개수 기록(핸드오프는 102)
 ### Phase 1 — 스키마 (순수, UI 없음)
 | 파일 | 변경 |
 |---|---|
-| `src/domain/schema/ObjectCatalog.js` | `SIZE_FIELDS = ['widthPct','minHeightMm']` 신설. `ALWAYS_ALLOWED_FIELDS` 가 아니라 **타입별 `optional`** 에 추가 — 크기가 의미 없는 타입(`page-break`, `divider`, `spacer`)에는 주지 않는다. `spacer` 는 이미 `heightMm` 가 있어 `minHeightMm` 와 중복이다. |
-| `validateObjectShape.js` | 새 규칙 `size-forbidden-in-float` — float 은 `rect` 가 크기를 이미 갖는다(한 가지 일에 두 수단 금지). 값 검증: `widthPct` 는 `5~100` 유한수, `minHeightMm` 는 `0 초과` 유한수. **`rect-forbidden-in-flow` 는 무변경.** |
+| `src/domain/schema/ObjectCatalog.js` | `SIZE_FIELDS = ['widthPct','minHeightMm','align']` 신설. `ALWAYS_ALLOWED_FIELDS` 가 아니라 **타입별 `optional`** 에 추가 — 크기가 의미 없는 타입(`page-break`, `divider`, `spacer`)에는 주지 않는다. `spacer` 는 이미 `heightMm` 가 있어 `minHeightMm` 와 중복이다. |
+| `validateObjectShape.js` | 새 규칙 `size-forbidden-in-float` — float 은 `rect` 가 크기를 이미 갖는다(한 가지 일에 두 수단 금지). 값 검증: `widthPct` 는 `5~100` 유한수, `minHeightMm` 는 `0 초과` 유한수, `align` 은 `left|center|right`. **`rect-forbidden-in-flow` 는 무변경.** |
 | `schema/worksheet-object.schema.json` | 위와 1:1(`object-schema.test.js` 가 발산을 즉시 잡는다). |
 
 검증: 신규 단위 테스트 — 허용 타입 통과 / `page-break` 거부 / float 거부 / 범위 밖 값 거부.
@@ -237,16 +237,20 @@ npm run test:render               # 기준 개수 기록(핸드오프는 102)
 
 ---
 
-## 6. 사용자 확인이 필요한 열린 결정 2건
+## 6. 열린 결정 2건 — **확정됨**(사용자 승인 2026-07-28)
 
-구현 착수 전에 답이 필요하다(지금 막고 있지는 않다 — 기본값으로 진행 가능).
-
-1. **폭을 줄인 개체의 정렬.** 60% 로 줄인 표는 기본적으로 **왼쪽에 붙는다.** 가운데 정렬을 원하는
-   경우가 많을 텐데, `align:'left'|'center'|'right'`(→ `margin-inline:auto`)를 이번에 같이 넣을지
-   후속으로 뺄지. **기본 제안: 이번에 포함.** 높이에 영향이 없어 R2-1 위험이 0이고, 없으면 교사가
-   곧바로 아쉬워할 자리다.
-2. **AI 저작 어휘 제외 확정.** §1.4 대로 designer 에이전트에는 이 필드를 노출하지 않는다.
-   (AI 가 폭을 정하게 하려면 별도 결정이 필요하다.)
+1. **`align` 을 이번에 포함한다.** ✅
+   `align:'left'|'center'|'right'` 를 크기 필드와 함께 넣는다. 렌더는 `margin-inline` 으로만 낸다
+   (`center` → `auto auto`, `right` → `auto 0`, `left` → 선언 생략 = 기본값). **높이에 영향이 없어
+   R2-1 위험이 0**이고, 폭을 줄인 표가 왼쪽에 붙어 있는 것은 곧바로 아쉬워질 자리였다.
+   - `widthPct` 가 없으면(=100% 폭) `align` 은 시각적 효과가 없다 → 인스펙터에서 폭을 줄이기 전까지
+     비활성 표시.
+   - 크기 필드와 **같은 인라인 style 선언에 실린다** — 즉 §2.2 의 방출 조건(`editMode || 선언있음`)
+     판정에 `align` 도 포함해야 한다. `align` 만 주고 폭을 안 준 개체도 인쇄에 래퍼가 필요하다.
+2. **AI 저작 어휘에서 제외한다.** ✅
+   `spacer`/`page-break` 와 같이 **편집기 전용 필드**로 둔다 — `worksheet-designer` 에이전트 프롬프트와
+   `worksheet-design` 스킬의 카탈로그 어휘에 `widthPct`/`minHeightMm`/`align` 을 넣지 않는다.
+   AI 가 폭을 정하게 하려면 별도 결정이 필요하다(원칙 3 의 정신: AI 는 구조만 저작).
 
 ---
 

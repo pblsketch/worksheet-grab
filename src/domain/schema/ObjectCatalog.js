@@ -17,6 +17,36 @@ export const PLACEMENTS = Object.freeze(['flow', 'float']);
 export const PAGINATION_STATES = Object.freeze(['scaffold', 'paginated']);
 
 /**
+ * 본문 배치(flow) 개체의 크기·정렬 필드 3종(2026-07-28 신설 — docs/DECISION-object-resize.md).
+ *
+ * **좌표가 아니라 크기다.** flow 개체는 rect(좌표)를 가질 수 없지만(rect-forbidden-in-flow, 원칙 3)
+ * 원칙 3 이 막는 것은 "AI 가 지면 위 위치를 지어내는 것"이지 교사가 폭을 줄이는 것이 아니다. 이 세
+ * 필드는 위치를 말하지 않는다 — 흐름 안에서의 상대 폭·최소 높이·좌우 정렬만 말한다. 개체가 어디에
+ * 놓이는지는 여전히 흐름 순서가 정하고, 페이지 경계는 여전히 assignFlowToPages 혼자 정한다(D-A 무접촉).
+ *
+ *  - widthPct    본문 폭(=`.sheet-body` 열 폭) 대비 % (5~100). mm 가 아닌 이유: 용지·단 수를 바꾸면
+ *                mm 는 열을 넘겨 클램프가 필요하고, 클램프는 값을 되돌릴 수 없게 덮어쓴다. %는 어느
+ *                폭에서도 유효하다(DECISION §1.2).
+ *  - minHeightMm 최소 높이(mm). 고정 height 가 아닌 이유: 내용이 넘치면 잘리는데 그 넘침은 측정에
+ *                잡히지 않아 페이지 경계가 조용히 어긋난다(R2-1 붕괴). min- 은 내용이 늘면 따라 는다.
+ *  - align       폭을 줄였을 때의 좌우 정렬(margin-inline). 높이에 영향이 없어 R2-1 위험이 없다.
+ *
+ * **float 에는 실을 수 없다**(validateObjectShape 의 size-forbidden-in-float) — float 은 rect 가 이미
+ * 크기를 갖는다. 한 가지 일에 수단을 둘 두지 않는다.
+ *
+ * **AI 저작 어휘가 아니다** — spacer/page-break 와 같이 편집기 전용이다(교사가 조판을 정한다).
+ * designer 프롬프트·worksheet-design 스킬의 카탈로그 어휘에 넣지 않는다.
+ */
+export const SIZE_FIELDS = Object.freeze(['widthPct', 'minHeightMm', 'align']);
+
+/** align 허용값 — left 는 기본값이라 렌더가 선언 자체를 생략한다. */
+export const ALIGN_VALUES = Object.freeze(['left', 'center', 'right']);
+
+/** widthPct 범위 — 5% 미만은 내용이 뭉개져 실용적이지 않고, 100% 초과는 열을 넘긴다. */
+export const WIDTH_PCT_MIN = 5;
+export const WIDTH_PCT_MAX = 100;
+
+/**
  * 타입별 배치 허용·필수/선택 필드. id/type/placement/rect 는 공통 처리(validateObjectShape)라
  * 여기 목록에는 넣지 않는다. `answer` 는 타입이 optional 에 명시했을 때만 허용(= answer 위치 규칙 —
  * ANSWERABLE_TYPES 로 파생).
@@ -29,7 +59,7 @@ export const TYPE_SPECS = Object.freeze({
     // 이걸 그대로 방출한다(richtext.html·passage bodyHtml 과 동형 — 입력에서 살균, 렌더는 이스케이프
     // 없이 방출). 없으면 text 를 이스케이프해 렌더(하위호환). text 는 항상 평문으로 병행 보관(정답
     // 누출 스캔·diff·평문 소비자용).
-    optional: Object.freeze(['level', 'textHtml', 'meta', 'answer']),
+    optional: Object.freeze(['level', 'textHtml', 'meta', 'answer', ...SIZE_FIELDS]),
   }),
   'passage-slot': Object.freeze({
     placements: Object.freeze(['flow']),
@@ -37,7 +67,7 @@ export const TYPE_SPECS = Object.freeze({
     // borderColor/borderWidth/bgColor: 지문 박스 서식(교사가 편집기에서 직접 지정, #3). table 의
     // borderColor/borderWidth 와 같은 CSS 변수 경로를 쓴다 — 렌더가 인라인 커스텀 프로퍼티로
     // 방출하고 blocks.css `.passage` 가 var() 기본값으로 받는다(편집==인쇄 동일 선언).
-    optional: Object.freeze(['title', 'bodyHtml', 'source', 'footnotes', 'borderColor', 'borderWidth', 'bgColor']),
+    optional: Object.freeze(['title', 'bodyHtml', 'source', 'footnotes', 'borderColor', 'borderWidth', 'bgColor', ...SIZE_FIELDS]),
   }),
   'question': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
@@ -46,29 +76,31 @@ export const TYPE_SPECS = Object.freeze({
     // 배지는 포함하지 않는다(렌더가 qnum 을 별도로 붙임). 없으면 prompt 를 이스케이프해 렌더(하위호환).
     // lines: 서술형(essay) 내장 답란 줄 수. 0 이면 내장 답란 없음(마이그레이션 문항 — 별도 answer-area
     // 개체가 답 공간을 제공), 미지정이면 렌더 기본 4줄.
-    optional: Object.freeze(['qnum', 'promptHtml', 'lines', 'choices', 'blanks', 'left', 'right', 'items', 'answerKey', 'answer']),
+    optional: Object.freeze(['qnum', 'promptHtml', 'lines', 'choices', 'blanks', 'left', 'right', 'items', 'answerKey', 'answer', ...SIZE_FIELDS]),
   }),
   'table': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
     required: Object.freeze(['splittable', 'rows']),
     // borderColor/borderWidth: 표 테두리 서식(편집기에서 직접 지정, #5 2차) — 셀 내부(w/colspan/rowspan/
     // merged)는 셀 오브젝트가 자유롭게 갖는다(validator 는 top-level 필드만 검사).
-    optional: Object.freeze(['caption', 'headerRows', 'headerCol', 'answer', 'borderColor', 'borderWidth']),
+    optional: Object.freeze(['caption', 'headerRows', 'headerCol', 'answer', 'borderColor', 'borderWidth', ...SIZE_FIELDS]),
   }),
   'image-slot': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
     required: Object.freeze([]),
-    optional: Object.freeze(['src', 'alt', 'caption']),
+    optional: Object.freeze(['src', 'alt', 'caption', ...SIZE_FIELDS]),
   }),
   'answer-area': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
     required: Object.freeze(['style']),
-    optional: Object.freeze(['lines', 'label']),
+    optional: Object.freeze(['lines', 'label', ...SIZE_FIELDS]),
   }),
   'divider': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
     required: Object.freeze([]),
-    optional: Object.freeze([]),
+    // 크기 필드 포함 — 폭을 줄이고 가운데 정렬한 짧은 구분선은 실제로 쓰이는 조판 요소다
+    // (spacer/page-break 와 달리 divider 는 눈에 보이는 선이라 폭이 의미를 갖는다).
+    optional: Object.freeze([...SIZE_FIELDS]),
   }),
   'shape': Object.freeze({
     placements: Object.freeze(['float']),
@@ -79,7 +111,7 @@ export const TYPE_SPECS = Object.freeze({
   'richtext': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
     required: Object.freeze(['html']),
-    optional: Object.freeze(['sourceType', 'answer']),
+    optional: Object.freeze(['sourceType', 'answer', ...SIZE_FIELDS]),
   }),
   'std-box': Object.freeze({
     placements: Object.freeze(['flow']),
@@ -97,7 +129,7 @@ export const TYPE_SPECS = Object.freeze({
     //   넣지 않는다는 실사용 피드백에 따른 기본값 전환이다. true 일 때만 `.std-ref` 박스를 낸다
     //   (그마저도 학생용에서는 CSS 로 숨는다 — 종전과 같음). 이 필드는 표시 여부만 정하며
     //   codes(조회 참조)는 그대로 보존된다 — 껐다 켜도 성취기준 정보가 소실되지 않는다.
-    optional: Object.freeze(['codes', 'objectives', 'heading', 'showStandards']),
+    optional: Object.freeze(['codes', 'objectives', 'heading', 'showStandards', ...SIZE_FIELDS]),
   }),
   // ── 레이아웃 전용 2종(2026-07-28 신설) ─────────────────────────────────────
   // 둘 다 "내용"이 아니라 **조판 의도**를 담는다. flow 전용인 이유가 각각 있다(아래 주석).
@@ -135,4 +167,14 @@ export const AI_EXCLUDED_TYPES = Object.freeze(['std-box']);
 /** answer:true 를 실을 수 있는 타입(TYPE_SPECS.optional 에 'answer' 를 명시한 타입만 — answer 위치 규칙의 근거). */
 export const ANSWERABLE_TYPES = Object.freeze(
   OBJECT_TYPES.filter((t) => TYPE_SPECS[t].optional.includes('answer')),
+);
+
+/**
+ * 크기·정렬을 실을 수 있는 타입(TYPE_SPECS.optional 에 SIZE_FIELDS 를 명시한 타입만) — 편집기
+ * 인스펙터/손잡이가 "이 개체에 크기 UI 를 낼지"를 이 목록으로 판정한다.
+ * 제외: spacer(이미 heightMm 소유 — 중복 어휘), page-break(높이 0 표식), shape(float 전용이라
+ * flow 전용인 크기 필드가 애초에 성립하지 않는다).
+ */
+export const SIZEABLE_TYPES = Object.freeze(
+  OBJECT_TYPES.filter((t) => SIZE_FIELDS.every((f) => TYPE_SPECS[t].optional.includes(f))),
 );
