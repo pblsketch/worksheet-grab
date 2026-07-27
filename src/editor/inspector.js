@@ -111,6 +111,13 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         grid.appendChild(field(label, input, true));
       }
       root.appendChild(grid);
+      // 투명도(0~100%)·회전(도) — 자유 배치 개체 표현 속성. change 로만 커밋(슬라이더 input 마다 재로드 방지).
+      const opacityInput = el('input', { type: 'range', min: '0', max: '100', step: '5', id: 'insp-opacity', value: String(Math.round((typeof obj.opacity === 'number' ? obj.opacity : 1) * 100)) });
+      opacityInput.addEventListener('change', () => onPatchObject(obj.id, { opacity: Math.max(0, Math.min(1, Number(opacityInput.value) / 100)) }));
+      root.appendChild(field('투명도(%)', opacityInput));
+      const angleInput = el('input', { type: 'number', min: '-180', max: '180', step: '5', id: 'insp-angle', value: String(typeof obj.angle === 'number' ? obj.angle : 0) });
+      angleInput.addEventListener('change', () => onPatchObject(obj.id, { angle: Math.max(-180, Math.min(180, Number(angleInput.value) || 0)) }));
+      root.appendChild(field('회전(도)', angleInput));
     }
 
     const flowFloatBtn = el('button', {

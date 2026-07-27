@@ -56,6 +56,14 @@
           "hMm": { "type": "number" }
         },
         "additionalProperties": false
+      },
+      "opacity": {
+        "type": "number", "minimum": 0, "maximum": 1,
+        "description": "자유 배치(float) 개체의 불투명도(0~1, 기본 1). 렌더 style opacity 로 반영(인쇄 포함). ALWAYS_ALLOWED_FIELDS 로 전 타입 허용하되 float 렌더에서만 적용된다."
+      },
+      "angle": {
+        "type": "number", "minimum": -180, "maximum": 180,
+        "description": "자유 배치(float) 개체의 회전 각도(도, 기본 0). 렌더 transform:rotate(중심 기준)로 반영(인쇄 포함). ALWAYS_ALLOWED_FIELDS 로 전 타입 허용하되 float 렌더에서만 적용된다."
       }
     },
 

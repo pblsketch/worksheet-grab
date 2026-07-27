@@ -19,7 +19,9 @@ import { OBJECT_TYPES, QUESTION_TYPES, PLACEMENTS, TYPE_SPECS, AI_EXCLUDED_TYPES
 //   invalid-qtype             — question.qtype 이 7종 밖
 //   table-splittable-violation — table.splittable !== false(표는 분할 금지)
 
-const ALWAYS_ALLOWED_FIELDS = Object.freeze(['id', 'type', 'placement', 'rect']);
+// id/type/placement/rect(구조) + opacity/angle(자유 배치 표현 속성 — 전 타입 허용하되 렌더는 float
+// 에서만 적용, RenderObjectTree.renderFloatObject 참조). 표현값이라 슬롯 불변식(std-box)과 무관하다.
+const ALWAYS_ALLOWED_FIELDS = Object.freeze(['id', 'type', 'placement', 'rect', 'opacity', 'angle']);
 
 function isPlainObject(v) {
   return typeof v === 'object' && v !== null && !Array.isArray(v);

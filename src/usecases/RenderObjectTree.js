@@ -141,7 +141,12 @@ function renderFlowObject(obj, ctx) {
 function renderFloatObject(obj, ctx) {
   const inner = renderAnswerWrap(obj, renderByType(obj, ctx));
   const rect = obj.rect || {};
-  const style = `position:absolute; left:${mm(rect.xMm)}; top:${mm(rect.yMm)}; width:${mm(rect.wMm)}; height:${mm(rect.hMm)};`;
+  let style = `position:absolute; left:${mm(rect.xMm)}; top:${mm(rect.yMm)}; width:${mm(rect.wMm)}; height:${mm(rect.hMm)};`;
+  // 표현 속성(자유 배치 전용) — 기본값(불투명·무회전)이면 style 을 늘리지 않는다(편집=인쇄 동일, 인쇄 반영).
+  const opacity = typeof obj.opacity === 'number' ? Math.max(0, Math.min(1, obj.opacity)) : 1;
+  if (opacity < 1) style += ` opacity:${opacity};`;
+  const angle = typeof obj.angle === 'number' ? Math.max(-180, Math.min(180, obj.angle)) : 0;
+  if (angle) style += ` transform:rotate(${angle}deg); transform-origin:center center;`;
   const oidAttrs = ctx.editMode
     ? ` data-oid="${escapeHtml(String(obj.id))}" data-ot="${escapeHtml(obj.type)}"`
     : '';
