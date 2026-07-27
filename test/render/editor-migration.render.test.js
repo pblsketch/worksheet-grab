@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -23,6 +24,12 @@ import { makeTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const FIXTURE_MANIFEST = resolve(ROOT, 'worksheets', '데모활동지', 'worksheet.manifest.json');
 const HAS_CHROME = chromeAvailable();
+// worksheets/ 는 .gitignore 대상(로컬 실 교사 문서)이라 새 클론·CI 에는 없다. 없을 때 ENOENT 로
+// **실패**하면 "코드가 깨졌다"로 오독된다 — Chrome 부재와 같은 층위의 환경 조건이므로 skip 한다.
+// 합성 픽스처로 대체하지 않는 이유는 이 테스트가 '실사용 구 manifest' 의 승격을 보는 것이기 때문이다.
+const HAS_FIXTURE = existsSync(FIXTURE_MANIFEST);
+const SKIP_REASON = !HAS_CHROME ? 'Chrome 없음'
+  : !HAS_FIXTURE ? '로컬 실문서 없음: worksheets/데모활동지 (.gitignore 대상)' : false;
 
 function dumpDom(url, timeoutMs = 60000) {
   const chrome = resolveChromePath(null);
@@ -53,7 +60,7 @@ const ds = (dom, key) => {
 };
 
 test('마이그레이션 UX 종단: 구 HTML manifest 열기(지연 마이그레이션)→편집→저장→재열기 무손실 왕복',
-  { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  { skip: SKIP_REASON, timeout: 90000 }, async () => {
     const legacyManifest = JSON.parse(await readFile(FIXTURE_MANIFEST, 'utf8'));
     assert.equal(legacyManifest.pagination, undefined, '픽스처 전제: 구 HTML manifest(pagination 필드 없음)');
     const standardText = legacyManifest.standardsText['[9과14-02]'];

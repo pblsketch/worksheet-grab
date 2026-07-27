@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { migrateManifestToObjectTree, computeObjectizationStats, stripTags } from '../../src/usecases/MigrateManifestToObjectTree.js';
@@ -32,8 +32,10 @@ const AUDIT_DOCS = ['데모활동지', '문학의가치-UDL', '편집테스트',
 const blockRepository = new FsBlockRepository({ root: ROOT });
 const assembler = new AssembleWorksheet({ blockRepository });
 
+const manifestPathOf = (name) => join(ROOT, 'worksheets', name, 'worksheet.manifest.json');
+
 function loadManifest(name) {
-  return JSON.parse(readFileSync(join(ROOT, 'worksheets', name, 'worksheet.manifest.json'), 'utf8'));
+  return JSON.parse(readFileSync(manifestPathOf(name), 'utf8'));
 }
 
 function normalize(s) {
@@ -77,8 +79,16 @@ function roundtripCoverage(renderedText, migratedText) {
 
 // 전 문서를 한 번에 마이그레이션해 리포트로 집계(모듈 로드 시 1회 — 렌더 테스트가 아니라 순수 HTML
 // 문자열 조립(AssembleWorksheet)이므로 비용이 낮다. Chrome 은 관여하지 않는다).
+//
+// 부재 처리: `worksheets/` 는 .gitignore 대상이라 **로컬에만 있는 실 교사 문서**다. 합성 픽스처로
+// 바꾸면 "실제 문서가 마이그레이션되는가"라는 이 감사의 목적 자체가 사라지므로 대체하지 않는다.
+// 대신 없는 환경(새 클론·CI)에서는 그 문서만 건너뛰되 **테스트를 등록은 한다** — 예전에는 이 루프가
+// 모듈 로드 중 ENOENT 로 죽어 파일 전체(9건)가 아예 등록되지 않았고, 총계만 보면 사라진 걸
+// 알아채기 어려웠다(로컬 601 → 새 클론 593, 파일 1건이 실패로만 잡힘). skip 은 개수에 남는다.
 const auditResults = [];
+const missingDocs = [];
 for (const name of AUDIT_DOCS) {
+  if (!existsSync(manifestPathOf(name))) { missingDocs.push(name); continue; }
   const manifest = loadManifest(name);
   const document = await migrateManifestToObjectTree(manifest, { blockRepository });
   const { ok, findings } = new ValidateObjectTree().execute(document);
@@ -104,7 +114,18 @@ for (const result of auditResults) {
   });
 }
 
-test('감사 리포트 저장 — scratchpad/ralph-reports/migrate-audit.json', () => {
+// 부재 문서도 **같은 이름으로** 등록하되 skip 한다 — 실행 환경에 따라 스위트의 모양(개수)이
+// 조용히 달라지지 않게 하려는 것이다. "없어서 안 돌았다"와 "있는데 통과했다"는 총계가 아니라
+// skip 표시로 구분돼야 한다.
+for (const name of missingDocs) {
+  const reason = `로컬 실문서 없음: worksheets/${name}/worksheet.manifest.json (.gitignore 대상 — 합성 픽스처로 대체하지 않는다)`;
+  test(`감사 — ${name}: 마이그레이션 후 ValidateObjectTree PASS`, { skip: reason }, () => {});
+  test(`감사 — ${name}: 라운드트립 커버리지 ≥ ${ROUNDTRIP_COVERAGE_MIN * 100}%(원본 렌더 텍스트 ≈ 산출 개체 트리 텍스트)`, { skip: reason }, () => {});
+}
+
+test('감사 리포트 저장 — scratchpad/ralph-reports/migrate-audit.json', {
+  skip: auditResults.length === 0 && '감사 대상 실문서가 하나도 없음(worksheets/ 부재)',
+}, () => {
   mkdirSync(dirname(REPORT_PATH), { recursive: true });
   const report = {
     generatedAt: new Date().toISOString(),
