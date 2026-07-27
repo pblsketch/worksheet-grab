@@ -132,11 +132,23 @@ function isValidOpItem(o) {
   return !(hasAfter && hasBefore);
 }
 
-/** v4 요청의 선택 필드(pageId·pageVersion·scope) — 있으면 형태를 강제하고, 없으면 관용한다. */
+/**
+ * v4 요청의 선택 필드(pageId·pageVersion·pageVersions·scope) — 있으면 형태를 강제하고, 없으면 관용한다.
+ *
+ * pageVersions 는 {pageId: pageVersion} 맵으로, 요청이 **걸친 모든 페이지**의 지문이다(대표 한 장만
+ * 재면 여러 쪽에 걸친 선택에서 덮어쓰기를 놓친다). pageId/pageVersion 은 대표 페이지로 계속 남아
+ * 하위호환과 CLI 표시를 맡는다.
+ */
 function hasValidOptionalPageFields(req) {
   if (req.pageId != null && (typeof req.pageId !== 'string' || !req.pageId)) return false;
   if (req.pageVersion != null && (typeof req.pageVersion !== 'string' || !req.pageVersion)) return false;
   if (req.scope != null && !['objects', 'page'].includes(req.scope)) return false;
+  if (req.pageVersions != null) {
+    if (typeof req.pageVersions !== 'object' || Array.isArray(req.pageVersions)) return false;
+    const entries = Object.entries(req.pageVersions);
+    if (entries.length === 0) return false; // 빈 맵은 "검사 없음"과 구분되지 않으므로 싣지 않는다
+    if (!entries.every(([id, version]) => !!id && typeof version === 'string' && !!version)) return false;
+  }
   return true;
 }
 

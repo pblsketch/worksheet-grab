@@ -9,4 +9,9 @@ export {
 } from './ObjectCatalog.js';
 export { validateObjectShape } from './validateObjectShape.js';
 export { checkExportGate } from './exportGate.js';
-export { createPageId, createUniquePageId, normalizePageIdentity } from './PageIdentity.js';
+export {
+  createPageId,
+  createUniquePageId,
+  normalizePageIdentity,
+  computePageVersion,
+} from './PageIdentity.js';

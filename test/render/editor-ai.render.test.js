@@ -167,12 +167,46 @@ function freshDocument() {
   };
 }
 
-async function startEditServer() {
+/** Phase 4(v4) 전용 문서 — 합치기(3→1)를 실측할 문항 3개와, "대상 페이지 삭제" 를 실측할 2쪽. */
+function opsDocument() {
+  return {
+    pagination: 'paginated',
+    docTitle: 'AI 계획(v4) 테스트 문서',
+    subject: 'science',
+    dataSubject: 'science',
+    themeName: 'sci',
+    lang: 'ko',
+    paper: null,
+    standards: [{ code: '9과15-01', text: '전압과 전류의 관계를 설명할 수 있다.' }],
+    pages: [
+      {
+        id: 'page-ops-1',
+        flow: [
+          { id: 't1', type: 'title', placement: 'flow', text: '오늘의 학습 목표' },
+          { id: 'std1', type: 'std-box', placement: 'flow', codes: ['9과15-01'] },
+          { id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '전압이 무엇인지 설명하시오.' },
+          { id: 'q2', type: 'question', placement: 'flow', qtype: 'essay', prompt: '전류가 무엇인지 설명하시오.' },
+          { id: 'q3', type: 'question', placement: 'flow', qtype: 'essay', prompt: '저항이 무엇인지 설명하시오.' },
+        ],
+        float: [],
+      },
+      {
+        id: 'page-ops-2',
+        flow: [
+          { id: 'q4', type: 'question', placement: 'flow', qtype: 'short-answer', prompt: '옴의 법칙을 쓰시오.' },
+        ],
+        float: [],
+      },
+    ],
+  };
+}
+
+async function startEditServer({ document: initialDocument = freshDocument() } = {}) {
   const base = await mkdtemp(join(tmpdir(), 'wsg-ai-render-'));
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });
-  await saver.checkpoint({ name: '문서', document: freshDocument(), now: new Date('2026-07-23T01:00:00.000Z') });
+  await saver.checkpoint({ name: '문서', document: initialDocument, now: new Date('2026-07-23T01:00:00.000Z') });
   const server = createEditorServer({
     root: ROOT, docName: '문서', workspace, blockRepository, curriculum: null, testSeed: true,
   });
@@ -220,6 +254,28 @@ function watchAndRespond(bridge, { rounds = 1, timeoutMs = 40000 } = {}) {
       await bridge.putResponse({ schemaVersion: 3, id: fresh.id, objects });
     }
     return [...seen];
+  })();
+}
+
+/**
+ * Phase 4 모의 구독 AI: 요청 하나에 v4 계획(ops)을 회신한다. planFor(request) 가 ops 배열을 만든다 —
+ * 실제로는 별도 프로세스의 `worksheet-grab ai respond --ops <file.json>` 이 같은 파일을 쓴다.
+ */
+function watchAndRespondOps(bridge, planFor, { rounds = 1, timeoutMs = 40000 } = {}) {
+  return (async () => {
+    const seen = [];
+    const startedAt = Date.now();
+    while (seen.length < rounds) {
+      if (Date.now() - startedAt > timeoutMs) {
+        throw new Error(`watchAndRespondOps: ${timeoutMs}ms 내 ${rounds}개 요청 중 ${seen.length}개만 수신`);
+      }
+      const pending = await bridge.listPending();
+      const fresh = pending.find((r) => !seen.includes(r.id));
+      if (!fresh) { await new Promise((r) => setTimeout(r, 150)); continue; }
+      seen.push(fresh.id);
+      await bridge.putResponse({ schemaVersion: 4, id: fresh.id, ops: planFor(fresh, seen.length) });
+    }
+    return seen;
   })();
 }
 
@@ -333,6 +389,226 @@ test('3층 정책(2026-07-23 2차 델타): passage-slot AI 가드 해제 — 지
 
     // std-box 는 3층 정책과 무관하게 여전히 AI 가드 대상(원칙 3, 무회귀).
     assert.equal(ds(dom, 'std-ai-entry-still-disabled'), 'true', 'std-box 선택 시 AI 버튼은 여전히 비활성이어야 함');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+// ══════════════════════ Phase 4: 페이지 범위 AI (US-P4-2 ~ US-P4-5) ══════════════════════
+
+const MERGE_PLAN = () => ([
+  { op: 'replace', id: 'q1', object: { id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '전압·전류·저항의 관계를 한 활동으로 통합해 설명하시오.' } },
+  { op: 'delete', id: 'q2' },
+  { op: 'delete', id: 'q3' },
+  { op: 'insert', object: { id: 'ai-new', type: 'richtext', placement: 'flow', html: '<p>활동 안내(AI 신규)</p>' }, afterId: 'q1' },
+]);
+
+test('US-P4-2·P4-3 v4 계획: 문항 3개→1개 합치기 + 신규 1개 — 미리보기 개수 변화 · 적용 1 op · undo 1스텝', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    const watcher = watchAndRespondOps(bridge, MERGE_PLAN, { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-ops-merge`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-ops-merge');
+
+    assert.equal(ds(dom, 'ops-selected-count'), '3', '문항 3개 다중 선택');
+    // 미리보기: 수정/삭제/삭제/신규 — ops 순서를 그대로 보여준다.
+    assert.equal(ds(dom, 'ops-card-kinds'), 'replace,delete,delete,insert', '계획 항목이 종류별로 구분 표시됨');
+    assert.equal(ds(dom, 'ops-count-before'), '3', '대상 3개');
+    assert.equal(ds(dom, 'ops-count-after'), '2', '결과 2개(합쳐진 1개 + 신규 1개)');
+    assert.equal(ds(dom, 'ops-count-delete'), '2');
+    assert.equal(ds(dom, 'ops-count-insert'), '1');
+    assert.match(ds(dom, 'ops-count-text') || '', /대상 3개 → 결과 2개/, '개수 변화가 문장으로도 보인다');
+    // 삭제는 before 만, 신규는 after 만.
+    assert.match(ds(dom, 'ops-delete-before-text') || '', /전류가 무엇인지/, '삭제 항목은 사라질 원본을 보여준다');
+    assert.match(ds(dom, 'ops-delete-after-text') || '', /삭제/, '삭제 항목의 AI 결과 칸은 삭제됨 표기');
+    assert.match(ds(dom, 'ops-insert-before-text') || '', /새로 추가되는 개체/, '신규 항목은 원본이 없다');
+    assert.match(ds(dom, 'ops-insert-after-text') || '', /활동 안내/, '신규 항목은 새 개체를 보여준다');
+
+    assert.equal(ds(dom, 'ops-history-one-op'), 'true', '적용은 applyDocOp 한 번 = history 정확히 1 op');
+    assert.equal(ds(dom, 'ops-count-before-apply'), '6');
+    assert.equal(ds(dom, 'ops-count-after-apply'), '5', '3개가 1개로 합쳐지고 1개가 추가되어 6→5');
+    assert.equal(ds(dom, 'ops-merged-away'), 'true', 'q2·q3 는 문서에서 사라진다');
+    assert.match(ds(dom, 'ops-q1-prompt') || '', /통합해 설명/, '남은 개체는 AI 가 합친 내용');
+    assert.equal(ds(dom, 'ops-inserted-rendered'), 'true', '신규 개체가 캔버스에 실제로 렌더됨');
+    assert.equal(ds(dom, 'ops-std-intact'), 'true', 'std-box 는 그대로(원칙 3)');
+    assert.equal(ds(dom, 'ops-selection-moved'), 'true', '적용 후 선택이 AI 결과 개체로 이동');
+    assert.equal(ds(dom, 'ops-selection-count'), '2', '결과 개체(합친 1 + 신규 1) 전부 선택');
+
+    assert.equal(ds(dom, 'ops-undo-one-step'), 'true', 'Ctrl+Z 한 번으로 되돌아온다');
+    assert.equal(ds(dom, 'ops-undo-restored'), 'true', '세 개체가 모두 원래대로 복원');
+    assert.equal(ds(dom, 'ops-undo-count'), '6');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('US-P4-3 무음 실패 금지: 계획이 무효면 적용 버튼 비활성 + 사유 표시', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    // 존재하지 않는 개체를 지목하는 계획 — 적용하면 엔진이 던진다(= 부분 반영 금지).
+    const watcher = watchAndRespondOps(bridge, () => ([
+      { op: 'replace', id: '없는-개체', object: { id: '없는-개체', type: 'question', qtype: 'essay', prompt: '유령' } },
+    ]), { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-ops-invalid`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-ops-invalid');
+
+    assert.equal(ds(dom, 'inv-apply-disabled'), 'true', '적용 버튼 비활성');
+    assert.match(ds(dom, 'inv-error') || '', /대상 개체를 찾을 수 없습니다/, '사유가 패널에 표시된다');
+    assert.equal(ds(dom, 'inv-panel-still-open'), 'true', '패널은 닫히지 않는다');
+    assert.equal(ds(dom, 'inv-unchanged'), 'true', '문서는 그대로');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('US-P4-3 버전 왕복: 적용 가능 여부와 사유가 항상 그 버전에서 파생된다', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    // 1차는 무효 계획(없는 대상), 2차 재생성은 정상 계획 — ◀▶ 로 왕복하며 상태가 따라오는지 본다.
+    const watcher = watchAndRespondOps(bridge, (_req, round) => (round === 1
+      ? [{ op: 'replace', id: '없는-개체', object: { id: '없는-개체', type: 'question', qtype: 'essay', prompt: '유령' } }]
+      : [{ op: 'replace', id: 'q1', object: { id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '정상 재작성' } }]),
+    { rounds: 2 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-ops-version-sync`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-ops-version-sync');
+
+    assert.equal(ds(dom, 'vs-v1-disabled'), 'true', 'v1(무효) — 적용 비활성');
+    assert.match(ds(dom, 'vs-v1-error') || '', /찾을 수 없습니다/, 'v1 — 사유 표시');
+    assert.equal(ds(dom, 'vs-v2-disabled'), 'false', 'v2(정상) — 적용 활성');
+    assert.equal(ds(dom, 'vs-v2-error'), '', 'v2 — 사유 없음');
+
+    // ◀ 로 무효 버전 복귀: 비활성인데 사유만 사라지면 교사는 이유를 알 수 없다.
+    assert.equal(ds(dom, 'vs-back-label'), '1 / 2');
+    assert.equal(ds(dom, 'vs-back-disabled'), 'true', '◀ 복귀 — 다시 비활성');
+    assert.match(ds(dom, 'vs-back-error') || '', /찾을 수 없습니다/, '◀ 복귀 — 사유도 함께 되살아난다');
+    // ▶ 로 정상 버전 복귀: 남의 무효 문구가 남아 있으면 안 된다.
+    assert.equal(ds(dom, 'vs-fwd-disabled'), 'false', '▶ 복귀 — 다시 활성');
+    assert.equal(ds(dom, 'vs-fwd-error'), '', '▶ 복귀 — 이전 버전의 사유가 남지 않는다');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('US-P4-4 페이지 전체 scope: 선택 0개 진입 · std-box 제외 · 토글 왕복 · 요청에 pageId/pageVersion', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    // 이 시드는 응답을 기다리지 않는다 — 요청 본문 자체가 검증 대상이라 큐에 남긴 채 확인한다.
+    const dom = await dumpDom(`${url}/?seed=ai-page-scope`);
+    assertSeedDone(dom, 'ai-page-scope');
+
+    assert.equal(ds(dom, 'ps-selection-count'), '0', '선택 해제 상태');
+    assert.equal(ds(dom, 'ps-entry-enabled'), 'true', '선택이 없어도 AI 진입점은 활성');
+    assert.equal(ds(dom, 'ps-phase'), 'compose', '차단 아닌 작성 단계로 열린다');
+    assert.equal(ds(dom, 'ps-scope'), 'page', 'scope=page');
+    assert.equal(ds(dom, 'ps-page-id'), ds(dom, 'ps-first-page-id'), '활성 페이지를 페이지 ID 로 식별(index 아님)');
+    assert.equal(ds(dom, 'ps-page-flow-count'), '5', '그 페이지의 개체는 5개(std-box 포함)');
+    assert.equal(ds(dom, 'ps-target-count'), '4', 'std-box 를 뺀 4개만 대상(원칙 3)');
+    assert.match(ds(dom, 'ps-summary-text') || '', /현재 페이지 전체/, '대상 범위가 패널에 표기된다');
+    assert.equal(ds(dom, 'ps-scope-toggle-disabled'), 'true', '선택이 없으면 개체 범위로 되돌릴 수 없다');
+
+    assert.equal(ds(dom, 'ps-scope-with-selection'), 'objects', '선택이 있으면 기본은 개체 범위');
+    assert.equal(ds(dom, 'ps-target-count-with-selection'), '1');
+    assert.equal(ds(dom, 'ps-scope-after-toggle'), 'page', '토글로 페이지 전체 선택');
+    assert.equal(ds(dom, 'ps-target-count-after-toggle'), '4');
+    assert.equal(ds(dom, 'ps-scope-after-untoggle'), 'objects', '토글 해제로 선택 개체 범위 복귀');
+    assert.equal(ds(dom, 'ps-target-count-after-untoggle'), '1');
+    assert.equal(ds(dom, 'ps-copy-has-page-scope'), 'true', '지시문에도 페이지 전체 범위가 고지된다');
+
+    const reqId = ds(dom, 'ps-request-id');
+    assert.ok(reqId && reqId.startsWith('req-'), '요청 id 발급');
+    const pending = await bridge.listPending();
+    const req = pending.find((r) => r.id === reqId);
+    assert.ok(req, '요청이 큐에 기록됨');
+    assert.equal(req.schemaVersion, 4, 'v4 요청');
+    assert.equal(req.scope, 'page');
+    assert.equal(req.pageId, ds(dom, 'ps-first-page-id'), '요청에 페이지 ID 가 실린다');
+    assert.match(String(req.pageVersion || ''), /^pv1-[0-9a-f]{16}$/, '요청에 그 시점 pageVersion 이 실린다');
+    assert.equal(req.objects.length, 4, '요청 개체도 std-box 제외 4개');
+    assert.equal(req.objects.some((o) => o.type === 'std-box'), false, 'std-box 는 요청에 실리지 않는다');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('US-P4-5 덮어쓰기 방지: 적용 전 페이지가 바뀌면 자동 적용하지 않고 선택지를 준다', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    const watcher = watchAndRespondOps(bridge, () => ([
+      { op: 'replace', id: 'q1', object: { id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'AI 가 다시 쓴 문항' } },
+    ]), { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-conflict`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-conflict');
+
+    assert.equal(ds(dom, 'cf-detected'), 'true', '충돌이 감지된다');
+    assert.equal(ds(dom, 'cf-kind'), 'changed');
+    assert.equal(ds(dom, 'cf-not-applied'), 'true', 'fail-closed — 기본 동작은 적용하지 않음');
+    assert.equal(ds(dom, 'cf-panel-still-open'), 'true', '패널이 열린 채 선택을 기다린다');
+    assert.equal(ds(dom, 'cf-has-force'), 'true', '"그래도 적용" 선택지');
+    assert.equal(ds(dom, 'cf-has-discard'), 'true', '"폐기" 선택지');
+    assert.equal(ds(dom, 'cf-forced-applied'), 'true', '교사가 강행하면 적용된다');
+    assert.equal(ds(dom, 'cf-teacher-edit-kept'), 'true', '강행 적용은 대상 개체만 바꾼다 — 그 사이 편집은 보존');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('후속: 여러 쪽에 걸친 요청은 걸친 모든 페이지를 비교한다(대표 한 장만 재던 구멍)', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    const watcher = watchAndRespondOps(bridge, () => ([
+      { op: 'replace', id: 'q1', object: { id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'AI 가 다시 쓴 1쪽 문항' } },
+    ]), { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-multipage-conflict`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-multipage-conflict');
+
+    assert.equal(ds(dom, 'mp-selected-count'), '2', '1쪽·2쪽 개체를 함께 선택');
+    // 요청 큐에 걸친 페이지 지문이 전부 실렸는지 — 이게 없으면 아래 충돌 감지가 성립하지 않는다.
+    const req = (await bridge.listAll()).find((r) => r.id === ds(dom, 'mp-request-id'));
+    assert.ok(req, '요청 기록됨');
+    assert.equal(Object.keys(req.pageVersions || {}).length, 2, '요청에 두 페이지의 지문이 모두 실린다');
+    assert.ok(req.pageVersions[req.pageId], '대표 페이지 지문도 맵에 포함');
+
+    assert.equal(ds(dom, 'mp-second-page-edited'), 'true', '대기 중 2쪽을 실제로 편집');
+    assert.equal(ds(dom, 'mp-conflict-detected'), 'true', '대표 페이지가 아닌 쪽의 편집도 충돌로 잡힌다');
+    assert.equal(ds(dom, 'mp-conflict-kind'), 'changed');
+    assert.equal(ds(dom, 'mp-not-applied'), 'true', 'fail-closed — 2쪽 편집이 조용히 덮이지 않는다');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('후속: 요청 범위 밖 페이지의 개체를 건드리는 ops 는 거부한다', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    // 2쪽 개체만 요청했는데 AI 가 1쪽 개체를 지우려 든다 — 그 페이지는 보호 범위 밖이다.
+    const watcher = watchAndRespondOps(bridge, () => ([{ op: 'delete', id: 'q1' }]), { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-ops-out-of-scope`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-ops-out-of-scope');
+
+    assert.equal(ds(dom, 'oos-target-count'), '1', '2쪽 개체 1개만 대상');
+    assert.equal(ds(dom, 'oos-apply-disabled'), 'true', '적용 버튼 비활성');
+    assert.match(ds(dom, 'oos-error') || '', /요청 범위 밖 개체/, '사유가 표시된다');
+    assert.equal(ds(dom, 'oos-q1-untouched'), 'true', '범위 밖 개체는 그대로');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('US-P4-5 대상 페이지 삭제: 적용 거부 + 사유 표시(강행 경로 없음)', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    const watcher = watchAndRespondOps(bridge, () => ([
+      { op: 'replace', id: 'q4', object: { id: 'q4', type: 'question', placement: 'flow', qtype: 'short-answer', prompt: 'AI 가 다시 쓴 옴의 법칙 문항' } },
+    ]), { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-page-missing`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-page-missing');
+
+    assert.equal(ds(dom, 'pmi-detected'), 'true', '거부 사유가 표시된다');
+    assert.equal(ds(dom, 'pmi-kind'), 'missing');
+    assert.equal(ds(dom, 'pmi-no-force'), 'true', '페이지가 없으면 강행 선택지도 없다');
+    assert.equal(ds(dom, 'pmi-panel-still-open'), 'true');
+    assert.equal(ds(dom, 'pmi-count-unchanged'), 'true', '문서는 그대로');
+    assert.match(ds(dom, 'pmi-message') || '', /페이지가 삭제/, '사유 문구');
   } finally {
     await new Promise((r) => server.close(r));
   }

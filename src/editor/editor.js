@@ -650,6 +650,7 @@ document.getElementById('btn-review').addEventListener('click', () => {
 async function applyDocOp(next, {
   reflow = false,
   selectId = null,
+  selectIds = null,
   ai = false,
   activePageId: requestedActivePageId = null,
 } = {}) {
@@ -664,7 +665,12 @@ async function applyDocOp(next, {
   canvasInline.refreshDecoration();
   aiPanel.refreshFreshBadges(frames.teacher?.contentDocument ?? null);
   fitFrame(frames.teacher);
-  if (selectId) selection.select(selectId);
+  // selectIds 는 결과가 여러 개인 조작(AI 계획 적용)이 만든 개체 전부로 선택을 옮긴다.
+  // additive 는 토글이라 같은 id 가 두 번 오면 방금 켠 선택이 도로 꺼진다 — 중복을 먼저 제거한다
+  // (AI 가 한 개체를 두 번 replace 하는 계획을 세우면 실제로 발생한다).
+  const uniqueSelectIds = selectIds ? [...new Set(selectIds)] : null;
+  if (uniqueSelectIds && uniqueSelectIds.length) uniqueSelectIds.forEach((id, i) => selection.select(id, { additive: i > 0 }));
+  else if (selectId) selection.select(selectId);
   else selection.refreshVisual();
   activePageId = resolveActivePageId(next, requestedActivePageId ?? activePageId, activeIndexBefore);
   renderPageThumbs(activeIndexBefore);
@@ -1030,7 +1036,28 @@ const aiPanel = createAiPanel({
   excludedTypes: excludedAiTypes,
   getRenderMeta: () => buildRenderMeta(core.getDocument()),
   getDoc: () => frames.teacher?.contentDocument ?? null,
-  onApply: async ({ mode, updates }) => {
+  getActivePageId: () => activePageId,
+  getPage: (pageId) => (core.getDocument().pages || []).find((page) => page.id === pageId) ?? null,
+  getPageIdOf: (objectId) => {
+    const index = ObjOps.pageIndexOf(core.getDocument(), objectId);
+    return index >= 0 ? (core.getDocument().pages?.[index]?.id ?? null) : null;
+  },
+  onApply: async ({ mode, updates, ops }) => {
+    // v4(Phase 4): AI 가 준 계획을 순수 연산 한 번으로 next 문서까지 만든 뒤 applyDocOp 을 **한 번만**
+    // 통과시킨다 — 대상별로 반복 호출하면 undo 가 여러 스텝으로 쪼개진다. 위반(없는 대상·std-box·
+    // 유령 앵커)은 applyAiOps 가 던지므로 문서를 건드리기 전에 사유를 패널로 돌려준다.
+    if (mode === 'ops') {
+      let planned;
+      try {
+        planned = ObjOps.applyAiOps(core.getDocument(), ops, { excludedTypes: excludedAiTypes });
+      } catch (e) {
+        return { error: e?.message || String(e) };
+      }
+      await applyDocOp(planned.document, {
+        reflow: true, selectIds: planned.resultIds, selectId: planned.resultIds[0] ?? null, ai: true,
+      });
+      return { ids: planned.resultIds };
+    }
     let next = core.getDocument();
     const ids = [];
     if (mode === 'insert') {
@@ -1042,7 +1069,7 @@ const aiPanel = createAiPanel({
     } else {
       for (const u of updates) { next = ObjOps.replaceObject(next, u.id, u.object); ids.push(u.id); }
     }
-    await applyDocOp(next, { reflow: true, selectId: ids[0] ?? null, ai: true });
+    await applyDocOp(next, { reflow: true, selectIds: ids, selectId: ids[0] ?? null, ai: true });
     return { ids };
   },
 });

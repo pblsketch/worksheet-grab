@@ -86,8 +86,10 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       AI 액션 브리지(E5, 무API): 에디터의 "AI 재작성/예시 채우기" 요청을 구독 AI
       (이 CLI 를 모는 Claude/Codex 세션)가 파일 큐로 주고받는다.
         ai pending [--json] [--watch] [--once]   대기 요청 조회/감시(1s 폴링)
-        ai respond <id> --from <file>|--html <…>|--blocks <file.json>|--objects <file.json>
+        ai respond <id> --ops <file.json>|--objects <file.json>|--blocks <file.json>|--from <file>|--html <…>
                                                   재작성 결과 회신(취소된 요청은 거부).
+                                                  --ops 는 [{op:'replace'|'insert'|'delete',…}] JSON
+                                                  (개수·종류가 자유로운 계획, v4 — Phase 4)
                                                   --objects 는 [{id,object}] JSON(개체 ID 에코, v3 — US-19)
         ai list [--all] · ai clear [<id>]        상태 조회·terminal 정리
       큐 위치: <워크스페이스>/.ai-bridge/. 성취기준·저작권 지문 블록은 대상에서 제외.
@@ -625,12 +627,16 @@ async function cmdAi(args, flags, { log, err }) {
   const [sub, id] = args;
   const ws = wsRepoFromFlags(flags);
   const bridge = new FsAiBridgeRepository({ baseDir: ws.baseDir });
-  // v1(단일 block)·v2(blocks[])·v3(objects[], US-19) 양형을 무크래시로 렌더한다(r.block 직접 접근 금지).
+  // v1(단일 block)·v2(blocks[])·v3(objects[], US-19)·v4(objects[] + 페이지 컨텍스트, Phase 4) 양형을
+  // 무크래시로 렌더한다(r.block 직접 접근 금지).
   const printRequest = (r) => {
     if (flags.json) { log(JSON.stringify(r, null, 2)); return; }
     if (Array.isArray(r.objects)) {
       const summary = r.objects.map((o) => `${o.type}(${o.id})`).join(', ');
-      log(`  ${r.id} — ${r.docName} · ${r.action} · ${r.objects.length}개체 [${summary}]${r.instruction ? ` · 지시: ${r.instruction}` : ''}`);
+      // v4 는 어느 페이지의 어떤 상태를 근거로 한 요청인지도 싣는다 — 구독 AI 가 "페이지 전체"
+      // 요청임을 알아야 개수를 바꾸는 계획(ops)을 세울 수 있다.
+      const pageInfo = r.scope === 'page' ? ` · 범위: 페이지 전체(${r.pageId || '?'})` : '';
+      log(`  ${r.id} — ${r.docName} · ${r.action} · ${r.objects.length}개체 [${summary}]${pageInfo}${r.instruction ? ` · 지시: ${r.instruction}` : ''}`);
       return;
     }
     const blocks = r.blocks ?? (r.block ? [r.block] : []);
@@ -704,7 +710,11 @@ async function cmdAi(args, flags, { log, err }) {
         throw new Error('ai respond: --from <file> / --html <inline> / --blocks <file.json> / --objects <file.json> 중 하나가 필요합니다.');
       }
       await bridge.putResponse(response);
-      const detail = response.objects ? `${response.objects.length}개체` : response.blocks ? `${response.blocks.length}블록` : `${response.html.length}자`;
+      // 양형 방어(v1~v4): 없는 필드에 직접 접근하면 v4(ops[]) 회신에서 크래시한다.
+      const detail = response.ops ? `${response.ops.length}계획(${response.ops.map((o) => o.op).join('·')})`
+        : response.objects ? `${response.objects.length}개체`
+          : response.blocks ? `${response.blocks.length}블록`
+            : `${(response.html ?? '').length}자`;
       log(`✔ 응답 기록: ${id} (${detail}) — 에디터가 폴링으로 수신합니다.`);
       return 0;
     }
@@ -728,7 +738,7 @@ async function cmdAi(args, flags, { log, err }) {
       return 0;
     }
     default:
-      err(`ai: 알 수 없는 서브명령 "${sub ?? ''}". 지원: pending [--json|--watch|--once] · respond <id> --from|--html|--blocks · list [--all] · clear [<id>]`);
+      err(`ai: 알 수 없는 서브명령 "${sub ?? ''}". 지원: pending [--json|--watch|--once] · respond <id> --ops|--objects|--blocks|--from|--html · list [--all] · clear [<id>]`);
       return 2;
   }
 }

@@ -238,6 +238,82 @@ test('Phase 4 /ai/requests: v4 objects[] 저장(schemaVersion:4) + 집합 내 �
   }
 });
 
+test('Phase 4 /ai/requests: 페이지 컨텍스트(scope·pageId·pageVersion) 통과 + v4 ops 응답 왕복', async () => {
+  const { server, url, workspace } = await startServer();
+  try {
+    const { FsAiBridgeRepository } = await import('../../src/adapters/FsAiBridgeRepository.js');
+    const bridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
+
+    // 클라이언트가 실은 페이지 컨텍스트는 그대로 큐에 남아야 한다 — 적용 시점 충돌 검사의 근거다.
+    const create = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'rewrite',
+        scope: 'page',
+        pageId: 'page-abc',
+        pageVersion: 'pv1-0123456789abcdef',
+        objects: [{ id: 'o-q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'A' }],
+      }),
+    });
+    assert.equal(create.status, 200);
+    const { id } = await create.json();
+    const saved = await bridge.readRequest(id);
+    assert.equal(saved.schemaVersion, 4);
+    assert.equal(saved.scope, 'page');
+    assert.equal(saved.pageId, 'page-abc');
+    assert.equal(saved.pageVersion, 'pv1-0123456789abcdef');
+
+    // 페이지 컨텍스트 미지정(기존 클라이언트) → scope 는 objects 기본값, pageId/pageVersion 부재.
+    const plain = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', objects: [{ id: 'o-q2', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'B' }] }),
+    });
+    const plainSaved = await bridge.readRequest((await plain.json()).id);
+    assert.equal(plainSaved.scope, 'objects', '미지정이면 개체 범위');
+    assert.equal(plainSaved.pageId, undefined);
+    assert.equal(plainSaved.pageVersion, undefined);
+    assert.equal(plainSaved.pageVersions, undefined);
+
+    // 여러 쪽에 걸친 요청: pageVersions 맵이 그대로 통과해야 적용 시점에 전 페이지를 비교할 수 있다.
+    const multi = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'rewrite',
+        pageId: 'page-a',
+        pageVersion: 'pv1-aaaaaaaaaaaaaaaa',
+        pageVersions: { 'page-a': 'pv1-aaaaaaaaaaaaaaaa', 'page-b': 'pv1-bbbbbbbbbbbbbbbb' },
+        objects: [{ id: 'o-q3', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'C' }],
+      }),
+    });
+    const multiSaved = await bridge.readRequest((await multi.json()).id);
+    assert.deepEqual(multiSaved.pageVersions, { 'page-a': 'pv1-aaaaaaaaaaaaaaaa', 'page-b': 'pv1-bbbbbbbbbbbbbbbb' });
+
+    // 형태가 깨진 맵은 실리지 않는다(빈 맵·배열·비문자열 값) — validateRequest 거부로 요청 자체가 죽지 않도록 서버가 먼저 거른다.
+    for (const bad of [{}, [], { 'page-a': 123 }, { 'page-a': '' }]) {
+      const res = await fetch(`${url}/ai/requests`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rewrite', pageVersions: bad, objects: [{ id: 'o-q4', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'D' }] }),
+      });
+      assert.equal(res.status, 200, `깨진 pageVersions(${JSON.stringify(bad)}) 는 요청을 죽이지 않는다`);
+      const saved = await bridge.readRequest((await res.json()).id);
+      assert.equal(saved.pageVersions, undefined, `깨진 pageVersions(${JSON.stringify(bad)}) 는 저장되지 않는다`);
+    }
+
+    // v4 응답(ops[]) 왕복 — 편집기가 GET /ai/<id> 로 계획을 그대로 받는다.
+    await bridge.putResponse({ schemaVersion: 4, id, ops: [
+      { op: 'replace', id: 'o-q1', object: { id: 'o-q1', type: 'question', qtype: 'essay', prompt: 'A2' } },
+      { op: 'insert', object: { id: 'new1', type: 'richtext', html: '<p>안내</p>' }, afterId: 'o-q1' },
+      { op: 'delete', id: 'o-q9' },
+    ] });
+    const answered = await (await fetch(`${url}/ai/${id}`)).json();
+    assert.equal(answered.status, 'answered');
+    assert.equal(answered.response.schemaVersion, 4);
+    assert.deepEqual(answered.response.ops.map((o) => o.op), ['replace', 'insert', 'delete'], 'v4 계획이 그대로 전달');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
 test('F1 POST /assets: 업로드→GET 서빙·바이트 왕복·트래버설 404·비허용 400·동명 접미사', async () => {
   const { server, url } = await startServer();
   try {

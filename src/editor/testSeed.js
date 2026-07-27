@@ -686,6 +686,242 @@ export async function runEditorTestSeed(seed, {
     const stdEl2 = doc.querySelector('[data-oid="std1"]');
     stdEl2.click();
     document.body.dataset.stdAiEntryStillDisabled = String(document.getElementById('btn-ai').disabled);
+  } else if (seed === 'ai-ops-merge') {
+    // US-P4-2·P4-3: v4 계획(ops) — 문항 3개 선택 → AI 가 "1개로 합치고 안내문 1개 추가"를 계획한다.
+    // 미리보기가 수정/신규/삭제를 구분해 보여주고, 적용은 applyDocOp 한 번(=undo 1스텝)이어야 한다.
+    const beforeCount = core.allObjects().length;
+    const origPrompt = core.findObject('q1').obj.prompt;
+    doc.querySelector('[data-oid="q1"]').click();
+    doc.querySelector('[data-oid="q2"]').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
+    doc.querySelector('[data-oid="q3"]').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true }));
+    document.body.dataset.opsSelectedCount = String(selection.state.selectedIds.size);
+
+    document.getElementById('btn-ai').click();
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+
+    const cards = [...document.querySelectorAll('.ai-preview-card')];
+    document.body.dataset.opsCardKinds = cards.map((c) => c.dataset.aiPreviewKind).join(',');
+    const counts = document.getElementById('ai-count-change');
+    document.body.dataset.opsCountBefore = counts.dataset.aiCountBefore;
+    document.body.dataset.opsCountAfter = counts.dataset.aiCountAfter;
+    document.body.dataset.opsCountDelete = counts.dataset.aiCountDelete;
+    document.body.dataset.opsCountInsert = counts.dataset.aiCountInsert;
+    document.body.dataset.opsCountText = counts.textContent;
+
+    const delCard = document.querySelector('.ai-preview-card[data-ai-preview-kind="delete"]');
+    document.body.dataset.opsDeleteBeforeText = (delCard?.querySelector('.ai-preview-before .ai-preview-render')?.textContent || '').trim();
+    document.body.dataset.opsDeleteAfterText = (delCard?.querySelector('.ai-preview-after .ai-preview-render')?.textContent || '').trim();
+    const insCard = document.querySelector('.ai-preview-card[data-ai-preview-kind="insert"]');
+    document.body.dataset.opsInsertBeforeText = (insCard?.querySelector('.ai-preview-before .ai-preview-render')?.textContent || '').trim();
+    document.body.dataset.opsInsertAfterText = (insCard?.querySelector('.ai-preview-after .ai-preview-render')?.textContent || '').trim();
+
+    const idxBeforeApply = history.depth().index;
+    document.getElementById('ai-apply-ops').click();
+    await pollUntil(() => !document.getElementById('ai-panel'), { timeoutMs: 15000 });
+    await wait(80);
+    doc = frames.teacher.contentDocument;
+    document.body.dataset.opsHistoryOneOp = String(history.depth().index === idxBeforeApply + 1);
+    document.body.dataset.opsCountBeforeApply = String(beforeCount);
+    document.body.dataset.opsCountAfterApply = String(core.allObjects().length);
+    document.body.dataset.opsMergedAway = String(!core.findObject('q2') && !core.findObject('q3'));
+    document.body.dataset.opsQ1Prompt = core.findObject('q1').obj.prompt;
+    document.body.dataset.opsStdIntact = String(!!core.findObject('std1') && core.findObject('std1').obj.type === 'std-box');
+    const selectedAfter = [...selection.state.selectedIds];
+    document.body.dataset.opsSelectionMoved = String(selectedAfter.includes('q1') && !selectedAfter.includes('q2'));
+    document.body.dataset.opsSelectionCount = String(selectedAfter.length);
+    document.body.dataset.opsInsertedRendered = String(
+      !!doc.body.textContent.includes('활동 안내(AI 신규)'),
+    );
+
+    history.undo();
+    updateAll();
+    await wait(80);
+    document.body.dataset.opsUndoRestored = String(
+      !!core.findObject('q2') && !!core.findObject('q3') && core.findObject('q1').obj.prompt === origPrompt,
+    );
+    document.body.dataset.opsUndoCount = String(core.allObjects().length);
+    document.body.dataset.opsUndoOneStep = String(history.depth().index === idxBeforeApply);
+  } else if (seed === 'ai-ops-invalid') {
+    // US-P4-3: 계획이 전부 무효(없는 대상 지목)면 적용 버튼이 비활성이고 사유가 보인다(무음 실패 금지).
+    doc.querySelector('[data-oid="q1"]').click();
+    document.getElementById('btn-ai').click();
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+    document.body.dataset.invApplyDisabled = String(document.getElementById('ai-apply-ops').disabled);
+    document.body.dataset.invError = document.getElementById('ai-error')?.textContent || '';
+    const promptBefore = core.findObject('q1').obj.prompt;
+    document.getElementById('ai-apply-ops').click(); // disabled 라 아무 일도 없어야 한다
+    await wait(120);
+    document.body.dataset.invPanelStillOpen = String(!!document.getElementById('ai-panel'));
+    document.body.dataset.invUnchanged = String(core.findObject('q1').obj.prompt === promptBefore);
+  } else if (seed === 'ai-ops-version-sync') {
+    // US-P4-3: 버전 왕복(◀▶)에서 "적용 가능 여부"와 "사유"가 어긋나면 안 된다 — 무효 버전으로
+    // 돌아왔는데 사유가 사라지거나, 정상 버전에 남의 무효 문구가 남으면 교사가 오도된다.
+    doc.querySelector('[data-oid="q1"]').click();
+    document.getElementById('btn-ai').click();
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+    document.body.dataset.vsV1Disabled = String(document.getElementById('ai-apply-ops').disabled);
+    document.body.dataset.vsV1Error = document.getElementById('ai-error')?.textContent || '';
+
+    document.getElementById('ai-regenerate').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview'
+      && document.getElementById('ai-version-label')?.textContent === '2 / 2', { timeoutMs: 30000 });
+    document.body.dataset.vsV2Disabled = String(document.getElementById('ai-apply-ops').disabled);
+    document.body.dataset.vsV2Error = document.getElementById('ai-error')?.textContent || '';
+
+    document.getElementById('ai-version-prev').click();
+    document.body.dataset.vsBackLabel = document.getElementById('ai-version-label').textContent;
+    document.body.dataset.vsBackDisabled = String(document.getElementById('ai-apply-ops').disabled);
+    document.body.dataset.vsBackError = document.getElementById('ai-error')?.textContent || '';
+
+    document.getElementById('ai-version-next').click();
+    document.body.dataset.vsFwdDisabled = String(document.getElementById('ai-apply-ops').disabled);
+    document.body.dataset.vsFwdError = document.getElementById('ai-error')?.textContent || '';
+  } else if (seed === 'ai-multipage-conflict') {
+    // 후속(다중 페이지 충돌 검사): 요청이 여러 쪽에 걸치면 **걸친 모든 페이지**를 비교해야 한다.
+    // 대표 한 장만 재던 구현에서는 "다른 쪽을 편집해도 충돌 없음"으로 통과해 교사 편집이 조용히 덮였다.
+    doc.querySelector('[data-oid="q1"]').click();                                   // 1쪽
+    doc.querySelector('[data-oid="q4"]').dispatchEvent(new MouseEvent('click', { bubbles: true, shiftKey: true })); // 2쪽
+    document.body.dataset.mpSelectedCount = String(selection.state.selectedIds.size);
+
+    document.getElementById('btn-ai').click();
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'waiting'
+      && (document.getElementById('ai-copy-text')?.value || '').includes('req-'));
+    document.body.dataset.mpRequestId = document.querySelector('.ai-waiting')?.dataset.aiRequestId || '';
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+
+    // 대기 중 교사가 **2쪽**(대표 페이지가 아닌 쪽) 개체를 직접 편집한다.
+    const q4El = doc.querySelector('[data-oid="q4"]');
+    q4El.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const q4Target = q4El.querySelector('.q');
+    q4Target.textContent = `${q4Target.textContent}(교사가 2쪽에서 수정)`;
+    q4Target.dispatchEvent(new Event('input', { bubbles: true }));
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    history.commit();
+    document.body.dataset.mpSecondPageEdited = String(core.findObject('q4').obj.prompt.includes('2쪽에서 수정'));
+
+    const promptBefore = core.findObject('q1').obj.prompt;
+    document.getElementById('ai-apply-ops').click();
+    await wait(150);
+    const box = document.getElementById('ai-conflict');
+    document.body.dataset.mpConflictDetected = String(!!box);
+    document.body.dataset.mpConflictKind = box?.dataset.aiConflict || '';
+    document.body.dataset.mpConflictMessage = box?.querySelector('.ai-conflict-message')?.textContent || '';
+    document.body.dataset.mpNotApplied = String(core.findObject('q1').obj.prompt === promptBefore);
+  } else if (seed === 'ai-ops-out-of-scope') {
+    // 후속(범위 밖 ops): 요청이 근거로 삼지 않은 페이지의 개체를 AI 가 건드리려 하면 거부한다 —
+    // 그 페이지는 pageVersion 보호 밖이라 덮어쓰기 검사도 못 받고, 개수 표기도 실제와 어긋난다.
+    doc.querySelector('[data-oid="q4"]').click(); // 2쪽 개체만 대상
+    document.getElementById('btn-ai').click();
+    document.body.dataset.oosTargetCount = document.getElementById('ai-targets-summary').dataset.aiTargetCount;
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+
+    document.body.dataset.oosApplyDisabled = String(document.getElementById('ai-apply-ops').disabled);
+    document.body.dataset.oosError = document.getElementById('ai-error')?.textContent || '';
+    const q1Before = core.findObject('q1').obj.prompt;
+    document.getElementById('ai-apply-ops').click();
+    await wait(120);
+    document.body.dataset.oosQ1Untouched = String(!!core.findObject('q1') && core.findObject('q1').obj.prompt === q1Before);
+  } else if (seed === 'ai-page-scope') {
+    // US-P4-4: 선택 0개에서 AI 를 부르면 현재 활성 페이지 전체가 대상(scope:'page')이 되고,
+    // std-box(성취기준)는 페이지 전체라는 이유로도 대상에 들어가지 않는다(원칙 3).
+    doc.querySelector('.sheet').click();
+    document.body.dataset.psSelectionCount = String(selection.state.selectedIds.size);
+    document.body.dataset.psEntryEnabled = String(!document.getElementById('btn-ai').disabled);
+
+    document.getElementById('btn-ai').click();
+    let panel = document.getElementById('ai-panel');
+    document.body.dataset.psPhase = panel?.dataset.aiPhase || '(none)';
+    document.body.dataset.psScope = panel?.dataset.aiScope || '';
+    document.body.dataset.psPageId = panel?.dataset.aiPageId || '';
+    document.body.dataset.psFirstPageId = core.getDocument().pages[0].id;
+    const pageOfPanel = core.getDocument().pages.find((p) => p.id === panel?.dataset.aiPageId);
+    document.body.dataset.psPageFlowCount = String((pageOfPanel?.flow || []).length);
+    document.body.dataset.psTargetCount = document.getElementById('ai-targets-summary').dataset.aiTargetCount;
+    document.body.dataset.psSummaryText = document.getElementById('ai-targets-summary').textContent;
+    document.body.dataset.psScopeToggleDisabled = String(document.getElementById('ai-scope-page').disabled);
+    document.getElementById('ai-panel-close').click();
+    await wait(30);
+
+    // 선택이 있어도 "현재 페이지 전체"를 명시적으로 고를 수 있다(UI 토글).
+    doc.querySelector('[data-oid="q1"]').click();
+    document.getElementById('btn-ai').click();
+    panel = document.getElementById('ai-panel');
+    document.body.dataset.psScopeWithSelection = panel.dataset.aiScope;
+    document.body.dataset.psTargetCountWithSelection = document.getElementById('ai-targets-summary').dataset.aiTargetCount;
+    document.getElementById('ai-scope-page').click();
+    document.body.dataset.psScopeAfterToggle = document.getElementById('ai-panel').dataset.aiScope;
+    document.body.dataset.psTargetCountAfterToggle = document.getElementById('ai-targets-summary').dataset.aiTargetCount;
+    document.getElementById('ai-scope-page').click();
+    document.body.dataset.psScopeAfterUntoggle = document.getElementById('ai-panel').dataset.aiScope;
+    document.body.dataset.psTargetCountAfterUntoggle = document.getElementById('ai-targets-summary').dataset.aiTargetCount;
+
+    // 다시 페이지 전체로 두고 요청을 보낸다 — 요청 본문(pageId·pageVersion·scope)은 테스트가 큐에서 읽는다.
+    document.getElementById('ai-scope-page').click();
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'waiting'
+      && (document.getElementById('ai-copy-text')?.value || '').includes('req-'));
+    document.body.dataset.psRequestId = document.querySelector('.ai-waiting')?.dataset.aiRequestId || '';
+    document.body.dataset.psCopyHasPageScope = String((document.getElementById('ai-copy-text').value || '').includes('현재 페이지 전체'));
+  } else if (seed === 'ai-conflict') {
+    // US-P4-5: 요청 후 적용 전에 그 페이지를 편집하면 자동 적용하지 않는다(fail-closed) —
+    // 교사에게 알리고 "그래도 적용 / 폐기"를 준다.
+    doc.querySelector('[data-oid="q1"]').click();
+    document.getElementById('btn-ai').click();
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+
+    // 그 사이 교사가 같은 페이지의 다른 개체를 편집한다.
+    const t1El = doc.querySelector('[data-oid="t1"]');
+    t1El.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const titleTarget = t1El.querySelector('.title-box h1, .title-box h2');
+    titleTarget.textContent = '교사가 그 사이 고친 제목';
+    titleTarget.dispatchEvent(new Event('input', { bubbles: true }));
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    history.commit();
+
+    const promptBefore = core.findObject('q1').obj.prompt;
+    document.getElementById('ai-apply-ops').click();
+    await wait(150);
+    const box = document.getElementById('ai-conflict');
+    document.body.dataset.cfDetected = String(!!box);
+    document.body.dataset.cfKind = box?.dataset.aiConflict || '';
+    document.body.dataset.cfPanelStillOpen = String(!!document.getElementById('ai-panel'));
+    document.body.dataset.cfNotApplied = String(core.findObject('q1').obj.prompt === promptBefore);
+    document.body.dataset.cfHasForce = String(!!document.getElementById('ai-conflict-force'));
+    document.body.dataset.cfHasDiscard = String(!!document.getElementById('ai-conflict-discard'));
+
+    document.getElementById('ai-conflict-force').click();
+    await pollUntil(() => !document.getElementById('ai-panel'), { timeoutMs: 15000 });
+    await wait(80);
+    document.body.dataset.cfForcedApplied = String(core.findObject('q1').obj.prompt !== promptBefore);
+    document.body.dataset.cfTeacherEditKept = String(core.findObject('t1').obj.text === '교사가 그 사이 고친 제목');
+  } else if (seed === 'ai-page-missing') {
+    // US-P4-5: 대상 페이지가 그 사이 삭제됐으면 적용을 거부한다(강행 경로 없음).
+    const secondPageId = core.getDocument().pages[1].id;
+    doc.querySelector('[data-oid="q4"]').click();
+    document.getElementById('btn-ai').click();
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+
+    await handlePageAction('delete', secondPageId);
+    await wait(80);
+    const countAfterDelete = core.allObjects().length;
+    document.getElementById('ai-apply-ops').click();
+    await wait(150);
+    const box = document.getElementById('ai-conflict');
+    document.body.dataset.pmiDetected = String(!!box);
+    document.body.dataset.pmiKind = box?.dataset.aiConflict || '';
+    document.body.dataset.pmiNoForce = String(!document.getElementById('ai-conflict-force'));
+    document.body.dataset.pmiPanelStillOpen = String(!!document.getElementById('ai-panel'));
+    document.body.dataset.pmiCountUnchanged = String(core.allObjects().length === countAfterDelete);
+    document.body.dataset.pmiMessage = box?.querySelector('.ai-conflict-message')?.textContent || '';
   } else if (seed === 'image-workflow') {
     // US-20(S4.5) — F1 이미지 업로드 재작성: 업로드→개체 src 반영→GET 200 + 이미지가 실린
     // richtext 개체를 정답 마킹→저장 시 학생용 물리 제거(개체 단위 정답 규칙, image-slot 자체는

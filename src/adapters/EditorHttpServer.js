@@ -339,14 +339,32 @@ export function createEditorServer({
         } catch (e) {
           return send(res, 400, 'application/json; charset=utf-8', JSON.stringify({ error: e.message }));
         }
+        // Phase 4(v4): 클라이언트가 실은 pageId·pageVersion·scope 를 그대로 통과시킨다 —
+        // pageVersion 은 "이 응답이 어떤 페이지 상태를 근거로 만들어졌는지"의 낙관적 동시성
+        // 토큰이라, 서버가 재계산하면(문서 상태를 다시 읽으면) 그 시점 값이 되어 의미를 잃는다.
+        // 신뢰 경계는 그대로다: docName 은 여전히 서버 고정값이고, 이 필드들은 적용 시점에
+        // 클라이언트가 자기 문서로 다시 검증한다.
+        const scope = body?.scope === 'page' ? 'page' : 'objects';
+        const rawPageVersions = body?.pageVersions;
+        const pageVersions = rawPageVersions && typeof rawPageVersions === 'object' && !Array.isArray(rawPageVersions)
+          && Object.entries(rawPageVersions).length > 0
+          && Object.entries(rawPageVersions).every(([id, v]) => !!id && typeof v === 'string' && !!v)
+          ? { ...rawPageVersions }
+          : null;
         const request = {
-          schemaVersion: AI_SCHEMA_VERSION, // = 3 (신규 요청 쓰기, 개체 ID 에코)
+          schemaVersion: AI_SCHEMA_VERSION, // = 4 (신규 요청 쓰기: 개체 ID 에코 + 페이지 컨텍스트)
           id: newRequestId(),
           docName, // 서버 고정값 주입(클라이언트 위조 방지)
           action: body.action,
           objects: rawObjects.map((o) => ({ ...o })), // 개체 전체 필드 그대로 보존(html 요약 아님)
           instruction: typeof body.instruction === 'string' ? body.instruction : '',
           context: body.context && typeof body.context === 'object' ? body.context : {},
+          scope,
+          ...(typeof body?.pageId === 'string' && body.pageId ? { pageId: body.pageId } : {}),
+          ...(typeof body?.pageVersion === 'string' && body.pageVersion ? { pageVersion: body.pageVersion } : {}),
+          // pageVersions{pageId: version} — 요청이 걸친 모든 페이지의 지문(대표 한 장만으로는 여러 쪽
+          // 선택에서 덮어쓰기를 놓친다). 값 형태만 훑어 거르고 나머지는 validateRequest 가 강제한다.
+          ...(pageVersions ? { pageVersions } : {}),
           status: 'pending',
         };
         await aiBridge.putRequest(request);

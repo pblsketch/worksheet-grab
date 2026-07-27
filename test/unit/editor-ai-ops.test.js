@@ -99,6 +99,30 @@ test('없는 위치에 insert 하면 던진다(유령 위치 삽입 방지)', as
   );
 });
 
+// Phase 4 US-P4-4 가 자유 배치(float) 개체를 AI 대상 집합에 편입시키면서 노출된 경로:
+// insertFlow 는 앵커가 float 이면 조용히 **마지막 페이지 끝**에 붙인다(loc.bucket !== 'flow' 폴백).
+// AI 가 지목한 자리와 다른 곳에 꽂히는 오배치라, 유령 앵커와 같은 원칙으로 던져야 한다.
+test('자유 배치(float) 개체를 기준으로 insert 하면 던진다(조용한 오배치 방지)', async () => {
+  const withFloat = () => ({
+    pagination: 'paginated',
+    pages: [
+      { id: 'page-1', flow: [{ id: 'q1', type: 'question', prompt: '문항1' }], float: [{ id: 'fl1', type: 'richtext', placement: 'float', html: '<p>자유</p>' }] },
+      { id: 'page-2', flow: [{ id: 'q9', type: 'question', prompt: '문항9' }], float: [] },
+    ],
+  });
+  for (const anchorKey of ['afterId', 'beforeId']) {
+    await assert.rejects(
+      () => applyOps(withFloat(), [{ op: 'insert', object: { id: 'x', type: 'richtext', html: '<p>새</p>' }, [anchorKey]: 'fl1' }]),
+      /본문 흐름 개체가 아닙니다: fl1/,
+      `${anchorKey} 앵커가 float 이면 거부해야 한다`,
+    );
+  }
+  // 회귀 방어: 거부 이전 동작은 "2쪽 맨 끝에 조용히 추가" 였다 — 문서가 전혀 바뀌지 않아야 한다.
+  const before = withFloat();
+  await applyOps(before, [{ op: 'insert', object: { id: 'x', type: 'richtext' }, afterId: 'fl1' }]).catch(() => {});
+  assert.deepEqual(before.pages[1].flow.map((o) => o.id), ['q9'], '거부 시 원본 문서 무변경');
+});
+
 test('std-box 는 AI 가 수정·삭제할 수 없다(원칙 3, 성취기준 원문 보존)', async () => {
   await assert.rejects(
     () => applyOps(doc(), [{ op: 'replace', id: 'std', object: { id: 'std', type: 'std-box', codes: ['위조'] } }], { excludedTypes: EXCLUDED }),

@@ -189,3 +189,21 @@ test('Phase 4 요청: pageId·pageVersion·scope 는 선택이되 있으면 형�
   assert.equal(validateRequest({ ...base, pageVersion: 123 }), false, 'pageVersion 은 문자열');
   assert.equal(validateRequest({ ...base, objects: [] }), false, 'v4 도 objects[] 는 필수');
 });
+
+// 후속(다중 페이지 충돌 검사): 요청이 여러 쪽에 걸치면 대표 한 장이 아니라 걸친 모든 페이지의
+// 지문을 실어야 한다 — 대표만 재면 다른 쪽의 교사 편집이 조용히 덮인다.
+test('Phase 4 요청: pageVersions{pageId:version} 맵도 선택이되 있으면 형태를 강제한다', () => {
+  const base = {
+    schemaVersion: 4, id: 'req-4m', docName: '문서', action: 'rewrite',
+    objects: [{ id: 'o1', type: 'title' }], status: 'pending',
+  };
+  assert.equal(validateRequest({ ...base, pageVersions: { 'page-1': 'pv1-aaaa', 'page-2': 'pv1-bbbb' } }), true, '여러 쪽 지문 수용');
+  assert.equal(validateRequest({ ...base, pageVersions: { 'page-1': 'pv1-aaaa' } }), true, '한 쪽만이어도 유효');
+  assert.equal(validateRequest({ ...base, pageVersions: {} }), false, '빈 맵은 "검사 없음"과 구분되지 않아 거부');
+  assert.equal(validateRequest({ ...base, pageVersions: [] }), false, '배열 거부(맵이어야 한다)');
+  assert.equal(validateRequest({ ...base, pageVersions: { 'page-1': 123 } }), false, '지문은 문자열');
+  assert.equal(validateRequest({ ...base, pageVersions: { 'page-1': '' } }), false, '빈 지문 거부');
+  assert.equal(validateRequest({ ...base, pageVersions: { '': 'pv1-aaaa' } }), false, '빈 pageId 키 거부');
+  // 하위호환: pageVersions 없이 pageId/pageVersion 만 있는 옛 v4 요청도 계속 유효.
+  assert.equal(validateRequest({ ...base, pageId: 'page-1', pageVersion: 'pv1-aaaa' }), true);
+});

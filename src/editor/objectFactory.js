@@ -197,8 +197,15 @@ export function applyAiOps(document, ops, { excludedTypes = [] } = {}) {
       doc = removeObject(doc, op.id);
     } else if (op.op === 'insert') {
       const anchorId = op.afterId ?? op.beforeId ?? null;
-      if (anchorId != null && !findObj(doc, anchorId)) {
-        throw new Error(`AI 삽입 기준 개체를 찾을 수 없습니다: ${anchorId}`);
+      if (anchorId != null) {
+        const loc = locate(doc.pages || [], anchorId);
+        if (!loc) throw new Error(`AI 삽입 기준 개체를 찾을 수 없습니다: ${anchorId}`);
+        // 기준이 자유 배치(float) 개체면 insertFlow/insertFlowBefore 가 조용히 **마지막 페이지 끝**에
+        // 붙인다 — AI 가 지목한 자리와 다른 곳에 꽂히는 오배치라 여기서 거부한다(유령 앵커를 던지는
+        // 것과 같은 원칙: 조용히 엉뚱한 결과를 만들지 않는다).
+        if (loc.bucket !== 'flow') {
+          throw new Error(`AI 삽입 기준 개체가 본문 흐름 개체가 아닙니다: ${anchorId} — 자유 배치 개체의 앞/뒤에는 삽입할 수 없습니다.`);
+        }
       }
       // 신규 개체는 항상 새 id 를 받는다 — AI 가 준 id 를 그대로 쓰면 기존 개체와 충돌해
       // locate 가 엉뚱한 것을 집을 수 있다(편집기 insert 모드와 동일 규약).

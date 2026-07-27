@@ -48,6 +48,88 @@ function reqV3(id) {
   };
 }
 
+// v4(Phase 4) — objects[] 에 더해 페이지 컨텍스트(scope·pageId·pageVersion)를 싣는다.
+function reqV4(id, { scope = 'page' } = {}) {
+  return {
+    schemaVersion: 4, id, docName: '문서', action: 'rewrite',
+    objects: [
+      { id: 'o1', type: 'question', qtype: 'short-answer', placement: 'flow', prompt: '문항 원문' },
+      { id: 'o2', type: 'title', placement: 'flow', text: '제목 원문' },
+    ],
+    scope, pageId: 'page-abc', pageVersion: 'pv1-0123456789abcdef', status: 'pending',
+  };
+}
+
+test('Phase 4 ai pending: v4 요청(페이지 전체 scope) 무크래시 렌더 + 페이지 컨텍스트 표기', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-v4pending-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV4('req-v4'));
+  const { lines, log, err } = logger();
+  assert.equal(await run(['ai', 'pending', '--workspaces-dir', base], { root: ROOT, log, err }), 0);
+  assert.ok(lines.some((l) => /req-v4 — 문서 · rewrite · 2개체/.test(l)), 'v4 요청 렌더');
+  assert.ok(lines.some((l) => /범위: 페이지 전체\(page-abc\)/.test(l)), '구독 AI 가 페이지 전체 요청임을 알 수 있다');
+
+  const j = logger();
+  assert.equal(await run(['ai', 'pending', '--json', '--workspaces-dir', base], { root: ROOT, log: j.log, err: j.err }), 0);
+  const parsed = JSON.parse(j.lines.join('\n'));
+  assert.equal(parsed.pageVersion, 'pv1-0123456789abcdef', '--json 전문에 pageVersion 이 그대로 실린다');
+  assert.equal(parsed.scope, 'page');
+});
+
+test('Phase 4 ai list: v4 요청도 무크래시(양형 방어)', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-v4list-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV4('req-v4-list', { scope: 'objects' }));
+  const { lines, log, err } = logger();
+  assert.equal(await run(['ai', 'list', '--workspaces-dir', base], { root: ROOT, log, err }), 0);
+  assert.ok(lines.some((l) => /\[pending\] req-v4-list — 문서 · rewrite · 2개체/.test(l)));
+});
+
+test('Phase 4 ai respond --ops: v4 계획 기록(replace+insert+delete) + 요약 무크래시', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-ops-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV4('req-ops'));
+
+  const opsFile = join(base, 'ops.json');
+  await writeFile(opsFile, JSON.stringify([
+    { op: 'replace', id: 'o1', object: { id: 'o1', type: 'question', qtype: 'essay', placement: 'flow', prompt: '통합 문항' } },
+    { op: 'insert', object: { id: 'new1', type: 'richtext', placement: 'flow', html: '<p>안내</p>' }, afterId: 'o1' },
+    { op: 'delete', id: 'o2' },
+  ]), 'utf8');
+
+  const r = logger();
+  assert.equal(await run(['ai', 'respond', 'req-ops', '--ops', opsFile, '--workspaces-dir', base], { root: ROOT, log: r.log, err: r.err }), 0);
+  // v1~v3 만 알던 요약 문장이 v4 에서 크래시하지 않고 계획 종류를 보여준다.
+  assert.ok(r.lines.some((l) => /응답 기록: req-ops \(3계획\(replace·insert·delete\)\)/.test(l)), r.lines.join('\n'));
+  assert.equal(await bridge.getStatus('req-ops'), 'answered');
+  const resp = await bridge.readResponse('req-ops');
+  assert.equal(resp.schemaVersion, 4, '--ops → v4(AI_SCHEMA_VERSION 상수 사용)');
+  assert.deepEqual(resp.ops.map((o) => o.op), ['replace', 'insert', 'delete']);
+});
+
+test('Phase 4 ai respond --ops: {ops:[…]} 래핑 허용 · 형태 불일치는 거부', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-opsbad-'));
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV4('req-ops-wrap'));
+  await bridge.putRequest(reqV4('req-ops-bad'));
+
+  const wrapFile = join(base, 'wrap.json');
+  await writeFile(wrapFile, JSON.stringify({ ops: [{ op: 'delete', id: 'o2' }] }), 'utf8');
+  assert.equal(await run(['ai', 'respond', 'req-ops-wrap', '--ops', wrapFile, '--workspaces-dir', base], { root: ROOT, log: () => {}, err: () => {} }), 0);
+  assert.equal(await bridge.getStatus('req-ops-wrap'), 'answered');
+
+  // insert 에 afterId·beforeId 를 동시에 주면 어느 기준인지 모호하다 — 형태 단계에서 거부.
+  const badFile = join(base, 'bad.json');
+  await writeFile(badFile, JSON.stringify([
+    { op: 'insert', object: { id: 'x', type: 'richtext' }, afterId: 'o1', beforeId: 'o2' },
+  ]), 'utf8');
+  await assert.rejects(
+    () => run(['ai', 'respond', 'req-ops-bad', '--ops', badFile, '--workspaces-dir', base], { root: ROOT, log: () => {}, err: () => {} }),
+    /v4 스키마/,
+  );
+  assert.equal(await bridge.getStatus('req-ops-bad'), 'pending', '거부된 응답은 기록되지 않음');
+});
+
 test('ai pending: 대기 요청 출력(--json 전문 포함)', async () => {
   const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-'));
   const bridge = new FsAiBridgeRepository({ baseDir: base });
