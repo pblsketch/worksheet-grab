@@ -1,6 +1,20 @@
-# HANDOFF — Phase 4 페이지 범위 AI (진행 중)
+# HANDOFF — Phase 4 페이지 범위 AI (완료 · 2026-07-26)
 
-> 목적: 새 세션이 이 문서만 읽고 Phase 4 남은 작업을 ralph 로 이어받을 수 있게 한다.
+> **상태: 완료.** 아래 5개 스토리(US-P4-2 ~ US-P4-6)를 전부 구현·검증했다. 최종 계약과 설계
+> 근거는 `docs/HANDOFF-editor-workspace.md` 의 "2026-07-26 — Phase 4 완료" 절이 권위 문서다.
+> 이 문서는 착수 시점의 남은 작업 명세로 남겨 둔다(아래 체크리스트 = 그때의 요구사항).
+>
+> 완료 근거: 단위 **463/463**, 렌더(직렬) **91/91**, fail 0(기준선 449 / 83). 신규 커버리지 —
+> `test/unit/page-version.test.js`(7), `editor-ai-ops.test.js` float 앵커 1건, `ai-bridge.test.js`
+> pageVersions 1건, `ai-cli.test.js` v4 4건, `editor-server.test.js` v4 1건,
+> `test/render/editor-ai.render.test.js` Phase 4 8건(합치기·무효 계획·버전 왕복 동기화·페이지 scope·
+> 충돌·페이지 삭제·다중 페이지 충돌·범위 밖 ops).
+> 신규 렌더 2건은 각각 해당 로직을 개악(대표 페이지만 재기 / 범위 판정 무력화)했을 때 실제로
+> 실패하는 것을 확인해, 거짓 통과가 아님을 반증했다.
+> 합성 이벤트가 거짓 통과를 줄 수 있는 영역(실마우스 클릭·체크박스 토글·실타이핑·Ctrl+Z)은
+> 실 Chrome CDP `Input` 실입력으로 별도 재확인했다.
+>
+> 목적(원문): 새 세션이 이 문서만 읽고 Phase 4 남은 작업을 ralph 로 이어받을 수 있게 한다.
 > `prd.json` 은 gitignore 대상이라 **남은 수용 기준을 이 문서에 자립적으로** 옮겨 담았다.
 
 - 기준 커밋: **`d72952a`** (`feat(editor): AI 응답 스키마 v4(ops 계획) + 적용 엔진 — Phase 4 착수`)

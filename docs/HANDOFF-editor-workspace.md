@@ -236,3 +236,30 @@ ralplan 합의 계획 v2(Planner→Architect 조건부 승인 MED 4·권장 5 �
 | E6 | 내보내기 통합/마감 | ExportDocument fail-closed·정밀 미리보기·포맷 프리셋 UI | ✅ |
 
 **후속(범위 밖 명시):** A3→A4 4쪽 소책자 imposition · 페이지별 정밀 미리보기 · columns 다단 리플로우(스키마만 존재) · export `--out` override.
+
+### 2026-07-26 — Phase 4 완료 (페이지 범위 AI · AI 스키마 v4)
+
+**AI 브리지 스키마 v4(현행 신규 쓰기).** `AI_SCHEMA_VERSION = 4`, 관용 집합 `{1,2,3,4}`. `validateRequest`/`validateResponse` 는 버전을 관용하되 **형태-버전 정합**만 강제한다 — 디스크에 남은 v1(단일 `block`)·v2(`blocks[]`)·v3(`objects[{id,object}]`) in-flight 파일은 계속 유효하다. **상수 사용 규약: `AI_SCHEMA_VERSION` 은 v4 페이로드에만 쓴다.** v1/v2/v3 를 쓰는 호출부(CLI `--from`/`--html`/`--blocks`/`--objects`, 테스트 픽스처)는 리터럴로 태깅한다 — 상수를 옛 형태에 쓰면 형태-버전 불일치로 검증이 거부한다.
+
+**요청(v4)** — `{schemaVersion:4, id, docName, action, objects:[{id,type,…개체 전체 필드}], instruction, context, scope:'objects'|'page', pageId?, pageVersion?, status}`
+- `pageVersions:{pageId: version}` = 이 요청이 **걸친 모든 페이지**의 지문(아래 "보호 범위" 참조). 여러 쪽에 걸친 선택에서도 덮어쓰기를 놓치지 않는다.
+- `scope:'page'` = 선택 없이(또는 교사가 명시적으로 토글해) **현재 활성 페이지 전체**를 대상으로 부른 요청. 이때 `objects[]` 에는 그 페이지의 flow+float 개체가 실리되 **`std-box` 는 제외**된다(원칙 3 — 페이지 전체라는 이유로 성취기준 원문이 AI 대상이 되지 않는다).
+- 활성 페이지는 **페이지 ID** 로 식별한다(index 금지 — Phase 2 규약).
+- `pageVersion` = 요청 시점 페이지 내용 지문(`domain/schema/PageIdentity.computePageVersion`, `pv1-<16진 16자>`). 키 정렬 정규화 후 FNV-1a 2벌 — 같은 내용이면 같은 값, 필드 하나·순서 하나만 바뀌어도 다른 값. 서버는 이 값을 **재계산하지 않고 통과**시킨다(재계산하면 "요청 시점"이라는 의미를 잃는다). `docName` 은 여전히 서버 고정값이다.
+
+**응답(v4)** — `{schemaVersion:4, id, ops:[…]}` — 개수·종류가 자유로운 **계획**이다(1:1 치환 강제 폐기).
+- `{op:'replace', id, object}` · `{op:'insert', object, afterId?|beforeId?}` · `{op:'delete', id}`
+- `insert` 에 `afterId` 와 `beforeId` 를 **동시에** 주면 거부(어느 기준인지 모호). 신규 개체의 `id` 는 버려지고 적용 시 새로 발급된다(기존 개체와 충돌 방지).
+- `insert` 의 앵커는 **본문 흐름(flow) 개체여야 한다.** 자유 배치(float) 개체를 기준으로 주면 거부한다 — `insertFlow` 는 흐름이 아닌 앵커를 만나면 마지막 페이지 끝에 붙이므로, 그대로 두면 AI 가 지목한 자리와 다른 곳에 **조용히** 꽂힌다(유령 앵커를 던지는 것과 같은 원칙).
+- **계층 분리:** `aiBridge` 는 프로토콜 형태만 본다. "std-box 를 지우려 든다"·"없는 `afterId` 를 가리킨다"처럼 **문서를 알아야** 하는 판정은 적용 경로(`editor/objectFactory.applyAiOps`)가 맡고, 위반 시 **던진다**(조용한 부분 반영 금지 — 절반만 반영된 채 "AI 가 반영됐다"고 믿게 두지 않는다).
+- CLI 회신: `worksheet-grab ai respond <id> --ops <file.json>`(`[{op,…}]` 또는 `{ops:[…]}`). `--objects`(v3)도 그대로 받는다.
+
+**편집기 적용 경로.** 미리보기는 ops 를 수정/신규/삭제로 나눠 보여준다(삭제는 before 만·신규는 after 만) + "대상 N개 → 결과 M개" 개수 변화 표기. 계획 항목이 하나라도 무효면 **적용 버튼 비활성 + 사유 표시**(무음 실패 금지). 적용은 `applyAiOps` 로 만든 단일 next 문서를 `applyDocOp` 에 **한 번만** 통과시킨다 — undo 1스텝이 그 대가다(대상별 반복 호출 금지). 적용 후 선택은 결과 개체 전부로 옮겨간다.
+
+**덮어쓰기 방지(fail-closed).** 적용 직전에 `pageVersion` 을 다시 계산해 요청 시점 값과 비교한다. 다르면 **자동 적용하지 않고** 교사에게 알린 뒤 "그래도 적용 / 폐기"를 준다. 대상 페이지가 그 사이 삭제됐으면 강행 경로 없이 거부한다(적용 위치 자체가 정의되지 않는다).
+
+**보호 범위 = 요청이 걸친 페이지 집합(후속 반영, 2026-07-26 2차).** 초기 구현은 대표 페이지 한 장만 지문을 재서, 1쪽과 2쪽 개체를 함께 고른 요청에서 대기 중 2쪽을 편집하면 충돌로 잡히지 않았다(교사 편집이 조용히 덮임). 지금은 요청이 **걸친 모든 페이지**의 지문을 `pageVersions:{pageId: version}` 으로 싣고 적용 직전에 전부 비교한다. `pageId`/`pageVersion` 은 대표 페이지로 남아 CLI 표시와 하위호환을 맡는다(`pageVersions` 가 없는 옛 in-flight 응답은 대표 한 장으로 폴백 — 검사를 건너뛰지 않는다).
+
+그리고 이 페이지 집합이 곧 **그 요청이 바꿀 수 있는 범위**다: `ops` 가 집합 밖 페이지의 개체를 replace/delete 하거나 그쪽 개체를 삽입 앵커로 삼으면 거부한다. 범위 밖은 (a) `pageVersion` 보호를 못 받고 (b) "대상 N개 → 결과 M개" 표기와도 어긋나기 때문이다.
+
+**검증.** 단위 463/463 · 렌더(직렬) 91/91 · fail 0(기준선 449/83). `test/unit/{page-version,editor-ai-ops,ai-bridge,ai-cli,editor-server}.test.js`, 렌더 `test/render/editor-ai.render.test.js` — 개수 변화 미리보기·적용 1 op·undo 1스텝·페이지 전체 scope(std-box 제외)·충돌 감지·페이지 삭제 거부를 실 Chrome 시드로 단정.
