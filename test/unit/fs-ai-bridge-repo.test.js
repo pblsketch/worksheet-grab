@@ -77,8 +77,11 @@ test('경로 이탈 차단', async () => {
 test('F4: v1 in-flight 요청 + v2 요청/응답 파일 공존·왕복(관용 스키마)', async () => {
   const { repo } = await fresh();
   await repo.putRequest(req('req-v1')); // schemaVersion:1 (디스크 in-flight)
+  // v2(blocks[])도 디스크 in-flight 잔존분이라 schemaVersion 은 형태와 짝이 되도록 리터럴 2 로
+  // 고정한다(AI_SCHEMA_VERSION 은 S4.0 에서 3=objects[] 로 승격됐다 — 신규 쓰기 상수를 이 v2 고정
+  // shape 픽스처에 쓰면 형태-버전 불일치로 validateRequest 가 거부한다).
   await repo.putRequest({
-    schemaVersion: AI_SCHEMA_VERSION, id: 'req-v2', docName: '문서', action: 'rewrite',
+    schemaVersion: 2, id: 'req-v2', docName: '문서', action: 'rewrite',
     blocks: [
       { bp: 0, bi: 1, bt: 'question', html: '<div class="q">A</div>' },
       { bp: 0, bi: 2, bt: 'subq', html: '<p class="subq">B</p>' },
@@ -88,7 +91,24 @@ test('F4: v1 in-flight 요청 + v2 요청/응답 파일 공존·왕복(관용 �
   assert.equal((await repo.readRequest('req-v1')).schemaVersion, 1, 'v1 in-flight 유효');
   assert.equal((await repo.readRequest('req-v2')).blocks.length, 2, 'v2 blocks 보존');
 
-  await repo.putResponse({ schemaVersion: AI_SCHEMA_VERSION, id: 'req-v2', blocks: [{ slot: 0, html: '<p>a</p>' }, { slot: 1, html: '<p>b</p>' }] });
+  await repo.putResponse({ schemaVersion: 2, id: 'req-v2', blocks: [{ slot: 0, html: '<p>a</p>' }, { slot: 1, html: '<p>b</p>' }] });
   assert.equal(await repo.getStatus('req-v2'), 'answered');
   assert.equal((await repo.readResponse('req-v2')).blocks.length, 2, 'v2 응답 왕복');
+});
+
+test('S4.0: v3 요청/응답(objects[], 개체 ID 에코) 왕복', async () => {
+  const { repo } = await fresh();
+  // v3 고정 shape 라 리터럴 3 으로 태깅한다(AI_SCHEMA_VERSION 은 Phase 4 에서 4=ops[] 로 승격 —
+  // 신규 쓰기 상수를 이 v3 픽스처에 쓰면 형태-버전 불일치로 거부된다. v1/v2 픽스처와 동일 근거).
+  await repo.putRequest({
+    schemaVersion: 3, id: 'req-v3', docName: '문서', action: 'rewrite',
+    objects: [{ id: 'o1', type: 'title', html: '<h1>A</h1>' }], status: 'pending',
+  });
+  assert.equal((await repo.readRequest('req-v3')).objects.length, 1, 'v3 objects 보존');
+  await repo.putResponse({
+    schemaVersion: 3, id: 'req-v3',
+    objects: [{ id: 'o1', object: { id: 'o1', type: 'title', text: 'A2' } }],
+  });
+  assert.equal(await repo.getStatus('req-v3'), 'answered');
+  assert.equal((await repo.readResponse('req-v3')).objects.length, 1, 'v3 응답 objects 왕복');
 });

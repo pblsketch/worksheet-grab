@@ -125,6 +125,41 @@ test('E6 export meta 부재: fail-closed 로 student 차단', async () => {
   assert.equal(renderer.calls.length, 1);
 });
 
+// US-14(S3.5): ExportDocument ↔ checkExportGate 배선. 개체 트리 문서(SaveDocument.checkpoint 저장분)는
+// manifest.pagination 필드를 갖는다 — scaffold 는 export 자체를 거부(예외), paginated 는 정상 진행.
+// 레거시 HTML manifest(CLEAN/LEAKY, pagination 필드 없음)는 위 테스트들이 이미 무회귀를 증명한다.
+function objDoc(pagination, flow) {
+  return {
+    docTitle: 'US-14 게이트 픽스처', subject: 'science', dataSubject: 'science',
+    themeName: '', lang: 'ko', runHead: 'US-14', runFoot: { left: 'US-14', rightPrefix: '' },
+    standards: [], paper: null,
+    pagination,
+    pages: [{ flow, float: [] }],
+  };
+}
+const OBJ_FLOW = [{ id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '광합성이란 무엇인가?' }];
+
+test('US-14: 개체 트리 scaffold 문서는 export 자체를 거부(checkExportGate, 렌더 시도 없음)', async () => {
+  const { saver, exporter, renderer } = await fixture();
+  await saver.checkpoint({ name: '문서', document: objDoc('scaffold', OBJ_FLOW), now: new Date('2026-07-23T01:00:00.000Z') });
+
+  await assert.rejects(
+    () => exporter.execute({ name: '문서' }),
+    /scaffold-not-exportable|Chrome 측정 페이지네이션 패스/,
+  );
+  assert.equal(renderer.calls.length, 0, 'scaffold 거부는 어떤 렌더도 시도하지 않아야 함(fail-closed)');
+});
+
+test('US-14: 개체 트리 paginated 문서는 export 정상 진행(2벌 렌더)', async () => {
+  const { saver, exporter, renderer } = await fixture();
+  await saver.checkpoint({ name: '문서', document: objDoc('paginated', OBJ_FLOW), now: new Date('2026-07-23T01:00:00.000Z') });
+
+  const r = await exporter.execute({ name: '문서' });
+  assert.equal(r.unsafe, false);
+  assert.deepEqual(r.rendered.map((x) => x.variant), ['teacher', 'student']);
+  assert.equal(renderer.calls.length, 2);
+});
+
 test('E6 워크스페이스 PDF 슬롯: layout 신규 키(기존 키 무변경)', () => {
   const l = workspaceLayout('/base', '문서');
   assert.ok(l.studentPdfPath.endsWith(join('문서', 'worksheet-student.pdf')));

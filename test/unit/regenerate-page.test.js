@@ -93,18 +93,19 @@ test('C9 삭제 거부: 제외-타입(standard-label·passage) 블록을 신규 
   assert.equal((await workspace.readMeta('문서')).revision, 1, '거부 시 저장 없음(리비전 불변)');
 });
 
-test('C9 변조 거부: passage(저작권 슬롯) 내용이 바뀌면 거부', async () => {
+test('3층 정책(2026-07-23): passage(지문 슬롯) 내용 변경은 허용된다(교사·AI 편집 가능) — 성취기준 보존은 삭제/위조 테스트가 담당', async () => {
   const { workspace, blockRepository } = await fixture();
   const regen = new RegeneratePage({ workspace, blockRepository, curriculum: null });
-  const tamperedPage2 = [
+  // 성취기준(standard-label)은 그대로 두고 지문(passage) 본문만 채운다 → 3층 정책으로 편집 허용(저장 성공).
+  const editedPassagePage2 = [
     { type: 'standard-label', gen: 'standard-label' },
-    { type: 'passage', html: '<div class="passage"><div class="slot">실제 저작권 지문 텍스트를 몰래 채움</div></div>' },
+    { type: 'passage', html: '<div class="passage"><div class="slot">교사가 직접 입력한 지문 본문</div></div>' },
     { type: 'subq', html: '<p class="subq"><span class="qnum">2</span>문항2</p>' },
   ];
-  await assert.rejects(
-    () => regen.execute({ docName: '문서', page: 2, newPageBlocks: tamperedPage2 }),
-    /보존되지 않았습니다.*삭제.*변조.*위조/,
-  );
+  const result = await regen.execute({ docName: '문서', page: 2, newPageBlocks: editedPassagePage2, now: new Date('2026-07-22T02:00:00.000Z') });
+  assert.equal(result.meta.revision, 2, '지문 편집은 정상 저장(리비전 +1)');
+  const saved = await workspace.readManifest('문서');
+  assert.ok(JSON.stringify(saved.pages[1]).includes('교사가 직접 입력한 지문 본문'), '변경한 지문 본문이 저장에 반영');
 });
 
 test('C9 위조 거부: 제외-타입이 없던 페이지에 새로 끼워 넣으면 거부', async () => {

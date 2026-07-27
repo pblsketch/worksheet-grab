@@ -236,3 +236,188 @@ ralplan 합의 계획 v2(Planner→Architect 조건부 승인 MED 4·권장 5 �
 | E6 | 내보내기 통합/마감 | ExportDocument fail-closed·정밀 미리보기·포맷 프리셋 UI | ✅ |
 
 **후속(범위 밖 명시):** A3→A4 4쪽 소책자 imposition · 페이지별 정밀 미리보기 · columns 다단 리플로우(스키마만 존재) · export `--out` override.
+
+### 2026-07-26 — Phase 4 완료 (페이지 범위 AI · AI 스키마 v4)
+
+**AI 브리지 스키마 v4(현행 신규 쓰기).** `AI_SCHEMA_VERSION = 4`, 관용 집합 `{1,2,3,4}`. `validateRequest`/`validateResponse` 는 버전을 관용하되 **형태-버전 정합**만 강제한다 — 디스크에 남은 v1(단일 `block`)·v2(`blocks[]`)·v3(`objects[{id,object}]`) in-flight 파일은 계속 유효하다. **상수 사용 규약: `AI_SCHEMA_VERSION` 은 v4 페이로드에만 쓴다.** v1/v2/v3 를 쓰는 호출부(CLI `--from`/`--html`/`--blocks`/`--objects`, 테스트 픽스처)는 리터럴로 태깅한다 — 상수를 옛 형태에 쓰면 형태-버전 불일치로 검증이 거부한다.
+
+**요청(v4)** — `{schemaVersion:4, id, docName, action, objects:[{id,type,…개체 전체 필드}], instruction, context, scope:'objects'|'page', pageId?, pageVersion?, status}`
+- `pageVersions:{pageId: version}` = 이 요청이 **걸친 모든 페이지**의 지문(아래 "보호 범위" 참조). 여러 쪽에 걸친 선택에서도 덮어쓰기를 놓치지 않는다.
+- `scope:'page'` = 선택 없이(또는 교사가 명시적으로 토글해) **현재 활성 페이지 전체**를 대상으로 부른 요청. 이때 `objects[]` 에는 그 페이지의 flow+float 개체가 실리되 **`std-box` 는 제외**된다(원칙 3 — 페이지 전체라는 이유로 성취기준 원문이 AI 대상이 되지 않는다).
+- 활성 페이지는 **페이지 ID** 로 식별한다(index 금지 — Phase 2 규약).
+- `pageVersion` = 요청 시점 페이지 내용 지문(`domain/schema/PageIdentity.computePageVersion`, `pv1-<16진 16자>`). 키 정렬 정규화 후 FNV-1a 2벌 — 같은 내용이면 같은 값, 필드 하나·순서 하나만 바뀌어도 다른 값. 서버는 이 값을 **재계산하지 않고 통과**시킨다(재계산하면 "요청 시점"이라는 의미를 잃는다). `docName` 은 여전히 서버 고정값이다.
+
+**응답(v4)** — `{schemaVersion:4, id, ops:[…]}` — 개수·종류가 자유로운 **계획**이다(1:1 치환 강제 폐기).
+- `{op:'replace', id, object}` · `{op:'insert', object, afterId?|beforeId?}` · `{op:'delete', id}`
+- `insert` 에 `afterId` 와 `beforeId` 를 **동시에** 주면 거부(어느 기준인지 모호). 신규 개체의 `id` 는 버려지고 적용 시 새로 발급된다(기존 개체와 충돌 방지).
+- `insert` 의 앵커는 **본문 흐름(flow) 개체여야 한다.** 자유 배치(float) 개체를 기준으로 주면 거부한다 — `insertFlow` 는 흐름이 아닌 앵커를 만나면 마지막 페이지 끝에 붙이므로, 그대로 두면 AI 가 지목한 자리와 다른 곳에 **조용히** 꽂힌다(유령 앵커를 던지는 것과 같은 원칙).
+- **계층 분리:** `aiBridge` 는 프로토콜 형태만 본다. "std-box 를 지우려 든다"·"없는 `afterId` 를 가리킨다"처럼 **문서를 알아야** 하는 판정은 적용 경로(`editor/objectFactory.applyAiOps`)가 맡고, 위반 시 **던진다**(조용한 부분 반영 금지 — 절반만 반영된 채 "AI 가 반영됐다"고 믿게 두지 않는다).
+- CLI 회신: `worksheet-grab ai respond <id> --ops <file.json>`(`[{op,…}]` 또는 `{ops:[…]}`). `--objects`(v3)도 그대로 받는다.
+
+**편집기 적용 경로.** 미리보기는 ops 를 수정/신규/삭제로 나눠 보여준다(삭제는 before 만·신규는 after 만) + "대상 N개 → 결과 M개" 개수 변화 표기. 계획 항목이 하나라도 무효면 **적용 버튼 비활성 + 사유 표시**(무음 실패 금지). 적용은 `applyAiOps` 로 만든 단일 next 문서를 `applyDocOp` 에 **한 번만** 통과시킨다 — undo 1스텝이 그 대가다(대상별 반복 호출 금지). 적용 후 선택은 결과 개체 전부로 옮겨간다.
+
+**덮어쓰기 방지(fail-closed).** 적용 직전에 `pageVersion` 을 다시 계산해 요청 시점 값과 비교한다. 다르면 **자동 적용하지 않고** 교사에게 알린 뒤 "그래도 적용 / 폐기"를 준다. 대상 페이지가 그 사이 삭제됐으면 강행 경로 없이 거부한다(적용 위치 자체가 정의되지 않는다).
+
+**보호 범위 = 요청이 걸친 페이지 집합(후속 반영, 2026-07-26 2차).** 초기 구현은 대표 페이지 한 장만 지문을 재서, 1쪽과 2쪽 개체를 함께 고른 요청에서 대기 중 2쪽을 편집하면 충돌로 잡히지 않았다(교사 편집이 조용히 덮임). 지금은 요청이 **걸친 모든 페이지**의 지문을 `pageVersions:{pageId: version}` 으로 싣고 적용 직전에 전부 비교한다. `pageId`/`pageVersion` 은 대표 페이지로 남아 CLI 표시와 하위호환을 맡는다(`pageVersions` 가 없는 옛 in-flight 응답은 대표 한 장으로 폴백 — 검사를 건너뛰지 않는다).
+
+그리고 이 페이지 집합이 곧 **그 요청이 바꿀 수 있는 범위**다: `ops` 가 집합 밖 페이지의 개체를 replace/delete 하거나 그쪽 개체를 삽입 앵커로 삼으면 거부한다. 범위 밖은 (a) `pageVersion` 보호를 못 받고 (b) "대상 N개 → 결과 M개" 표기와도 어긋나기 때문이다.
+
+**검증.** 단위 463/463 · 렌더(직렬) 91/91 · fail 0(기준선 449/83). `test/unit/{page-version,editor-ai-ops,ai-bridge,ai-cli,editor-server}.test.js`, 렌더 `test/render/editor-ai.render.test.js` — 개수 변화 미리보기·적용 1 op·undo 1스텝·페이지 전체 scope(std-box 제외)·충돌 감지·페이지 삭제 거부를 실 Chrome 시드로 단정.
+
+### 2026-07-27 — Phase 5 완료 (모듈 경계 정리)
+
+**성격.** 순수 구조 정리 — **사용자에게 보이는 동작 변화 0**. 완료 근거는 "무엇을 만들었나"가 아니라
+"무엇이 안 바뀌었음을 어떻게 증명했나"다. 기준선(단위 463 / 렌더 91, fail 0)을 **개수 감소 없이**
+그대로 유지했고, 테스트 기대값은 한 줄도 고치지 않았다.
+
+#### 1) 편집기 모듈 경계
+
+`editor.js` **1,241줄 → 884줄.** 이 파일에 남은 것은 *조립 + 상태 소유 + 문서 변경 단일 관문*뿐이다.
+
+| 새 모듈 | 줄 | 책임 | 주입받는 것 |
+|---|---|---|---|
+| `saveController.js` | 82 | `save()`·dirty·유휴 30초 자동 체크포인트·rev 배지 | `getDocument`/`setDocument`/`showBanner`/`onSaved`/`onDirty` + DOM 노드 |
+| `exportController.js` | 116 | `/export`·`/preview.png`·`/open` + save-first 게이트 | `isDirty`/`save`/`showBanner`/`getMode` + DOM 노드 |
+| `reviewChip.js` | 31 | `runReview()`·findings 소유·검수 칩 표시 | `getDocument`/`getTeacherDoc`/`onChipClick` |
+| `banner.js` | 14 | 알림 배너(ok 4초 자동 소멸) | 호스트 노드 |
+| `shortcuts.js` | 156 | 개체 단축키(삭제·넛지·복사/붙여넣기·저장·undo/redo)·인메모리 개체 클립보드 | `core`/`history`/`selection`/`operations`/`applyDocOp`/… |
+| `editorStyle.js` | 113 | teacher iframe 편집 보조 CSS 주입 | (순수) |
+
+**배너를 저장에서 뗀 이유:** 저장 모듈에 두면 내보내기 모듈이 저장 모듈에 의존하게 된다(배너는
+저장 전용이 아니다). 독립 모듈로 두고 둘 다 주입받는다.
+
+**불변식 보존:**
+- **`applyDocOp` 은 그대로 `editor.js` 소유.** `shortcuts.js` 는 next 문서만 계산하고 반영은
+  주입받은 `applyDocOp` 하나로만 보낸다 — 관문이 하나라는 성질이 의존성 방향으로 드러난다.
+  유일한 예외인 넛지는 **원래부터** 관문 미경유였다(flow 경계 불변 → 재로드 없이 라이브 좌표만 갱신).
+- 새 모듈은 전부 `create*(deps)` 팩토리이고 `core`/`history`/`selection` 을 **import 하지 않는다**
+  (필요하면 deps 로 받는다). DOM 도 전역 조회 대신 주입받은 노드만 만진다.
+- 브라우저 절대경로 import 규약(`/editor/*`, `/src/*`) 준수 — `/editor/*` 서빙은 디렉토리 기반이라
+  새 파일이 자동으로 화이트리스트에 든다.
+- `testSeed.js` 는 **한 줄도 바꾸지 않았다.** `editor.js` 가 넘기는 deps 이름(`save`·`runReflow`·
+  `handlePageAction`·`getClipboardCount`…)을 그대로 유지했기 때문이다.
+
+#### 2) 서버 라우트 테이블
+
+`EditorHttpServer.js` **550줄 → 84줄**(조립 지점). 라우트 구현은 `src/adapters/editor-routes/` 로.
+
+| 모듈 | 줄 | 라우트 |
+|---|---|---|
+| `httpKit.js` | 87 | `send`/`sendJson`/본문 리더/`dispatch` — 매칭 계약의 집 |
+| `documentRoutes.js` | 157 | `POST /save` · `POST /paper` · `GET /shell.json` |
+| `presetRoutes.js` | 64 | `GET|POST /presets` · `DELETE /presets/*` · `POST /presets/restore/*` |
+| `renderRoutes.js` | 112 | `POST /export` · `GET /preview.png` · `POST /open` |
+| `aiRoutes.js` | 110 | `POST /ai/requests` · `GET /ai/*` · `POST /ai/*/cancel|applied` |
+| `assetRoutes.js` | 97 | `POST /assets` · `GET /assets/*` |
+| `staticRoutes.js` | 46 | `GET /` · `GET /src/*` · `GET /editor/*` |
+
+**매칭 계약(구 선형 `if` 사슬과 동일한 순서를 선언적으로 재현):**
+1. 선언 순서대로 `method` 가 같고 `path`(정확) 또는 `prefix`(접두)가 맞는 첫 라우트를 호출.
+2. 핸들러가 `PASS` 를 돌려주면 매칭을 계속한다 — `POST /presets/<restore 아님>`·
+   `POST /ai/<cancel|applied 아님>` 처럼 접두는 맞지만 세부 형태가 다른 요청이 원래 사슬에서
+   그냥 흘러내리던 동작의 재현이다.
+3. 아무도 처리하지 않았고 **GET 이 아니면 405**(`GET only`), **GET 이면 404**.
+
+**보안 성질의 소재(분리하면서 우회 경로가 생기지 않도록 의도적으로 한 모듈에 묶었다):**
+- `/src/*` browserGraph 화이트리스트 + `/editor/*` 디렉토리 경계·MIME 표 → `staticRoutes.js` 한 곳.
+- 자산 이름 살균·매직바이트 대조·5MB 상한·쓰기/읽기 양쪽 경로 이탈 재검사 → `assetRoutes.js` 한 곳.
+- **렌더 in-flight 가드(`renderBusy`)** → `renderRoutes.js` 의 클로저 **하나**. export 와 preview 가
+  같은 플래그를 공유해야 Chrome 동시 spawn 이 막힌다 — 모듈을 갈랐으면 가드가 둘로 쪼개졌을 것이다.
+- `docName` 서버 고정값 주입은 각 라우트 팩토리가 deps 로 받는다(클라이언트 위조 경로 없음).
+
+**무회귀 증거:** `editor-server.test.js` 12건 전량 + 라우트 20종 실호출 프로브(메서드×경로 조합의
+상태코드·Content-Type)를 **리팩터링 전/후 서버에서 각각 돌려 출력이 완전히 동일함**을 확인했다.
+
+#### 3) 렌더·저장 경로 지도
+
+**렌더 — `RenderObjectTree` 는 단일 구현이고 5곳이 각자 `new` 한다.** 이건 중복이 **아니다**:
+생성자가 없는 무상태 클래스라 인스턴스가 상태를 나눠 갖지 않는다. 지도는 아래와 같고, 어느 것도
+지우지 않았다(각자 다른 소비자가 있다).
+
+| 렌더 경로 | 호출자 | 없으면 깨지는 것 |
+|---|---|---|
+| `RenderObjectTree.execute(editMode:true)` | `editor/reflow.js` | 리플로우 **측정** — flow 페이지 귀속 재계산 |
+| 〃 | `RenderEditorShell.executeObjectTree` | 편집 캔버스 teacher HTML(data-oid 경계 래퍼) |
+| `RenderObjectTree.execute()` | `BuildVariants.executeObjectTree` | 저장본 student/teacher 2벌(정답 트리 제거) |
+| 〃 | `PaginateObjectTree` | 생성 시 페이지네이션(Chrome 측정 어댑터 경유) |
+| 〃 | `editor/ai.js` | AI 미리보기 단일 개체 렌더 |
+| `AssembleWorksheet`(레거시 결정적 엔진) | CLI generate/assemble/edit · `SaveDocument.execute` · `RenderEditorShell.execute` · `MigrateManifestToObjectTree` | **HTML manifest 경로 전체** — 아직 CLI `generate` 가 manifest 를 만든다 |
+
+**저장 — `SaveDocument` 의 두 진입점은 중복이 아니다(입력 스키마가 다르다).**
+
+| 진입점 | 입력 | 호출자 | 없으면 깨지는 것 |
+|---|---|---|---|
+| `execute({name, manifest})` | 레거시 HTML manifest | CLI(`doc save`/`--doc`/`restore`) · `POST /paper`(비-개체트리 저장본) | CLI generate 산출물 저장 · 옛 문서의 용지 변경 |
+| `checkpoint({name, document})` | 개체 트리 | `POST /save` · `POST /paper`(개체트리 저장본) | 편집기 저장 전부 |
+
+합치려면 호출부가 전부 개체 트리로 넘어온 뒤여야 하고, 지금은 CLI `generate` 가 아직 manifest 를
+만든다. **그래서 합치지 않았다.** 대신 두 경로가 `PAGINATION_STATES` 로 분기하던 판정을
+`documentRoutes.isObjectTreeManifest()` 하나로 모아 `/shell.json` 과 `/paper` 가 같은 판정을 쓴다.
+
+**실제로 합친 것 — 같은 입력에 같은 출력을 내던 파생 3종:**
+
+| 새 소재 | 합쳐진 사본 |
+|---|---|
+| `RenderObjectTree.deriveRenderMeta(document)` | `SaveDocument.checkpoint` · `RenderEditorShell.executeObjectTree` · `editor/reflow.js#buildRenderMeta` (9줄 × 3, 주석에도 "…와 동형 파생"이라 적혀 있었다) |
+| `renderAssets.loadRenderAssets(repo, document)` | `SaveDocument.checkpoint` · `RenderEditorShell.executeObjectTree` |
+| `renderAssets.loadKnownSubjectHexes(repo)` | `SaveDocument.execute`·`checkpoint` · `RunPipeline` · `EditorHttpServer` · CLI `validate` (5곳) |
+| `paper.buildCanvasMeta(paper)` | `RenderEditorShell.execute`·`executeObjectTree` |
+
+`deriveRenderMeta` 를 **`RenderObjectTree.js` 안에** 둔 것이 핵심이다: meta 의 형태는 그 클래스의
+계약이고, 이 파일은 browserGraph 화이트리스트 안이라 **편집기(`reflow.js`)가 같은 함수를 그대로**
+쓴다. 리플로우 측정(`editMode:true`)과 인쇄(`false`)가 문자 그대로 같은 meta 를 얻어야
+**R2-1 편집==인쇄 하드 동치**가 성립한다 — 사본이 셋일 때는 그게 규약이 아니라 우연이었다.
+레거시 HTML manifest 지연 마이그레이션(`MigrateManifestToObjectTree`)은 손대지 않았다.
+
+#### 4) 검증
+
+| 항목 | 결과 |
+|---|---|
+| 단위 | **467/467**, fail 0 (기준선 463 + Phase 5 계약 4건 신규 — **감소 0**) |
+| 렌더(직렬 `--test-concurrency=1`) | **91/91**, fail 0 (기준선과 동일) |
+| 라우트 동치 | 구 선형 `if` 사슬(HEAD 550줄)과 **A/B 실호출 대조 — 41경로 × 7메서드 = 287조합에서 반례 0**. 접두 일치·세부 불일치 POST(`/ai/*`·`/presets/*`)의 PASS 흘려내림→405, `DELETE /presets`(정확)→405, `GET /presets/foo`→404, `GET /assets`(슬래시 없음)→404, `POST /ai/requests` 의 exact-before-prefix 우선순위까지 동일. 미매칭 12조합은 신규 테스트가 상태코드·Content-Type·본문(`GET only`)으로 영구 고정 |
+| 보안 게이트 | `/src`·`/editor` 화이트리스트·경로 이탈, 자산 매직바이트·상한 **A/B 동일**. `/editor/*` 확장자 추출(`abs.slice(abs.lastIndexOf('.'))`)은 HEAD 와 **문자 그대로 같은 술어**라 우회 여지 없음 |
+| `applyDocOp` 관문 | `core.setDocument` 호출 지점 **HEAD 5곳 → 신 5곳**, 신규 우회 0. 관문 밖 2곳(넛지·저장 응답 수용)은 HEAD 에서도 관문 밖이었다 |
+| 추출 블록 대조 | `injectEditorStyle` CSS 를 HEAD 원본과 기계 대조 — **LF 정규화 후 5,871자 바이트 완전 동일**. 편집 전용 CSS 가 레이아웃 박스를 밀지 않으므로 R2-1 영향 0 |
+| 실 Chrome CDP 실입력 | **HEAD 워크트리 vs Phase 5 트리 A/B — 항목별 결과 완전 동일** (아래) |
+
+테스트 기대값은 **한 줄도 고치지 않았다.** 신규 4건(`test/unit/editor-route-table.test.js`)은 구
+선형 `if` 사슬이 암묵적으로 갖고 있던 폴백 순서(미처리 non-GET → 405, 미처리 GET → 404),
+`/editor/*` 신규 모듈 서빙, 그리고 `readBinaryBody` 상한 누락 거부를 계약으로 고정한 것이다 —
+일회성 프로브를 영구 가드로 옮겼다.
+
+> **리팩터링이 삼킨 기본값(리뷰 지적 → 수정).** 구 `EditorHttpServer` 의
+> `readBinaryBody(req, cap = MAX_IMAGE_BYTES)` 를 `httpKit` 으로 떼어내며 **기본값이 사라졌다.**
+> `cap` 이 `undefined` 면 `size > undefined` 가 항상 false 라 **업로드 상한이 통째로 증발한다.**
+> 현재 유일한 호출부(`assetRoutes`)가 상한을 명시하므로 실제 동작은 바뀌지 않았지만, 헬퍼의
+> 계약이 조용히 fail-open 으로 약해진 것이라 상한 누락을 **즉시 거부**하도록 되돌리고 테스트로
+> 고정했다. "지금은 호출부가 잘 넘기니까 괜찮다"는 종류의 비블로커가 가장 위험하다.
+`git diff --stat -- test/` 는 **빈 출력**이고 `test/` 변경은 신규 파일 하나뿐이다.
+
+##### CDP A/B — "동작 무변경"의 직접 증거
+
+한쪽만 돌려서 "통과했다"고 말하면 *무엇과 같은지*를 말하지 못한다. 그래서 `git worktree` 로
+**HEAD(`65ef554`, Phase 5 이전)** 를 그대로 꺼내 두고, **같은 스크립트**를 양쪽 트리에 실행해
+결과를 항목별로 대조했다(`testSeed:false` — 시드 훅 없이 실제 사용자가 쓰는 편집기 그대로).
+
+통과(양쪽 동일): 부팅(개체 34개 렌더) · 실마우스 클릭 선택 · 검수 칩 갱신 · 실 Ctrl+C/V 개체 +1 ·
+실 Ctrl+Z 붙여넣기 원복 · 실 Delete 개체 -1 · 실 Ctrl+S 저장(rev 1→2) · 저장 배너 · 실클릭
+미리보기 모달 · 콘솔 에러 0.
+
+미통과 2건도 **양쪽이 개체 수까지 똑같이** 떨어졌다 — 즉 Phase 5 가 만든 것이 아니라 **선행
+조건**이다:
+
+1. **삭제 후 `Ctrl+Z` 가 복원하지 않는다**(2회까지 눌러도 33→33). HEAD 에서 동일 재현.
+   붙여넣기 undo 는 실입력으로 **100ms 안에** 정상 반영되므로 undo 배선 자체는 살아 있다 —
+   삭제 경로에 한정된 선행 이슈이고, Phase 5 는 동작을 바꾸지 않는 단계라 **손대지 않았다.**
+2. 위 여파로 삭제된 개체를 다시 겨눈 편집 검증이 `rect 없음`으로 떨어진다(스크립트 종속).
+
+> **순서 함정(기록).** 텍스트 편집도 history 에 한 스텝을 쌓는다. 그래서 "편집 → 붙여넣기 →
+> `Ctrl+Z` 한 번"을 검증하면 붙여넣기가 아니라 **편집**이 먼저 되돌아가고 개체 수는 그대로다.
+> 이걸 undo 회귀로 오독하기 쉽다 — 개체 undo 는 **앞선 텍스트 편집 없이** 검증하라.
+
+> **CDP 실입력 함정(기록).** `Input.dispatchKeyEvent` 를 `type:'rawKeyDown'` 으로 보내면
+> **Ctrl+C/Ctrl+V 가 페이지에 아예 도달하지 않는다**(Chrome 이 기본 클립보드 명령으로 먼저
+> 삼킨다 — 캡처 단계 리스너로도 keydown 0건). 같은 방식의 Ctrl+S·Delete 는 정상 도달하므로
+> **무결한 코드를 회귀로 오진하기 쉽다.** `type:'keyDown'` 으로 보내면 셋 다 도달한다.
+> 실패를 만나면 회귀를 단정하기 전에 "페이지가 무엇을 받았는지"부터 찍어라.

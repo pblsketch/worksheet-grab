@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>worksheet-grab 편집기 개선 분석 보고서</title>
+  <style>
+    :root { --ink:#172033; --muted:#5f6b7a; --line:#dbe3ec; --paper:#fff; --bg:#f3f6fa; --blue:#1769aa; --blue-pale:#e9f4ff; --green:#087a48; --green-pale:#e8f7ee; --amber:#9a5b00; --amber-pale:#fff5df; --red:#ba3333; --red-pale:#fff0f0; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.7 "Pretendard","Noto Sans KR",Arial,sans-serif; }
+    main { width:min(100% - 32px, 1040px); margin:32px auto; background:var(--paper); padding:54px 64px 64px; border:1px solid var(--line); box-shadow:0 12px 32px rgba(24,42,64,.08); }
+    h1 { font-size:32px; line-height:1.25; letter-spacing:-.04em; margin:0 0 10px; }
+    h2 { margin:44px 0 14px; padding-bottom:9px; border-bottom:2px solid #cedae6; font-size:22px; letter-spacing:-.025em; }
+    h3 { margin:28px 0 8px; font-size:17px; }
+    p { margin:8px 0; }
+    .meta { color:var(--muted); margin-bottom:28px; }
+    .lead { padding:18px 20px; border-left:5px solid var(--blue); background:var(--blue-pale); font-size:17px; }
+    .tag { display:inline-block; margin:0 4px 4px 0; padding:2px 9px; border-radius:999px; font-size:12px; font-weight:700; }
+    .ok { background:var(--green-pale); color:var(--green); }
+    .gap { background:var(--amber-pale); color:var(--amber); }
+    .stop { background:var(--red-pale); color:var(--red); }
+    table { width:100%; margin:14px 0 22px; border-collapse:collapse; font-size:14px; }
+    th, td { padding:11px 12px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#f5f8fb; font-weight:700; }
+    code { padding:1px 4px; border-radius:4px; background:#f0f3f6; font:12px/1.5 ui-monospace,Consolas,monospace; color:#263a50; overflow-wrap:anywhere; }
+    ul, ol { margin:8px 0 12px; padding-left:23px; }
+    li { margin:5px 0; }
+    .evidence { margin:12px 0 20px; padding:14px 17px; border:1px solid var(--line); border-radius:8px; background:#fbfcfe; }
+    .evidence strong { display:block; margin-bottom:4px; }
+    .priority { padding:16px 18px; margin:12px 0; border-radius:8px; border:1px solid var(--line); }
+    .priority.high { border-left:5px solid #dc8700; background:#fffaf0; }
+    .priority.med { border-left:5px solid #377cb8; background:#f5faff; }
+    .priority.low { border-left:5px solid #7a8793; background:#fafbfc; }
+    .foot { margin-top:42px; padding-top:15px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    a { color:#075f9d; }
+    @media print { body { background:#fff; } main { width:100%; margin:0; border:0; box-shadow:none; padding:0; } }
+    @media (max-width:680px) { main { width:100%; margin:0; padding:32px 22px; border:0; } h1 { font-size:26px; } table { font-size:13px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>worksheet-grab 편집기 개선 분석 보고서</h1>
+    <p class="meta">대상: <code>E:/github/worksheet-grab</code> · 분석일: 2026-07-26 · 범위: 구현 제외, 현재 코드와 테스트에 근거한 개선 설계</p>
+    <p class="lead"><strong>결론:</strong> 편집기를 다른 오픈소스로 교체할 근거는 없습니다. 현재 <code>manifest → reflow → HTML/PDF</code> 구조를 유지하고, <strong>float 개체 조작 UX</strong>에 한해 <a href="https://github.com/daybrush/moveable">Moveable</a>과 <a href="https://github.com/daybrush/selecto">Selecto</a>를 제한적으로 결합하는 것이 가장 낮은 위험의 개선 경로입니다.</p>
+  </header>
+
+  <h2>1. 분석 방법과 검증 범위</h2>
+  <ul>
+    <li>코드 대조: <code>src/editor/selection.js</code>, <code>objectFactory.js</code>, <code>editor.js</code>, <code>contextToolbar.js</code>, <code>src/usecases/RenderObjectTree.js</code>, <code>schema/worksheet-object.schema.json</code></li>
+    <li>기능 검색: 스냅/가이드, 마퀴, 회전, 그룹, 잠금, z-순서와 관련한 구조적 필드·구현을 <code>src</code>, <code>schema</code>, <code>test</code>에서 대조</li>
+    <li>실행 검증: <code>node --test test/unit/reorder-float.test.js test/render/editor-select.render.test.js test/render/editor-shapes.render.test.js</code></li>
+  </ul>
+  <div class="evidence">
+    <strong>실행 결과</strong>
+    선택·다중선택·float 드래그·undo/redo, 도형 저장 왕복, float z-순서 단위 검증 총 6건이 통과했다. 이 보고서는 통과한 기능을 개선 결손으로 분류하지 않는다.
+  </div>
+
+  <h2>2. 현재 구현된 기능: 교체 대상이 아님</h2>
+  <table>
+    <thead><tr><th>기능</th><th>코드 근거</th><th>판정</th></tr></thead>
+    <tbody>
+      <tr><td>개체 선택·텍스트 편집·Esc 상태 전환</td><td><code>selection.js</code>의 <code>selectedIds</code>, <code>editingId</code>, click/dblclick/keydown 처리</td><td><span class="tag ok">구현됨</span></td></tr>
+      <tr><td>다중선택</td><td>Shift/Ctrl/Meta 클릭을 additive 선택으로 처리</td><td><span class="tag ok">구현됨</span></td></tr>
+      <tr><td>float 드래그·8방향 리사이즈·키보드 넛지</td><td><code>startFloatDrag</code>, <code>startFloatResize</code>, <code>nudgeFloat</code></td><td><span class="tag ok">구현됨</span></td></tr>
+      <tr><td>다중 float 정렬·균등분배</td><td><code>inspector.js</code>와 <code>alignFloats</code></td><td><span class="tag ok">구현됨</span></td></tr>
+      <tr><td>앞/뒤 순서</td><td><code>contextToolbar.js</code>의 <code>onZOrder</code>, <code>objectFactory.js</code>의 <code>reorderFloat</code></td><td><span class="tag ok">구현됨·단위검증됨</span></td></tr>
+      <tr><td>저장·재로드·인쇄 파이프라인</td><td><code>applyDocOp()</code>, <code>RenderObjectTree</code>, editor-print parity 테스트</td><td><span class="tag ok">구현됨</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>3. 확인된 결손과 개선 방안</h2>
+
+  <section class="priority high">
+    <h3>우선순위 1. 스냅 및 스마트 가이드</h3>
+    <p><span class="tag gap">확인된 결손</span> 격자는 <code>editor.js</code>에서 배경 이미지로만 표시된다. <code>snap</code>, <code>guideline</code>, <code>snapGrid</code> 구현은 없다. 현재 드래그와 넛지는 좌표를 그대로 <code>rect.xMm/yMm</code>에 기록한다.</p>
+    <p><strong>Moveable 활용:</strong> <code>snappable</code>, <code>verticalGuidelines</code>, <code>horizontalGuidelines</code>, <code>elementGuidelines</code>를 활용한다. 현재 쪽의 인쇄 여백선, 5mm 격자, 같은 쪽 float 개체의 변·중심선을 가이드로 제공한다.</p>
+    <p><strong>저장 규칙:</strong> Moveable 예제의 <code>target.style.transform = transform</code>을 저장 경로로 사용하지 않는다. 결과 좌표와 크기를 mm 단위 <code>rect</code>로 변환해 기존 문서 모델에 커밋한다.</p>
+  </section>
+
+  <section class="priority high">
+    <h3>우선순위 2. 마퀴(드래그 박스) 다중선택</h3>
+    <p><span class="tag gap">확인된 결손</span> 다중선택 상태는 있지만, 빈 캔버스에서 드래그해 여러 개체를 고르는 <code>marquee</code>/<code>lasso</code> 구현은 없다.</p>
+    <p><strong>Selecto 활용:</strong> 현재 페이지의 <code>.wg-float[data-oid]</code>를 <code>selectableTargets</code>로 등록하고, Selecto 결과를 기존 <code>selectedIds</code>로 치환한다. Shift는 기존 additive 선택과 같은 의미로 유지한다.</p>
+    <p><strong>중요:</strong> 이 기능은 Moveable 단독 기능이 아니다. Selecto는 드래그 영역에서 DOM 요소를 고르는 전용 컴포넌트다.</p>
+  </section>
+
+  <section class="priority med">
+    <h3>우선순위 3. 여러 float의 임시 일괄 이동·리사이즈</h3>
+    <p><span class="tag gap">확인된 결손</span> 현재 리사이즈 핸들은 <code>selectedIds.size === 1</code>일 때만 붙는다. 다중선택 뒤에는 정렬·분배만 가능하다.</p>
+    <p><strong>Moveable 활용:</strong> 선택된 float DOM 배열을 target으로 전달하고 <code>groupable</code> 이벤트를 사용한다. 각 개체의 변경 좌표를 하나의 문서 연산·하나의 history 항목으로 커밋한다.</p>
+    <p><strong>범위 제한:</strong> 이는 저장되는 “그룹 개체”가 아니라 일회성 다중 조작이다. 영구 그룹은 별도 스키마 기능으로 분리한다.</p>
+  </section>
+
+  <section class="priority med">
+    <h3>우선순위 4. 용지 경계 정책과 배치 안전성</h3>
+    <p><span class="tag gap">확인된 결손</span> 현재 드래그·넛지는 <code>xMm/yMm</code>를 최소·최대 범위로 제한하지 않는다. 리사이즈는 최소 10mm만 보장한다.</p>
+    <p><strong>Moveable 활용:</strong> <code>bounds</code>로 쪽의 안전 영역을 제한할 수 있다. 다만 현 구현에는 다른 쪽으로 끌면 float를 새 페이지로 옮기는 동작이 있으므로, 즉시 경계를 고정하면 기존 동작을 퇴행시킬 수 있다.</p>
+    <p><strong>선행 결정:</strong> “인쇄 영역 밖 배치 금지”와 “다른 쪽으로 끌면 페이지 이동” 중 우선 정책을 확정한 뒤 구현한다.</p>
+  </section>
+
+  <section class="priority low">
+    <h3>회전·영구 그룹·잠금: 지금은 도입 보류</h3>
+    <p><span class="tag stop">즉시 도입 금지</span> 스키마는 <code>rect{xMm,yMm,wMm,hMm}</code>만 허용하고, <code>additionalProperties: false</code>다. <code>rotation</code>, <code>groupId</code>, <code>locked</code> 필드는 현재 스키마·소스·테스트에 없다. 렌더러도 float에 <code>left/top/width/height</code>만 출력한다.</p>
+    <p>Moveable의 <code>rotatable</code>을 켜기만 하면 편집 화면의 CSS transform만 바뀌고 저장·재로드·PDF 출력에서 보존되지 않는다. 이 기능들은 새 저장 필드, 렌더 규칙, 도형/텍스트의 회전 기준, 검증, 출력 회귀 테스트를 함께 설계할 때만 검토한다.</p>
+  </section>
+
+  <h2>4. 통합 설계 원칙</h2>
+  <ol>
+    <li><strong>iframe 내부에 생성:</strong> 대상인 <code>.wg-float</code>가 teacher iframe 안에 있으므로 Moveable·Selecto도 해당 <code>contentDocument</code> 내부에서 생성한다.</li>
+    <li><strong>중복 포인터 처리 금지:</strong> Moveable을 적용한 float에는 기존 <code>startFloatDrag</code>/<code>startFloatResize</code> 경로가 동시에 실행되지 않게 교체 또는 명확히 분기한다.</li>
+    <li><strong>모델 우선:</strong> 조작 중 DOM을 미리보기로 갱신할 수는 있어도, 종료 시에는 반드시 manifest의 <code>rect</code>를 갱신하고 history·dirty·save 경로를 통과시킨다.</li>
+    <li><strong>재렌더 수명 관리:</strong> <code>reloadTeacherFrame()</code>이 iframe body를 교체한다. 따라서 교체 전 Moveable·Selecto 인스턴스를 destroy하고, 교체 후 새 DOM에 다시 연결한다.</li>
+    <li><strong>의존성 정책 준수:</strong> 현재 <code>package.json</code>에는 런타임 의존성이 없다. 패키지 설치가 아니라 버전 고정된 브라우저 번들을 벤더링할 경우에도 MIT 고지와 재현 가능한 버전 정보를 남긴다.</li>
+  </ol>
+
+  <h2>5. 권장 실행 순서와 완료 기준</h2>
+  <table>
+    <thead><tr><th>단계</th><th>변경 범위</th><th>완료 기준</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>단일 float 스냅 가이드 PoC</td><td>여백·5mm 격자·다른 개체 변에 스냅되고, 저장 뒤 재로드해도 mm 좌표가 동일</td></tr>
+      <tr><td>2</td><td>undo/redo·PDF 회귀 검증</td><td>스냅 이동이 history 한 항목으로 되돌아가며 출력 위치가 편집 위치와 일치</td></tr>
+      <tr><td>3</td><td>Selecto 마퀴 선택</td><td>빈 영역 드래그·Shift 추가 선택·선택 해제가 기존 클릭 선택과 충돌하지 않음</td></tr>
+      <tr><td>4</td><td>Moveable 임시 다중 이동</td><td>선택된 각 float의 rect가 함께 갱신되고, 한 번의 undo로 원상 복구</td></tr>
+      <tr><td>5</td><td>경계 정책</td><td>쪽 안 고정 또는 페이지 간 이동 중 하나를 명시적으로 채택하고 회귀 테스트로 보호</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6. 추가 검증이 필요한 항목</h2>
+  <p>현재 렌더 테스트는 150% 확대에서 화면 잘림을 검증하지만, 확대 상태에서 float를 실제로 끌어 저장·재로드하는 좌표 정확도는 검증하지 않는다. Moveable 도입 전후 다음 조합을 자동 검증해야 한다.</p>
+  <ul>
+    <li>줌 75% / 100% / 150%에서 드래그 및 스냅 좌표</li>
+    <li>한 페이지 내 스냅, 페이지 경계 이동, 여러 개체 다중 이동</li>
+    <li>undo/redo, 저장·재시작·재로드, student/teacher/PDF 출력 위치 일치</li>
+  </ul>
+
+  <h2>7. 참고 소스</h2>
+  <ul>
+    <li><a href="https://github.com/daybrush/moveable">daybrush/moveable</a> — MIT, draggable/resizable/groupable/snappable 조작 컴포넌트</li>
+    <li><a href="https://daybrush.com/moveable/release/latest/doc/Moveable.Draggable.html">Moveable 공식 API</a> — 드래그, 그룹, 스냅, 경계 옵션</li>
+    <li><a href="https://github.com/daybrush/selecto">daybrush/selecto</a> — MIT, 드래그 영역 다중선택 컴포넌트</li>
+    <li><a href="https://daybrush.com/selecto/release/latest/doc/">Selecto 공식 문서</a> — selectableTargets, dragContainer, Shift 연속선택</li>
+  </ul>
+
+  <p class="foot">이 보고서는 코드 변경 없이 작성됐다. 분석 기준은 현재 작업 트리의 소스와 앞서 실행한 표적 테스트 결과이며, 외부 라이브러리의 기능은 공식 문서와 MIT 라이선스 기준으로 확인했다.</p>
+</main>
+</body>
+</html>

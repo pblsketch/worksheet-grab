@@ -28,6 +28,11 @@
 .std-box ul { margin: 0; padding: 7px 14px 7px 30px; }
 .std-box li { font-size: 9pt; margin: 2px 0; color: #333; }
 .std-box li b { color: var(--c); margin-right: 4px; }
+.std-box + .std-box { margin-top: 2mm; }
+/* 근거 성취기준(교사 전용, 학습목표 표기 전환 2026-07-23): 정답이 아니라 참조용 정보라 비밀이
+   아니다 — .answer 처럼 학생용에서 물리 제거하지 않고 CSS 표시 제어(data-mode)만으로 숨긴다. */
+.std-ref { display: none; }
+[data-mode="teacher"] .std-ref { display: block; }
 
 /* ---- directive (활동 지시문) ---- 교과별 글리프는 data-subject 분기 ---- */
 .direct { display: flex; gap: 8px; align-items: flex-start; margin: 7mm 0 3mm; font-weight: 700; font-size: 11pt; }
@@ -74,15 +79,53 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .passage p { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
 .passage .slot { color: #b06a00; background: #fff5e6; border: 1px dashed #e0a94f;
   border-radius: 5px; padding: 6px 10px; font-size: 8.7pt; margin: 6px 0; }
+.passage .passage-body { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
 .passage .src { text-align: right; font-size: 8.7pt; color: #555; margin-top: 6px; }
 .passage .fn { border-top: 1px dotted #ccc; margin-top: 8px; padding-top: 5px; font-size: 8.3pt; color: #555; }
 .passage .fn p { margin: 1px 0; text-indent: 0; }
+
+/* ---- 개체 트리 표(공통) — 테두리 색/두께는 --wg-tb-color/--wg-tb-width 로 조절(#5) ---- */
+.obj-table { border-collapse: collapse; width: 100%; margin: 2mm 0; }
+.obj-table th, .obj-table td {
+  border: var(--wg-tb-width, 1px) solid var(--wg-tb-color, #cbd5c0);
+  padding: 6px 9px; font-size: 9.5pt; vertical-align: top; min-height: 24px;
+}
+.obj-table th { background: var(--clite); color: var(--cink); font-weight: 700; }
+.obj-table caption { font-size: 9pt; color: #555; margin-bottom: 3px; caption-side: top; }
 
 /* ---- question + answer slot (공통) ---- */
 .q { margin: 2.5mm 0 1.5mm; font-weight: 600; }
 .ans-line { border-bottom: 1px solid #ccc; height: 20px; margin: 8px 0; }
 .ans-line.tall { height: 34px; }
 .ansbox { border: 1px solid #ccc; border-radius: 6px; min-height: 50px; margin-top: 5px; padding: 8px 10px; }
+
+/* ---- 문항 유형별 보조 렌더(#12) — qtype 마다 시각적으로 구분된다 ---- */
+.q-choices { list-style: none; margin: 3px 0 0; padding: 0; }
+.q-choices li { margin: 3px 0; font-size: 9.5pt; display: flex; gap: 6px; align-items: baseline; }
+.q-choices .q-mark { color: var(--c); font-weight: 700; flex: none; }
+.q-tf { display: flex; gap: 24px; margin: 4px 0 2px; font-size: 9.5pt; }
+.q-tf label { display: inline-flex; align-items: center; gap: 6px; }
+.q-box { display: inline-block; width: 13px; height: 13px; border: 1.4px solid #888; border-radius: 3px; }
+.q-tf-list { list-style: none; margin: 3px 0 0; padding: 0; }
+.q-tf-list li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 6px; align-items: baseline; }
+.q-tf-list .q-mark { color: var(--c); font-weight: 700; flex: none; }
+.q-tf-list .q-tf-stmt { flex: 1; }
+.q-tf-list .q-tf-ox { flex: none; color: #555; white-space: nowrap; letter-spacing: 1px; }
+.q-match { border-collapse: collapse; margin: 4px 0 2px; width: 100%; }
+.q-match td { padding: 4px 8px; font-size: 9.5pt; vertical-align: middle; }
+.q-match .q-match-l { border: 1px solid #cbd5c0; border-radius: 6px; width: 40%; background: #fbfcfb; }
+.q-match .q-match-r { border: 1px solid #cbd5c0; border-radius: 6px; width: 40%; background: #fbfcfb; }
+.q-match .q-match-mid { width: 20%; text-align: center; color: #aaa; letter-spacing: 2px; }
+.q-order { list-style: none; margin: 3px 0 0; padding: 0; }
+.q-order li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 8px; align-items: center; }
+.q-order-box { display: inline-block; width: 22px; height: 20px; border: 1.2px solid #999; border-radius: 4px; flex: none; }
+.q-short { margin: 6px 0 2px; }
+.q-short-line { display: block; border-bottom: 1px solid #bbb; height: 20px; }
+.q-essay { margin: 5px 0 2px; }
+.q-bank { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 5px 0 2px;
+  border: 1.2px dashed var(--c2); border-radius: 6px; padding: 6px 10px; background: #fbfcfb; }
+.q-bank-label { font-weight: 700; color: var(--cink); font-size: 8.7pt; margin-right: 4px; }
+.q-bank-chip { border: 1px solid #cbd5c0; border-radius: 12px; padding: 2px 10px; font-size: 9pt; background: #fff; }
 
 /* ---- teacher answer (교과 무관 고정 블루) ---- */
 .answer { display: none; }
@@ -117,9 +160,47 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .rubric td.stars { text-align: center; width: 22%; color: #f0a500; font-size: 12pt; letter-spacing: 2px; }
 .note-under { border-bottom: 1px solid #ccc; height: 14px; margin-top: 4px; }
 
+/* ---- 도형 개체 (공통) ----
+   .wg-shape-layer 는 블록 흐름 안에 놓인 높이 0 의 위치 기준점이다. 블록이 리플로우로
+   다음 쪽에 밀리면 도형도 함께 간다(쪽 절대배치였다면 본문만 밀리고 도형은 남는다).
+   여기(blocks.css)에 두는 이유: 에디터 주입 스타일은 저장·인쇄본에서 제거되므로
+   도형이 학생용 HTML·PDF 에서 사라진다. */
+.wg-shape-layer { position: relative; height: 0; }
+.wg-shape { position: absolute; overflow: visible; }
+.wg-shape > * {
+  fill: var(--wg-fill, none);
+  stroke: var(--wg-stroke, #333);
+  stroke-width: var(--wg-sw, 1.6);
+  stroke-dasharray: var(--wg-dash, 0);
+  /* 가로·세로를 다르게 늘려도 선 굵기는 일정하게 유지된다. */
+  vector-effect: non-scaling-stroke;
+}
+.wg-shape > .head { fill: var(--wg-stroke, #333); stroke: none; }
+.wg-shape[data-shape="line"] > *,
+.wg-shape[data-shape="arrow"] > line { fill: none; }
+
+/* ---- 텍스트 상자 개체 (자유 배치) ----
+   도형과 같은 앵커 섬 모델(.wg-text-layer = 높이 0 기준점). 인쇄·학생용에서도 살아야
+   하므로 여기(blocks.css)에 둔다. 화면 편집용 테두리는 에디터 주입 스타일이 따로 얹는다
+   (저장·인쇄본에는 테두리가 남지 않는다). */
+.wg-text-layer { position: relative; height: 0; }
+.wg-text {
+  position: absolute;
+  box-sizing: border-box;
+  min-height: 6mm;
+  padding: 1mm 1.5mm;
+  font-size: var(--wg-fs, 11pt);
+  color: var(--wg-color, #333333);
+  text-align: var(--wg-align, left);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
 /* ---- numbered section heading (공통) ---- */
 h2.sec { display: flex; align-items: center; gap: 8px; font-size: 12pt; margin: 3mm 0 1.5mm; }
-h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border-radius: 4px;
+/* 원형 — 문서 내 다른 번호 표기(.qnum)와 같은 형태로 통일한다. */
+h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center; font-size: 10pt; }
 
 /* ===== 자료 제시 박스 (과학·공통) ===== */

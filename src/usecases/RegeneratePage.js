@@ -1,4 +1,3 @@
-import { excludedTypes } from './aiBridge.js';
 import { SaveDocument } from './SaveDocument.js';
 import { itemNumber } from './EditWorksheet.js';
 
@@ -52,10 +51,11 @@ export class RegeneratePage {
         '보장할 수 없어 재생성을 거부합니다(fail-closed).',
       );
     }
-    const excluded = excludedTypes(vocabulary);
+    const excluded = legacyExcludedTypes(vocabulary);
 
-    // C9: 제외-타입(standard-label 등 gen 타입·copyrightSlot 타입) 블록은 선언 타입
-    // 기준으로 신규 페이지에 동일 보존되어야 한다 — 삭제·변조·위조(신규 추가) 모두 거부.
+    // C9: 제외-타입(standard-label·gen 타입) 블록은 선언 타입 기준으로 신규 페이지에 동일 보존되어야
+    // 한다 — 삭제·변조·위조(신규 추가) 모두 거부(원칙 3). 저작권 지문 슬롯(copyrightSlot)은 3층 정책
+    // (2026-07-23)으로 교사·AI 편집이 허용돼 보존 대상에서 제외한다.
     const oldExcluded = pages[idx].filter((b) => excluded.has(String(b?.type ?? 'content')));
     const newExcluded = newPageBlocks.filter((b) => excluded.has(String(b?.type ?? 'content')));
     assertExcludedPreserved(oldExcluded, newExcluded);
@@ -68,6 +68,18 @@ export class RegeneratePage {
 
     return { ...result, continuityWarning: checkNumberContinuity(nextManifest) };
   }
+}
+
+/** 재생성 보존 대상(제외-타입) 레거시 블록 집합 — 성취기준(standard-label)·gen 블록은 삭제·변조·위조를
+ *  거부한다(원칙 3). 저작권 지문 슬롯(copyrightSlot, 예: passage)은 3층 저작권 정책(2026-07-23)으로
+ *  교사·AI 편집이 허용돼 보존 대상에서 제외한다. aiBridge.excludedTypes 가 개체 트리(std-box) 전용으로
+ *  바뀌어, 레거시 manifest 블록 타입 집합은 여기서 직접 계산한다. */
+function legacyExcludedTypes(vocabulary) {
+  const out = new Set(['standard-label']);
+  for (const [type, spec] of Object.entries(vocabulary?.types ?? {})) {
+    if (spec?.gen) out.add(type); // gen 타입만 보존, copyrightSlot(지문)은 3층으로 편집 가능 → 제외
+  }
+  return out;
 }
 
 /** 제외-타입 블록 다중집합 동치 검사(순서 무관, 내용 완전 일치). */

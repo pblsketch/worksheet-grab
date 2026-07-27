@@ -1,6 +1,7 @@
 import { GenerateWorksheet } from './GenerateWorksheet.js';
 import { BuildVariants } from './BuildVariants.js';
 import { ValidateWorksheet } from './ValidateWorksheet.js';
+import { loadKnownSubjectHexes } from './renderAssets.js';
 
 // RunPipeline — 교사의 한 문장(학년교과+주제)을 종단 구동한다:
 //   성취기준 조회 → 조립(generate) → 2벌 분기(build-variants) → 검수 게이트(validate).
@@ -29,8 +30,7 @@ export class RunPipeline {
     const { student, teacher } = new BuildVariants().execute(html);
 
     // 3) 검수 게이트(정답 누출·하드코딩 교과색). 교과 팔레트는 테마에서 도출.
-    const themes = await this.repo.listThemes();
-    const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
+    const knownSubjectHexes = await loadKnownSubjectHexes(this.repo);
     const validator = new ValidateWorksheet({ knownSubjectHexes, paper: manifest.paper });
     const review = {
       student: validator.execute(student),

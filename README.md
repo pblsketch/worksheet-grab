@@ -10,14 +10,17 @@
 > 차이가 있어 코드를 포크하지 않고 별도 저장소로 독립시켰다(패턴은 계승하되 구현은 새로
 > 설계). slides-grab과 그 제작자([NomaDamas](https://github.com/NomaDamas))에게 감사를 전한다.
 
-한국 초중고 교사용 **활동지 제작 엔진 + 브라우저 에디터**(코어 M1~M6 · 에디터 로드맵 E0~E6 완결). Clean Architecture(Ports & Adapters)로 만든 Node CLI(의존성 0·빌드 0).
-문서는 HTML/CSS, **인쇄가 진실의 원천**(paper-css, A4/A3/B4 다중페이지). 교과색은 CSS 변수로만 주입하는 **범교과** 설계(국어·과학·사회·영어).
-한 문장 생성(`pipeline`/`generate`) → 문서 워크스페이스(`doc`) → 브라우저 에디터(`edit-ui`: 편집·정답 마크·프리셋·AI 재작성·정밀 미리보기) → PDF/PNG 내보내기(`doc export`)까지 종단 지원.
+한국 초중고 교사용 **활동지 제작 엔진 + 브라우저 에디터**(코어 M1~M6 · 에디터 E0~E6 · **editor-v4 개체 우선 재설계** 완결). Clean Architecture(Ports & Adapters)로 만든 Node CLI(의존성 0·빌드 0).
+문서는 **타입이 있는 개체 트리**(닫힌 카탈로그 10종 — 제목·지문·문항(7유형)·표·이미지·답란·구분선·도형·리치텍스트·성취기준)가 진실의 원천이고, HTML은 렌더 산출물이다. **인쇄가 최종 판정**(paper-css, A4/A3/B4 다중페이지 — 편집 화면 페이지 = 인쇄 페이지를 기계로 보장). 교과색은 CSS 변수로만 주입하는 **범교과** 설계(국어·과학·사회·영어).
+한 문장 생성(`pipeline`/`generate`) → 문서 워크스페이스(`doc`) → 브라우저 에디터(`edit-ui`: 구글 슬라이드식 개체 편집·자동 리플로우·AI 미리보기 적용) → PDF/PNG 내보내기(`doc export`)까지 종단 지원.
 
-- API 키 없음: 콘텐츠는 사용자 구독 AI가 저작한다(에디터의 AI 재작성도 파일 큐 브리지로 무API).
-- 성취기준 원문은 gepai CSV/MCP **조회만**(창작 금지). 저작권 지문은 슬롯 유지.
-- 학생용/교사용 2벌은 단일 HTML의 `data-mode` 토글 + 정답 물리 제거로 생성.
-  정답 누출이 감지된 문서는 학생용 산출(HTML·PDF)이 fail-closed 로 차단된다.
+- API 키 없음: 콘텐츠는 사용자 구독 AI가 저작한다(에디터의 AI 요청도 파일 큐 브리지로 무API).
+- 성취기준 원문은 gepai CSV/MCP **조회만**(창작 금지). 활동지 상단에는 성취기준 대신 **학습 목표**를
+  제시하고(교사용에만 근거 성취기준 병기), 저작권 지문은 교사 직접 입력 + 명시 요청 시 AI 창작·재구성을
+  허용한다(실존 저작물 원문 재현 금지 — 전 과정 로컬 처리).
+- 학생용/교사용 2벌: 정답은 개체 속성(`answer:true`)이라 편집으로 벗겨질 수 없고, 학생용은 정답 개체를
+  트리 수준에서 물리 제거한 뒤 렌더한다(grep 2차 방어 포함). 정답 누출이 감지된 문서는 학생용
+  산출(HTML·PDF)이 fail-closed 로 차단된다.
 - 협의형 공동 설계(조건부): "같이 설계하자" 신호가 있거나 교과·학년·주제가 빠졌을 때만
   생성 전에 교사와 협의한다(worksheet-consult). 완결 요청의 빠른 경로는 그대로다.
 
@@ -151,27 +154,30 @@ node bin/worksheet-grab.js doc open 광합성탐구                        # 로
 node bin/worksheet-grab.js doc history 광합성탐구                     # 편집 스냅샷 목록(무료 undo)
 node bin/worksheet-grab.js doc restore 광합성탐구 0001                # 비파괴 복원(새 리비전으로 저장)
 node bin/worksheet-grab.js doc save 광합성탐구 --from x.manifest.json # 원시 저장 진입점(E2 서버용)
-node bin/worksheet-grab.js edit-ui 광합성탐구                         # 브라우저 에디터(E3): 편집·마크·저장
-#   교사용 캔버스에서 자유 편집(툴바: 폰트·크기·B/I/U·색·정렬·목록·표·이미지·↶↷).
-#   🖼️ 이미지: 픽커/붙여넣기/드래그앤드롭으로 업로드 → worksheets/<문서명>/assets/ 저장(png/jpg/jpeg/gif/
-#   webp·5MB 이하, SVG 제외) → 블록에는 항상 로컬 상대경로(assets/…)로 삽입, 원격 URL 인라인은 금지.
-#   ⭐ 정답 표시: 아무 내용이나 선택해 마크 → 학생용에서 자동 물리 제거(2벌 자동 생성).
-#   ✏️ 답란 삽입: 현재 블록에 답란 5줄. 저장(Ctrl+S) = manifest 반영 + 히스토리 스냅샷.
-#   실시간 예고: 페이지 넘침 빨강 배지 · 8pt 미만 즉시 경고 · 라이브 검수 바.
-#   ⧉ 내 블록으로 저장(E4): 아무 블록이나 프리셋으로 저장 → 📁 프리셋 라이브러리에서
-#   다른 문서에 삽입 재사용. 기본 제공(발문·답란·표·루브릭)은 삭제(숨김)·복원 자유.
+node bin/worksheet-grab.js edit-ui 광합성탐구                         # 브라우저 에디터(editor-v4): 개체 편집·저장
+#   개체 우선 편집(구글 슬라이드/Figma 문법): 클릭=선택 · 더블클릭=그 개체만 내용 편집 · Esc=복귀.
+#   문항·표·이미지·도형·지문 전부 "집을 수 있는 카드" — 다중 선택·복제·삭제·flow⇄float 전환.
+#   자동 리플로우: 내용이 넘치면 다음 페이지로 자동 이동(표는 분할 없이 통째), 편집 화면 페이지 == 인쇄 페이지.
+#   UI: 선택 상태별로 바뀌는 컨텍스트 툴바 · 좌측 3탭(페이지 썸네일/삽입 카탈로그/내 블록) ·
+#   우측 인스펙터(타입별 속성·학습목표·정답 토글) · 슬래시 메뉴·버블 툴바·⠿핸들·우클릭 메뉴.
+#   저장: Ctrl+S + 유휴 30초 자동 체크포인트(조작은 인메모리 undo/redo — rev·스냅샷은 체크포인트 단위).
+#   🖼️ 이미지: 픽커/붙여넣기/드래그앤드롭 업로드 → worksheets/<문서명>/assets/ 저장(png/jpg/jpeg/gif/
+#   webp·5MB 이하, SVG 제외) → 항상 로컬 상대경로(assets/…) 참조, 원격 URL 인라인은 금지.
+#   ⭐ 정답: 개체를 선택해 answer 토글(구조 속성 — 편집으로 벗겨질 수 없음) → 학생용에서 자동 물리 제거.
+#   ⧉ 내 블록으로 저장(우클릭): 개체를 프리셋으로 저장 → 좌측 "내 블록" 탭에서 다른 문서에 재사용.
 node bin/worksheet-grab.js preset list                                # 프리셋 목록(기본 제공 + 내 블록)
 node bin/worksheet-grab.js preset delete 나의-블록                    # 내 블록 삭제 / 기본 제공은 숨김
 node bin/worksheet-grab.js preset restore builtin-rubric              # 숨긴 기본 제공 복원
 #   저장 위치: <워크스페이스>/.presets/presets.json (쓰기 시 .bak 백업·원자 교체).
 #   미리보기는 정답 물리 제거본이 기본("정답 보기" 토글로만 원본 노출).
-#   🤖 AI 재작성 / ✨ 예시 채우기(E5, 무API): 블록 요청이 <워크스페이스>/.ai-bridge/
-#   파일 큐로 가고, 구독 AI 세션이 아래 명령으로 수신·회신한다(반영은 AI 세션 활성 시).
-node bin/worksheet-grab.js ai pending --watch                         # 구독 AI: 요청 감시(1s 폴링)
-node bin/worksheet-grab.js ai respond <id> --from answer.html          # 구독 AI: 재작성 회신
+#   🤖 AI 편집(무API): 개체를 선택해 프리셋(난이도 조정·문항 유형 변환·학년 수준·지문 창작/재구성)
+#   또는 자유 프롬프트로 요청 → <워크스페이스>/.ai-bridge/ 파일 큐 → 구독 AI 세션이 수신·회신.
+node bin/worksheet-grab.js ai pending --watch                          # 구독 AI: 요청 감시(1s 폴링)
+node bin/worksheet-grab.js ai respond <id> --objects answer.json       # 구독 AI: 개체(v3) 회신([{id,object}])
 node bin/worksheet-grab.js ai list --all                               # 상태 조회 · ai clear 로 정리
-#   성취기준·저작권 지문 블록은 AI 대상에서 제외(타입 가드). AI 응답도 diff 미리보기
-#   → 적용(되돌리기 가능) → 저장 시 기존 누출 게이트를 그대로 통과한다.
+#   성취기준(std-box)만 AI 대상에서 제외(타입 가드·400). AI 응답은 바로 적용되지 않고
+#   미리보기 카드(단어 단위 diff 하이라이트) → 교체/아래 삽입/재생성(버전 ◀▶ 왕복)/취소.
+#   적용은 undo 1스텝, 사용자가 그 개체를 편집하는 순간 AI 배지가 해제된다(졸업).
 #   manifest 가 진실의 소스. 매 저장 = history/ 스냅샷 + meta 리비전(.worksheet-grab/meta.json).
 #   정답 누출(마크 밖 평문) 감지 시 student.html 을 보류하고 meta.unsafe 를 남긴다(작업은 저장됨).
 #   워크스페이스 루트는 기본 <cwd>/worksheets, --workspaces-dir 로 변경.
@@ -247,15 +253,23 @@ node bin/worksheet-grab.js render out/ko-teacher.html --out out/ko-teacher.pdf
 ```
 src/
   domain/      순수 엔티티(프레임워크 의존 0): Worksheet, Block, BlockContent, Variant, Standard, Theme
-  usecases/    애플리케이션 규칙(포트에만 의존): AssembleWorksheet, BuildVariants, ValidateWorksheet,
-                 RenderPdf/RenderImage, ComposeWorksheet(동적 조립), EditWorksheet,
-                 SaveDocument/OpenDocument/ExportDocument(워크스페이스 저장·로드·unsafe fail-closed 내보내기),
-                 RenderEditorShell(에디터 합성), paper.js(용지 단일 소스), workspace.js·presets.js·aiBridge.js(순수 정책)
-                 + ports.js(Renderer·CurriculumProvider·BlockRepository) + html-scan.js(순수 HTML 스캐너)
-  adapters/    포트 구현: ChromeRenderer, FsBlockRepository, GepaiCurriculum(CSV 1차·MCP 옵션),
-                 EditorHttpServer(127.0.0.1 에디터 서버), FsWorkspaceRepository, FsPresetRepository, FsAiBridgeRepository
-  editor/      브라우저 에디터 클라이언트(바닐라 ESM, 빌드 0): editor.js·toolbar·marks·presets·ai·resync
-                 + browserGraph.js(검수 체인 화이트리스트: 브라우저가 원본 ValidateWorksheet 를 그대로 실행)
+                 + schema/(editor-v4 개체 카탈로그 10종·qtype 7종·불변식·exportGate — 문서의 진실 소스)
+  usecases/    애플리케이션 규칙(포트에만 의존): RenderObjectTree(개체 트리→HTML 순수 렌더 — 편집기·검수·
+                 내보내기 3소비자 공유), ValidateObjectTree(구조 검증)·MigrateManifestToObjectTree(무손실
+                 마이그레이션), PaginateObjectTree(개체→페이지 귀속 계산)·PaginateAndExport,
+                 AssembleWorksheet(레거시 HTML 경로), BuildVariants(학생용=answer:true 트리 물리 제거),
+                 ValidateWorksheet(구조+렌더 실측 2층), ComposeWorksheet(동적 조립), EditWorksheet,
+                 SaveDocument(checkpoint: 조작은 인메모리·디스크 커밋은 체크포인트 단위)/OpenDocument/
+                 ExportDocument(scaffold·unsafe fail-closed), RenderEditorShell, paper.js(용지 단일 소스),
+                 workspace.js·presets.js·aiBridge.js(순수 정책) + ports.js + html-scan.js
+  adapters/    포트 구현: ChromeRenderer, PaginationMeasurer(CDP 페이지 경계 실측 — 페이지네이션 단일 권한),
+                 FsBlockRepository, GepaiCurriculum(CSV 1차·MCP 옵션), EditorHttpServer(127.0.0.1 에디터 서버),
+                 FsWorkspaceRepository, FsPresetRepository, FsAiBridgeRepository
+  editor/      브라우저 에디터 클라이언트(바닐라 ESM, 빌드 0 — editor-v4 개체 우선 모델):
+                 editor.js(부트스트랩)·core(개체 트리 상태)·selection(클릭/더블클릭/Esc 상태기계)·
+                 history(인메모리 undo)·reflow(브라우저 paginator — Chrome 측정과 계산부 공유)·
+                 objectFactory(문서 연산)·ai(preview-diff-버전)·contextToolbar·leftPanel·inspector·
+                 canvasInline(슬래시·버블·⠿핸들)·icons + browserGraph.js(두-런타임 순수성 화이트리스트)
   cli/         커맨드 파서
 bin/worksheet-grab.js  엔트리
 blocks/        타입 어휘: vocabulary.json(계약 레지스트리) + archetypes.json(구조 패턴 6) + core/*·pack-*/*(exemplar)
@@ -291,14 +305,17 @@ DIP 는 실제로 변하는 3경계(Curriculum·Renderer·ContentAuthor)에만 �
 ## 검증
 
 ```bash
-npm test            # 전체 250 테스트(단위 215 + 실물 렌더 35). Chrome 없으면 렌더 테스트는 스킵.
-npm run test:unit   # Chrome 불필요 단위/수용 테스트
-npm run test:render # 실물 Chrome, 페이지수(국어 5·과학 3)·PDF MediaBox(A4/A3/B4)·에디터 계측(dump-dom)
+npm run test:unit   # Chrome 불필요 단위/수용 테스트(386+)
+npm run test:render # 실물 Chrome — 페이지수·PDF MediaBox·인쇄 동치·에디터 실측(25파일 73+)
 npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각은 만들지 않음)
+
+# 렌더 테스트는 반드시 1파일씩 직렬로(Chrome 동시 1개) — 병렬 실행은 경합 플레이크를 만든다:
+for f in test/render/*.render.test.js; do node --test "$f"; done
 ```
 
-다코어 머신에서 전 병렬 실행 시 Chrome 동시 spawn 경합으로 렌더 테스트가 드물게 타임아웃할 수
-있다. `node --test --test-concurrency=8 "test/**/*.test.js"` 로 묶으면 안정적으로 green.
+에디터 조작(드래그·클릭)의 최종 검증은 합성 이벤트가 아니라 **실제 마우스(CDP Input)** 스크립트로
+한다 — 합성 이벤트 테스트가 통과해도 실 마우스에서 실패하는 버그가 실제로 있었다(pointer-events·
+포커스 파괴류). 재실행 가능한 실마우스 시나리오는 QA 핸드오프(docs/HANDOFF-editor-v4-qa.md) 참고.
 
 ### QA 하드닝(교차 검증 반영)
 
@@ -341,12 +358,27 @@ npm run extract     # poc → manifests/ 재생성(인라인 html; 위치조각�
 - **E0 용지/방향**: manifest `paper` 1급 속성(A4/A3/B4×방향×여백), `paper.js` 단일 소스, PDF MediaBox 실측.
 - **E1 문서 워크스페이스**: `worksheets/<문서명>/` + meta 리비전 + history 스냅샷(무료 undo). 저장은 `SaveDocument` 단일 게이트(누출 시 student.html 보류·`meta.unsafe`).
 - **E2 에디터 셸**: `edit-ui` 로컬 서버(127.0.0.1) + 인쇄정밀 캔버스 + 라이브 검수 바("같은 규칙, 두 런타임").
-- **E3 편집**: contenteditable 툴바 + ⭐ 정답 마크(3중 방어) + ✏️ 답란 → manifest 역동기화 저장.
+- **E3 편집**: contenteditable 툴바 + ⭐ 정답 마크 + ✏️ 답란 → manifest 역동기화 저장 *(editor-v4 로 대체됨)*.
 - **E4 사용자 프리셋**: 블록을 이름 붙여 저장·라이브러리·삽입 재사용(워크스페이스 공유 자산).
-- **E5 AI 액션(무API)**: 🤖 재작성/✨ 예시 채우기를 `.ai-bridge/` 파일 큐로 구독 AI 세션과 왕복. 성취기준·저작권 슬롯은 타입 가드로 제외.
+- **E5 AI 액션(무API)**: 🤖 재작성/✨ 예시 채우기를 `.ai-bridge/` 파일 큐로 구독 AI 세션과 왕복 *(editor-v4 에서 개체 단위 preview-then-commit 으로 대체됨)*.
 - **E6 내보내기 통합**: 에디터/CLI PDF export(`meta.unsafe` fail-closed), 정밀 미리보기(백그라운드 Chrome), 포맷 프리셋 UI(A4 세로·A3 접이·A4 가로·B4 세로 + 고급).
 
-후속 후보(범위 밖 명시): A3→A4 4쪽 소책자 imposition · 페이지별 정밀 미리보기 · export `--out` override.
+**editor-v4 개체 우선 재설계 완료** (2026-07, 상세: [docs/HANDOFF-object-schema.md](docs/HANDOFF-object-schema.md)·[docs/HANDOFF-editor-v4-qa.md](docs/HANDOFF-editor-v4-qa.md)):
+
+- **M1 개체 스키마**: 문서를 닫힌 카탈로그 10종(문항 7유형)의 개체 트리로 재정의. 기존 문서는
+  지연 마이그레이션으로 무손실 승격(개체화율 게이트 ≥70% 통과).
+- **M2 엔진**: 단일 순수 렌더러(RenderObjectTree)를 편집기·검수·내보내기가 공유. 정답은
+  `answer:true` 속성 → 학생용은 트리 수준 물리 제거. 페이지 경계는 Chrome 실측 단일 권한
+  (편집 화면 == 인쇄 PDF 를 기계로 단정). 저장은 인메모리 조작 + 체크포인트 2층.
+- **M3 하네스**: 에이전트 5종·스킬 3종이 개체 트리 JSON 계약으로 전환(AI 는 좌표·신규 타입 생성 불가).
+- **M4 편집기 재구축**: contenteditable 문서 모델 폐지 — 클릭=선택/더블클릭=편집/Esc 문법,
+  flow(자동 리플로우) + float(자유 배치) 2층, 선택 반응 컨텍스트 툴바·좌 3탭·인스펙터·슬래시 메뉴,
+  AI preview-diff-버전, 자동 저장. 최종 검증은 실제 마우스(CDP) 종단 시나리오로.
+- **정책**: 활동지 상단은 학습 목표 중심(교사용에만 근거 성취기준), 지문은 교사 직접 입력 +
+  명시 요청 시 AI 창작·재구성 허용(성취기준 원문만 AI 불변).
+
+후속 후보(범위 밖 명시): A3→A4 4쪽 소책자 imposition · float z-order(앞뒤 보내기) · 이미지 mm 폭
+리사이즈 · 다단 열 간 재배분 · export `--out` override.
 
 세부 수용·함정 기록은 `progress.txt`(로컬 작업 로그, 저장소에는 포함되지 않음), 마일스톤 원장은 `.omc/ultragoal/`.
 `.claude/`(하네스)와 `poc/` 원본은 참고·복사만 하며 훼손하지 않는다.

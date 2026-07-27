@@ -35,7 +35,8 @@ import { createEditorServer, listenEditorServer } from '../adapters/EditorHttpSe
 import { PresetLibrary } from '../usecases/PresetLibrary.js';
 import { FsPresetRepository } from '../adapters/FsPresetRepository.js';
 import { FsAiBridgeRepository } from '../adapters/FsAiBridgeRepository.js';
-import { AI_SCHEMA_VERSION } from '../usecases/aiBridge.js';
+import { AI_SCHEMA_VERSION, validateResponse } from '../usecases/aiBridge.js';
+import { loadKnownSubjectHexes } from '../usecases/renderAssets.js';
 
 const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
 
@@ -124,7 +125,11 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       AI 액션 브리지(E5, 무API): 에디터의 "AI 재작성/예시 채우기" 요청을 구독 AI
       (이 CLI 를 모는 Claude/Codex 세션)가 파일 큐로 주고받는다.
         ai pending [--json] [--watch] [--once]   대기 요청 조회/감시(1s 폴링)
-        ai respond <id> --from <file>|--html <…> 재작성 결과 회신(취소된 요청은 거부)
+        ai respond <id> --ops <file.json>|--objects <file.json>|--blocks <file.json>|--from <file>|--html <…>
+                                                  재작성 결과 회신(취소된 요청은 거부).
+                                                  --ops 는 [{op:'replace'|'insert'|'delete',…}] JSON
+                                                  (개수·종류가 자유로운 계획, v4 — Phase 4)
+                                                  --objects 는 [{id,object}] JSON(개체 ID 에코, v3 — US-19)
         ai list [--all] · ai clear [<id>]        상태 조회·terminal 정리
       큐 위치: <워크스페이스>/.ai-bridge/. 성취기준·저작권 지문 블록은 대상에서 제외.
   worksheet-grab list-blocks
@@ -321,7 +326,7 @@ async function renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf =
 // 쓰이며 원인 불명 타입 오류가 된다 — 진입점에서 fail-fast 로 막는다.
 const VALUE_FLAGS = ['out', 'csv', 'chrome', 'workspaces-dir', 'from', 'standards',
   'limit', 'port', 'archetype', 'virtual-time-budget', 'doc', 'html', 'remove', 'add',
-  'title', 'paper', 'toc-title', 'workbooks-dir'];
+  'title', 'paper', 'toc-title', 'workbooks-dir', 'blocks', 'objects'];
 
 export async function run(argv, { root, log = console.log, err = console.error, onServer = null, renderer = null } = {}) {
   const { positionals, flags } = parseArgs(argv);
@@ -404,8 +409,7 @@ async function cmdRender(input, flags, { log }) {
 async function cmdValidate(input, repo, { log, err }) {
   if (!input) throw new Error('validate: 입력 HTML 경로가 필요합니다.');
   const html = await readFile(resolve(input), 'utf8');
-  const themes = await repo.listThemes();
-  const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
+  const knownSubjectHexes = await loadKnownSubjectHexes(repo);
   const { ok, findings } = new ValidateWorksheet({ knownSubjectHexes }).execute(html);
   if (findings.length === 0) {
     log('✔ validate: 문제 없음(정답 누출·하드코딩색·최소폰트 모두 통과).');
@@ -687,9 +691,18 @@ async function cmdAi(args, flags, { log, err }) {
   const [sub, id] = args;
   const ws = wsRepoFromFlags(flags);
   const bridge = new FsAiBridgeRepository({ baseDir: ws.baseDir });
-  // v1(단일 block)·v2(blocks[]) 양형을 무크래시로 렌더한다(r.block 직접 접근 금지).
+  // v1(단일 block)·v2(blocks[])·v3(objects[], US-19)·v4(objects[] + 페이지 컨텍스트, Phase 4) 양형을
+  // 무크래시로 렌더한다(r.block 직접 접근 금지).
   const printRequest = (r) => {
     if (flags.json) { log(JSON.stringify(r, null, 2)); return; }
+    if (Array.isArray(r.objects)) {
+      const summary = r.objects.map((o) => `${o.type}(${o.id})`).join(', ');
+      // v4 는 어느 페이지의 어떤 상태를 근거로 한 요청인지도 싣는다 — 구독 AI 가 "페이지 전체"
+      // 요청임을 알아야 개수를 바꾸는 계획(ops)을 세울 수 있다.
+      const pageInfo = r.scope === 'page' ? ` · 범위: 페이지 전체(${r.pageId || '?'})` : '';
+      log(`  ${r.id} — ${r.docName} · ${r.action} · ${r.objects.length}개체 [${summary}]${pageInfo}${r.instruction ? ` · 지시: ${r.instruction}` : ''}`);
+      return;
+    }
     const blocks = r.blocks ?? (r.block ? [r.block] : []);
     const summary = blocks.map((b) => `${b.bt || 'content'}(${(b.html ?? '').length}자)`).join(', ');
     log(`  ${r.id} — ${r.docName} · ${r.action} · ${blocks.length}블록 [${summary}]${r.instruction ? ` · 지시: ${r.instruction}` : ''}`);
@@ -717,10 +730,36 @@ async function cmdAi(args, flags, { log, err }) {
       if (!status) throw new Error(`요청을 찾을 수 없습니다: ${id}`);
       if (status === 'cancelled') { err(`✗ 취소된 요청입니다(terminal): ${id} — 응답할 수 없습니다.`); return 1; }
       if (status !== 'pending') { err(`✗ ${status} 상태 요청입니다: ${id} — pending 만 응답 가능합니다.`); return 1; }
-      // 입력형별 리터럴 태깅: --from/--html → v1(단일 html), --blocks → v2(blocks[{slot,html}]).
-      // AI_SCHEMA_VERSION 상수를 응답에 직접 기록하지 않는다(상수 승격이 v1 회신을 오태깅하는 것 방지).
+      // 입력형별 리터럴 태깅: --from/--html → v1(단일 html), --blocks → v2(blocks[{slot,html}]),
+      // --objects → v3(objects[{id,object}], US-19 개체 ID 에코), --ops → v4(ops[{op,…}], Phase 4
+      // 개수·종류가 자유로운 계획). AI_SCHEMA_VERSION 상수는 **현행 신규 쓰기(v4)** 에만 쓴다 —
+      // v1/v2/v3 는 디스크에 남은 in-flight 요청·기존 입력형의 고정 형태라 리터럴로 유지한다
+      // (상수 승격이 과거 회신을 오태깅하는 것 방지).
       let response;
-      if (typeof flags.blocks === 'string') {
+      if (typeof flags.ops === 'string') {
+        const parsed = JSON.parse(await readFile(resolve(flags.ops), 'utf8'));
+        const ops = Array.isArray(parsed) ? parsed : parsed?.ops;
+        if (!Array.isArray(ops) || ops.length === 0) {
+          throw new Error('ai respond --ops: [{op,…}] 배열(또는 {ops:[…]}) JSON 파일이 필요합니다.');
+        }
+        response = { schemaVersion: AI_SCHEMA_VERSION, id, ops };
+        if (!validateResponse(response)) {
+          throw new Error("ai respond --ops: 응답 형태가 v4 스키마와 맞지 않습니다 — replace={op,id,object}, insert={op,object,afterId|beforeId}, delete={op,id}. insert 에 afterId 와 beforeId 를 동시에 줄 수 없습니다.");
+        }
+      } else if (typeof flags.objects === 'string') {
+        const parsed = JSON.parse(await readFile(resolve(flags.objects), 'utf8'));
+        const objects = Array.isArray(parsed) ? parsed : parsed?.objects;
+        if (!Array.isArray(objects) || objects.length === 0) {
+          throw new Error('ai respond --objects: [{id,object}] 배열(또는 {objects:[…]}) JSON 파일이 필요합니다.');
+        }
+        // v3 고정 형태(objects[] = 개체 ID 에코)라 리터럴 3 으로 태깅한다 — AI_SCHEMA_VERSION 은
+        // Phase 4 에서 4(ops[]) 로 승격됐고, 신규 쓰기 상수를 이 v3 shape 에 쓰면 형태-버전
+        // 불일치로 validateResponse 가 거부한다(위 v1/v2 리터럴 유지와 동일 근거).
+        response = { schemaVersion: 3, id, objects };
+        if (!validateResponse(response)) {
+          throw new Error('ai respond --objects: 응답 형태가 v3 스키마([{id,object:{id,type,…}}])와 맞지 않습니다.');
+        }
+      } else if (typeof flags.blocks === 'string') {
         const parsed = JSON.parse(await readFile(resolve(flags.blocks), 'utf8'));
         const blocks = Array.isArray(parsed) ? parsed : parsed?.blocks;
         if (!Array.isArray(blocks) || blocks.length === 0) {
@@ -732,10 +771,14 @@ async function cmdAi(args, flags, { log, err }) {
       } else if (typeof flags.html === 'string') {
         response = { schemaVersion: 1, id, html: flags.html };
       } else {
-        throw new Error('ai respond: --from <file> / --html <inline> / --blocks <file.json> 중 하나가 필요합니다.');
+        throw new Error('ai respond: --from <file> / --html <inline> / --blocks <file.json> / --objects <file.json> 중 하나가 필요합니다.');
       }
       await bridge.putResponse(response);
-      const detail = response.blocks ? `${response.blocks.length}블록` : `${response.html.length}자`;
+      // 양형 방어(v1~v4): 없는 필드에 직접 접근하면 v4(ops[]) 회신에서 크래시한다.
+      const detail = response.ops ? `${response.ops.length}계획(${response.ops.map((o) => o.op).join('·')})`
+        : response.objects ? `${response.objects.length}개체`
+          : response.blocks ? `${response.blocks.length}블록`
+            : `${(response.html ?? '').length}자`;
       log(`✔ 응답 기록: ${id} (${detail}) — 에디터가 폴링으로 수신합니다.`);
       return 0;
     }
@@ -744,6 +787,10 @@ async function cmdAi(args, flags, { log, err }) {
       const items = flags.all ? all : all.filter((r) => r.status === 'pending' || r.status === 'answered');
       log(`AI 요청 ${items.length}건${flags.all ? '(전체)' : '(활성)'}:`);
       for (const r of items) {
+        if (Array.isArray(r.objects)) {
+          log(`  [${r.status}] ${r.id} — ${r.docName} · ${r.action} · ${r.objects.length}개체 [${r.objects.map((o) => o.type).join(', ')}]`);
+          continue;
+        }
         const blocks = r.blocks ?? (r.block ? [r.block] : []);
         log(`  [${r.status}] ${r.id} — ${r.docName} · ${r.action} · ${blocks.length}블록 [${blocks.map((b) => b.bt || 'content').join(', ')}]`);
       }
@@ -755,7 +802,7 @@ async function cmdAi(args, flags, { log, err }) {
       return 0;
     }
     default:
-      err(`ai: 알 수 없는 서브명령 "${sub ?? ''}". 지원: pending [--json|--watch|--once] · respond <id> --from|--html|--blocks · list [--all] · clear [<id>]`);
+      err(`ai: 알 수 없는 서브명령 "${sub ?? ''}". 지원: pending [--json|--watch|--once] · respond <id> --ops|--objects|--blocks|--from|--html · list [--all] · clear [<id>]`);
       return 2;
   }
 }

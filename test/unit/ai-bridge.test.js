@@ -7,8 +7,6 @@ import {
 
 // E5 순수 정책: id·액션·타입 가드(§7·§10 유일 강제)·상태 전이·스키마.
 
-const VOCAB = { types: { passage: { copyrightSlot: true }, 'standard-label': { gen: true }, question: {}, content: {} } };
-
 test('newRequestId: 시각+난수 주입 결정성', () => {
   const id = newRequestId(new Date('2026-07-21T05:00:00.000Z'), () => 0.5);
   assert.match(id, /^req-20260721\d{6}-7fff$/);
@@ -20,15 +18,13 @@ test('parseAction: rewrite|fill-example 화이트리스트', () => {
   assert.throws(() => parseAction('delete-all'), /지원하지 않는 AI 액션/);
 });
 
-test('타입 가드: 저작권 슬롯·성취기준 gen 블록은 구조적 거부(§7·§10)', () => {
-  const excluded = excludedTypes(VOCAB);
-  assert.ok(excluded.has('passage') && excluded.has('standard-label'));
-  assert.throws(() => assertTargetable('passage', VOCAB), /AI 액션 대상이 아닙니다/);
-  assert.throws(() => assertTargetable('standard-label', VOCAB), /AI 액션 대상이 아닙니다/);
-  assert.equal(assertTargetable('question', VOCAB), 'question');
-  assert.equal(assertTargetable(undefined, VOCAB), 'content', '타입 없으면 content 로 허용');
-  // vocabulary 부재(폴백)에도 standard-label 은 최소 보장 거부
-  assert.throws(() => assertTargetable('standard-label', null), /대상이 아닙니다/);
+test('3층 정책(2026-07-23 2차 델타): 성취기준(std-box)만 AI 대상 구조적 거부 — passage-slot 은 해제', () => {
+  const excluded = excludedTypes();
+  assert.deepEqual([...excluded].sort(), ['std-box']);
+  assert.throws(() => assertTargetable('std-box'), /AI 액션 대상이 아닙니다/);
+  assert.equal(assertTargetable('passage-slot'), 'passage-slot', '명시 요청 시 AI 가 지문을 창작·재구성할 수 있어야 함(가드 해제)');
+  assert.equal(assertTargetable('question'), 'question');
+  assert.equal(assertTargetable('title'), 'title');
 });
 
 test('상태 전이: cancelled·applied 는 terminal, answered 이후에만 applied', () => {
@@ -41,9 +37,9 @@ test('상태 전이: cancelled·applied 는 terminal, answered 이후에만 appl
   assert.equal(canTransition('applied', 'cancelled'), false);
 });
 
-test('F4: AI_SCHEMA_VERSION=2(신규 쓰기용)·관용 집합 {1,2}', () => {
-  assert.equal(AI_SCHEMA_VERSION, 2, '신규 요청/응답은 v2 로 쓴다');
-  assert.deepEqual([...AI_SCHEMA_VERSIONS].sort(), [1, 2], 'v1·v2 관용');
+test('Phase 4: AI_SCHEMA_VERSION=4(신규 쓰기용, ops 계획)·관용 집합 {1,2,3,4}', () => {
+  assert.equal(AI_SCHEMA_VERSION, 4, '신규 응답은 v4(ops[]) 로 쓴다');
+  assert.deepEqual([...AI_SCHEMA_VERSIONS].sort(), [1, 2, 3, 4], 'v1·v2·v3 in-flight 파일도 계속 관용');
 });
 
 test('F4 요청 스키마: v1(단일 block)·v2(blocks[]) 동시 수용 + 형태-버전 정합', () => {
@@ -93,4 +89,121 @@ test('F4 응답 스키마: v1(html)·v2(blocks[{slot,html}]) 동시 수용 + 형
   assert.equal(validateResponse({ ...v2, blocks: [{ slot: 0, html: '  ' }] }), false, '슬롯 html 비어있으면 거부');
   assert.equal(validateResponse({ ...v2, blocks: [{ html: '<p>x</p>' }] }), false, 'slot 누락 거부');
   assert.equal(validateResponse({ schemaVersion: 2, id: 'x', html: '<p>단일</p>' }), false, 'v2 인데 blocks[] 없음 → 거부');
+});
+
+test('S4.0 요청 스키마 v3: objects[{id,type,…현재 개체 필드}](개체 ID 에코, worksheet-designer 계약) 필수', () => {
+  const v3 = {
+    schemaVersion: 3, id: 'req-3', docName: '문서', action: 'rewrite',
+    objects: [
+      { id: 'o1', type: 'title', placement: 'flow', text: '제목' },
+      { id: 'o4', type: 'question', placement: 'flow', qtype: 'essay', prompt: '문항' },
+    ],
+    status: 'pending',
+  };
+  assert.equal(validateRequest(v3), true, 'v3 다중 개체(전체 필드 그대로) 유효');
+  assert.equal(validateRequest({ ...v3, objects: [] }), false, '빈 objects 거부');
+  assert.equal(validateRequest({ ...v3, objects: [{ id: 'o1' }] }), false, '원소에 type 필수');
+  assert.equal(validateRequest({ ...v3, objects: [{ type: 'title', text: '제목' }] }), false, '원소에 id 필수');
+});
+
+test('S4.0 응답 스키마 v3: objects[{id,object}](개체 ID 에코) 필수', () => {
+  const v3 = {
+    schemaVersion: 3, id: 'req-3',
+    objects: [{ id: 'o1', object: { id: 'o1', type: 'title', text: '수정된 제목' } }],
+  };
+  assert.equal(validateResponse(v3), true, 'v3 개체 에코 응답 유효');
+  assert.equal(validateResponse({ ...v3, objects: [] }), false, '빈 objects 거부');
+  assert.equal(validateResponse({ ...v3, objects: [{ object: { id: 'o1', type: 'title' } }] }), false, '원소에 id 필수');
+  assert.equal(validateResponse({ ...v3, objects: [{ id: 'o1' }] }), false, '원소에 object 필수');
+  assert.equal(validateResponse({ ...v3, objects: [{ id: 'o1', object: { id: 'o1' } }] }), false, 'object 에 type 필수(개체 스키마 최소 보장)');
+});
+
+// ── Phase 4: v4 ops[] — 개수·종류가 자유로운 결과 계획 ──
+// v3 의 objects:[{id,object}] 는 대상 ID 에코라 1:1 치환만 표현할 수 있었다. v4 는 "3개를 1개로
+// 합치기"·"1개를 2개로 나누기"·"삭제"를 하나의 계획으로 싣는다(PRD v2.1 §11.3).
+
+const obj = (id, type = 'question') => ({ id, type, prompt: '문항' });
+const v4res = (ops) => ({ schemaVersion: 4, id: 'req-4', ops });
+
+test('Phase 4 응답: v4 ops 3종(replace·insert·delete) 수용', () => {
+  assert.equal(validateResponse(v4res([{ op: 'replace', id: 'q1', object: obj('q1') }])), true, 'replace');
+  assert.equal(validateResponse(v4res([{ op: 'insert', object: obj('new1'), afterId: 'q1' }])), true, 'insert(afterId)');
+  assert.equal(validateResponse(v4res([{ op: 'insert', object: obj('new1'), beforeId: 'q1' }])), true, 'insert(beforeId)');
+  assert.equal(validateResponse(v4res([{ op: 'insert', object: obj('new1') }])), true, 'insert(위치 미지정 = 말미)');
+  assert.equal(validateResponse(v4res([{ op: 'delete', id: 'q2' }])), true, 'delete');
+});
+
+test('Phase 4 응답: 개수를 바꾸는 계획이 하나의 응답으로 표현된다(1:1 강제 해제)', () => {
+  // 문항 3개 → 단계형 활동 1개: 하나를 결과로 치환하고 나머지 둘을 지운다.
+  const merge = v4res([
+    { op: 'replace', id: 'q1', object: { id: 'q1', type: 'question', prompt: '통합 활동' } },
+    { op: 'delete', id: 'q2' },
+    { op: 'delete', id: 'q3' },
+  ]);
+  assert.equal(validateResponse(merge), true, '3→1 합치기');
+
+  // 표 1개 → 표 + 설명문 2개: 치환 후 뒤에 새 개체를 끼운다.
+  const split = v4res([
+    { op: 'replace', id: 't1', object: { id: 't1', type: 'table', rows: [] } },
+    { op: 'insert', object: { id: 'rt-new', type: 'richtext', html: '<p>설명</p>' }, afterId: 't1' },
+  ]);
+  assert.equal(validateResponse(split), true, '1→2 나누기');
+});
+
+test('Phase 4 응답: 형태 위반 거부', () => {
+  assert.equal(validateResponse({ schemaVersion: 4, id: 'r', ops: [] }), false, '빈 ops 거부');
+  assert.equal(validateResponse({ schemaVersion: 4, id: 'r' }), false, 'v4 인데 ops[] 없음 → 거부');
+  assert.equal(validateResponse(v4res([{ op: 'move', id: 'q1' }])), false, '알 수 없는 op 거부');
+  assert.equal(validateResponse(v4res([{ op: 'replace', object: obj('q1') }])), false, 'replace 는 id 필수');
+  assert.equal(validateResponse(v4res([{ op: 'replace', id: 'q1' }])), false, 'replace 는 object 필수');
+  assert.equal(validateResponse(v4res([{ op: 'delete' }])), false, 'delete 는 id 필수');
+  assert.equal(validateResponse(v4res([{ op: 'insert', afterId: 'q1' }])), false, 'insert 는 object 필수');
+  assert.equal(validateResponse(v4res([{ op: 'insert', object: { id: 'x' }, afterId: 'q1' }])), false, 'object 에 type 필수');
+  assert.equal(
+    validateResponse(v4res([{ op: 'insert', object: obj('n'), afterId: 'q1', beforeId: 'q2' }])),
+    false,
+    'insert 에 afterId·beforeId 동시 지정 거부(어느 기준인지 모호 → 엉뚱한 자리 삽입 방지)',
+  );
+});
+
+test('Phase 4 응답: 형태-버전 정합이 양방향으로 강제된다', () => {
+  const v3shape = [{ id: 'o1', object: { id: 'o1', type: 'title' } }];
+  assert.equal(validateResponse({ schemaVersion: 4, id: 'r', objects: v3shape }), false, 'v4 인데 v3 형태 → 거부');
+  assert.equal(
+    validateResponse({ schemaVersion: 3, id: 'r', ops: [{ op: 'delete', id: 'q1' }] }),
+    false,
+    'v3 인데 v4 형태 → 거부',
+  );
+});
+
+test('Phase 4 요청: pageId·pageVersion·scope 는 선택이되 있으면 형태를 강제한다', () => {
+  const base = {
+    schemaVersion: 4, id: 'req-4', docName: '문서', action: 'rewrite',
+    objects: [{ id: 'o1', type: 'title' }], status: 'pending',
+  };
+  assert.equal(validateRequest(base), true, '선택 필드 없이도 유효(단계적 도입)');
+  assert.equal(validateRequest({ ...base, pageId: 'page-1', pageVersion: 'sha256:abc', scope: 'objects' }), true);
+  assert.equal(validateRequest({ ...base, scope: 'page' }), true, "scope:'page' 수용");
+  assert.equal(validateRequest({ ...base, scope: 'everything' }), false, '알 수 없는 scope 거부');
+  assert.equal(validateRequest({ ...base, pageId: '' }), false, '빈 pageId 거부');
+  assert.equal(validateRequest({ ...base, pageVersion: 123 }), false, 'pageVersion 은 문자열');
+  assert.equal(validateRequest({ ...base, objects: [] }), false, 'v4 도 objects[] 는 필수');
+});
+
+// 후속(다중 페이지 충돌 검사): 요청이 여러 쪽에 걸치면 대표 한 장이 아니라 걸친 모든 페이지의
+// 지문을 실어야 한다 — 대표만 재면 다른 쪽의 교사 편집이 조용히 덮인다.
+test('Phase 4 요청: pageVersions{pageId:version} 맵도 선택이되 있으면 형태를 강제한다', () => {
+  const base = {
+    schemaVersion: 4, id: 'req-4m', docName: '문서', action: 'rewrite',
+    objects: [{ id: 'o1', type: 'title' }], status: 'pending',
+  };
+  assert.equal(validateRequest({ ...base, pageVersions: { 'page-1': 'pv1-aaaa', 'page-2': 'pv1-bbbb' } }), true, '여러 쪽 지문 수용');
+  assert.equal(validateRequest({ ...base, pageVersions: { 'page-1': 'pv1-aaaa' } }), true, '한 쪽만이어도 유효');
+  assert.equal(validateRequest({ ...base, pageVersions: {} }), false, '빈 맵은 "검사 없음"과 구분되지 않아 거부');
+  assert.equal(validateRequest({ ...base, pageVersions: [] }), false, '배열 거부(맵이어야 한다)');
+  assert.equal(validateRequest({ ...base, pageVersions: { 'page-1': 123 } }), false, '지문은 문자열');
+  assert.equal(validateRequest({ ...base, pageVersions: { 'page-1': '' } }), false, '빈 지문 거부');
+  assert.equal(validateRequest({ ...base, pageVersions: { '': 'pv1-aaaa' } }), false, '빈 pageId 키 거부');
+  // 하위호환: pageVersions 없이 pageId/pageVersion 만 있는 옛 v4 요청도 계속 유효.
+  assert.equal(validateRequest({ ...base, pageId: 'page-1', pageVersion: 'pv1-aaaa' }), true);
 });

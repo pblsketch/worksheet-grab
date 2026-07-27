@@ -103,14 +103,29 @@ export class AssembleWorksheet {
     return this.repo.loadBlockHtml(entry.file);
   }
 
+  // 학습목표 표기 전환(2026-07-23): 이 경로(결정적 엔진, gen:'standard-label')는 AI 저작이 아니라
+  // 성취기준 CSV/MCP 원문을 그대로 조립하므로 새 학습목표 문장을 스스로 지을 수 없다 — 대신 기계
+  // 변환으로 표기만 개선한다. 학생/교사 공통 박스 제목은 "학습 목표"로 바꾸고, 목록에는 코드를 뗀
+  // 성취기준 문장만 실어 문장 자체가 목표 서술문처럼 읽히게 한다. 코드+원문 병기("근거 성취기준")는
+  // 별도 박스에 담아 교사용에서만 보이게 한다(`.std-ref`, assets/blocks.css [data-mode] 분기 —
+  // 성취기준은 비밀이 아니므로 물리 제거가 아니라 CSS 표시 제어로 충분하다).
   #renderStandardLabel(standards) {
-    const lis = standards
+    const goalLis = standards
+      .map((s) => `      <li>${escapeHtml(s.text)}</li>`)
+      .join('\n');
+    const refLis = standards
       .map((s) => `      <li><b>${s.bracketedCode()}</b> ${escapeHtml(s.text)}</li>`)
       .join('\n');
     return `<div class="std-box">
-    <div class="std-head">▣ 관련 성취기준 (2022 개정 교육과정)</div>
+    <div class="std-head">▣ 학습 목표</div>
     <ul>
-${lis}
+${goalLis}
+    </ul>
+  </div>
+  <div class="std-box std-ref">
+    <div class="std-head">▣ 근거 성취기준 (2022 개정 교육과정)</div>
+    <ul>
+${refLis}
     </ul>
   </div>`;
   }
@@ -129,7 +144,6 @@ ${lis}
     const themeCss = await this.repo.loadThemeCss(worksheet.themeName);
     const lang = manifest.lang || 'ko';
     const dataSubject = manifest.dataSubject || worksheet.subject;
-    const katex = worksheet.head.katex ? '\n' + KATEX_HEAD : '';
 
     const pagesHtml = worksheet.pages.map((blocks, idx) => {
       const pageNo = idx + 1;
@@ -138,34 +152,79 @@ ${lis}
         ? `<div class="wg-block" data-bp="${idx}" data-bi="${bIdx}" data-bt="${escapeHtml(b.type)}">${b.toHtml()}</div>`
         : b.toHtml()
       )).join('\n\n  ');
-      // columns<=1 은 body 그대로(바이트 불변), columns>1 만 .sheet-body 래퍼로 감싼다.
-      const bodyOut = columns > 1 ? `<div class="sheet-body">\n  ${body}\n  </div>` : body;
+      const bodyOut = wrapSheetBody(body, columns);
       const foot = worksheet.runFoot;
       const rightPrefix = foot.rightPrefix ?? foot.right ?? '';
-      return `<section class="sheet">
+      return buildSheetSection({
+        pageNo, runHead: worksheet.runHead, bodyOut, footLeft: foot.left, footRightPrefix: rightPrefix,
+      });
+    }).join('\n\n');
+
+    return buildDocumentHtml({
+      lang,
+      docTitle: worksheet.docTitle,
+      katexEnabled: !!worksheet.head.katex,
+      paperCss: paper,
+      blocksCss,
+      themeCss,
+      themeName: worksheet.themeName,
+      dataSubject,
+      pagesHtml,
+    });
+  }
+}
+
+export function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// ── S2.1(M2) 공유 추출 — head/섹션 조립의 순수 조각. AssembleWorksheet(manifest 경로)와
+// RenderObjectTree(개체 트리 경로, C1)가 이 조각들을 공유해 문서 골격 중복을 피한다.
+// 이 함수들은 기존 AssembleWorksheet 산출 바이트를 불변으로 유지하도록 원본 템플릿을
+// 그대로 파라미터화한 것뿐이다(동작 변경 없음).
+
+/** columns<=1 은 bodyHtml 그대로(바이트 불변), columns>1 만 .sheet-body 래퍼로 감싼다. */
+export function wrapSheetBody(bodyHtml, columns) {
+  return columns > 1 ? `<div class="sheet-body">\n  ${bodyHtml}\n  </div>` : bodyHtml;
+}
+
+/** 페이지 1장(`<section class="sheet">`) — run-head/run-foot/mode-badge 크롬 + bodyOut. */
+export function buildSheetSection({ pageNo, pageId = null, runHead, bodyOut, footLeft, footRightPrefix }) {
+  const pageIdAttr = typeof pageId === 'string' && pageId
+    ? ` data-page-id="${escapeHtml(pageId).replaceAll('"', '&quot;').replaceAll("'", '&#39;')}"`
+    : '';
+  return `<section class="sheet"${pageIdAttr}>
   <span class="mode-badge"></span>
-  <div class="run-head">${escapeHtml(worksheet.runHead)}</div>
+  <div class="run-head">${escapeHtml(runHead)}</div>
 
   ${bodyOut}
 
-  <div class="run-foot"><span>${escapeHtml(foot.left || '')}</span><span>${escapeHtml(rightPrefix)}　${pageNo}</span></div>
+  <div class="run-foot"><span>${escapeHtml(footLeft || '')}</span><span>${escapeHtml(footRightPrefix ?? '')}　${pageNo}</span></div>
 </section>`;
-    }).join('\n\n');
+}
 
-    return `<!DOCTYPE html>
+/** 문서 전체(`<!DOCTYPE html>`…`</html>`) — head(폰트/KaTeX/CSS) + body(data-mode="MODE_TOKEN" + pagesHtml). */
+export function buildDocumentHtml({
+  lang, docTitle, katexEnabled, paperCss: paperCssText, blocksCss, themeCss, themeName, dataSubject, pagesHtml,
+}) {
+  const katex = katexEnabled ? '\n' + KATEX_HEAD : '';
+  return `<!DOCTYPE html>
 <html lang="${lang}" data-mode="MODE_TOKEN">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${escapeHtml(worksheet.docTitle)}</title>
+<title>${escapeHtml(docTitle)}</title>
 <link rel="stylesheet" as="style" crossorigin
   href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">${katex}
 <style>
-${paper}
+${paperCssText}
 
 ${blocksCss}
 
-/* ===== 교과 테마 토큰 (themes/${worksheet.themeName}.css) ===== */
+/* ===== 교과 테마 토큰 (themes/${themeName}.css) ===== */
 ${themeCss}
 </style>
 </head>
@@ -176,12 +235,4 @@ ${pagesHtml}
 </body>
 </html>
 `;
-  }
-}
-
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 }

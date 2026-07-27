@@ -10,3 +10,19 @@ progress.txt
 .omc/
 .fablize/
 .playwright-mcp/
+# 루프 실행 상태·게이트 증거(Chrome 프로파일 캐시·검증 PNG 포함, 수십 MB) — 추적 안 함
+.omo/
+.omx/
+
+# 오케스트레이터 임시 산출물(감사·재실행용 로컬 보존, 추적 안 함)
+_workspace/
+_workspace_prev/
+
+# 스크래치패드(로컬 작업 공간·검증 증거 PNG/PDF) — 추적 안 함
+# (기존에 큐레이션되어 이미 추적 중인 scratchpad 파일은 그대로 유지된다)
+scratchpad/
+# 임시 검증 스크린샷(루트)
+/verify-*.png
+/verify-*.jpeg
+# PDF 텍스트 추출 덤프(지문 확인용 임시본) — 추적 안 함
+/pdf_text*.txt

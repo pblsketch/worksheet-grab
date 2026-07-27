@@ -1,5 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { sweepStaleWsgTmp } from './tmp.js';
+
+// US-20 §산출 2: 이 파일은 사실상 모든 렌더 테스트가 import 하므로(chromeAvailable 게이트),
+// 여기서 모듈 로드 시 1회 60분+ 잔존 wsg-* 임시 디렉터리를 청소한다(공용 훅 — 개별 파일마다
+// 정리 로직을 반복하지 않는다). 접두사 한정이라 다른 프로세스의 무관한 임시파일은 건드리지 않는다.
+sweepStaleWsgTmp();
 
 // PDF 페이지 수 카운터(의존성 없음). Chrome print-to-pdf 산출물의 페이지 객체를 센다.
 // 우선 페이지 트리 /Count N 을 신뢰하고, 없으면 "/Type /Page" (단, /Pages 제외) 를 센다.

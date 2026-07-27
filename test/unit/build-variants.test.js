@@ -63,3 +63,70 @@ test('정답 제거: span.answer 로 감싼 이미지는 기존대로 내용만 
   assert.ok(!student.includes('assets/x.png'), 'student 에 이미지 참조 제거');
   assert.match(student, /<span class="answer"><\/span>/, '답란 셸은 유지');
 });
+
+// ── S2.2: 개체 트리 문서 경로(executeObjectTree) — render-object-tree.test.js 와 동형 픽스처 사용 ──
+
+const OBJ_ASSETS = { paperCss: '/* paper */', blocksCss: '/* blocks */', themeCss: '/* theme */' };
+
+function objDocWith(flow = [], float = []) {
+  return { pagination: 'paginated', pages: [{ flow, float }] };
+}
+
+test('개체 트리 경로: teacher 는 answer:true 개체와 answerKey 를 전체 포함', () => {
+  const document = objDocWith([
+    { id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '질문본문', answerKey: { text: '정답본문' } },
+    { id: 'a1', type: 'title', placement: 'flow', text: '정답전용제목', answer: true },
+  ]);
+  const { teacher } = new BuildVariants().executeObjectTree(document, OBJ_ASSETS);
+  assert.match(teacher, /질문본문/);
+  assert.match(teacher, /정답본문/);
+  assert.match(teacher, /정답전용제목/);
+});
+
+test('개체 트리 경로: student 는 answer:true 개체를 트리 수준에서 물리 제거(빈 래퍼조차 없음)', () => {
+  const document = objDocWith([
+    { id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '질문본문' },
+    { id: 'a1', type: 'title', placement: 'flow', text: '정답전용제목', answer: true },
+  ]);
+  const { student } = new BuildVariants().executeObjectTree(document, OBJ_ASSETS);
+  assert.match(student, /질문본문/, '비정답 콘텐츠는 보존');
+  assert.ok(!student.includes('정답전용제목'), 'answer:true 개체는 트리 수준에서 물리 제거되어야 함');
+  assert.ok(!student.includes('class="answer"'), '빈 래퍼조차 남지 않아야 함(HTML 경로와 달리 개체 자체가 제거됨)');
+});
+
+test('개체 트리 경로: question.answerKey 는 answer:true 여부와 무관하게 student 에서 제거', () => {
+  const document = objDocWith([
+    { id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '질문본문', answerKey: { text: '누출되면안되는정답' } },
+  ]);
+  const { student, teacher } = new BuildVariants().executeObjectTree(document, OBJ_ASSETS);
+  assert.ok(!student.includes('누출되면안되는정답'), 'answerKey 는 단독 필드라도 student 에서 제거되어야 함');
+  assert.match(teacher, /누출되면안되는정답/, 'teacher 는 answerKey 유지');
+});
+
+test('개체 트리 경로: float 개체도 answer:true 면 동일하게 물리 제거된다', () => {
+  const document = objDocWith([], [
+    { id: 'sh1', type: 'shape', placement: 'float', rect: { xMm: 1, yMm: 1, wMm: 1, hMm: 1 }, shapeKind: 'rect', answer: true },
+  ]);
+  const { student, teacher } = new BuildVariants().executeObjectTree(document, OBJ_ASSETS);
+  assert.ok(!student.includes('wg-float'), 'float answer:true 개체가 student 에 남으면 안 됨');
+  assert.match(teacher, /wg-float/, 'teacher 는 float 유지');
+});
+
+test('개체 트리 경로: 렌더된 HTML 에 기존 stripElementsByClass 2차 방어 존속(richtext 잔존 .answer 도 제거)', () => {
+  // richtext 는 무손실 탈출구라 원본 HTML 을 그대로 방출한다 — 트리 수준 answer:true 제거는
+  // "개체" 단위라 richtext 내부에 하드코딩된 .answer 마크업까지는 닿지 않는다. 2차 grep 방어가
+  // 이 잔존분을 걷어내는지 검증(누출 게이트 이중화).
+  const document = objDocWith([
+    { id: 'r1', type: 'richtext', placement: 'flow', html: '<div>본문<span class="answer">숨겨진정답잔존</span></div>' },
+  ]);
+  const { student, teacher } = new BuildVariants().executeObjectTree(document, OBJ_ASSETS);
+  assert.ok(!student.includes('숨겨진정답잔존'), '2차 방어(stripElementsByClass)가 richtext 내부 잔존 .answer 도 걷어내야 함');
+  assert.match(teacher, /숨겨진정답잔존/);
+});
+
+test('개체 트리 경로 신설이 기존 HTML 경로(execute)에 회귀를 일으키지 않는다', () => {
+  const { student, teacher } = new BuildVariants().execute(SAMPLE);
+  assert.match(student, /data-mode="student"/);
+  assert.match(teacher, /data-mode="teacher"/);
+  assert.ok(!student.includes('전압에 정비례한다'));
+});

@@ -43,7 +43,12 @@ export class FsWorkspaceRepository {
   }
 
   async writeMeta(name, meta) {
-    await writeFile(this.layout(name).metaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
+    const l = this.layout(name);
+    // 외부 생성/구버전 문서는 .worksheet-grab/ 이 없을 수 있다(readMeta 의 null 경로와 동일 전제).
+    // 부모 디렉터리 없이 writeFile 하면 ENOENT 로 저장이 중간 실패해 부분 커밋(manifest 만 교체,
+    // meta 부재)을 남긴다 — 쓰기 직전에 보장 생성한다.
+    await mkdir(l.metaDir, { recursive: true });
+    await writeFile(l.metaPath, JSON.stringify(meta, null, 2) + '\n', 'utf8');
   }
 
   /** meta.json 이 없으면 null(미완성/외부 생성 문서 — checkCommitIntegrity 가 경고). */
@@ -72,6 +77,8 @@ export class FsWorkspaceRepository {
 
   async writeSnapshot(name, fileName, manifest) {
     const l = this.layout(name);
+    // writeMeta 와 동일 전제: 외부 생성 문서는 history/ 가 없을 수 있다 — 쓰기 직전 보장 생성.
+    await mkdir(l.historyDir, { recursive: true });
     await writeFile(join(l.historyDir, fileName), JSON.stringify(manifest, null, 2) + '\n', 'utf8');
   }
 

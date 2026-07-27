@@ -8,121 +8,77 @@
 <link rel="stylesheet" href="/editor/editor.css">
 </head>
 <body>
-<div id="chrome"><!-- 상단 크롬 통합 sticky: 랩(2줄) 높이에도 겹침 없이 순서대로 쌓인다 -->
-<header class="topbar">
-  <div class="doc"><span class="logo">worksheet-grab</span><span id="doc-title">문서 로드 중…</span><span id="doc-paper" class="paper-badge"></span><span id="doc-rev" class="paper-badge"></span>
-    <select id="paper-preset" class="paper-select" title="용지 프리셋(§3.3) — 변경 시 저장 후 전체 재페이지네이션"></select>
-  </div>
-  <div class="controls">
-    <div class="seg" role="tablist" aria-label="학생/교사 토글">
-      <button id="btn-teacher" class="seg-btn active" role="tab">교사용 (편집)</button>
-      <button id="btn-student" class="seg-btn" role="tab">학생용 (미리보기)</button>
+<!-- editor-v4 S4.3(신 UI 셸) — 앱 바 / 컨텍스트 툴바 / 좌 3탭 / 캔버스 / 우 인스펙터.
+     아이콘은 /editor/icons.js 의 인라인 SVG(Lucide 스타일, 16px stroke) — 외부 CDN 없음.
+     실제 배선은 /editor/editor.js 가 각 모듈(leftPanel/inspector/contextToolbar/canvasInline)을
+     조립한다. AI UX(preview-then-commit·diff·프리셋)는 US-19 몫 — 진입점 자리만 예약한다. -->
+<div id="chrome">
+  <header class="appbar">
+    <div class="appbar-left">
+      <span class="logo">worksheet-grab</span>
+      <span id="doc-title" class="doc-title" tabindex="0" role="textbox" aria-label="문서 제목(클릭해서 편집)">문서 로드 중…</span>
+      <span id="doc-rev" class="badge"></span>
     </div>
-    <button id="btn-guides" class="tool-btn active" aria-pressed="true">여백선</button>
-    <button id="btn-preview" class="tool-btn" title="저장본을 백그라운드 Chrome 으로 렌더한 최종 판정 미리보기(첫 페이지)">🔍 정밀 미리보기</button>
-    <button id="btn-export" class="tool-btn" title="저장본을 학생용/교사용 PDF 2벌로 내보내기 — 정답 누출(unsafe) 시 학생용 차단">⬇ PDF 내보내기</button>
-    <button id="btn-save" class="save-btn">저장 <kbd>Ctrl+S</kbd></button>
+    <div class="appbar-center">
+      <div class="seg" role="tablist" aria-label="학생/교사 토글">
+        <button id="btn-teacher" class="seg-btn active" role="tab">교사용 (편집)</button>
+        <button id="btn-student" class="seg-btn" role="tab">학생용 (보기)</button>
+      </div>
+    </div>
+    <div class="appbar-right">
+      <button id="btn-review" class="review-chip" data-review-status="unknown" title="검수 상태 — 클릭 시 인스펙터에 상세">검수 확인 중…</button>
+      <button id="btn-preview" class="appbar-btn" title="정밀 미리보기(PNG)">PNG 미리보기</button>
+      <button id="btn-export" class="appbar-btn" title="PDF 내보내기(학생/교사 2벌)">PDF 내보내기</button>
+      <span id="ai-entry-slot" class="ai-entry-slot"></span><!-- US-19: ai.js 가 AI 진입 버튼을 여기에 마운트한다 -->
+      <button id="btn-help" class="appbar-btn" title="키보드 단축키 안내" aria-label="키보드 단축키 안내">단축키</button>
+      <button id="btn-save" class="save-btn">저장 <kbd>Ctrl+S</kbd></button>
+    </div>
+  </header>
+  <div id="context-toolbar" class="context-toolbar" role="toolbar" aria-label="컨텍스트 툴바">
+    <div id="tb-left" class="tb-section"></div>
+    <div id="tb-middle" class="tb-section tb-middle"></div>
+    <div id="tb-right" class="tb-section"></div>
   </div>
-</header>
-<div class="toolbar" role="toolbar" aria-label="서식 도구">
-  <select id="tb-font" class="tb-select" title="폰트">
-    <option value="Pretendard" selected>Pretendard</option>
-    <option value="Malgun Gothic">맑은 고딕</option>
-    <option value="Batang">바탕 (명조)</option>
-  </select>
-  <select id="tb-size" class="tb-select" title="글자 크기(pt) — 적용할 텍스트를 먼저 선택">
-    <option value="">크기</option>
-    <option>8</option><option>9</option><option>10</option><option>10.5</option>
-    <option>11</option><option>12</option><option>13</option><option>14</option>
-    <option>16</option><option>18</option><option>20</option><option>24</option>
-  </select>
-  <span class="tb-sep"></span>
-  <button id="tb-bold" class="tb-btn" title="굵게"><b>B</b></button>
-  <button id="tb-italic" class="tb-btn" title="기울임"><i>I</i></button>
-  <button id="tb-underline" class="tb-btn" title="밑줄"><u>U</u></button>
-  <input id="tb-color" class="tb-color" type="color" value="#c0392b" title="글자색">
-  <span class="tb-sep"></span>
-  <button id="tb-align-left" class="tb-btn" title="왼쪽 정렬">⯇</button>
-  <button id="tb-align-center" class="tb-btn" title="가운데 정렬">≡</button>
-  <button id="tb-align-right" class="tb-btn" title="오른쪽 정렬">⯈</button>
-  <button id="tb-ul" class="tb-btn" title="글머리 목록">•≡</button>
-  <button id="tb-ol" class="tb-btn" title="번호 목록">1≡</button>
-  <span class="tb-sep"></span>
-  <button id="tb-table" class="tb-btn" title="표 삽입(2×2)">⊞</button>
-  <button id="tb-image" class="tb-btn" title="이미지 자리 삽입">🖼</button>
-  <span class="tb-sep"></span>
-  <button id="tb-undo" class="tb-btn" title="실행 취소">↶</button>
-  <button id="tb-redo" class="tb-btn" title="다시 실행">↷</button>
-  <span class="tb-sep"></span>
-  <button id="tb-answer" class="tb-btn tb-mark" title="선택 영역을 정답으로 표시/해제 — 학생용에서 자동 제거">⭐ 정답 표시</button>
-  <button id="tb-anslines" class="tb-btn tb-mark" title="현재 블록에 답란 5줄 삽입">✏️ 답란 삽입</button>
-  <span class="tb-sep"></span>
-  <button id="tb-preset-save" class="tb-btn tb-mark" title="현재 블록을 프리셋으로 저장 — 다른 문서에서 재사용">⧉ 내 블록으로 저장</button>
-  <button id="tb-preset-lib" class="tb-btn tb-mark" title="프리셋 라이브러리 열기/닫기">📁 프리셋</button>
-  <span class="tb-sep"></span>
-  <button id="tb-ai-rewrite" class="tb-btn tb-mark" title="현재 블록을 구독 AI 가 재작성 — AI 세션에서 ai pending 실행 필요">🤖 AI 재작성</button>
-  <button id="tb-ai-fill" class="tb-btn tb-mark" title="현재 블록의 예시/빈칸을 구독 AI 가 채움">✨ 예시 채우기</button>
-</div>
-<div id="ai-bar" class="ai-bar hidden" role="status">
-  <span id="ai-status"></span>
-  <button id="ai-cancel" class="tb-btn hidden">요청 취소</button>
-  <button id="ai-resume" class="tb-btn hidden">대기 재개</button>
-  <button id="ai-undo" class="tb-btn hidden">AI 적용 되돌리기</button>
-</div>
-<div id="save-banner" class="save-banner hidden" role="status"></div>
-<section id="review-bar" class="review-bar" aria-live="polite">
-  <span id="review-status" class="review-status">검수 준비 중…</span>
-  <ul id="review-list" class="review-list"></ul>
-</section>
+  <div id="save-banner" class="save-banner hidden" role="status"></div>
 </div><!-- /#chrome -->
-<div id="ai-diff" class="ai-diff hidden" aria-label="AI 재작성 미리보기">
-  <div class="ai-diff-col"><b>원본</b><iframe id="ai-diff-before" sandbox=""></iframe></div>
-  <div class="ai-diff-col"><b>AI 재작성</b><iframe id="ai-diff-after" sandbox=""></iframe></div>
-  <div class="ai-diff-actions">
-    <button id="ai-apply" class="save-btn">적용</button>
-    <button id="ai-discard" class="tb-btn">폐기</button>
-  </div>
-</div>
-<aside id="preset-panel" class="preset-panel hidden" aria-label="프리셋 라이브러리">
-  <header class="preset-head">
-    <b>프리셋 라이브러리</b>
-    <label class="preset-answer-toggle"><input type="checkbox" id="preset-show-answer"> 정답 보기</label>
-    <button id="preset-close" class="tb-btn" title="닫기">✕</button>
-  </header>
-  <div id="preset-warnings" class="preset-warnings"></div>
-  <ul id="preset-list" class="preset-list"></ul>
-  <div id="preset-hidden" class="preset-hidden"></div>
-</aside>
-<div id="paper-adv" class="paper-adv hidden" aria-label="고급 용지 조합">
-  <b>고급 용지</b>
-  <label>크기 <select id="adv-size"><option>A4</option><option>A3</option><option>B4</option></select></label>
-  <label>방향 <select id="adv-orient"><option value="portrait">세로</option><option value="landscape">가로</option></select></label>
-  <label>단 <select id="adv-columns"><option value="1">1단</option><option value="2">2단</option></select></label>
-  <label>여백 <input id="adv-margins" type="text" placeholder="예: 12mm 15mm 10mm 15mm" size="24"></label>
-  <button id="adv-apply" class="save-btn">적용</button>
-  <button id="adv-close" class="tb-btn">✕</button>
-</div>
-<div id="preview-panel" class="preview-panel hidden" aria-label="정밀 미리보기">
-  <header class="preview-head">
-    <b>정밀 미리보기</b>
-    <span class="preview-note">저장본 기준 · Chrome 최종 판정(§3.4)</span>
-    <button id="preview-prev" class="tb-btn" title="이전 페이지">◀</button>
-    <span id="preview-page-num">1 / 1</span>
-    <button id="preview-next" class="tb-btn" title="다음 페이지">▶</button>
-    <span id="preview-overflow-badge" class="overflow-flag hidden">이 페이지는 1쪽을 넘칩니다</span>
-    <button id="preview-close" class="tb-btn" title="닫기">✕</button>
-  </header>
-  <div class="preview-body">
-    <span id="preview-spinner" class="hidden">백그라운드 Chrome 렌더 중… (수 초~15초)</span>
+<div id="workspace">
+  <aside id="left-panel" class="left-panel">
+    <div class="tab-bar" role="tablist" aria-label="좌측 패널 탭">
+      <button data-tab="pages" class="tab-btn active" role="tab">페이지</button>
+      <button data-tab="layers" class="tab-btn" role="tab">레이어</button>
+      <button data-tab="insert" class="tab-btn" role="tab">삽입</button>
+      <button data-tab="myblocks" class="tab-btn" role="tab">내 블록</button>
+    </div>
+    <div data-panel="pages" class="panel">
+      <ul id="thumb-list" class="thumb-list"></ul>
+      <button id="btn-add-page" type="button" class="panel-add-btn">+ 새 페이지</button>
+    </div>
+    <div data-panel="layers" class="panel hidden">
+      <p class="layer-hint">현재 페이지의 개체 목록 — 클릭해 선택, 자유 배치는 ▲▼로 앞뒤 순서 변경</p>
+      <ul id="layer-list" class="layer-list"></ul>
+    </div>
+    <div data-panel="insert" class="panel hidden">
+      <label class="insert-float-toggle"><input type="checkbox" id="insert-float-toggle"> 자유 배치로 삽입</label>
+      <div id="insert-grid" class="insert-grid"></div>
+    </div>
+    <div data-panel="myblocks" class="panel hidden">
+      <ul id="preset-list" class="preset-list"></ul>
+    </div>
+  </aside>
+  <main id="canvas-wrap">
+    <div id="stage"></div>
+  </main>
+  <aside id="right-panel" class="right-panel" aria-label="인스펙터"></aside>
+</div><!-- /#workspace -->
+<div id="popups-host"></div><!-- 버블 툴바·슬래시 메뉴·우클릭 메뉴(부모 문서 fixed 오버레이) -->
+<div id="export-result" class="export-result hidden" role="status"></div><!-- #5 내보내기 결과 토스트(열기 버튼) -->
+<div id="preview-modal" class="preview-modal hidden">
+  <div class="preview-modal-inner">
+    <button id="preview-close" type="button" class="preview-close">닫기</button>
+    <div id="preview-status" class="preview-status hidden"></div>
     <img id="preview-img" alt="정밀 미리보기">
   </div>
 </div>
-<main id="canvas-wrap">
-  <div id="stage">
-    <!-- iframe(변형별 지연 생성) + 여백선·넘침 배지 부모 오버레이 -->
-    <div id="guide-overlay" aria-hidden="true"></div>
-  </div>
-</main>
 <script type="module" src="/editor/editor.js"></script>
 </body>
 </html>

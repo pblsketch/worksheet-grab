@@ -82,63 +82,87 @@ test('EditorHttpServer: 라우트·화이트리스트·트래버설·바인딩·
   }
 });
 
-test('E3 POST /save: SaveDocument 경유 저장·rev 증가·잘못된 본문 400·타 경로 405', async () => {
-  const { server, url, workspace, manifest } = await startServer();
+test('S4.0 POST /save: 개체 트리 직송 → SaveDocument.checkpoint 경유·rev 증가·잘못된 본문 400·타 경로 405', async () => {
+  const { server, url, workspace } = await startServer();
   try {
-    const edited = structuredClone(manifest);
-    edited.pages[0].push({ type: 'content', html: '<p>편집으로 추가된 문단</p>' });
+    // /shell.json 이 구 manifest 를 지연 마이그레이션해 서빙한 개체 트리를 그대로 편집→직송한다.
+    const { document } = await (await fetch(`${url}/shell.json`)).json();
+    const edited = structuredClone(document);
+    edited.pages[0].flow.push({ id: 'e2e-added', type: 'divider', placement: 'flow' });
     const res = await fetch(`${url}/save`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ manifest: edited, structureWarning: false }),
+      body: JSON.stringify({ document: edited }),
     });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.unsafe, false);
-    assert.equal(body.meta.revision, 2, 'SaveDocument 경유(리비전·히스토리)');
-    assert.equal(body.structureWarning, false);
+    assert.equal(body.meta.revision, 2, 'SaveDocument.checkpoint 경유(리비전·히스토리) — 구 manifest 저장(rev1) 이후 첫 checkpoint');
     const saved = await workspace.readManifest('문서');
-    assert.ok(JSON.stringify(saved.pages).includes('편집으로 추가된 문단'), '워크스페이스 반영');
+    assert.equal(saved.pagination, 'paginated', '개체 트리 스키마로 커밋');
+    assert.ok(saved.pages[0].flow.some((o) => o.id === 'e2e-added'), '워크스페이스 반영');
 
     const bad = await fetch(`${url}/save`, { method: 'POST', body: '잘못된 JSON' });
     assert.equal(bad.status, 400);
+    const noDoc = await fetch(`${url}/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+    });
+    assert.equal(noDoc.status, 400, 'document 필드 부재 400');
+    const invalid = await fetch(`${url}/save`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ document: { pagination: 'nope', pages: [] } }),
+    });
+    assert.equal(invalid.status, 400, 'ValidateObjectTree 스키마 검증 실패 400');
     assert.equal((await fetch(`${url}/shell.json`, { method: 'POST' })).status, 405, '저장 외 POST 는 405');
   } finally {
     await new Promise((r) => server.close(r));
   }
 });
 
-test('E5 /ai/*: 요청 생성(docName 서버 주입)→answered→applied 왕복 + 제외 타입 400 + 취소 terminal', async () => {
+test('S4.0 /ai/*: 개체 ID 에코 요청 생성(docName 서버 주입)→answered→applied 왕복 + 제외 타입 400 + 취소 terminal', async () => {
   const { server, url, workspace } = await startServer();
   try {
     const { FsAiBridgeRepository } = await import('../../src/adapters/FsAiBridgeRepository.js');
-    const { AI_SCHEMA_VERSION } = await import('../../src/usecases/aiBridge.js');
     const bridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
 
-    // 제외 타입(§7·§10 타입 가드) → 400
-    for (const bt of ['passage', 'standard-label']) {
-      const res = await fetch(`${url}/ai/requests`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'rewrite', block: { bt, html: '<p>x</p>' } }),
-      });
-      assert.equal(res.status, 400, `${bt} 는 AI 대상 아님`);
-    }
+    // 제외 타입(§7 개체 타입 가드, 원칙 3 — 성취기준만 잔류) → 400
+    const stdRes = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', objects: [{ id: 'o-x', type: 'std-box' }] }),
+    });
+    assert.equal(stdRes.status, 400, 'std-box 는 AI 대상 아님(원칙 3, 무회귀)');
 
-    // 정상 요청 → pending, docName 은 서버 주입
+    // 3층 정책(2026-07-23 2차 델타): passage-slot 은 가드 해제 — 명시 요청 시 AI 대상 200.
+    const passageRes = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', objects: [{ id: 'o-pas', type: 'passage-slot', placement: 'flow', slotLabel: '［지문 삽입 슬롯］' }] }),
+    });
+    assert.equal(passageRes.status, 200, 'passage-slot 은 더 이상 AI 대상 제외가 아니어야 함(가드 해제)');
+
+    // 정상 요청(개체 전체 필드 그대로, worksheet-designer 계약) → pending, docName 은 서버 주입
     const create = await fetch(`${url}/ai/requests`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'rewrite', block: { bp: 0, bi: 3, bt: 'question', html: '<div class="q">문항</div>' }, docName: '위조시도' }),
+      body: JSON.stringify({
+        action: 'rewrite',
+        objects: [{ id: 'o-q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '문항' }],
+        docName: '위조시도',
+      }),
     });
     assert.equal(create.status, 200);
     const { id } = await create.json();
-    assert.equal((await bridge.readRequest(id)).docName, '문서', '서버 고정 docName');
+    const savedReq = await bridge.readRequest(id);
+    assert.equal(savedReq.docName, '문서', '서버 고정 docName');
+    assert.deepEqual(savedReq.objects, [{ id: 'o-q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '문항' }]);
     assert.deepEqual(await (await fetch(`${url}/ai/${id}`)).json(), { status: 'pending' });
 
-    // 모의 구독 AI 응답(v1 하위호환) → answered + response 동봉
-    await bridge.putResponse({ schemaVersion: 1, id, html: '<div class="q">재작성</div>' });
+    // 모의 구독 AI 응답(개체 ID 에코 [{id,object}]) → answered + response 동봉
+    await bridge.putResponse({
+      schemaVersion: 3, id,
+      objects: [{ id: 'o-q1', object: { id: 'o-q1', type: 'question', qtype: 'essay', prompt: '재작성된 문항' } }],
+    });
     const answered = await (await fetch(`${url}/ai/${id}`)).json();
     assert.equal(answered.status, 'answered');
-    assert.equal(answered.response.html, '<div class="q">재작성</div>');
+    assert.deepEqual(answered.response.objects, [{ id: 'o-q1', object: { id: 'o-q1', type: 'question', qtype: 'essay', prompt: '재작성된 문항' } }]);
 
     // 적용 기록 → 즉시 정리(스테일 방지)
     assert.equal((await fetch(`${url}/ai/${id}/applied`, { method: 'POST' })).status, 200);
@@ -147,8 +171,9 @@ test('E5 /ai/*: 요청 생성(docName 서버 주입)→answered→applied 왕복
     // 취소 terminal
     const c = await (await fetch(`${url}/ai/requests`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'fill-example', block: { bt: 'content', html: '<p>본문</p>' } }),
+      body: JSON.stringify({ action: 'fill-example', objects: [{ id: 'o-r1', type: 'richtext', html: '<p>본문</p>' }] }),
     })).json();
+    // (richtext 는 html 필드가 스키마상 본문 필드다 — 개체 전체 필드 그대로 에코 관례와 정합)
     assert.equal((await fetch(`${url}/ai/${c.id}/cancel`, { method: 'POST' })).status, 200);
     assert.equal((await fetch(`${url}/ai/${c.id}/applied`, { method: 'POST' })).status, 400, 'cancelled → applied 전이 불가');
   } finally {
@@ -156,47 +181,134 @@ test('E5 /ai/*: 요청 생성(docName 서버 주입)→answered→applied 왕복
   }
 });
 
-test('F4 /ai/requests: v2 blocks[] 저장(schemaVersion:2) + 집합 내 제외 타입 1개 → 전체 400', async () => {
+test('Phase 4 /ai/requests: v4 objects[] 저장(schemaVersion:4) + 집합 내 제외 타입 1개 → 전체 400', async () => {
   const { server, url, workspace } = await startServer();
   try {
     const { FsAiBridgeRepository } = await import('../../src/adapters/FsAiBridgeRepository.js');
     const bridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
 
-    // 다중 블록 v2 요청 → 200, 요청 파일은 v2(blocks[2]) 로 저장
+    // 다중 개체 요청(개체 전체 필드 그대로) → 200, 요청 파일은 v3(objects[2], 개체 ID 에코) 로 저장
     const create = await fetch(`${url}/ai/requests`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'rewrite', blocks: [
-        { bp: 0, bi: 3, bt: 'subq', html: '<p class="subq">A</p>' },
-        { bp: 0, bi: 5, bt: 'question', html: '<div class="q">B</div>' },
+      body: JSON.stringify({ action: 'rewrite', objects: [
+        { id: 'o-t1', type: 'title', placement: 'flow', text: 'A' },
+        { id: 'o-q2', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'B' },
       ] }),
     });
     assert.equal(create.status, 200);
     const { id } = await create.json();
     const saved = await bridge.readRequest(id);
-    assert.equal(saved.schemaVersion, 2, '신규 요청은 v2 로 기록');
-    assert.equal(saved.blocks.length, 2, 'blocks[] 보존');
+    // Phase 4: 신규 요청은 v4 로 기록된다(요청 형태는 objects[] 유지 + pageId·pageVersion·scope 선택).
+    // 디스크의 v1/v2/v3 in-flight 파일은 계속 관용되며, 아래 v3 응답 왕복이 그 하위호환을 지킨다.
+    assert.equal(saved.schemaVersion, 4, '신규 요청은 v4 로 기록');
+    assert.equal(saved.objects.length, 2, 'objects[] 보존');
     assert.equal(saved.docName, '문서', '서버 고정 docName');
 
-    // 집합 중 하나라도 제외 타입(passage/standard-label) → 전체 400(부분 요청 금지, §7·§10)
-    for (const badBt of ['passage', 'standard-label']) {
-      const res = await fetch(`${url}/ai/requests`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'rewrite', blocks: [
-          { bt: 'question', html: '<div class="q">정상</div>' },
-          { bt: badBt, html: '<p>제외</p>' },
-        ] }),
-      });
-      assert.equal(res.status, 400, `집합에 ${badBt} 포함 → 전체 거부`);
-    }
-    assert.equal((await bridge.listPending()).length, 1, '거부분은 큐 미잔존 — 정상 v2 요청 1건만');
+    // 집합 중 제외 타입(std-box, 원칙 3 — 무회귀) 포함 → 전체 400(부분 요청 금지, §7)
+    const badRes = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', objects: [
+        { id: 'o-ok', type: 'question', placement: 'flow', qtype: 'essay', prompt: '정상' },
+        { id: 'o-bad', type: 'std-box' },
+      ] }),
+    });
+    assert.equal(badRes.status, 400, '집합에 std-box 포함 → 전체 거부');
+    assert.equal((await bridge.listPending()).length, 1, '거부분은 큐 미잔존 — 정상 v3 요청 1건만');
 
-    // v2 응답(blocks[{slot,html}]) 왕복
-    await bridge.putResponse({ schemaVersion: 2, id, blocks: [
-      { slot: 0, html: '<p class="subq">A2</p>' }, { slot: 1, html: '<div class="q">B2</div>' },
+    // 3층 정책(2026-07-23 2차 델타): 집합에 passage-slot 이 섞여도 더 이상 거부 대상이 아니다.
+    const passageMixRes = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', objects: [
+        { id: 'o-ok2', type: 'question', placement: 'flow', qtype: 'essay', prompt: '정상2' },
+        { id: 'o-pas', type: 'passage-slot', placement: 'flow', slotLabel: '［지문 삽입 슬롯］' },
+      ] }),
+    });
+    assert.equal(passageMixRes.status, 200, '집합에 passage-slot 이 섞여도 더 이상 400 이 아니어야 함(가드 해제)');
+
+    // v3 응답(objects[{id,object}]) 왕복
+    await bridge.putResponse({ schemaVersion: 3, id, objects: [
+      { id: 'o-t1', object: { id: 'o-t1', type: 'title', text: 'A2' } },
+      { id: 'o-q2', object: { id: 'o-q2', type: 'question', qtype: 'essay', prompt: 'B2' } },
     ] });
     const answered = await (await fetch(`${url}/ai/${id}`)).json();
     assert.equal(answered.status, 'answered');
-    assert.equal(answered.response.blocks.length, 2, 'v2 응답 blocks 동봉');
+    assert.equal(answered.response.objects.length, 2, 'v3 응답 objects 동봉');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+test('Phase 4 /ai/requests: 페이지 컨텍스트(scope·pageId·pageVersion) 통과 + v4 ops 응답 왕복', async () => {
+  const { server, url, workspace } = await startServer();
+  try {
+    const { FsAiBridgeRepository } = await import('../../src/adapters/FsAiBridgeRepository.js');
+    const bridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
+
+    // 클라이언트가 실은 페이지 컨텍스트는 그대로 큐에 남아야 한다 — 적용 시점 충돌 검사의 근거다.
+    const create = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'rewrite',
+        scope: 'page',
+        pageId: 'page-abc',
+        pageVersion: 'pv1-0123456789abcdef',
+        objects: [{ id: 'o-q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'A' }],
+      }),
+    });
+    assert.equal(create.status, 200);
+    const { id } = await create.json();
+    const saved = await bridge.readRequest(id);
+    assert.equal(saved.schemaVersion, 4);
+    assert.equal(saved.scope, 'page');
+    assert.equal(saved.pageId, 'page-abc');
+    assert.equal(saved.pageVersion, 'pv1-0123456789abcdef');
+
+    // 페이지 컨텍스트 미지정(기존 클라이언트) → scope 는 objects 기본값, pageId/pageVersion 부재.
+    const plain = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rewrite', objects: [{ id: 'o-q2', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'B' }] }),
+    });
+    const plainSaved = await bridge.readRequest((await plain.json()).id);
+    assert.equal(plainSaved.scope, 'objects', '미지정이면 개체 범위');
+    assert.equal(plainSaved.pageId, undefined);
+    assert.equal(plainSaved.pageVersion, undefined);
+    assert.equal(plainSaved.pageVersions, undefined);
+
+    // 여러 쪽에 걸친 요청: pageVersions 맵이 그대로 통과해야 적용 시점에 전 페이지를 비교할 수 있다.
+    const multi = await fetch(`${url}/ai/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'rewrite',
+        pageId: 'page-a',
+        pageVersion: 'pv1-aaaaaaaaaaaaaaaa',
+        pageVersions: { 'page-a': 'pv1-aaaaaaaaaaaaaaaa', 'page-b': 'pv1-bbbbbbbbbbbbbbbb' },
+        objects: [{ id: 'o-q3', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'C' }],
+      }),
+    });
+    const multiSaved = await bridge.readRequest((await multi.json()).id);
+    assert.deepEqual(multiSaved.pageVersions, { 'page-a': 'pv1-aaaaaaaaaaaaaaaa', 'page-b': 'pv1-bbbbbbbbbbbbbbbb' });
+
+    // 형태가 깨진 맵은 실리지 않는다(빈 맵·배열·비문자열 값) — validateRequest 거부로 요청 자체가 죽지 않도록 서버가 먼저 거른다.
+    for (const bad of [{}, [], { 'page-a': 123 }, { 'page-a': '' }]) {
+      const res = await fetch(`${url}/ai/requests`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'rewrite', pageVersions: bad, objects: [{ id: 'o-q4', type: 'question', placement: 'flow', qtype: 'essay', prompt: 'D' }] }),
+      });
+      assert.equal(res.status, 200, `깨진 pageVersions(${JSON.stringify(bad)}) 는 요청을 죽이지 않는다`);
+      const saved = await bridge.readRequest((await res.json()).id);
+      assert.equal(saved.pageVersions, undefined, `깨진 pageVersions(${JSON.stringify(bad)}) 는 저장되지 않는다`);
+    }
+
+    // v4 응답(ops[]) 왕복 — 편집기가 GET /ai/<id> 로 계획을 그대로 받는다.
+    await bridge.putResponse({ schemaVersion: 4, id, ops: [
+      { op: 'replace', id: 'o-q1', object: { id: 'o-q1', type: 'question', qtype: 'essay', prompt: 'A2' } },
+      { op: 'insert', object: { id: 'new1', type: 'richtext', html: '<p>안내</p>' }, afterId: 'o-q1' },
+      { op: 'delete', id: 'o-q9' },
+    ] });
+    const answered = await (await fetch(`${url}/ai/${id}`)).json();
+    assert.equal(answered.status, 'answered');
+    assert.equal(answered.response.schemaVersion, 4);
+    assert.deepEqual(answered.response.ops.map((o) => o.op), ['replace', 'insert', 'delete'], 'v4 계획이 그대로 전달');
   } finally {
     await new Promise((r) => server.close(r));
   }
@@ -259,7 +371,7 @@ test('team-fix ⑥: answered 요청도 cancel 로 terminal 전환(전 슬롯 소
     const bridge = new FsAiBridgeRepository({ baseDir: workspace.baseDir });
     const { id } = await (await fetch(`${url}/ai/requests`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'rewrite', blocks: [{ bt: 'content', html: '<p>A</p>' }] }),
+      body: JSON.stringify({ action: 'rewrite', objects: [{ id: 'o-r9', type: 'richtext', html: '<p>A</p>' }] }),
     })).json();
     await bridge.putResponse({ schemaVersion: 1, id, html: '<p>재작성</p>' });
     assert.equal(await bridge.getStatus(id), 'answered');
@@ -303,7 +415,7 @@ function e6MockRenderer() {
 
 test('E6 POST /export: 저장본 2벌 PDF·unsafe 시 student 차단(fail-closed)·busy 409', async () => {
   const renderer = e6MockRenderer();
-  const { server, url, manifest } = await startServer({ renderer });
+  const { server, url } = await startServer({ renderer });
   try {
     // 정상: teacher 먼저 2벌
     const ok = await (await fetch(`${url}/export`, { method: 'POST' })).json();
@@ -312,12 +424,17 @@ test('E6 POST /export: 저장본 2벌 PDF·unsafe 시 student 차단(fail-closed
     assert.ok(renderer.calls.pdf[0].outputPath.endsWith('worksheet-teacher.pdf'));
     assert.ok(existsSync(renderer.calls.pdf[1].outputPath), '워크스페이스 PDF 슬롯 생성');
 
-    // 누출 저장 → unsafe → student 차단·사유 문구
-    const leaky = structuredClone(manifest);
-    leaky.pages[0].push({ type: 'content', html: '<p>유출: 전압이 커질수록 전류의 세기도 일정한 비율로 커질 것이다. (전압 ∝ 전류)</p>' });
+    // 누출 저장(S4.0 개체 직송) → unsafe → student 차단·사유 문구. 마이그레이션된 문서의 기존
+    // .answer 개체(sci.json 원본에서 승계)와 같은 정답 텍스트를 마크 밖 평문으로 중복 삽입한다.
+    const { document } = await (await fetch(`${url}/shell.json`)).json();
+    const leaky = structuredClone(document);
+    leaky.pages[0].flow.push({
+      id: 'leak-1', type: 'richtext', placement: 'flow',
+      html: '<p>유출: 전압이 커질수록 전류의 세기도 일정한 비율로 커질 것이다. (전압 ∝ 전류)</p>',
+    });
     const saved = await (await fetch(`${url}/save`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ manifest: leaky }),
+      body: JSON.stringify({ document: leaky }),
     })).json();
     assert.equal(saved.unsafe, true, '픽스처 전제: 누출 저장');
     const blocked = await (await fetch(`${url}/export`, { method: 'POST' })).json();
@@ -332,7 +449,7 @@ test('E6 POST /export: 저장본 2벌 PDF·unsafe 시 student 차단(fail-closed
 
 test('E6 GET /preview.png: scale:2 핀·paperToPx 치수·unsafe student 409', async () => {
   const renderer = e6MockRenderer();
-  const { server, url, manifest } = await startServer({ renderer });
+  const { server, url } = await startServer({ renderer });
   try {
     const res = await fetch(`${url}/preview.png?mode=teacher&t=1`);
     assert.equal(res.status, 200);
@@ -344,12 +461,16 @@ test('E6 GET /preview.png: scale:2 핀·paperToPx 치수·unsafe student 409', a
     assert.deepEqual({ width: opts.width, height: opts.height }, { width: 794, height: 1123 }, 'A4 paperToPx');
     assert.equal((await fetch(`${url}/preview.png?mode=nope`)).status, 400);
 
-    // 누출 저장 → student 미리보기 409(교사용은 여전히 가능)
-    const leaky = structuredClone(manifest);
-    leaky.pages[0].push({ type: 'content', html: '<p>유출: 전압이 커질수록 전류의 세기도 일정한 비율로 커질 것이다. (전압 ∝ 전류)</p>' });
+    // 누출 저장(S4.0 개체 직송) → student 미리보기 409(교사용은 여전히 가능)
+    const { document } = await (await fetch(`${url}/shell.json`)).json();
+    const leaky = structuredClone(document);
+    leaky.pages[0].flow.push({
+      id: 'leak-1', type: 'richtext', placement: 'flow',
+      html: '<p>유출: 전압이 커질수록 전류의 세기도 일정한 비율로 커질 것이다. (전압 ∝ 전류)</p>',
+    });
     await fetch(`${url}/save`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ manifest: leaky }),
+      body: JSON.stringify({ document: leaky }),
     });
     const blocked = await fetch(`${url}/preview.png?mode=student`);
     assert.equal(blocked.status, 409);
