@@ -321,6 +321,67 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     if (state.selectedIds.size > 0) clearAll();
   }
 
+  // ── 스냅 / 스마트 가이드(자체구현) — float 드래그 시 같은 페이지 다른 float 의 좌/중/우·상/중/하
+  // 선에 정렬한다(객체-대-객체). 가이드선은 transient 오버레이라 모델/저장을 오염시키지 않는다. ──
+  const SNAP_MM = 2; // 스냅 임계값(약 7.5px @96dpi)
+
+  /** 드래그 중인 float 과 같은 페이지의 다른 float 개체(스냅 후보). */
+  function siblingFloats(id) {
+    for (const page of core.getDocument().pages || []) {
+      if ((page.float || []).some((o) => o.id === id)) return (page.float || []).filter((o) => o.id !== id && o.rect);
+    }
+    return [];
+  }
+
+  /** 제안 rect(xMm,yMm,wMm,hMm)를 형제 float 의 좌/중/우·상/중/하 선에 스냅. X·Y 독립, 각 축 최근접
+   *  후보 1개. {xMm,yMm,gx,gy}(gx/gy = 스냅된 가이드선 mm 또는 null) 반환. */
+  function computeSnap(xMm, yMm, wMm, hMm, sibs) {
+    const pick = (edges, cands) => {
+      let best = null;
+      for (const edge of edges) {
+        for (const c of cands) {
+          const d = c - edge;
+          if (Math.abs(d) <= SNAP_MM && (!best || Math.abs(d) < Math.abs(best.delta))) best = { delta: d, line: c };
+        }
+      }
+      return best;
+    };
+    const xCands = [];
+    const yCands = [];
+    for (const o of sibs) {
+      xCands.push(o.rect.xMm, o.rect.xMm + o.rect.wMm / 2, o.rect.xMm + o.rect.wMm);
+      yCands.push(o.rect.yMm, o.rect.yMm + o.rect.hMm / 2, o.rect.yMm + o.rect.hMm);
+    }
+    const bx = pick([xMm, xMm + wMm / 2, xMm + wMm], xCands);
+    const by = pick([yMm, yMm + hMm / 2, yMm + hMm], yCands);
+    return {
+      xMm: round1(bx ? xMm + bx.delta : xMm),
+      yMm: round1(by ? yMm + by.delta : yMm),
+      gx: bx ? bx.line : null,
+      gy: by ? by.line : null,
+    };
+  }
+
+  function clearGuides(sheet) {
+    const root = sheet || currentDoc;
+    if (root) for (const g of root.querySelectorAll('.wg-snap-guide')) g.remove();
+  }
+  function drawGuides(sheet, gx, gy) {
+    clearGuides(sheet);
+    if (!sheet) return;
+    const make = (axis, mm) => {
+      const g = currentDoc.createElement('div');
+      g.className = 'wg-snap-guide';
+      g.setAttribute('aria-hidden', 'true');
+      Object.assign(g.style, { position: 'absolute', zIndex: '9998', pointerEvents: 'none', background: '#f43f5e' });
+      if (axis === 'v') Object.assign(g.style, { left: `${mm}mm`, top: '0', bottom: '0', width: '1px' });
+      else Object.assign(g.style, { top: `${mm}mm`, left: '0', right: '0', height: '1px' });
+      return g;
+    };
+    if (gx != null) sheet.appendChild(make('v', gx));
+    if (gy != null) sheet.appendChild(make('h', gy));
+  }
+
   /** float 개체 드래그 이동(rect.xMm/yMm, mm 단위) — 화면 좌표(screenX/Y)로 재는 이유는
    *  editor.js 구 startShapeDrag 주석과 동일: iframe↔부모 경계를 넘나들어도 screen 좌표는
    *  단일 원점이라 어긋나지 않는다. 끝나면 다음 click 1회를 삼킨다(공통조상 오인 방지). */
@@ -333,18 +394,23 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     const startX = e.screenX;
     const startY = e.screenY;
     const base = { ...found.obj.rect };
+    const sibs = siblingFloats(id);       // 스냅 후보(같은 페이지 다른 float) — 드래그 시작 시 1회 수집
+    const dragSheet = el.closest('.sheet'); // 가이드선을 그릴 시트(float 과 같은 좌표 원점)
     let moved = false;
     const onMove = (ev) => {
       const dxMm = (ev.screenX - startX) / MM_TO_PX;
       const dyMm = (ev.screenY - startY) / MM_TO_PX;
       if (Math.abs(dxMm) + Math.abs(dyMm) > 0.5) moved = true;
-      found.obj.rect.xMm = round1(base.xMm + dxMm);
-      found.obj.rect.yMm = round1(base.yMm + dyMm);
-      el.style.left = `${found.obj.rect.xMm}mm`;
-      el.style.top = `${found.obj.rect.yMm}mm`;
+      const snap = computeSnap(round1(base.xMm + dxMm), round1(base.yMm + dyMm), base.wMm, base.hMm, sibs);
+      found.obj.rect.xMm = snap.xMm;
+      found.obj.rect.yMm = snap.yMm;
+      el.style.left = `${snap.xMm}mm`;
+      el.style.top = `${snap.yMm}mm`;
+      drawGuides(dragSheet, snap.gx, snap.gy);
     };
     const onUp = (ev) => {
       try { el.releasePointerCapture(ev.pointerId); } catch { /* 이미 해제됨 */ }
+      clearGuides(dragSheet);
       el.removeEventListener('pointermove', onMove);
       el.removeEventListener('pointerup', onUp);
       el.removeEventListener('lostpointercapture', onUp);
