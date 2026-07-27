@@ -498,6 +498,51 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
       onDirty('text');
     });
 
+    // 마퀴(드래그 박스) 다중선택 — 빈 캔버스에서 드래그해 사각형을 그리고, 교차하는 float 개체를
+    // 모은다(float 만 대상: 좌표·겹침이 있는 개체). float 위 pointerdown=드래그, 개체 위=클릭 선택,
+    // 편집 중=텍스트 선택으로 각각 양보하고, 순수 .sheet 배경에서만 시작한다.
+    let marquee = null;
+    const marqueeSheetAt = (x, y) => [...doc.querySelectorAll('.sheet')].find((s) => {
+      const r = s.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }) || null;
+    function updateMarqueeBox(x, y) {
+      if (!marquee.box) {
+        marquee.box = doc.createElement('div');
+        Object.assign(marquee.box.style, {
+          position: 'fixed', border: '1px solid #2563eb', background: 'rgba(37,99,235,.12)',
+          zIndex: '9999', pointerEvents: 'none', boxSizing: 'border-box',
+        });
+        marquee.box.setAttribute('aria-hidden', 'true');
+        doc.body.appendChild(marquee.box);
+      }
+      marquee.box.style.left = `${Math.min(marquee.x0, x)}px`;
+      marquee.box.style.top = `${Math.min(marquee.y0, y)}px`;
+      marquee.box.style.width = `${Math.abs(x - marquee.x0)}px`;
+      marquee.box.style.height = `${Math.abs(y - marquee.y0)}px`;
+    }
+    function finishMarquee(e) {
+      const m = marquee;
+      marquee = null;
+      try { doc.documentElement.releasePointerCapture(e.pointerId); } catch {}
+      m.box?.remove();
+      if (!m.moved) return; // 실제 드래그가 아니면(제자리 클릭) click 핸들러가 clearAll 처리
+      const box = {
+        left: Math.min(m.x0, e.clientX), top: Math.min(m.y0, e.clientY),
+        right: Math.max(m.x0, e.clientX), bottom: Math.max(m.y0, e.clientY),
+      };
+      const hits = [];
+      for (const el of doc.querySelectorAll('.wg-float[data-oid]')) {
+        const r = el.getBoundingClientRect();
+        if (r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top) hits.push(el.dataset.oid);
+      }
+      swallowNextClick = true; // 드래그 끝에 따라오는 click 이 방금 만든 선택을 지우지 않도록
+      state.selectedIds = new Set(hits);
+      state.editingId = null;
+      refreshVisual();
+      onSelectionChange();
+    }
+
     doc.addEventListener('pointerdown', (e) => {
       const handle = e.target.closest('.wg-resize-handle');
       if (handle) {
@@ -506,8 +551,25 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
         return;
       }
       const el = e.target.closest('.wg-float[data-oid]');
-      if (!el) return;
-      startFloatDrag(e, el, el.dataset.oid);
+      if (el) { startFloatDrag(e, el, el.dataset.oid); return; }
+      if (e.button !== 0 || state.editingId) return;
+      if (e.target.closest('[data-oid]')) return; // flow 개체 위 → 클릭 선택 경로에 양보
+      if (!marqueeSheetAt(e.clientX, e.clientY)) return; // 시트 밖 여백 → 마퀴 안 함
+      marquee = { x0: e.clientX, y0: e.clientY, pointerId: e.pointerId, moved: false, box: null };
+      try { doc.documentElement.setPointerCapture(e.pointerId); } catch {}
+    });
+    doc.addEventListener('pointermove', (e) => {
+      if (!marquee || e.pointerId !== marquee.pointerId) return;
+      if (!marquee.moved && Math.abs(e.clientX - marquee.x0) < 4 && Math.abs(e.clientY - marquee.y0) < 4) return;
+      marquee.moved = true;
+      updateMarqueeBox(e.clientX, e.clientY);
+      e.preventDefault();
+    });
+    doc.addEventListener('pointerup', (e) => {
+      if (marquee && e.pointerId === marquee.pointerId) finishMarquee(e);
+    });
+    doc.addEventListener('pointercancel', (e) => {
+      if (marquee && e.pointerId === marquee.pointerId) { marquee.box?.remove(); marquee = null; }
     });
 
     doc.addEventListener('keydown', (e) => {
