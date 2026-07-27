@@ -132,6 +132,37 @@ export function createDocumentRoutes({
         return sendJson(res, 200, { noop: false, unsafe: result.unsafe, meta: result.meta });
       },
     },
+    // 테마(교과 색상) 변경 — /paper 와 동형(manifest 한 필드만 치환 후 SaveDocument 단일 게이트 재저장).
+    // 색상만 바꾸므로 리플로우 전제(가용 높이)는 불변 → 클라이언트는 reload 만 한다. themeName 은
+    // listThemes 화이트리스트로 검증한다(경로 이탈·미존재 테마 차단 — loadThemeCss 안전).
+    {
+      method: 'POST',
+      path: '/theme',
+      async handler({ req, res }) {
+        let body;
+        try {
+          body = await readJsonBody(req);
+        } catch (e) {
+          return sendJson(res, 400, { error: e.message });
+        }
+        const themeName = typeof body?.themeName === 'string' ? body.themeName.trim() : '';
+        if (!themeName) return sendJson(res, 400, { error: 'themeName 이 필요합니다.' });
+        const available = (await blockRepository.listThemes()).map((t) => t.name);
+        if (!available.includes(themeName)) return sendJson(res, 400, { error: `알 수 없는 테마: ${themeName}` });
+        const { manifest } = await opener.execute({ name: docName });
+        const objectTree = isObjectTreeManifest(manifest);
+        const currentTheme = objectTree ? (manifest.themeName || '') : (manifest.theme || '');
+        // no-op 가드: 같은 테마 재선택으로 불필요한 리비전을 만들지 않는다(/paper 관례와 동형).
+        if (currentTheme === themeName) return sendJson(res, 200, { noop: true });
+        const next = { ...manifest };
+        if (objectTree) next.themeName = themeName;
+        else next.theme = themeName;
+        const result = objectTree
+          ? await saver.checkpoint({ name: docName, document: next })
+          : await saver.execute({ name: docName, manifest: next });
+        return sendJson(res, 200, { noop: false, unsafe: result.unsafe, meta: result.meta });
+      },
+    },
     {
       method: 'GET',
       path: '/shell.json',
@@ -146,10 +177,12 @@ export function createDocumentRoutes({
         const document = normalizePageIdentity(loadedDocument);
         const knownSubjectHexes = await loadKnownSubjectHexes(blockRepository);
         const shell = await shellRenderer.executeObjectTree({ document, meta, knownSubjectHexes, docName });
+        // 사용 가능한 교과 테마 목록(인스펙터 테마 드롭다운용) — themes/*.css 단일 원천.
+        const availableThemes = (await blockRepository.listThemes()).map((t) => t.name);
         // document 동봉: 개체 트리 왕복의 원본(클라이언트가 편집 후 그대로 POST /save 한다).
         // excludedAiTypes: AI 버튼 비활성용(타입 가드 3중의 클라이언트 층 — §7·§10).
         const payload = {
-          ...shell, document, warnings, excludedAiTypes: [...excludedTypes()], migrated: !objectTree,
+          ...shell, document, warnings, excludedAiTypes: [...excludedTypes()], migrated: !objectTree, availableThemes,
         };
         return sendJson(res, 200, testSeed ? { ...payload, testSeed: true } : payload);
       },

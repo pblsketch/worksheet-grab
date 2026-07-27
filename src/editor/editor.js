@@ -476,7 +476,7 @@ function updateAll() {
   });
 
   if (sel.mode === 'none') {
-    inspector.render({ mode: 'document', paper: core.getDocument().paper, findings: reviewChip.getFindings() });
+    inspector.render({ mode: 'document', paper: core.getDocument().paper, findings: reviewChip.getFindings(), themeName: core.getDocument().themeName || '', themes: availableThemes });
   } else if (sel.mode === 'multi') {
     const allFloat = sel.ids.every((id) => core.findObject(id)?.obj.placement === 'float');
     inspector.render({ mode: 'multi', ids: sel.ids, allFloat });
@@ -704,6 +704,22 @@ async function changePaper(paper) {
   }
 }
 
+/** 교과 테마(색상) 변경 — /theme 로 themeName 만 치환 재저장 후 reload(새 테마 CSS 로 셸 재조립).
+ *  색상만 바꾸므로 용지 변경과 달리 리플로우 플래그가 필요 없다. dirty 면 먼저 저장해 편집 손실 방지. */
+async function changeTheme(themeName) {
+  if (isDirty()) await save();
+  let res;
+  try {
+    res = await fetch('/theme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ themeName }) });
+  } catch (e) {
+    showBanner('error', `테마 변경 실패: ${e.message}`);
+    return;
+  }
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) { showBanner('error', `테마 변경 실패: ${result.error ?? res.status}`); return; }
+  if (!result.noop) location.reload();
+}
+
 function scrollToPage(pageId) {
   const doc = frames.teacher?.contentDocument;
   const sheet = [...(doc?.querySelectorAll('.sheet') || [])].find((candidate) => candidate.dataset.pageId === pageId);
@@ -772,6 +788,7 @@ docTitleEl.addEventListener('keydown', (e) => {
 // 3중 방어). passage-slot 은 3층 정책(2026-07-23 2차 델타)으로 이 가드 집합에서 빠졌다 — 교사가
 // 명시적으로 요청하면 AI 로 지문을 창작·재구성할 수 있다(ai.js 의 지문 전용 프리셋 참조).
 const excludedAiTypes = new Set(shell.excludedAiTypes || []);
+const availableThemes = shell.availableThemes || []; // 인스펙터 테마 드롭다운 옵션(themes/*.css)
 
 const aiPanel = createAiPanel({
   entryHost: document.getElementById('ai-entry-slot'),
@@ -887,6 +904,7 @@ const inspector = createInspector({
   onToggleAnswer: (id) => { const next = ObjOps.toggleAnswer(core.getDocument(), id); applyDocOp(next, { selectId: id }); },
   onAlign: (ids, mode2) => { const next = ObjOps.alignFloats(core.getDocument(), ids, mode2); applyDocOp(next); },
   onImageUpload: (id, file) => uploadImage(id, file),
+  onThemeChange: (name) => changeTheme(name),
 });
 
 const leftPanel = createLeftPanel({

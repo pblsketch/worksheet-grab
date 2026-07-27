@@ -48,17 +48,20 @@ const PLACEMENT_LABEL = Object.freeze({ float: '자유 배치', flow: '본문 �
  *   onImageUpload: (id:string, file:File)=>void,
  * }} opts
  */
-export function createInspector({ root, onPaperChange, onPatchObject, onToggleFlowFloat, onToggleAnswer, onAlign, onImageUpload }) {
+export function createInspector({ root, onPaperChange, onPatchObject, onToggleFlowFloat, onToggleAnswer, onAlign, onImageUpload, onThemeChange = () => {} }) {
   function render(state) {
     root.dataset.inspMode = state.mode;
     root.replaceChildren();
     if (state.mode === 'object') renderSingle(state.obj);
     else if (state.mode === 'multi') renderMulti(state.ids, state.allFloat);
-    else renderDocument(state.paper, state.findings || []);
+    else renderDocument(state.paper, state.findings || [], state.themeName || '', state.themes || []);
   }
 
+  // 교과 테마 → 사용자용 한국어 라벨(색상 힌트 포함). themes/*.css 파일명이 곧 themeName 이다.
+  const THEME_LABELS = Object.freeze({ ko: '국어 (초록)', sci: '과학 (청록)', social: '사회 (주황)', english: '영어 (남색)' });
+
   // ── 선택 없음: 문서 설정 + 검수 상세 ──
-  function renderDocument(paper, findings) {
+  function renderDocument(paper, findings, themeName, themes) {
     const resolved = resolvePaper(paper) ?? resolvePaper({ size: 'A4' });
     const presetId = matchPreset(paper);
     root.appendChild(el('h3', { text: '문서 설정' }));
@@ -85,6 +88,14 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
     const marginsInput = el('input', { type: 'text', id: 'insp-margins', value: resolved.margins });
     marginsInput.addEventListener('change', () => onPaperChange({ ...resolved, margins: marginsInput.value }));
     root.appendChild(field('여백(mm)', marginsInput));
+
+    // 교과 테마(색상) 전환 — 내용은 그대로, pill·표 헤더·테두리·강조색만 교체(themes/*.css var). change 시 재저장+reload.
+    if (themes.length) {
+      const themeSel = el('select', { id: 'insp-theme' });
+      for (const t of themes) themeSel.appendChild(el('option', { value: t, text: THEME_LABELS[t] || t, selected: t === themeName ? 'selected' : null }));
+      themeSel.addEventListener('change', () => onThemeChange(themeSel.value));
+      root.appendChild(field('테마(색상)', themeSel));
+    }
 
     root.appendChild(el('h3', { text: '검수 상세', style: 'margin-top:16px' }));
     const list = el('ul', { class: 'review-detail', id: 'insp-review-list' });
