@@ -141,6 +141,19 @@ export function paperToPt(resolved) {
   return { w: (w * 72) / 25.4, h: (h * 72) / 25.4 };
 }
 
+/**
+ * buildCanvasMeta — 편집기 캔버스가 소비하는 용지 메타(용지 사양·px 치수·여백).
+ *
+ * paper 미지정 문서도 캔버스 메타는 현행 기본(A4 세로·비대칭 여백)으로 산출한다 —
+ * resolvePaper(null)=null 은 "CSS 주입 0" 규약이므로 여기서만 A4 로 구체화한다.
+ * Phase 5: RenderEditorShell 의 execute/executeObjectTree 두 경로에 같은 5줄이 있던 것을 모았다.
+ * @param {object|null} paper manifest.paper 또는 document.paper 원본(미해석)
+ */
+export function buildCanvasMeta(paper) {
+  const resolved = resolvePaper(paper) ?? resolvePaper({ size: 'A4' });
+  return { paper: resolved, dims: paperToPx(resolved), margins: paperMargins(resolved) };
+}
+
 /** validate 여백 기준: 4방향 여백 중 최소(mm). */
 export function paperMarginMinMm(resolved) {
   const m = paperMargins(resolved);

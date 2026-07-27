@@ -20,7 +20,12 @@ import { createAiPanel } from '/editor/ai.js';
 import { createPageActionHandler } from '/editor/pageOperations.js';
 import { attachComposition, isComposing, onCompositionEnd, releaseComposition } from '/editor/composition.js';
 import * as ObjOps from '/editor/objectFactory.js';
-import { ValidateWorksheet } from '/src/usecases/ValidateWorksheet.js';
+import { injectEditorStyle } from '/editor/editorStyle.js';
+import { createShortcuts } from '/editor/shortcuts.js';
+import { createBanner } from '/editor/banner.js';
+import { createSaveController } from '/editor/saveController.js';
+import { createExportController } from '/editor/exportController.js';
+import { createReviewChip } from '/editor/reviewChip.js';
 
 const shell = await (await fetch('/shell.json')).json();
 const stage = document.getElementById('stage');
@@ -34,16 +39,48 @@ docTitleEl.textContent = shell.docTitle || '(제목 없음)';
 
 // ── 상태: 개체 트리(core) · 선택/편집(selection) · 되돌리기(history) ──
 const core = createDocumentStore(shell.document);
-let currentRevision = shell.meta?.revision ?? null;
-let dirty = false; // 마지막 저장 이후 편집 여부(자동저장·beforeunload 가드 기준)
 let studentStale = false; // US-E1: 교사 편집 후 학생용 미리보기가 최신 편집을 반영하지 못하는 상태
-let autosaveTimer = null;
 let activePageId = core.getDocument().pages?.[0]?.id ?? null;
 
-function renderRev() {
-  document.getElementById('doc-rev').textContent = currentRevision == null ? '' : `rev ${currentRevision}`;
-}
-renderRev();
+// ── Phase 5 분리 모듈: 배너 · 저장 · 검수 칩 · 내보내기/미리보기 ──
+// 전부 create*(deps) 팩토리이며 core/history/selection 을 직접 보지 않는다 — 문서 접근은 콜백뿐.
+const showBanner = createBanner({ root: document.getElementById('save-banner') });
+
+const reviewChip = createReviewChip({
+  chipEl: document.getElementById('btn-review'),
+  getDocument: () => core.getDocument(),
+  getTeacherDoc: () => frames.teacher?.contentDocument ?? null,
+  onChipClick: () => { selection.clearAll(); updateAll(); },
+});
+const runReview = reviewChip.runReview;
+
+const saveController = createSaveController({
+  getDocument: () => core.getDocument(),
+  setDocument: (next) => core.setDocument(next),
+  showBanner,
+  onSaved: runReview,
+  onDirty: () => { studentStale = true; }, // 편집이 생겼으니 학생용 미리보기는 다음 전환 때 다시 렌더한다.
+  revEl: document.getElementById('doc-rev'),
+  bodyEl: document.body,
+  saveButton: document.getElementById('btn-save'),
+  initialRevision: shell.meta?.revision ?? null,
+});
+const { save, markDirty } = saveController;
+const isDirty = saveController.isDirty;
+
+createExportController({
+  isDirty,
+  save,
+  showBanner,
+  getMode: () => mode,
+  previewButton: document.getElementById('btn-preview'),
+  previewModal: document.getElementById('preview-modal'),
+  previewImg: document.getElementById('preview-img'),
+  previewStatus: document.getElementById('preview-status'),
+  previewCloseButton: document.getElementById('preview-close'),
+  exportButton: document.getElementById('btn-export'),
+  exportResultHost: document.getElementById('export-result'),
+});
 
 function wait(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
@@ -55,17 +92,6 @@ async function pollUntil(predicate, { timeoutMs = 30000, intervalMs = 150 } = {}
     if (Date.now() - startedAt > timeoutMs) throw new Error('pollUntil: 시간 내 조건이 충족되지 않았습니다.');
     await wait(intervalMs);
   }
-}
-
-/** 유휴 30초 자동 체크포인트(S2.4 계약) — 편집마다 타이머를 재설정한다(디바운스). */
-function resetAutosaveTimer() {
-  clearTimeout(autosaveTimer);
-  autosaveTimer = setTimeout(() => { if (dirty) save(); }, 30000);
-}
-function markDirty() {
-  dirty = true;
-  studentStale = true; // US-E1: 편집이 생겼으니 학생용 미리보기는 다음 전환 때 다시 렌더해야 한다.
-  resetAutosaveTimer();
 }
 
 function resolveActivePageId(documentState, preferredPageId = activePageId, fallbackIndex = 0) {
@@ -229,7 +255,7 @@ function reloadTeacherFrame(nextDoc) {
 }
 
 window.addEventListener('beforeunload', (e) => {
-  if (dirty) { e.preventDefault(); e.returnValue = ''; }
+  if (isDirty()) { e.preventDefault(); e.returnValue = ''; }
 });
 
 // ── 캔버스: teacher(편집)/student(파생 미리보기) iframe 지연 생성 ──
@@ -274,109 +300,6 @@ function applyViewState() {
   canvasInline.refreshDecoration();
 }
 
-/** 개체 경계 시각화(선택/편집 외곽선) + float 미선택 pointer-events:none 정책 + flow 오버레이
- *  핸들/삽입버튼 스타일을 iframe head 에 주입한다. 부모 CSS(editor.css)는 iframe 내부에 닿지 않는다. */
-function injectEditorStyle(doc) {
-  const style = doc.createElement('style');
-  style.id = 'wg-editor-style';
-  style.textContent = `
-    .sheet { position: relative; }
-    [data-oid] { cursor: pointer; }
-    [data-oid].wg-selected { outline: 2px solid #2563eb; outline-offset: 1px; }
-    [data-oid].wg-editing { outline: 2px solid #dc2626 !important; background: rgba(255,235,59,.08); }
-    [contenteditable="true"] { outline: 2px solid #dc2626 !important; cursor: text; }
-    .wg-float:not(.wg-selected) { pointer-events: none; }
-    /* 미선택 자유 개체의 "내용"은 클릭 가능(개체 몸통 클릭=선택, 이어서 드래그=이동 — 슬라이드/캔바
-       관례). 래퍼 자신은 pointer-events:none 을 유지해 내용이 없는 빈 영역은 아래 flow 로 클릭이
-       통과한다(스파이크 §4-5 z-order 완화 취지 보존 — 내용 위 클릭만 개체를 잡는다). 드래그 역학은
-       ⠿ 핸들 경로와 동일(pointerdown → startFloatDrag: 선택 후 이동, 실마우스 검증된 pointer capture). */
-    .wg-float:not(.wg-selected) > * { pointer-events: auto; }
-    .wg-float.wg-selected, .wg-float.wg-editing { pointer-events: auto; cursor: grab; }
-    .wg-float-handle {
-      position: absolute; top: -9px; left: -9px; width: 18px; height: 18px; z-index: 5;
-      display: flex; align-items: center; justify-content: center;
-      background: #111827; color: #fff; border-radius: 4px; font-size: 11px;
-      pointer-events: auto; cursor: grab; user-select: none;
-    }
-    /* 자유 개체 8방향 리사이즈 손잡이(#8) — 단일 선택·비편집 상태에서만 selection.js 가 붙인다. */
-    .wg-resize-handle {
-      position: absolute; width: 11px; height: 11px; z-index: 7; background: #2563eb;
-      border: 1.5px solid #fff; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,.2);
-      pointer-events: auto; user-select: none;
-    }
-    .wg-rh-nw { top: -6px; left: -6px; cursor: nwse-resize; }
-    .wg-rh-n  { top: -6px; left: calc(50% - 5.5px); cursor: ns-resize; }
-    .wg-rh-ne { top: -6px; right: -6px; cursor: nesw-resize; }
-    .wg-rh-e  { top: calc(50% - 5.5px); right: -6px; cursor: ew-resize; }
-    .wg-rh-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
-    .wg-rh-s  { bottom: -6px; left: calc(50% - 5.5px); cursor: ns-resize; }
-    .wg-rh-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
-    .wg-rh-w  { top: calc(50% - 5.5px); left: -6px; cursor: ew-resize; }
-    /* 문항 선지·항목 인라인 편집(#3 2차) */
-    .q-part[data-part] { cursor: text; }
-    .q-part.wg-part-editing { outline: 2px solid #dc2626; background: rgba(255,235,59,.12); border-radius: 3px; }
-    /* 표 셀 편집·병합·열 너비(#10) */
-    td[data-r], th[data-r] { cursor: text; }
-    .wg-cell-active { outline: 2px solid #2563eb !important; outline-offset: -2px; background: rgba(37,99,235,.07); }
-    .wg-cell-editing { outline: 2px solid #dc2626 !important; background: rgba(255,235,59,.10); }
-    .wg-col-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
-    .wg-col-handle { position: absolute; top: 0; bottom: 0; width: 7px; pointer-events: auto; cursor: col-resize; }
-    .wg-col-handle::after { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: #2563eb; opacity: .3; }
-    .wg-col-handle:hover::after { opacity: 1; width: 2px; }
-    .wg-flow-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
-    .wg-flow-handle {
-      position: absolute; left: -22px; width: 18px; height: 18px; display: flex; align-items: center;
-      justify-content: center; background: #374151; color: #fff; border-radius: 4px; font-size: 11px;
-      opacity: .35; pointer-events: auto; cursor: grab; user-select: none;
-    }
-    .wg-flow-handle:hover { opacity: 1; }
-    .wg-flow-insert {
-      position: absolute; left: -22px; width: 18px; height: 18px; border: 0; border-radius: 4px;
-      background: #2563eb; color: #fff; font-size: 13px; line-height: 1; opacity: .35;
-      pointer-events: auto; cursor: pointer;
-    }
-    .wg-flow-insert:hover { opacity: 1; }
-    /* 기본 개체 연속 드래그 재정렬 중 시각 피드백(#1·#2 2차) */
-    .wg-flow-dragging { opacity: .55; outline: 2px dashed #2563eb; outline-offset: 1px; }
-    body.wg-show-margins .sheet::after {
-      content: ""; position: absolute; inset: var(--sheet-pad, 12mm 15mm 10mm 15mm);
-      border: 1px dashed rgba(37,99,235,.55); pointer-events: none; z-index: 3;
-    }
-    /* 격자(#1) — 투명도는 --wg-grid-alpha(툴바 보기 메뉴 슬라이더가 body 에 세팅) 로 조절한다. */
-    body.wg-show-grid .sheet {
-      background-image:
-        repeating-linear-gradient(0deg, rgba(37,99,235,var(--wg-grid-alpha,.08)) 0 1px, transparent 1px 5mm),
-        repeating-linear-gradient(90deg, rgba(37,99,235,var(--wg-grid-alpha,.08)) 0 1px, transparent 1px 5mm);
-    }
-    /* 눈금자(#2) — canvasInline.decorateRulers 가 .sheet 마다 상단·좌측 자를 붙이고, 여기 CSS 가
-       body.wg-show-ruler 일 때만 표시한다. 눈금·숫자는 mm 단위로 배치해 줌 변형과 함께 스케일된다. */
-    .wg-ruler-top, .wg-ruler-left { display: none; }
-    body.wg-show-ruler .wg-ruler-top, body.wg-show-ruler .wg-ruler-left {
-      display: block; position: absolute; z-index: 4; pointer-events: none;
-      background: rgba(248,250,252,.92); color: #64748b; font-size: 7px; line-height: 1;
-    }
-    body.wg-show-ruler .wg-ruler-top {
-      top: 0; left: 0; right: 0; height: 5.2mm; border-bottom: 1px solid #cbd5e1;
-      background-image: repeating-linear-gradient(90deg, #94a3b8 0 1px, transparent 1px 5mm);
-    }
-    body.wg-show-ruler .wg-ruler-left {
-      top: 0; left: 0; bottom: 0; width: 5.2mm; border-right: 1px solid #cbd5e1;
-      background-image: repeating-linear-gradient(0deg, #94a3b8 0 1px, transparent 1px 5mm);
-    }
-    .wg-ruler-num { position: absolute; color: #475569; }
-    .wg-ruler-top .wg-ruler-num { top: 0.7mm; transform: translateX(1px); }
-    .wg-ruler-left .wg-ruler-num { left: 0.6mm; transform: translateY(-3px); }
-    /* US-19 AI 산출 졸업 배지 — data-ai-fresh는 일시적: 사용자가 그 개체를 편집하는 순간 제거된다. */
-    [data-ai-fresh="true"] { position: relative; }
-    [data-ai-fresh="true"]::after {
-      content: "AI"; position: absolute; top: -8px; right: -8px; z-index: 6;
-      background: #7c3aed; color: #fff; font-size: 9px; font-weight: 800; line-height: 1;
-      padding: 3px 4px; border-radius: 4px; pointer-events: none;
-    }
-  `;
-  doc.head.appendChild(style);
-}
-
 /** teacher iframe 로드마다 조작 리스너를 새로 배선한다. */
 function initTeacherEditing(f, { resetHistory = true } = {}) {
   const doc = f.contentDocument;
@@ -386,7 +309,7 @@ function initTeacherEditing(f, { resetHistory = true } = {}) {
   canvasInline.attach(doc, f);
   tableEditor.attach(doc);
   partEditor.attach(doc);
-  doc.addEventListener('keydown', onKeydown);
+  shortcuts.attach(doc);
   doc.addEventListener('beforeinput', (e) => {
     if (e.inputType === 'historyUndo') { e.preventDefault(); history.undo(); updateAll(); }
     else if (e.inputType === 'historyRedo') { e.preventDefault(); history.redo(); updateAll(); }
@@ -398,133 +321,22 @@ function initTeacherEditing(f, { resetHistory = true } = {}) {
   renderPageThumbs();
 }
 
-/** 선택된 개체(단일/다중)를 문서에서 제거한다(#7 Delete/Backspace). 리플로우 예약(빈 자리 재계산). */
-function deleteSelectedObjects() {
-  const ids = [...selection.state.selectedIds];
-  if (ids.length === 0) return;
-  let next = core.getDocument();
-  for (const id of ids) next = ObjOps.removeObject(next, id);
-  selection.clearAll();
-  applyDocOp(next, { reflow: true });
-}
-
-/** 텍스트 편집 중이거나 폼 필드/제목에 포커스가 있으면 개체 단축키(삭제·넛지·복사/붙여넣기)를
- *  가로채지 않는다 — 정상 글자 입력/삭제/복사가 우선(#7·US-E2·US-E3 공통 가드). */
-function isTypingContext() {
-  if (selection.state.editingId) return true;
-  const ae = document.activeElement;
-  return !!(ae && (ae.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)));
-}
-
-/** 단일 선택된 float 개체를 dxMm/dyMm 넛지한다(US-E2). 전체 재로드 없이 라이브 DOM 의 해당
- *  float 좌표만 갱신하고(드래그 커밋과 동형 — flow 경계 불변이라 리플로우 불필요) history 1 op 로
- *  확정한다. nudgeFloat 순수 연산으로 다음 문서를 계산해 core 에 반영한다. */
-function nudgeSelectedFloat(dxMm, dyMm) {
-  const id = currentSingleSelectedId();
-  const found = id ? core.findObject(id) : null;
-  if (!found || found.obj.placement !== 'float' || !found.obj.rect) return false;
-  const next = ObjOps.nudgeFloat(core.getDocument(), id, dxMm, dyMm);
-  core.setDocument(next);
-  const nObj = core.findObject(id)?.obj;
-  const doc = frames.teacher?.contentDocument;
-  const escId = window.CSS && CSS.escape ? CSS.escape(id) : id;
-  const el = doc?.querySelector(`[data-oid="${escId}"]`);
-  if (el && nObj?.rect) { el.style.left = `${nObj.rect.xMm}mm`; el.style.top = `${nObj.rect.yMm}mm`; }
-  history.commit();
-  markDirty();
-  updateAll();
-  return true;
-}
-
-const NUDGE_DELTAS = Object.freeze({
-  ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+// 개체 단축키(삭제·넛지·복사/붙여넣기·저장·undo/redo) — 부모 문서와 teacher iframe 양쪽에 건다
+// (iframe 은 로드마다 새 document 라 initTeacherEditing 이 shortcuts.attach 로 다시 건다).
+const shortcuts = createShortcuts({
+  core,
+  history,
+  selection,
+  operations: ObjOps,
+  applyDocOp, // 문서 변경은 이 단일 관문으로만 나간다(넛지만 예외 — 원래부터 관문 미경유 계약).
+  save,
+  markDirty,
+  updateAll,
+  getSingleSelectedId: () => currentSingleSelectedId(),
+  getTeacherDoc: () => frames.teacher?.contentDocument ?? null,
+  hostDocument: document,
 });
-
-// US-E3: 개체 복사·붙여넣기용 인메모리 클립보드. 시스템 클립보드가 아니라 앱 내부 버퍼 —
-// 개체 트리 구조를 통째로 담아 같은 문서 안 다른 위치/페이지로 재삽입한다(원본은 지워져도 무관).
-let objectClipboard = [];
-
-/** 선택된 개체(단일/다중)를 클립보드에 깊은 복사한다(Ctrl+C). 편집/폼 컨텍스트나 빈 선택이면 무동작. */
-function copySelectedObjects() {
-  const ids = [...selection.state.selectedIds];
-  if (ids.length === 0) return false;
-  const clones = [];
-  for (const id of ids) {
-    const found = core.findObject(id);
-    if (found) clones.push(structuredClone(found.obj));
-  }
-  if (clones.length === 0) return false;
-  objectClipboard = clones;
-  return true;
-}
-
-/** 클립보드 개체를 새 id 로 붙여넣는다(Ctrl+V). flow 는 현재 선택 개체 뒤(없으면 마지막 페이지 끝),
- *  float 은 +8mm 오프셋으로 현재 선택 개체의 페이지에 삽입한다 — 앵커가 현재 선택이므로 다른
- *  페이지의 개체를 고른 뒤 붙여넣으면 그 페이지로 들어간다(페이지 간 붙여넣기). applyDocOp 단일
- *  관문·리플로우 예약을 거치고 첫 새 개체를 선택한다. */
-async function pasteObjects() {
-  if (objectClipboard.length === 0) return false;
-  const anchorId = currentSingleSelectedId();
-  let next = core.getDocument();
-  let runningAnchor = anchorId;
-  const newIds = [];
-  for (const src of objectClipboard) {
-    const obj = { ...structuredClone(src), id: ObjOps.generateId(src.type) };
-    if (obj.placement === 'float') {
-      if (obj.rect) obj.rect = { ...obj.rect, xMm: (obj.rect.xMm || 0) + 8, yMm: (obj.rect.yMm || 0) + 8 };
-      next = ObjOps.insertFloat(next, obj, { nearId: anchorId });
-    } else {
-      next = ObjOps.insertFlow(next, obj, { afterId: runningAnchor });
-      runningAnchor = obj.id; // 다음 개체는 방금 붙여넣은 개체 뒤(붙여넣기 순서 보존)
-    }
-    newIds.push(obj.id);
-  }
-  selection.clearAll();
-  await applyDocOp(next, { reflow: true, selectId: newIds[0] ?? null });
-  return true;
-}
-
-function onKeydown(e) {
-  if (e.key === 'Escape') return; // selection.js 가 자체 처리
-  // Delete/Backspace = 선택 개체 삭제(#7). 단, 텍스트 편집 중이거나 폼 필드/제목 편집에 포커스가
-  // 있으면 개입하지 않는다(정상 글자 삭제가 우선). 개체 선택만 된 상태에서만 개체를 지운다.
-  if (e.key === 'Delete' || e.key === 'Backspace') {
-    if (isTypingContext()) return;
-    if (selection.state.selectedIds.size === 0) return;
-    e.preventDefault();
-    deleteSelectedObjects();
-    return;
-  }
-  // 방향키 = 단일 선택된 자유 개체 미세 이동(1mm, Shift=10mm) — US-E2. 텍스트/폼 편집 중엔 무개입.
-  if (NUDGE_DELTAS[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (isTypingContext()) return;
-    const [dx, dy] = NUDGE_DELTAS[e.key];
-    const step = e.shiftKey ? 10 : 1;
-    if (nudgeSelectedFloat(dx * step, dy * step)) e.preventDefault();
-    return;
-  }
-  if (!(e.ctrlKey || e.metaKey)) return;
-  const key = e.key.toLowerCase();
-  if (key === 's') {
-    e.preventDefault();
-    save();
-  } else if (key === 'z' && !e.shiftKey) {
-    e.preventDefault();
-    history.undo();
-  } else if ((key === 'z' && e.shiftKey) || key === 'y') {
-    e.preventDefault();
-    history.redo();
-  } else if (key === 'c') {
-    // 개체 복사(US-E3) — 텍스트 편집/폼 컨텍스트면 브라우저 기본 복사가 우선.
-    if (isTypingContext()) return;
-    if (copySelectedObjects()) e.preventDefault();
-  } else if (key === 'v') {
-    // 개체 붙여넣기(US-E3) — 텍스트 편집/폼 컨텍스트면 브라우저 기본 붙여넣기가 우선.
-    if (isTypingContext()) return;
-    if (objectClipboard.length) { e.preventDefault(); pasteObjects(); }
-  }
-}
-window.addEventListener('keydown', onKeydown);
+window.addEventListener('keydown', shortcuts.onKeydown);
 
 async function setMode(m) {
   mode = m;
@@ -549,7 +361,7 @@ async function refreshStudentFrame() {
   if (!frames.student) return;
   // 저장 실패(네트워크/500)면 서버엔 최신 편집이 없다 — 마지막 저장본으로 교체해 "최신"으로
   // 오표기하지 않도록 조기 반환한다(저장 실패 배너는 save() 가 이미 띄웠고 studentStale 는 유지된다).
-  if (dirty && !(await save())) return;
+  if (isDirty() && !(await save())) return;
   let html = null;
   try {
     const fresh = await (await fetch(`/shell.json?_=${Date.now()}`)).json();
@@ -603,7 +415,7 @@ function updateAll() {
   });
 
   if (sel.mode === 'none') {
-    inspector.render({ mode: 'document', paper: core.getDocument().paper, findings: reviewFindings });
+    inspector.render({ mode: 'document', paper: core.getDocument().paper, findings: reviewChip.getFindings() });
   } else if (sel.mode === 'multi') {
     const allFloat = sel.ids.every((id) => core.findObject(id)?.obj.placement === 'float');
     inspector.render({ mode: 'multi', ids: sel.ids, allFloat });
@@ -613,31 +425,6 @@ function updateAll() {
   // #10: 표 선택 시 열 너비 손잡이·활성 셀 하이라이트를 선택 상태에 맞춰 갱신(reload 없이).
   tableEditor?.refresh();
 }
-
-// ══════════════════════════ 검수 상태 칩(ValidateWorksheet) ══════════════════════════
-
-let reviewFindings = [];
-function runReview() {
-  try {
-    const doc = core.getDocument();
-    const html = frames.teacher?.contentDocument?.documentElement?.outerHTML || '';
-    const result = new ValidateWorksheet({}).execute(doc, html || undefined);
-    reviewFindings = result.findings;
-  } catch (e) {
-    reviewFindings = [{ rule: 'review-error', severity: 'error', message: String(e?.message || e) }];
-  }
-  const chip = document.getElementById('btn-review');
-  const hasError = reviewFindings.some((f) => f.severity === 'error');
-  const hasWarn = reviewFindings.some((f) => f.severity === 'warning');
-  const status = hasError ? 'error' : hasWarn ? 'warn' : 'ok';
-  chip.dataset.reviewStatus = status;
-  chip.dataset.reviewCount = String(reviewFindings.length);
-  chip.textContent = status === 'ok' ? '검수 통과' : status === 'warn' ? `검수 경고 ${reviewFindings.length}` : `검수 오류 ${reviewFindings.length}`;
-}
-document.getElementById('btn-review').addEventListener('click', () => {
-  selection.clearAll();
-  updateAll();
-});
 
 // ══════════════════════════ 문서 조작 단일 관문(applyDocOp) ══════════════════════════
 
@@ -799,7 +586,7 @@ async function saveObjectAsPreset(id) {
 }
 
 async function changePaper(paper) {
-  if (dirty) await save();
+  if (isDirty()) await save();
   let res;
   try {
     res = await fetch('/paper', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paper }) });
@@ -876,150 +663,6 @@ docTitleEl.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') { e.preventDefault(); docTitleEl.blur(); }
   else if (e.key === 'Escape') { e.preventDefault(); docTitleEl.textContent = core.getDocument().docTitle || '(제목 없음)'; docTitleEl.blur(); }
 });
-
-// ══════════════════════════ 미리보기 · PDF 내보내기 ══════════════════════════
-
-// 미리보기(#6) — 전엔 저장 전이면 서버가 404(저장본 없음)를 내 img 가 깨진 채로 떴다. dirty 면
-// 먼저 저장하고, PNG 를 fetch 해 에러(409 busy·404·unsafe 409·500)를 모달에 글로 보여준다.
-document.getElementById('btn-preview').addEventListener('click', () => openPreview());
-async function openPreview() {
-  const modal = document.getElementById('preview-modal');
-  const img = document.getElementById('preview-img');
-  const status = document.getElementById('preview-status');
-  modal.classList.remove('hidden');
-  img.classList.add('hidden');
-  status.classList.remove('hidden');
-  status.textContent = '미리보기 생성 중… (저장 후 Chrome 렌더 — 수 초 걸릴 수 있어요)';
-  try {
-    if (dirty) await save();
-    const res = await fetch(`/preview.png?mode=${mode}&_=${Date.now()}`);
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      status.textContent = `미리보기 실패: ${body.message || body.error || `HTTP ${res.status}`}`;
-      return;
-    }
-    const url = URL.createObjectURL(await res.blob());
-    img.onload = () => { if (img.dataset.url) URL.revokeObjectURL(img.dataset.url); img.dataset.url = url; };
-    img.src = url;
-    img.classList.remove('hidden');
-    status.classList.add('hidden');
-  } catch (e) {
-    status.textContent = `미리보기 실패: ${e.message}`;
-  }
-}
-document.getElementById('preview-close').addEventListener('click', () => {
-  document.getElementById('preview-modal').classList.add('hidden');
-});
-
-// 내보내기(#5) — 진행표시(버튼 비활성+배너) → dirty 면 save-first → /export → 결과 토스트에
-// 파일/폴더 '열기' 버튼(서버가 OS 기본 앱으로 연다). Chrome 렌더는 수십 초 걸릴 수 있다.
-document.getElementById('btn-export').addEventListener('click', () => doExport());
-async function doExport() {
-  const btn = document.getElementById('btn-export');
-  const origText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '내보내는 중…';
-  showBanner('warn', 'PDF 내보내는 중… (Chrome 렌더 — 수십 초 걸릴 수 있어요)');
-  try {
-    if (dirty) await save();
-    const res = await fetch('/export', { method: 'POST' });
-    const result = await res.json().catch(() => ({}));
-    if (!res.ok) { showBanner('error', `내보내기 실패: ${result.error ?? result.message ?? res.status}`); return; }
-    const skippedMsg = result.skipped?.student ? ` (학생용 생략: ${result.reason || result.skipped.student})` : '';
-    showBanner(result.unsafe ? 'warn' : 'ok', `PDF 내보내기 완료 (${(result.rendered || []).length}벌)${skippedMsg}`);
-    showExportResult(result, skippedMsg);
-  } catch (e) {
-    showBanner('error', `내보내기 실패: ${e.message}`);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = origText;
-  }
-}
-
-function openExportTarget(target) {
-  return async () => {
-    try {
-      const r = await fetch('/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ target }) });
-      if (!r.ok) { const e = await r.json().catch(() => ({})); showBanner('error', `열기 실패: ${e.error || `HTTP ${r.status}`}`); }
-    } catch (e) { showBanner('error', `열기 실패: ${e.message}`); }
-  };
-}
-
-function showExportResult(result, skippedMsg) {
-  const host = document.getElementById('export-result');
-  host.replaceChildren();
-  const title = document.createElement('div');
-  title.className = 'export-result-title';
-  title.textContent = `✔ PDF 내보내기 완료 (${(result.rendered || []).length}벌)${skippedMsg}`;
-  host.appendChild(title);
-  const actions = document.createElement('div');
-  actions.className = 'export-result-actions';
-  const rendered = result.rendered || [];
-  const mkBtn = (label, target) => {
-    const b = document.createElement('button');
-    b.textContent = label;
-    b.addEventListener('click', openExportTarget(target));
-    return b;
-  };
-  if (rendered.some((r) => r.variant === 'teacher')) actions.appendChild(mkBtn('교사용 PDF 열기', 'teacher-pdf'));
-  if (rendered.some((r) => r.variant === 'student')) actions.appendChild(mkBtn('학생용 PDF 열기', 'student-pdf'));
-  actions.appendChild(mkBtn('폴더 열기', 'folder'));
-  const close = document.createElement('button');
-  close.className = 'export-result-close';
-  close.textContent = '닫기';
-  close.addEventListener('click', () => host.classList.add('hidden'));
-  actions.appendChild(close);
-  host.appendChild(actions);
-  host.classList.remove('hidden');
-}
-
-// ══════════════════════════ 저장 ══════════════════════════
-
-async function save() {
-  let res;
-  try {
-    res = await fetch('/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ document: core.getDocument() }),
-    });
-  } catch (e) {
-    showBanner('error', `저장 실패: ${e.message}`);
-    return null;
-  }
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}));
-    showBanner('error', `저장 실패: ${body.error ?? `HTTP ${res.status}`}`);
-    return null;
-  }
-  const result = await res.json();
-  if (result.document) core.setDocument(result.document);
-  currentRevision = result.meta?.revision ?? currentRevision;
-  renderRev();
-  dirty = false;
-  clearTimeout(autosaveTimer);
-  if (result.unsafe) {
-    const rules = [...new Set((result.leakFindings ?? []).map((f) => f.rule))].join(', ');
-    showBanner('error', `⚠ 저장됨(rev ${currentRevision}) — 정답 누출 감지(${rules}). 학생용 HTML 은 보류되었습니다.`);
-  } else {
-    showBanner('ok', `저장됨 (rev ${currentRevision})`);
-  }
-  document.body.dataset.savedRevision = String(currentRevision);
-  runReview();
-  return result;
-}
-
-let bannerTimer = null;
-function showBanner(kind, text) {
-  const el = document.getElementById('save-banner');
-  el.className = `save-banner ${kind}`;
-  el.textContent = text;
-  el.classList.remove('hidden');
-  clearTimeout(bannerTimer);
-  if (kind === 'ok') bannerTimer = setTimeout(() => el.classList.add('hidden'), 4000);
-}
-
-document.getElementById('btn-save').addEventListener('click', save);
 
 // ══════════════════════════ UI 모듈 조립 ══════════════════════════
 
@@ -1226,10 +869,10 @@ if (shell.testSeed === true) {
         handlePageAction,
         scrollToPage,
         save,
-        getCurrentRevision: () => currentRevision,
+        getCurrentRevision: saveController.getRevision,
         getStudentStale: () => studentStale,
         cancelScheduledReflow: () => clearTimeout(reflowTimer),
-        getClipboardCount: () => objectClipboard.length,
+        getClipboardCount: shortcuts.getClipboardCount,
       });
     } catch (e) {
       // 시드 실패를 무음으로 삼키지 않는다 — dump-dom 스냅샷에 원인이 남아야 실패한 렌더 테스트를

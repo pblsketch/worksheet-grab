@@ -26,7 +26,7 @@
 // 수(래퍼 유무) 자체는 재현하지만, 다단 내부의 열 간 높이 재배분 리플로우 고도화는 이번 스토리
 // 범위 밖이다 — assignFlowToPages 는 단일 flow 순서 기준으로만 페이지 경계를 계산한다.
 
-import { RenderObjectTree } from '/src/usecases/RenderObjectTree.js';
+import { RenderObjectTree, deriveRenderMeta } from '/src/usecases/RenderObjectTree.js';
 import { assignFlowToPages, computeAvailableHeightPx, rebuildPaginatedPages } from '/src/usecases/PaginateObjectTree.js';
 
 const renderer = new RenderObjectTree();
@@ -42,20 +42,10 @@ export function flattenFlow(document) {
   return flow;
 }
 
-/** RenderObjectTree 렌더용 meta — SaveDocument.checkpoint#renderMeta 와 동형 파생. */
-export function buildRenderMeta(document) {
-  return {
-    lang: document?.lang || 'ko',
-    docTitle: document?.docTitle || '',
-    dataSubject: document?.dataSubject || document?.subject || '',
-    themeName: document?.themeName || '',
-    runHead: document?.runHead || '',
-    runFoot: document?.runFoot || {},
-    katex: !!(document?.head && document.head.katex),
-    paper: document?.paper ?? null,
-    standards: Array.isArray(document?.standards) ? document.standards : [],
-  };
-}
+/** RenderObjectTree 렌더용 meta — 파생 규칙은 RenderObjectTree.js 가 소유한다(Phase 5: 저장·셸
+ *  조립·리플로우 세 경로가 문자 그대로 같은 meta 를 얻어야 R2-1 편집==인쇄 동치가 성립한다).
+ *  편집기 호출부는 이 이름을 그대로 쓰므로 재수출로 남긴다. */
+export { deriveRenderMeta as buildRenderMeta };
 
 /** teacherHtml(문서 전체 HTML 문자열) 에서 <style>…</style> 블록 원문을 그대로 뽑아낸다. */
 export function extractStyleTag(teacherHtml) {
@@ -198,7 +188,7 @@ function pageAssignmentChanged(srcPages, nextPages) {
  */
 export async function reflowDocument(document, { styleTag, tolerancePx, timeoutMs, doc } = {}) {
   const flatFlow = flattenFlow(document);
-  const renderMeta = buildRenderMeta(document);
+  const renderMeta = deriveRenderMeta(document);
   const { heights, gating } = await measureFlow(flatFlow, { renderMeta, styleTag, timeoutMs, doc });
   const result = applyReflow(document, heights, { tolerancePx });
   return { ...result, gating };

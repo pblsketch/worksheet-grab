@@ -19,6 +19,32 @@ import { resolvePaper, paperCss as paperCssOverride } from './paper.js';
 // `.answer{display:none}` / `[data-mode="teacher"] .answer{display:block}` 규칙과 MODE_TOKEN 을
 // 그대로 승계해, 향후 BuildVariants(S2.2)가 손댈 것 없이 학생/교사 분기를 그대로 적용할 수 있다.
 //
+/**
+ * deriveRenderMeta — 개체 트리 document 에서 execute() 의 meta 인자를 파생한다.
+ *
+ * Phase 5(중복 렌더 경로 제거): 이 9줄이 SaveDocument.checkpoint · RenderEditorShell.executeObjectTree ·
+ * editor/reflow.js 세 곳에 글자 그대로 복제돼 있었다(주석도 "…와 동형 파생"이라 적혀 있었다).
+ * meta 의 형태는 RenderObjectTree.execute 의 계약이므로 여기가 그 계약의 집이다. 브라우저
+ * 화이트리스트(browserGraph) 안의 파일이라 편집기(reflow.js)도 같은 함수를 그대로 쓴다 —
+ * 편집기 측정과 인쇄가 문자 그대로 같은 meta 를 얻어야 R2-1 편집==인쇄 동치가 성립한다.
+ *
+ * @param {object} document 개체 트리 문서
+ * @returns {object} execute() 의 meta 인자
+ */
+export function deriveRenderMeta(document) {
+  return {
+    lang: document?.lang || 'ko',
+    docTitle: document?.docTitle || '',
+    dataSubject: document?.dataSubject || document?.subject || '',
+    themeName: document?.themeName || '',
+    runHead: document?.runHead || '',
+    runFoot: document?.runFoot || {},
+    katex: !!(document?.head && document.head.katex),
+    paper: document?.paper ?? null,
+    standards: Array.isArray(document?.standards) ? document.standards : [],
+  };
+}
+
 // 결정적(순수 함수) — 같은 document/assets/meta 입력이면 항상 같은 HTML 문자열을 반환한다
 // (Date.now/Math.random/전역 상태 참조 없음).
 export class RenderObjectTree {

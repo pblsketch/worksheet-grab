@@ -26,6 +26,7 @@ import { PresetLibrary } from '../usecases/PresetLibrary.js';
 import { FsPresetRepository } from '../adapters/FsPresetRepository.js';
 import { FsAiBridgeRepository } from '../adapters/FsAiBridgeRepository.js';
 import { AI_SCHEMA_VERSION, validateResponse } from '../usecases/aiBridge.js';
+import { loadKnownSubjectHexes } from '../usecases/renderAssets.js';
 
 const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
 
@@ -344,8 +345,7 @@ async function cmdRender(input, flags, { log }) {
 async function cmdValidate(input, repo, { log, err }) {
   if (!input) throw new Error('validate: 입력 HTML 경로가 필요합니다.');
   const html = await readFile(resolve(input), 'utf8');
-  const themes = await repo.listThemes();
-  const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
+  const knownSubjectHexes = await loadKnownSubjectHexes(repo);
   const { ok, findings } = new ValidateWorksheet({ knownSubjectHexes }).execute(html);
   if (findings.length === 0) {
     log('✔ validate: 문제 없음(정답 누출·하드코딩색·최소폰트 모두 통과).');

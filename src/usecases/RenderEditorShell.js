@@ -1,8 +1,9 @@
 import { AssembleWorksheet } from './AssembleWorksheet.js';
 import { BuildVariants } from './BuildVariants.js';
-import { RenderObjectTree } from './RenderObjectTree.js';
+import { RenderObjectTree, deriveRenderMeta } from './RenderObjectTree.js';
+import { loadRenderAssets } from './renderAssets.js';
 import { MODE_TOKEN, Variant } from '../domain/index.js';
-import { resolvePaper, paperToPx, paperMargins } from './paper.js';
+import { buildCanvasMeta } from './paper.js';
 
 // RenderEditorShell — 에디터 셸(E2)의 페이지 합성(순수 usecase). manifest 를 조립해
 // student/teacher 두 물리 문서와 캔버스 메타(용지 치수·여백)를 만든다.
@@ -29,18 +30,10 @@ export class RenderEditorShell {
     const teacher = new BuildVariants().execute(editHtml).teacher;
     const { student } = new BuildVariants().execute(html);
 
-    // paper 미지정 문서도 캔버스 메타는 현행 기본(A4 세로·비대칭 여백)으로 산출한다 —
-    // resolvePaper(null)=null 은 "CSS 주입 0" 규약이므로 여기서만 A4 로 구체화.
-    const resolved = resolvePaper(manifest.paper) ?? resolvePaper({ size: 'A4' });
-    const canvasMeta = {
-      paper: resolved,
-      dims: paperToPx(resolved),
-      margins: paperMargins(resolved),
-    };
     return {
       teacherHtml: teacher,
       studentHtml: student,
-      canvasMeta,
+      canvasMeta: buildCanvasMeta(manifest.paper),
       validationSeed: { knownSubjectHexes, paper: manifest.paper ?? null },
       docTitle: manifest.docTitle || '',
       docName,
@@ -58,38 +51,18 @@ export class RenderEditorShell {
    *   docTitle:string, docName:string|null, meta:object|null}>}
    */
   async executeObjectTree({ document, meta = null, knownSubjectHexes = [], docName = null }) {
-    const assets = {
-      paperCss: await this.repo.readAsset('paper.css'),
-      blocksCss: await this.repo.readAsset('blocks.css'),
-      themeCss: document.themeName ? await this.repo.loadThemeCss(document.themeName) : '',
-    };
-    const renderMeta = {
-      lang: document.lang || 'ko',
-      docTitle: document.docTitle || '',
-      dataSubject: document.dataSubject || document.subject || '',
-      themeName: document.themeName || '',
-      runHead: document.runHead || '',
-      runFoot: document.runFoot || {},
-      katex: !!(document.head && document.head.katex),
-      paper: document.paper ?? null,
-      standards: Array.isArray(document.standards) ? document.standards : [],
-    };
+    const assets = await loadRenderAssets(this.repo, document);
+    const renderMeta = deriveRenderMeta(document);
     // teacher: editMode(data-oid 경계 래퍼) 렌더 후 MODE_TOKEN 을 직접 치환(정답 보존 — 물리 제거 없음).
     const { html: editHtmlRaw } = new RenderObjectTree().execute(document, assets, renderMeta, { editMode: true });
     const teacherHtml = editHtmlRaw.split(MODE_TOKEN).join(Variant.TEACHER);
     // student: BuildVariants.executeObjectTree 가 트리 수준 answer:true 제거 후 clean 렌더.
     const { student: studentHtml } = new BuildVariants().executeObjectTree(document, assets, renderMeta);
 
-    const resolved = resolvePaper(document.paper) ?? resolvePaper({ size: 'A4' });
-    const canvasMeta = {
-      paper: resolved,
-      dims: paperToPx(resolved),
-      margins: paperMargins(resolved),
-    };
     return {
       teacherHtml,
       studentHtml,
-      canvasMeta,
+      canvasMeta: buildCanvasMeta(document.paper),
       validationSeed: { knownSubjectHexes, paper: document.paper ?? null },
       docTitle: document.docTitle || '',
       docName,

@@ -3,6 +3,8 @@ import { BuildVariants, ANSWER_CLASSES } from './BuildVariants.js';
 import { ValidateWorksheet, MIN_ANSWER_LEN, SLICE_LEN } from './ValidateWorksheet.js';
 import { collectTextInside, textOutside } from './html-scan.js';
 import { buildMeta, nextSnapshotSerial, snapshotName } from './workspace.js';
+import { deriveRenderMeta } from './RenderObjectTree.js';
+import { loadRenderAssets, loadKnownSubjectHexes } from './renderAssets.js';
 import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
 
 // SaveDocument — 워크스페이스 문서 저장의 단일 진입점. E2 에디터 서버·CLI(doc save/
@@ -38,8 +40,7 @@ export class SaveDocument {
     const { html } = await asm.execute(manifest);
     const { student, teacher } = new BuildVariants().execute(html);
 
-    const themes = await this.repo.listThemes();
-    const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
+    const knownSubjectHexes = await loadKnownSubjectHexes(this.repo);
     const validator = new ValidateWorksheet({ knownSubjectHexes, paper: manifest.paper });
     // 누출 판정은 RunPipeline 게이트와 동일하게 student+teacher 양벌의 error 합집합.
     // student 는 .answer 가 이미 물리 제거된 상태라 answer-leak 규칙이 발화할 수 없다 —
@@ -136,26 +137,11 @@ export class SaveDocument {
     document = normalizePageIdentity(document, { repairInvalid: false });
     const layout = this.workspace.layout(name);
 
-    const assets = {
-      paperCss: await this.repo.readAsset('paper.css'),
-      blocksCss: await this.repo.readAsset('blocks.css'),
-      themeCss: document.themeName ? await this.repo.loadThemeCss(document.themeName) : '',
-    };
-    const renderMeta = {
-      lang: document.lang || 'ko',
-      docTitle: document.docTitle || '',
-      dataSubject: document.dataSubject || document.subject || '',
-      themeName: document.themeName || '',
-      runHead: document.runHead || '',
-      runFoot: document.runFoot || {},
-      katex: !!(document.head && document.head.katex),
-      paper: document.paper ?? null,
-      standards: Array.isArray(document.standards) ? document.standards : [],
-    };
+    const assets = await loadRenderAssets(this.repo, document);
+    const renderMeta = deriveRenderMeta(document);
     const { student, teacher } = new BuildVariants().executeObjectTree(document, assets, renderMeta);
 
-    const themes = await this.repo.listThemes();
-    const knownSubjectHexes = [...new Set(themes.flatMap((t) => [...t.paletteHexes()]))];
+    const knownSubjectHexes = await loadKnownSubjectHexes(this.repo);
     const validator = new ValidateWorksheet({ knownSubjectHexes, paper: document.paper });
     // teacher: 개체 트리 경로(구조 error 승격) + 렌더 HTML 누출 grep 2층을 한 호출로 수행.
     // student: HTML 문자열 경로만(구조 검증은 teacher 쪽에서 이미 수행 — 중복 불필요).
