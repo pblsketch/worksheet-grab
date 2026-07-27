@@ -382,7 +382,7 @@ test('US-18 신 UI 셸: 앱 바·컨텍스트 툴바 상태 교체·좌 3탭·�
     assert.equal(ds(dom, 'tb-empty'), 'empty');
 
     // 좌측 3탭 + 삽입 탭 전환
-    assert.equal(ds(dom, 'tabs-count'), '3', '좌측 패널 탭 3개(페이지·삽입·내 블록)');
+    assert.equal(ds(dom, 'tabs-count'), '4', '좌측 패널 탭 4개(페이지·레이어·삽입·내 블록)');
     assert.equal(ds(dom, 'left-tab-after-click'), 'insert');
     assert.equal(ds(dom, 'insert-panel-visible'), 'true');
 

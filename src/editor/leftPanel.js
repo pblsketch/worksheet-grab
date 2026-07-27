@@ -9,7 +9,7 @@ import { CATALOG_ITEMS } from './objectFactory.js';
 import { settlePageReorder } from './pageReorder.js';
 import { collectStyles } from './thumbs.js';
 
-const TABS = ['pages', 'insert', 'myblocks'];
+const TABS = ['pages', 'layers', 'insert', 'myblocks'];
 const PAGE_ROLES = [
   ['', '역할 없음'],
   ['cover', '표지'],
@@ -46,6 +46,8 @@ export function createLeftPanel({
   fetchPresets,
   onPresetInsert,
   onPresetDelete,
+  onLayerSelect = () => {},
+  onLayerReorder = () => {},
 }) {
   const tabBtns = [...root.querySelectorAll('[data-tab]')];
   const panels = Object.fromEntries(TABS.map((t) => [t, root.querySelector(`[data-panel="${t}"]`)]));
@@ -53,6 +55,7 @@ export function createLeftPanel({
   const insertGrid = root.querySelector('#insert-grid');
   const floatToggle = root.querySelector('#insert-float-toggle');
   const presetList = root.querySelector('#preset-list');
+  const layerList = root.querySelector('#layer-list');
 
   let activeTab = 'pages';
   function setActiveTab(tab) {
@@ -443,11 +446,60 @@ export function createLeftPanel({
     setTimeout(() => document.addEventListener('click', closePresetMenu, { once: true }), 0);
   }
 
+  // ── ④ 레이어(현재 페이지 개체 목록) ──
+  // 파생 뷰: editor.js 가 활성 페이지 개체를 items 로 넘겨 렌더만 한다(선택·z-순서 조작은 콜백).
+  // items: {id, type, label, placement}[]. selectedIds: Set. front(배열 뒤 float)일수록 위에 온다.
+  function renderLayers(items = [], selectedIds = new Set()) {
+    layerList.replaceChildren();
+    if (!items.length) {
+      const empty = document.createElement('li');
+      empty.className = 'layer-empty';
+      empty.textContent = '이 페이지에 개체가 없습니다.';
+      layerList.appendChild(empty);
+      return;
+    }
+    for (const item of items) {
+      const li = document.createElement('li');
+      li.className = 'layer-item';
+      li.dataset.oid = item.id;
+      li.setAttribute('role', 'button');
+      li.tabIndex = 0;
+      if (selectedIds.has(item.id)) li.classList.add('active');
+      li.innerHTML = icon(iconFor(item.type));
+      const label = document.createElement('span');
+      label.className = 'layer-label';
+      label.textContent = item.label || item.type;
+      li.appendChild(label);
+      if (item.placement === 'float') {
+        const badge = document.createElement('span');
+        badge.className = 'layer-badge';
+        badge.textContent = '자유';
+        li.appendChild(badge);
+        const z = document.createElement('div');
+        z.className = 'layer-z';
+        const up = document.createElement('button');
+        up.type = 'button'; up.title = '한 단계 앞으로'; up.textContent = '▲';
+        up.addEventListener('click', (event) => { event.stopPropagation(); onLayerReorder(item.id, 'forward'); });
+        const down = document.createElement('button');
+        down.type = 'button'; down.title = '한 단계 뒤로'; down.textContent = '▼';
+        down.addEventListener('click', (event) => { event.stopPropagation(); onLayerReorder(item.id, 'backward'); });
+        z.appendChild(up); z.appendChild(down);
+        li.appendChild(z);
+      }
+      li.addEventListener('click', () => onLayerSelect(item.id));
+      li.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onLayerSelect(item.id); }
+      });
+      layerList.appendChild(li);
+    }
+  }
+
   setActiveTab('pages');
 
   return {
     setActiveTab,
     renderThumbs,
+    renderLayers,
     setActivePage,
     focusPage,
     invalidateThumbs,

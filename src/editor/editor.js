@@ -418,6 +418,42 @@ function currentSingleSelectedId() {
   return ids.length === 1 ? ids[0] : null;
 }
 
+// ── 레이어 패널(현재 페이지 개체 목록) — manifest 파생 뷰 빌더(조작은 콜백→applyDocOp) ──
+const LAYER_TYPE_LABELS = Object.freeze({
+  title: '제목', question: '문항', table: '표', 'image-slot': '이미지', 'answer-area': '답란',
+  richtext: '자유 텍스트', shape: '도형', divider: '구분선', 'passage-slot': '지문 슬롯', 'std-box': '학습목표',
+});
+function stripHtmlToText(html) {
+  return new DOMParser().parseFromString(String(html || ''), 'text/html').body.textContent || '';
+}
+function layerLabelFor(obj) {
+  const base = LAYER_TYPE_LABELS[obj.type] || obj.type;
+  let text = '';
+  if (obj.type === 'title') text = obj.text || '';
+  else if (obj.type === 'question') text = obj.prompt || '';
+  else if (obj.type === 'richtext') text = stripHtmlToText(obj.html);
+  else if (obj.type === 'answer-area') text = obj.label || '';
+  else if (obj.type === 'passage-slot') text = obj.title || obj.slotLabel || '';
+  else if (obj.type === 'shape') text = { rect: '사각형', circle: '원', line: '선' }[obj.shapeKind] || '';
+  else if (obj.type === 'std-box') text = obj.objectives?.[0] || (obj.codes || []).join(', ');
+  else if (obj.type === 'table') text = `${(obj.rows || []).length}행`;
+  text = text.trim().replace(/\s+/g, ' ');
+  return text ? `${base} · ${text.slice(0, 24)}` : base;
+}
+function buildLayerItems() {
+  const doc = core.getDocument();
+  const page = (doc.pages || []).find((p) => p.id === activePageId) || (doc.pages || [])[0];
+  if (!page) return [];
+  const items = [];
+  // float 배열 뒤 = 앞면(위) → 목록 상단에 오도록 역순으로 방출한 뒤 flow(본문 순서)를 잇는다.
+  for (const obj of [...(page.float || [])].reverse()) items.push({ id: obj.id, type: obj.type, label: layerLabelFor(obj), placement: 'float' });
+  for (const obj of (page.flow || [])) items.push({ id: obj.id, type: obj.type, label: layerLabelFor(obj), placement: 'flow' });
+  return items;
+}
+function refreshLayers() {
+  leftPanel.renderLayers(buildLayerItems(), selection.state.selectedIds);
+}
+
 function updateAll() {
   const sel = computeSelectionState();
   aiPanel.refreshEntryState([...selection.state.selectedIds]);
@@ -449,6 +485,7 @@ function updateAll() {
   }
   // #10: 표 선택 시 열 너비 손잡이·활성 셀 하이라이트를 선택 상태에 맞춰 갱신(reload 없이).
   tableEditor?.refresh();
+  refreshLayers(); // 레이어 목록도 선택/문서 상태에 맞춰 갱신(파생 뷰)
 }
 
 // ══════════════════════════ 문서 조작 단일 관문(applyDocOp) ══════════════════════════
@@ -676,6 +713,7 @@ function scrollToPage(pageId) {
   canvasWrap.scrollTo({ top: Math.max(0, top - 16), behavior: 'auto' });
   activePageId = pageId;
   leftPanel.setActivePage(pageId);
+  refreshLayers(); // 페이지 이동 시 레이어 목록을 새 페이지 개체로 교체
 }
 
 function syncActivePageFromCanvas() {
@@ -694,6 +732,7 @@ function syncActivePageFromCanvas() {
   if (!pageId || pageId === activePageId) return;
   activePageId = pageId;
   leftPanel.setActivePage(pageId);
+  refreshLayers(); // 스크롤로 활성 페이지가 바뀌면 레이어 목록도 따라 교체
   history.refreshUiState();
 }
 
@@ -865,6 +904,9 @@ const leftPanel = createLeftPanel({
     applyDocOp(next, { reflow: true, selectId: obj.id });
   },
   onPresetDelete: (id) => fetch(`/presets/${encodeURIComponent(id)}`, { method: 'DELETE' }).then((r) => r.json()),
+  // 레이어 패널: 목록 클릭 = 개체 선택(캔버스 동기화), float ▲▼ = z-순서 한 단계(reorderFloat).
+  onLayerSelect: (id) => selection.select(id),
+  onLayerReorder: (id, mode) => { const next = ObjOps.reorderFloat(core.getDocument(), id, mode); applyDocOp(next, { selectId: id }); },
 });
 document.getElementById('canvas-wrap').addEventListener('scroll', syncActivePageFromCanvas, { passive: true });
 

@@ -45,12 +45,17 @@
   <aside id="left-panel" class="left-panel">
     <div class="tab-bar" role="tablist" aria-label="좌측 패널 탭">
       <button data-tab="pages" class="tab-btn active" role="tab">페이지</button>
+      <button data-tab="layers" class="tab-btn" role="tab">레이어</button>
       <button data-tab="insert" class="tab-btn" role="tab">삽입</button>
       <button data-tab="myblocks" class="tab-btn" role="tab">내 블록</button>
     </div>
     <div data-panel="pages" class="panel">
       <ul id="thumb-list" class="thumb-list"></ul>
       <button id="btn-add-page" type="button" class="panel-add-btn">+ 새 페이지</button>
+    </div>
+    <div data-panel="layers" class="panel hidden">
+      <p class="layer-hint">현재 페이지의 개체 목록 — 클릭해 선택, 자유 배치는 ▲▼로 앞뒤 순서 변경</p>
+      <ul id="layer-list" class="layer-list"></ul>
     </div>
     <div data-panel="insert" class="panel hidden">
       <label class="insert-float-toggle"><input type="checkbox" id="insert-float-toggle"> 자유 배치로 삽입</label>
