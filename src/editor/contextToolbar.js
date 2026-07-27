@@ -281,6 +281,13 @@ export function createContextToolbar(opts) {
       g.appendChild(btn({ title: '왼쪽 정렬', iconName: 'alignLeft', id: 'tb-align-left', disabled: !isTextFormatting, onClick: () => opts.onFormat('justifyLeft') }));
       g.appendChild(btn({ title: '가운데 정렬', iconName: 'alignCenter', id: 'tb-align-center', disabled: !isTextFormatting, onClick: () => opts.onFormat('justifyCenter') }));
       g.appendChild(btn({ title: '오른쪽 정렬', iconName: 'alignRight', id: 'tb-align-right', disabled: !isTextFormatting, onClick: () => opts.onFormat('justifyRight') }));
+      // 서식 확장(목록·형광펜·링크·서식지우기) — richtext 편집 중에만 실제 보존(자유 텍스트 field:'html'
+      // 직결). 형광펜(hiliteColor)은 paper.css 의 print-color-adjust:exact 로 인쇄에도 반영된다.
+      g.appendChild(btn({ title: '불릿 목록', iconName: 'list', id: 'tb-list-ul', disabled: !isTextFormatting, onClick: () => opts.onFormat('insertUnorderedList') }));
+      g.appendChild(btn({ title: '번호 목록', iconName: 'listOrdered', id: 'tb-list-ol', disabled: !isTextFormatting, onClick: () => opts.onFormat('insertOrderedList') }));
+      g.appendChild(btn({ title: '형광펜', iconName: 'highlighter', id: 'tb-highlight', disabled: !isTextFormatting, onClick: () => opts.onFormat('hiliteColor', '#fff59d') }));
+      g.appendChild(btn({ title: '링크', iconName: 'link', id: 'tb-link', disabled: !isTextFormatting, onClick: () => opts.onLink?.() }));
+      g.appendChild(btn({ title: '서식 지우기', iconName: 'eraser', id: 'tb-clear-format', disabled: !isTextFormatting, onClick: () => opts.onFormat('removeFormat') }));
       middle.appendChild(g);
     }
 

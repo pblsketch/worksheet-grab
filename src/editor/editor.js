@@ -500,7 +500,44 @@ function applyFormat(cmd, value = null) {
   const editingId = selection.state.editingId;
   const found = editingId ? core.findObject(editingId) : null;
   if (!doc || !found || !FORMATTABLE_TYPES.has(found.obj.type)) return;
-  doc.execCommand(cmd, false, value);
+  // 형광펜(hiliteColor)은 styleWithCSS 를 켜야 <span style="background-color"> 로 산출된다(끄면
+  // 무시되거나 <font> 로 나와 살균·보존 규약과 어긋남). 다른 명령의 산출 마크업에 영향 주지 않도록
+  // 이 명령 동안만 켰다 끈다(span 은 hasInlineMarkup 대상 → 보존, background 는 print-color-adjust 로 인쇄).
+  if (cmd === 'hiliteColor') {
+    doc.execCommand('styleWithCSS', false, true);
+    doc.execCommand(cmd, false, value);
+    doc.execCommand('styleWithCSS', false, false);
+  } else {
+    doc.execCommand(cmd, false, value);
+  }
+  selection.syncEditingField();
+  onSelectionDirty('text');
+}
+
+/** 허용 스킴만 통과시키는 링크 URL 정규화 — javascript:/data:/vbscript: 은 차단, 스킴 없는 도메인은
+ *  https:// 접두. richtext 읽기 경로는 살균을 안 거치므로(readField 직결) 입력 시점에 가드한다. */
+function normalizeLinkUrl(raw) {
+  const t = String(raw ?? '').trim();
+  if (!t || /^\s*(javascript|data|vbscript):/i.test(t)) return null;
+  if (/^https?:\/\//i.test(t) || /^(mailto:|#|\/)/i.test(t)) return t;
+  if (/^[\w-]+(\.[\w-]+)+([/?#].*)?$/.test(t)) return `https://${t}`; // 도메인만 입력 → https 접두
+  return null;
+}
+
+/** 선택 텍스트에 링크를 건다(#서식). prompt 가 iframe 선택을 흐트러뜨리므로 캐럿을 캡처·복원한 뒤
+ *  createLink 를 적용한다. 텍스트 선택이 없으면 execCommand 가 무동작(브라우저 기본). */
+function applyLink() {
+  const doc = frames.teacher?.contentDocument;
+  const editingId = selection.state.editingId;
+  const found = editingId ? core.findObject(editingId) : null;
+  if (!doc || !found || !FORMATTABLE_TYPES.has(found.obj.type)) return;
+  const caret = selection.captureCaret();
+  const input = window.prompt('링크 주소를 입력하세요 (http/https)', 'https://');
+  selection.restoreCaret(caret);
+  if (input == null) return; // 취소
+  const url = normalizeLinkUrl(input);
+  if (!url) { showBanner('warn', 'http/https 주소만 링크로 넣을 수 있어요.'); return; }
+  doc.execCommand('createLink', false, url);
   selection.syncEditingField();
   onSelectionDirty('text');
 }
@@ -727,6 +764,7 @@ const contextToolbar = createContextToolbar({
   onDelete: (id) => { const next = ObjOps.removeObject(core.getDocument(), id); selection.clearAll(); applyDocOp(next, { reflow: true }); },
   onFlowFloat: (id) => { const next = ObjOps.toggleFlowFloat(core.getDocument(), id); applyDocOp(next, { reflow: true, selectId: id }); },
   onFormat: (cmd, value) => applyFormat(cmd, value),
+  onLink: () => applyLink(),
   onFont: (kind, value) => applyFont(kind, value),
   onAnswerToggle: (id) => { const next = ObjOps.toggleAnswer(core.getDocument(), id); applyDocOp(next, { selectId: id }); },
   onTableRow: (action) => handleTableRow(action),

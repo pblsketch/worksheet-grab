@@ -62,7 +62,9 @@ function sanitizeInlineHtml(html) {
 // 인라인 서식/줄바꿈 마크업이 있는지(=평문이 아닌지) 판정 — 있을 때만 htmlField 를 저장한다(순수
 // 평문이면 htmlField 를 지워 렌더가 이스케이프 평문으로 폴백 = 하위호환·문서 정갈).
 function hasInlineMarkup(html) {
-  return /<(b|strong|i|em|u|s|sub|sup|font|span|mark|br)\b/i.test(html);
+  // ul/ol/li/a 추가(서식 확장) — 목록·링크만 있는 편집도 title/question htmlField 로 보존한다
+  // (richtext 는 field:'html' 직결이라 이 게이트를 거치지 않음).
+  return /<(b|strong|i|em|u|s|sub|sup|font|span|mark|br|ul|ol|li|a)\b/i.test(html);
 }
 
 function cssEscapeId(id) {
