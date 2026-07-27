@@ -20,6 +20,12 @@ body {
      상·하 여백을 균형 있게 조였다(authored 섹션 수 = 인쇄 페이지 수 보장). */
   padding: var(--sheet-pad, 12mm 15mm 10mm 15mm);
   margin: 0 auto; background: #fff; position: relative;
+  /* ⚠ 이 규칙에 border 를 추가하면 **모든 float 개체의 절대좌표 원점이 그만큼 이동한다.**
+     자유 배치(.wg-float)는 .sheet 직속 position:absolute 자식이고, 절대배치의 containing block
+     은 padding edge 인데 지금은 border-width:0 이라 padding edge == border edge == 물리 모서리로
+     일치한다. 편집기의 실측 승격(selection.js measureRectMm)도 이 일치를 전제로 좌표 변환 없이
+     .sheet 기준 rect 를 그대로 float rect 로 쓴다. 화면 전용 테두리가 필요하면 border 가 아니라
+     outline/box-shadow 를 쓸 것(아래 @media screen 의 box-shadow 가 그 선례). */
   page-break-after: always;
 }
 .sheet:last-child { page-break-after: auto; }

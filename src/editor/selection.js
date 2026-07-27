@@ -429,6 +429,45 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     el.addEventListener('lostpointercapture', onUp);
   }
 
+  /**
+   * 개체가 지금 화면에서 차지한 위치·크기를 그 페이지(.sheet) 기준 mm rect 로 실측한다.
+   * flow→float 승격이 개체를 **보이던 그 자리에** 고정시키기 위한 입력이다(없으면 좌상단으로 튄다).
+   *
+   * 좌표 변환이 필요 없는 이유: float 은 `.sheet` 직속 `position:absolute` 자식으로 렌더되고
+   * (RenderObjectTree), 절대배치 자식의 containing block 은 CSS 상 **padding edge** 인데
+   * `.sheet` 는 border 선언이 없어 `border-width:0` 이라 padding edge == border edge 가 된다.
+   * 그래서 `.sheet` 의 border box 기준으로 잰 값이 곧 float rect 다.
+   * ⚠ `assets/paper.css` 의 `.sheet` 규칙에 **border 를 추가하면 모든 float 절대좌표 원점이
+   *    그만큼 이동한다** — 화면 전용 테두리를 넣고 싶으면 outline/box-shadow 를 쓸 것.
+   *
+   * 줌 보정은 crossPageTarget(:449) 과 같은 offsetWidth 비율식을 쓴다. 측정은 iframe 내부라
+   * 부모 #stage 의 transform:scale 과는 무관하고, 이 비율은 offsetWidth 정수 반올림 보정이다.
+   *
+   * @returns {{xMm:number,yMm:number,wMm:number,hMm:number}|null} 실측 불가 시 null(호출부 폴백)
+   */
+  function measureRectMm(id) {
+    const el = objEl(id);
+    const sheet = el?.closest('.sheet');
+    if (!el || !sheet) return null;
+    const r = rectToSheetMm(el.getBoundingClientRect(), sheet);
+    if (!r || !(r.wMm > 0) || !(r.hMm > 0)) return null; // 미렌더·0치수 → 폴백에 맡긴다
+    return r;
+  }
+
+  /** 화면 rect → 그 시트 기준 mm rect. 줌 보정은 offsetWidth 비율(측정은 iframe 내부라 부모
+   *  #stage 의 transform:scale 과 무관하고, 이 비율은 offsetWidth 정수 반올림 보정이다). */
+  function rectToSheetMm(r, sheet) {
+    const sr = sheet.getBoundingClientRect();
+    const scale = sheet.offsetWidth ? sr.width / sheet.offsetWidth : 1;
+    if (!scale) return null;
+    return {
+      xMm: round1((r.left - sr.left) / scale / MM_TO_PX),
+      yMm: round1((r.top - sr.top) / scale / MM_TO_PX),
+      wMm: round1(r.width / scale / MM_TO_PX),
+      hMm: round1(r.height / scale / MM_TO_PX),
+    };
+  }
+
   /** 드롭 지점이 현재 페이지가 아닌 .sheet 위면 {pageIndex, rect(새 페이지 기준 mm)} 반환, 아니면 null. */
   function crossPageTarget(el, clientX, clientY) {
     if (!currentDoc) return null;
@@ -439,17 +478,13 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
       return clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom;
     });
     if (targetIdx < 0 || targetIdx === curIdx) return null;
-    const sheet = sheets[targetIdx];
-    const sr = sheet.getBoundingClientRect();
-    const scale = sheet.offsetWidth ? sr.width / sheet.offsetWidth : 1;
-    const fr = el.getBoundingClientRect();
-    return {
-      pageIndex: targetIdx,
-      rect: {
-        xMm: round1((fr.left - sr.left) / scale / MM_TO_PX),
-        yMm: round1((fr.top - sr.top) / scale / MM_TO_PX),
-      },
-    };
+    const mm = rectToSheetMm(el.getBoundingClientRect(), sheets[targetIdx]);
+    // 통합 전 이 함수는 scale 이 0 이어도 그대로 나눠 Infinity 좌표를 만들었다(폭 0 인 시트 위로
+    // 드롭한 극단적 경우). 이제 null 로 떨어져 이관 자체를 안 한다 — 유일한 동작 차이이고,
+    // 개체가 화면 밖으로 날아가는 것보다 제자리에 두는 쪽이 맞다.
+    if (!mm) return null;
+    // 이동만 하므로 좌상단만 넘긴다(크기는 그대로 유지).
+    return { pageIndex: targetIdx, rect: { xMm: mm.xMm, yMm: mm.yMm } };
   }
 
   /** 리사이즈 손잡이 드래그 — dir(nw/n/ne/e/se/s/sw/w)에 따라 rect{wMm/hMm(+xMm/yMm)}을 갱신한다.
@@ -655,7 +690,11 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
 
   return {
     state, attach, select, clearAll, enterEdit, exitEdit, handleEscape, refreshVisual, syncEditingField,
-    captureCaret, restoreCaret,
+    captureCaret, restoreCaret, measureRectMm,
+    // 드래그 직후 따라오는 click 1회를 삼키게 예약한다. 내부 생산자(startFloatDrag·startFloatResize·
+    // 마퀴)와 같은 플래그를 쓰며, canvasInline 의 **본체 드래그**가 네 번째 생산자다 — 그 click 은
+    // target 이 공통 조상(.sheet)으로 잡혀 "바깥 클릭 = 선택 해제" 경로를 타기 때문.
+    armSwallowClick: () => { swallowNextClick = true; },
     isEditableType: (type) => !!EDIT_FIELD[type],
   };
 }

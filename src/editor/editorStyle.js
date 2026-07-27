@@ -73,6 +73,10 @@ export function injectEditorStyle(doc) {
     .wg-flow-insert:hover { opacity: 1; }
     /* 기본 개체 연속 드래그 재정렬 중 시각 피드백(#1·#2 2차) */
     .wg-flow-dragging { opacity: .55; outline: 2px dashed #2563eb; outline-offset: 1px; }
+    /* 개체 몸통 드래그 재정렬 중 텍스트 선택 억제 — 승격 전 임계 구간(≤5px)에서 브라우저 네이티브
+       선택이 이미 시작될 수 있어(실측: 10스텝 드래그에 23자) removeAllRanges 로 끊고 여기서
+       재시작을 막는다. user-select 는 레이아웃 박스를 바꾸지 않으므로 위 R2-1 규약을 지킨다. */
+    body.wg-body-dragging { user-select: none; }
     body.wg-show-margins .sheet::after {
       content: ""; position: absolute; inset: var(--sheet-pad, 12mm 15mm 10mm 15mm);
       border: 1px dashed rgba(37,99,235,.55); pointer-events: none; z-index: 3;

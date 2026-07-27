@@ -14,6 +14,58 @@ import { CATALOG_ITEMS } from './objectFactory.js';
 
 const MM_TO_PX = 96 / 25.4;
 
+/** 본체 드래그 승격 임계(px). leftPanel.js 의 페이지 썸네일 재정렬이 쓰는 값과 동일 — 같은 종류의
+ *  상호작용(리스트 드래그 재정렬)에 다른 숫자를 쓸 이유가 없다. 96dpi 기준 5px ≈ 1.32mm 라
+ *  클릭 시 손떨림(1~3px)은 흡수하고 의도적 끌기(10px+)는 즉시 통과한다. */
+export const FLOW_DRAG_THRESHOLD_PX = 5;
+
+/**
+ * 개체 몸통 드래그로 **승격하지 않는** 지점. 전부 이미 소유자가 있는 조작 표면이다.
+ *
+ * 이 목록은 암묵 계약이 아니다 — `test/unit/body-drag-chokepoint.test.js` 가 강제한다:
+ * `editorStyle.js` 에서 `pointer-events: auto` 를 받는 선택자는 전부 이 목록이나 명시적 예외
+ * 목록(`.wg-float*` 3종 — `.wg-float` 조기 반환이 덮는다)에 있어야 하고, `src/editor/*.js` 의
+ * 인라인 `pointerEvents:'auto'` 지정도 함께 검사한다. 새 조작 UI 를 추가하면서 여기 등록을
+ * 잊으면 테스트가 빨개진다.
+ *
+ * `[contenteditable="true"]` 로 충분한 곳을 개별 등록하지 않는 것이 중요하다 — `.q-part[data-part]`
+ * 와 `td[data-r]` 는 **편집 진입 시에만** contenteditable 을 얻으므로, 비편집 상태까지 막으면
+ * question/table 개체 몸통의 대부분이 드래그 사각지대가 된다.
+ */
+export const NO_BODY_DRAG_SELECTORS = Object.freeze([
+  '.wg-flow-handle', '.wg-flow-insert',      // canvasInline 자신의 오버레이 진입점
+  '.wg-resize-handle', '.wg-float-handle',   // selection.js 소관(자유 개체 이동·리사이즈)
+  '.wg-col-handle',                          // tableEdit.js 소관(표 열 너비)
+  '[contenteditable="true"]',                // 캐럿 이동·드래그 선택
+  'button', 'input', 'select', 'textarea', 'a[href]',
+]);
+
+/** `closest()` 에 넘길 결합 셀렉터(위 목록의 파생값 — 목록이 단일 진실). */
+const NO_BODY_DRAG = NO_BODY_DRAG_SELECTORS.join(',');
+
+/**
+ * 본체 드래그 승격 판정 — **순수 함수**(DOM 접근 0).
+ *
+ * 이 상호작용의 회귀 표면 대부분은 실마우스가 필요 없다. 임계·편집 가드·셀렉터 제외·float 양보를
+ * 여기로 떼어내면 Chrome 없이 단위 테스트로 고정되고, 실마우스가 정말 필요한 잔여분은
+ * 포인터 캡처 유지 · 교차 페이지 insertBefore · 드래그 후 click 삼키기 셋뿐이 된다.
+ *
+ * @param {{button?:number, editingId?:string|null, blockedBySelector?:boolean,
+ *          isFloat?:boolean, hasObj?:boolean, dx?:number, dy?:number, threshold?:number}} ctx
+ * @returns {boolean}
+ */
+export function shouldPromoteBodyDrag({
+  button = 0, editingId = null, blockedBySelector = false,
+  isFloat = false, hasObj = true, dx = 0, dy = 0, threshold = FLOW_DRAG_THRESHOLD_PX,
+} = {}) {
+  if (button !== 0) return false;        // 우클릭/가운데클릭 — 컨텍스트 메뉴 등 별도 소유자
+  if (editingId) return false;           // 편집 중 = 캐럿·드래그 선택 우선(selection.js 관례)
+  if (blockedBySelector) return false;   // NO_BODY_DRAG_SELECTORS 적중
+  if (isFloat) return false;             // 자유 개체는 selection.js startFloatDrag 소관
+  if (!hasObj) return false;             // .wg-obj 밖(빈 여백) = 마퀴 소관
+  return Math.abs(dx) >= threshold || Math.abs(dy) >= threshold;
+}
+
 function closeAll(popupsHost) {
   popupsHost.replaceChildren();
 }
@@ -67,6 +119,7 @@ function buildRuler(doc, axis, lenMm) {
  *   onSaveAsPreset: (id:string) => void,
  *   onReorderStep: (id:string, direction:'up'|'down') => void,
  *   onReorderCommit: () => void,
+ *   onDragEnd?: () => void, // 본체 드래그 종료 — 뒤따르는 click 1회를 삼키게 알린다(핸들 경로는 미호출)
  *   excludedAiTypes: Set<string>, // US-19 — std-box(§7, 원칙 3) 는 AI 진입점 비활성(passage-slot 은
  *   3층 정책, 2026-07-23 2차 델타로 해제)
  *   onAiOpen: (id:string) => void, // US-19 — AI 패널을 이 개체로 연다
@@ -196,18 +249,34 @@ export function createCanvasInline(deps) {
   // 읽어 한 번에 커밋한다. 예전엔 한 스텝마다 decorateFlowHandles 로 손잡이를 다시 그려 포인터 캡처가
   // 끊겨 한 칸씩만 움직였다 — 드래그 중에는 손잡이를 재장식하지 않는다.
   let dragState = null;
-  function startFlowDrag(e, handleEl) {
-    const id = handleEl.dataset.forOid;
+  /**
+   * flow 개체 드래그 재정렬. 진입점 2개(⠿ 핸들 · 개체 몸통)가 이 본문 하나를 공유하므로
+   * 커밋 경로(`idsByPage` → `onFlowReorder`)가 같고 undo 동작도 자동으로 같다.
+   *
+   * @param {PointerEvent} e
+   * @param {{id:string, captureEl:Element, bodyDrag?:boolean}} opts
+   *   `captureEl` 은 **드래그 중 DOM 에서 이동하지 않는 요소**여야 한다 — `objEl` 자신은 아래
+   *   onMove 가 `insertBefore` 로 옮기므로 캡처가 암묵 해제되어 드래그가 한 칸에서 멈춘다
+   *   (위 :194-197 의 사고 기록이 정확히 그 사례). 핸들 경로는 handle, 본체 경로는 시작 `.sheet`.
+   */
+  function startFlowDrag(e, { id, captureEl, bodyDrag = false }) {
     const objEl = currentDoc.querySelector(`[data-oid="${cssEscape(id)}"]`);
     if (!objEl) return;
     e.preventDefault();
-    // try/catch: 합성 이벤트 등 활성 포인터가 없으면 setPointerCapture 가 throw 한다 — 캡처 실패해도
-    // 드래그 자체는 handleEl 에 건 pointermove/up 로 계속되어야 하므로 삼킨다(selection.js 와 동형).
-    try { handleEl.setPointerCapture(e.pointerId); } catch { /* 캡처 불가 환경 */ }
+    // 캡처 실패는 "조용한 degrade" 가 아니라 **명시적 분기**다. 리스너를 captureEl 에 건 채로
+    // 캡처만 실패하면 포인터가 그 .sheet 위에 있을 때만 이벤트가 들어와 교차 페이지 재정렬이
+    // 조용히 깨진다 — 그래서 실패하면 버스를 문서로 바꾼다.
+    let captured = false;
+    try { captureEl.setPointerCapture(e.pointerId); captured = true; } catch { /* 캡처 불가 환경 */ }
+    const bus = captured ? captureEl : currentDoc;
+    const pointerId = e.pointerId;
     objEl.classList.add('wg-flow-dragging');
     dragState = { id, objEl };
     const onMove = (ev) => {
       if (!dragState) return;
+      // 문서 버스에는 캡처 리타게팅이 없어 다른 포인터의 이벤트도 들어온다 — 시작 포인터만 본다
+      // (마퀴가 selection.js 에서 쓰는 pointerId 가드와 동형).
+      if (!captured && ev.pointerId !== pointerId) return;
       const y = ev.clientY;
       const candidates = [...currentDoc.querySelectorAll('.sheet .wg-obj[data-oid]')].filter((el) => el !== objEl);
       let placed = false;
@@ -224,20 +293,30 @@ export function createCanvasInline(deps) {
         if (last.nextElementSibling !== objEl) last.parentNode.appendChild(objEl); // 마지막 개체 뒤(그 페이지 끝)
       }
     };
+    const endEvent = captured ? 'lostpointercapture' : 'pointercancel';
     const onUp = (ev) => {
-      try { handleEl.releasePointerCapture(ev.pointerId); } catch { /* 이미 해제 */ }
-      handleEl.removeEventListener('pointermove', onMove);
-      handleEl.removeEventListener('pointerup', onUp);
-      handleEl.removeEventListener('lostpointercapture', onUp);
+      if (!captured && ev.pointerId !== pointerId) return;
+      try { captureEl.releasePointerCapture(ev.pointerId); } catch { /* 이미 해제 */ }
+      bus.removeEventListener('pointermove', onMove);
+      bus.removeEventListener('pointerup', onUp);
+      bus.removeEventListener(endEvent, onUp);
       objEl.classList.remove('wg-flow-dragging');
       dragState = null;
       const idsByPage = [...currentDoc.querySelectorAll('.sheet')].map((sheet) =>
         [...sheet.querySelectorAll('.wg-obj[data-oid]')].map((el) => el.dataset.oid));
       deps.onFlowReorder(idsByPage, id);
+      // 본체 드래그 뒤에는 click 이 따라오고 그 target 이 공통 조상(.sheet)으로 잡혀 selection.js 의
+      // "바깥 클릭 = 선택 해제" 경로를 타 버린다 — 그 한 번을 삼키게 알린다. 핸들 경로는 부르지
+      // 않는다(핸들 click 은 애초에 선택을 만들지 않는다 — 현행 동작 무변경).
+      if (bodyDrag) deps.onDragEnd?.();
     };
-    handleEl.addEventListener('pointermove', onMove);
-    handleEl.addEventListener('pointerup', onUp);
-    handleEl.addEventListener('lostpointercapture', onUp);
+    bus.addEventListener('pointermove', onMove);
+    bus.addEventListener('pointerup', onUp);
+    // 캡처가 있으면 취소 시 lostpointercapture 가 온다. 캡처가 **없으면** 그건 오지 않고(잃을 캡처가
+    // 없다) pointercancel 만 온다 — 그런데 문서에 lostpointercapture 를 걸면 같은 문서의 다른 캡처
+    // 보유자(마퀴 documentElement · float 드래그/리사이즈 el)가 캡처를 놓을 때 버블로 올라와
+    // **오발화**한다. 그래서 분기마다 정확히 하나만 건다.
+    bus.addEventListener(endEvent, onUp);
   }
 
   function cssEscape(id) {
@@ -287,10 +366,65 @@ export function createCanvasInline(deps) {
     doc.addEventListener('selectionchange', () => updateBubble());
     doc.addEventListener('mouseup', () => updateBubble());
 
+    // ── 본체 드래그 재정렬(arm → promote) ──
+    // pointerdown 에서는 **arm 만** 한다. 여기서 preventDefault 를 부르면 클릭 선택과 더블클릭
+    // 편집 진입이 함께 죽으므로 절대 부르지 않는다 — 대신 임계(5px)를 넘는 pointermove 가 와야
+    // 승격한다. 마퀴(selection.js)와는 조건이 배타적이다: 마퀴는 `[data-oid]` 위에서 양보하고
+    // 여기는 `.wg-obj[data-oid]` 가 없으면 arm 하지 않는다.
+    let armed = null;
+
+    const endBodyDrag = () => {
+      const wasArmed = !!armed;
+      armed = null;
+      // 드래그 상태의 **최종 청소부**. onUp 은 captureEl(.sheet)이나 문서에 걸리는데, 리플로우가
+      // 드래그 중에 끼어들면 reloadTeacherFrame 이 body.innerHTML 을 통째로 갈아 그 .sheet 가
+      // detach 된다 — 그러면 onUp 이 영영 오지 않고 dragState 가 남아 **이후 모든 본체 드래그가
+      // 조용히 막힌다**(실측으로 재현한 고착). 이 리스너는 문서에 걸려 있어 항상 오므로 여기서
+      // 끊는다. 정상 경로에서는 onUp 이 먼저 돌아 이미 null 이라 무해하다.
+      dragState = null;
+      const wasDragging = doc.body.classList.contains('wg-body-dragging');
+      if (wasDragging) doc.body.classList.remove('wg-body-dragging');
+      for (const el of doc.querySelectorAll('.wg-flow-dragging')) el.classList.remove('wg-flow-dragging');
+      // 임계 미달로 승격되지 않았어도 arm 구간(≤5px)에서 네이티브 텍스트 선택이 생겼을 수 있다.
+      // arm 자체가 없었으면(편집 중·핸들·float·빈 여백) 건드리지 않는다 — 정상 텍스트 선택 보호.
+      if (wasArmed || wasDragging) doc.defaultView.getSelection()?.removeAllRanges();
+    };
+
     doc.addEventListener('pointerdown', (e) => {
       const handle = e.target.closest('.wg-flow-handle');
-      if (handle) startFlowDrag(e, handle);
+      if (handle) { startFlowDrag(e, { id: handle.dataset.forOid, captureEl: handle }); return; }
+      const objEl = e.target.closest('.wg-obj[data-oid]');
+      const sheet = objEl?.closest('.sheet');
+      if (!shouldPromoteBodyDrag({
+        button: e.button,
+        editingId: deps.getSelectionState().editingId,
+        blockedBySelector: !!e.target.closest(NO_BODY_DRAG),
+        isFloat: !!e.target.closest('.wg-float'),
+        hasObj: !!(objEl && sheet),
+        dx: Infinity, dy: Infinity, // arm 단계에서는 임계를 보지 않는다(가드만 재사용)
+      })) return;
+      armed = { id: objEl.dataset.oid, sheet, pointerId: e.pointerId, x: e.clientX, y: e.clientY };
     });
+
+    doc.addEventListener('pointermove', (e) => {
+      // dragState 가 남아 있어도 그 개체가 문서에서 떨어져 나갔으면 죽은 드래그다(리플로우가
+      // body.innerHTML 을 갈아치운 경우) — 스테일로 보고 끊는다. 이 가드가 없으면 한 번 고착된
+      // 뒤로 본체 드래그가 영구히 안 된다.
+      if (dragState && !dragState.objEl?.isConnected) dragState = null;
+      if (!armed || dragState || e.pointerId !== armed.pointerId) return;
+      if (!shouldPromoteBodyDrag({ dx: e.clientX - armed.x, dy: e.clientY - armed.y })) return;
+      const a = armed;
+      armed = null;
+      // 승격 전 5px 구간에 브라우저 네이티브 텍스트 선택이 이미 시작됐을 수 있다(실측: 10스텝
+      // 드래그에 23자). removeAllRanges 가 진행 중 제스처를 실제로 끊고, user-select:none 이
+      // 재시작을 막는다. user-select 는 레이아웃 박스를 바꾸지 않아 R2-1(편집==인쇄) 안전.
+      doc.body.classList.add('wg-body-dragging');
+      doc.defaultView.getSelection()?.removeAllRanges();
+      startFlowDrag(e, { id: a.id, captureEl: a.sheet, bodyDrag: true });
+    });
+
+    doc.addEventListener('pointerup', endBodyDrag);
+    doc.addEventListener('pointercancel', endBodyDrag);
 
     doc.addEventListener('click', (e) => {
       const plus = e.target.closest('.wg-flow-insert');

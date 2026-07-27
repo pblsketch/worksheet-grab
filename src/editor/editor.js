@@ -116,7 +116,7 @@ function onHistoryRestore({ pageStructureChanged = false } = {}) {
   aiPanel.refreshFreshBadges(frames.teacher?.contentDocument ?? null);
   fitFrame(frames.teacher);
   markDirty();
-  runReview();
+  runReview({ measure: true }); // history.restore 가 body.innerHTML 을 교체했다 = 재렌더 뒤
   updateAll();
   renderPageThumbs();
   scrollToPage(activePageId);
@@ -207,6 +207,8 @@ function runReflow() {
       selection.restoreCaret(caret);
       activePageId = resolveActivePageId(nextDoc, activePageId, activeIndexBefore);
       renderPageThumbs(activeIndexBefore);
+      // 선택 복원(:203 refreshVisual) 뒤라야 측정 규칙이 .wg-selected 를 본다(결정 A-1).
+      runReview({ measure: true });
       // 리플로우는 사용자 조작이 아니라 파생 재계산이라 자기 되돌리기 단계를 갖지 않는다 —
       // commit() 이면 undo 가 이 단계에 갇혀 삭제를 영영 되돌릴 수 없다(history.amend 주석 참조).
       history.amend();
@@ -252,6 +254,10 @@ function reloadTeacherFrame(nextDoc) {
       });
     } catch { /* KaTeX 재렌더 실패 무시(수식 없는 문서·설정 차이) */ }
   }
+  // ⚠ 여기서 measure 를 돌면 안 된다. body 교체로 .wg-selected 가 전부 사라졌고 선택 복원은
+  //   **호출부가 이 함수 다음에** 한다 — 그 사이에 재면 floatLayout 의 "선택 상태면 억제"(결정 A-1)
+  //   가 항상 false 로 떨어져 승격 직후에 바로 경고가 뜬다. 호출부 2곳(applyDocOp·runReflow)이
+  //   선택 복원 뒤에 runReview({measure:true}) 를 부른다.
   runReview();
   return Promise.resolve();
 }
@@ -343,7 +349,7 @@ function initTeacherEditing(f, { resetHistory = true } = {}) {
   });
   if (resetHistory) history.reset();
   applyViewState();
-  runReview();
+  runReview({ measure: true }); // 프레임 load 직후 = 재렌더 뒤
   updateAll();
   renderPageThumbs();
 }
@@ -526,10 +532,34 @@ async function applyDocOp(next, {
   activePageId = resolveActivePageId(next, requestedActivePageId ?? activePageId, activeIndexBefore);
   renderPageThumbs(activeIndexBefore);
   history.commit();
-  runReview();
+  // 선택 복원(위 selection.select/refreshVisual) **뒤**라야 측정 규칙이 .wg-selected 를 볼 수 있다.
+  runReview({ measure: true });
   updateAll();
   if (reflow) scheduleReflow();
   return true;
+}
+
+/**
+ * 본문 배치 ⇄ 자유 배치 전환의 단일 진입점(툴바·인스펙터·우클릭 메뉴 3곳이 전부 여기를 거친다).
+ * 승격일 때만 화면 실측 rect 를 주입해 개체가 **보이던 그 자리에** 고정되게 한다 — 강등은 rect 를
+ * 버리므로 실측이 필요 없고, 순수 함수 쪽에서도 무시한다(원칙 3).
+ *
+ * 승격이 실제로 하는 일은 셋이다(교사에게 보이는 대로 적어 둔다):
+ *   1) 그 개체는 제자리에 남는다.
+ *   2) 개체가 flow 배열에서 빠지므로 **아래 내용이 그만큼 위로 올라온다** — 전환은 그 개체 하나가
+ *      아니라 페이지 전체를 재조판한다.
+ *   3) 그리고 승격 직후엔 selectId 로 선택 상태가 되는데, editorStyle.js 의
+ *      `.wg-float.wg-selected { pointer-events: auto }` 가 **래퍼 전체**를 불투명하게 만든다.
+ *      flow 에서 올라온 개체의 폭은 본문 전폭이라, 그 아래 flow 개체는 클릭·더블클릭·본체 드래그가
+ *      잠시 막힌다. **Esc 한 번으로 선택을 풀면**(handleEscape) 규칙이 `.wg-float:not(.wg-selected)`
+ *      쪽으로 내려가 내용 영역만 가로채는 상태가 된다. 겹침 자체는 floatLayout 의
+ *      float-covers-flow 통보가 알린다.
+ */
+function toggleFlowFloatFor(id) {
+  const found = core.findObject(id);
+  const rect = found?.obj?.placement === 'flow' ? selection.measureRectMm(id) : null;
+  const next = ObjOps.toggleFlowFloat(core.getDocument(), id, rect);
+  applyDocOp(next, { reflow: true, selectId: id });
 }
 
 async function doInsert(item, { float = false, afterId = null } = {}) {
@@ -845,7 +875,7 @@ const contextToolbar = createContextToolbar({
   onQuickInsert: (item) => doInsert(item, { float: !!item.floatOnly }),
   onDuplicate: (id) => { const { document: next, newId } = ObjOps.duplicateObject(core.getDocument(), id); if (newId) applyDocOp(next, { reflow: true, selectId: newId }); },
   onDelete: (id) => { const next = ObjOps.removeObject(core.getDocument(), id); selection.clearAll(); applyDocOp(next, { reflow: true }); },
-  onFlowFloat: (id) => { const next = ObjOps.toggleFlowFloat(core.getDocument(), id); applyDocOp(next, { reflow: true, selectId: id }); },
+  onFlowFloat: (id) => toggleFlowFloatFor(id),
   onFormat: (cmd, value) => applyFormat(cmd, value),
   onLink: () => applyLink(),
   onFont: (kind, value) => applyFont(kind, value),
@@ -902,7 +932,7 @@ const inspector = createInspector({
     const next = ObjOps.patchObject(core.getDocument(), id, patch);
     applyDocOp(next, { reflow: true, selectId: id });
   },
-  onToggleFlowFloat: (id) => { const next = ObjOps.toggleFlowFloat(core.getDocument(), id); applyDocOp(next, { reflow: true, selectId: id }); },
+  onToggleFlowFloat: (id) => toggleFlowFloatFor(id),
   onToggleAnswer: (id) => { const next = ObjOps.toggleAnswer(core.getDocument(), id); applyDocOp(next, { selectId: id }); },
   onAlign: (ids, mode2) => { const next = ObjOps.alignFloats(core.getDocument(), ids, mode2); applyDocOp(next); },
   onImageUpload: (id, file) => uploadImage(id, file),
@@ -941,12 +971,13 @@ const canvasInline = createCanvasInline({
   onInsertAfter: (item, afterId) => doInsert(item, { float: !!item.floatOnly, afterId }),
   onDuplicate: (id) => { const { document: next, newId } = ObjOps.duplicateObject(core.getDocument(), id); if (newId) applyDocOp(next, { reflow: true, selectId: newId }); },
   onDelete: (id) => { const next = ObjOps.removeObject(core.getDocument(), id); selection.clearAll(); applyDocOp(next, { reflow: true }); },
-  onFlowFloat: (id) => { const next = ObjOps.toggleFlowFloat(core.getDocument(), id); applyDocOp(next, { reflow: true, selectId: id }); },
+  onFlowFloat: (id) => toggleFlowFloatFor(id),
   onSaveAsPreset: (id) => saveObjectAsPreset(id),
   onFlowReorder: (idsByPage, draggedId) => {
     const next = ObjOps.applyFlowOrder(core.getDocument(), idsByPage);
     applyDocOp(next, { reflow: true, selectId: draggedId ?? null });
   },
+  onDragEnd: () => selection.armSwallowClick(),
 });
 
 // #10 표 셀 편집(인라인)·병합/분할·열 너비 조정 — 셀 텍스트는 reload 없이 즉시 변이(리플로우만 예약),

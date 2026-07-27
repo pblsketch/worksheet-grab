@@ -16,6 +16,29 @@ import {
   createUniquePageId,
 } from '/src/domain/schema/index.js';
 
+/** 자유 배치 기본 rect — 실측을 못 얻었을 때만 쓰는 폴백(삽입·승격 공통 단일 출처). */
+const DEFAULT_FLOAT_RECT = Object.freeze({ xMm: 20, yMm: 20, wMm: 60, hMm: 30 });
+
+/** 자유 개체 최소 치수(mm). selection.js 리사이즈의 MIN 과 같은 하한 — 실측이 그보다 얇아도 잡을 수 있게. */
+const MIN_FLOAT_MM = 10;
+
+/**
+ * 외부에서 들어온 rect 를 스키마가 받아들이는 형태로 정규화한다. 유한 number 4종이 아니면
+ * null 을 돌려 호출부가 폴백을 쓰게 한다 — validateObjectShape 의 isValidRect 와 같은 술어라
+ * NaN·부분 rect 가 문서에 실릴 경로가 없다(렌더의 mm() 는 NaNmm 을 조용히 방출한다).
+ */
+function normalizeFloatRect(rect) {
+  if (!rect) return null;
+  const keys = ['xMm', 'yMm', 'wMm', 'hMm'];
+  if (!keys.every((k) => typeof rect[k] === 'number' && Number.isFinite(rect[k]))) return null;
+  return {
+    xMm: rect.xMm,
+    yMm: rect.yMm,
+    wMm: Math.max(MIN_FLOAT_MM, rect.wMm),
+    hMm: Math.max(MIN_FLOAT_MM, rect.hMm),
+  };
+}
+
 let counter = 0;
 /** 클라이언트 개체 id — 시각+카운터+난수(충돌 회피, 결정성 불필요). */
 export function generateId(prefix = 'o') {
@@ -96,7 +119,7 @@ export function createObject(type, { placement = 'flow', qtype, rect } = {}) {
   const finalPlacement = spec.placements.includes(placement) ? placement : spec.placements[0];
   const obj = { id: generateId(type), type, placement: finalPlacement, ...defaultFieldsFor(type, { qtype }) };
   if (finalPlacement === 'float') {
-    obj.rect = rect ? { ...rect } : { xMm: 20, yMm: 20, wMm: 60, hMm: 30 };
+    obj.rect = rect ? { ...rect } : { ...DEFAULT_FLOAT_RECT };
   }
   return obj;
 }
@@ -320,9 +343,23 @@ export function nudgeFloat(document, id, dxMm, dyMm) {
   return { ...document, pages };
 }
 
-/** flow⇄float 전환. flow→float 은 rect 를 새로 부여(기본 위치), float→flow 는 rect 를 제거하고
- *  같은 페이지 flow 끝에 붙인다(원칙 3 정합 — flow 는 rect 를 가질 수 없다). */
-export function toggleFlowFloat(document, id) {
+/**
+ * flow⇄float 전환. float→flow 는 rect 를 제거하고 같은 페이지 flow 끝에 붙인다
+ * (원칙 3 정합 — flow 는 rect 를 가질 수 없다).
+ *
+ * flow→float 은 `measuredRect` 가 있으면 그 자리에 그대로 고정하고, 없으면 기본 위치로 떨군다.
+ * 실측은 DOM 이 있는 편집기(selection.measureRectMm)가 하고 이 함수는 순수하게 남는다 —
+ * 같은 파일의 createObject 도 정확히 같은 형태(선택적 rect + 같은 폴백)를 쓴다.
+ *
+ * ⚠ 강등(float→flow) 방향에서는 `measuredRect` 를 **무시**한다. rect 를 실은 flow 개체는 스키마
+ * 위반(원칙 3)이라, 호출부가 실수로 넘겨도 여기서 막는다 — 계약을 순수 함수 안에 둬야 미래
+ * 호출자가 뚫지 못한다.
+ *
+ * @param {object} document 개체 트리 문서
+ * @param {string} id
+ * @param {{xMm:number,yMm:number,wMm:number,hMm:number}|null} [measuredRect] 승격 시 화면 실측 rect
+ */
+export function toggleFlowFloat(document, id, measuredRect = null) {
   const pages = clonePages(document);
   const loc = locate(pages, id);
   if (!loc) return document;
@@ -331,7 +368,7 @@ export function toggleFlowFloat(document, id) {
   if (loc.bucket === 'flow') {
     if (!spec.placements.includes('float')) { pages[loc.page].flow.splice(loc.index, 0, obj); return { ...document, pages }; }
     obj.placement = 'float';
-    obj.rect = { xMm: 20, yMm: 20, wMm: 60, hMm: 30 };
+    obj.rect = normalizeFloatRect(measuredRect) ?? { ...DEFAULT_FLOAT_RECT };
     pages[loc.page].float.push(obj);
   } else {
     if (!spec.placements.includes('flow')) { pages[loc.page].float.splice(loc.index, 0, obj); return { ...document, pages }; }
