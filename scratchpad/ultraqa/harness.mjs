@@ -227,7 +227,9 @@ export async function launchQa(opts = {}) {
   /** modifiers: 1=Alt 2=Ctrl 4=Meta 8=Shift */
   async function pressKey(name, { modifiers = 0 } = {}) {
     const k = KEY[name] || { key: name, code: name, vk: 0 };
-    await cdp.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: k.key, code: k.code, windowsVirtualKeyCode: k.vk, nativeVirtualKeyCode: k.vk, modifiers });
+    // type 은 반드시 'keyDown' — 'rawKeyDown' 은 Ctrl 조합(Ctrl+Z/C/V)에서 페이지에 **도달하지 않아**
+    // 무결한 코드를 회귀로 오진시킨다(실측 확인, phase5-cdp-verify.mjs 와 동일 수정).
+    await cdp.send('Input.dispatchKeyEvent', { type: 'keyDown', key: k.key, code: k.code, windowsVirtualKeyCode: k.vk, nativeVirtualKeyCode: k.vk, modifiers });
     await cdp.send('Input.dispatchKeyEvent', { type: 'keyUp', key: k.key, code: k.code, windowsVirtualKeyCode: k.vk, nativeVirtualKeyCode: k.vk, modifiers });
     await sleep(40);
   }
