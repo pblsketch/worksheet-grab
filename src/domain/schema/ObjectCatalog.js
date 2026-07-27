@@ -3,7 +3,7 @@
 // 반영해 동결한 프로덕션 타입 상수다. 상세 근거·판정은 docs/HANDOFF-object-schema.md 참조.
 //
 // TYPE_SPECS 는 schema/worksheet-object.schema.json 의 per-type properties 와 1:1 대응한다
-// (두 산출물이 갈라지면 즉시 회귀 — object-schema.test.js 가 카탈로그 10종 픽스처로 상시 단정).
+// (두 산출물이 갈라지면 즉시 회귀 — object-schema.test.js 가 카탈로그 12종 픽스처로 상시 단정).
 
 /** qtype 7종(C-11 스파이크 전량 PASS — candidate-schema.md §4). */
 export const QUESTION_TYPES = Object.freeze([
@@ -34,7 +34,10 @@ export const TYPE_SPECS = Object.freeze({
   'passage-slot': Object.freeze({
     placements: Object.freeze(['flow']),
     required: Object.freeze(['slotLabel']),
-    optional: Object.freeze(['title', 'bodyHtml', 'source', 'footnotes']),
+    // borderColor/borderWidth/bgColor: 지문 박스 서식(교사가 편집기에서 직접 지정, #3). table 의
+    // borderColor/borderWidth 와 같은 CSS 변수 경로를 쓴다 — 렌더가 인라인 커스텀 프로퍼티로
+    // 방출하고 blocks.css `.passage` 가 var() 기본값으로 받는다(편집==인쇄 동일 선언).
+    optional: Object.freeze(['title', 'bodyHtml', 'source', 'footnotes', 'borderColor', 'borderWidth', 'bgColor']),
   }),
   'question': Object.freeze({
     placements: Object.freeze(['flow', 'float']),
@@ -86,7 +89,15 @@ export const TYPE_SPECS = Object.freeze({
     // 원칙 3의 대상 밖: 원칙 3은 "성취기준 원문"에만 적용된다). std-box 타입 자체는 여전히
     // AI_EXCLUDED_TYPES 에 남아 편집기 AI 재작성(aiBridge) 요청 대상에서는 제외되지만, designer 의
     // 초안 저작 시점에는 이 필드를 채운다(2026-07-23 학습목표 표기 전환).
-    optional: Object.freeze(['codes', 'objectives']),
+    //
+    // heading: 학습목표 박스 제목(기본 '학습 목표'). 교사가 본문에서 직접 고칠 수 있다 —
+    //   "오늘의 목표"·"성취 목표"처럼 학교/교과마다 부르는 이름이 다르다(#1).
+    // showStandards: 근거 성취기준(코드+원문) 박스를 **교사용에** 함께 낼지. **기본은 표시하지
+    //   않는다**(2026-07-28) — 현장에서 활동지에 얹는 것은 학습목표뿐이고 성취기준 원문은 대개
+    //   넣지 않는다는 실사용 피드백에 따른 기본값 전환이다. true 일 때만 `.std-ref` 박스를 낸다
+    //   (그마저도 학생용에서는 CSS 로 숨는다 — 종전과 같음). 이 필드는 표시 여부만 정하며
+    //   codes(조회 참조)는 그대로 보존된다 — 껐다 켜도 성취기준 정보가 소실되지 않는다.
+    optional: Object.freeze(['codes', 'objectives', 'heading', 'showStandards']),
   }),
   // ── 레이아웃 전용 2종(2026-07-28 신설) ─────────────────────────────────────
   // 둘 다 "내용"이 아니라 **조판 의도**를 담는다. flow 전용인 이유가 각각 있다(아래 주석).

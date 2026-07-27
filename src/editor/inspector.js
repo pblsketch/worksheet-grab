@@ -38,6 +38,9 @@ const TYPE_LABELS = Object.freeze({
 // placement(flow/float) → 사용자용 한국어(#9): float=자유 배치, flow=본문 배치(교사 친화 표현, US-E4).
 const PLACEMENT_LABEL = Object.freeze({ float: '자유 배치', flow: '본문 배치' });
 
+/** <input type="color"> 는 #rrggbb 만 받는다 — 저장값이 그 형태일 때만 초기값으로 쓰고, 아니면 기본색. */
+const HEX6 = /^#[0-9a-f]{6}$/i;
+
 /**
  * @param {{
  *   root: HTMLElement,
@@ -153,6 +156,55 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
     renderTypeFields(obj);
   }
 
+  /**
+   * qtype 별 "항목 개수" 편집. 항목 **글자**는 캔버스에서 더블클릭해 고칠 수 있었지만, 개수를
+   * 늘리거나 줄일 수단이 어디에도 없었다 — 삽입 기본값(객관식 보기 4개·연결형 2쌍·순서 3개)에
+   * 갇혀 5번째 보기를 못 만들었다. 배열 원소는 렌더(cellText)가 문자열/{id,text} 를 모두 받으므로
+   * 새 원소는 문자열로 넣는다(저작 경로 관례, objectFactory.questionDefaults 와 동형).
+   */
+  const QTYPE_ITEM_SPEC = Object.freeze({
+    'multiple-choice': { fields: ['choices'], label: '보기', seed: (n) => `보기 ${n}` },
+    'true-false': { fields: ['choices'], label: '판별 문장', seed: (n) => `문장 ${n}` },
+    'fill-blank': { fields: ['choices'], label: '낱말 상자 항목', seed: (n) => `낱말 ${n}` },
+    ordering: { fields: ['items'], label: '순서 항목', seed: (n) => `항목 ${n}` },
+    matching: { fields: ['left', 'right'], label: '연결 쌍', seed: (n, f) => (f === 'left' ? `항목 ${n}` : `설명 ${n}`) },
+  });
+
+  function renderQuestionItemFields(obj, patch) {
+    // 서술형은 항목이 아니라 답란 줄 수가 조절 대상이다(렌더 기본 4줄, 0=내장 답란 없음).
+    if (obj.qtype === 'essay') {
+      const lines = el('input', { type: 'number', min: '0', max: '30', id: 'insp-q-lines', value: String(obj.lines ?? 4) });
+      lines.addEventListener('change', () => patch({ lines: Math.max(0, Math.min(30, Number(lines.value) || 0)) }));
+      root.appendChild(field('답란 줄 수(0=없음)', lines));
+      return;
+    }
+    const spec = QTYPE_ITEM_SPEC[obj.qtype];
+    if (!spec) return;
+    const counts = spec.fields.map((f) => (Array.isArray(obj[f]) ? obj[f].length : 0));
+    const n = Math.max(...counts);
+    root.appendChild(el('p', { class: 'insp-note', id: 'insp-q-item-count', text: `${spec.label} ${n}개 · 내용은 캔버스에서 더블클릭해 고칩니다` }));
+    const add = el('button', { type: 'button', class: 'insp-btn', id: 'insp-q-add-item', text: `+ ${spec.label} 추가` });
+    add.addEventListener('click', () => {
+      const p = {};
+      for (const f of spec.fields) {
+        const arr = Array.isArray(obj[f]) ? obj[f] : [];
+        p[f] = [...arr, spec.seed(arr.length + 1, f)];
+      }
+      patch(p);
+    });
+    const del = el('button', { type: 'button', class: 'insp-btn', id: 'insp-q-del-item', text: `- ${spec.label} 삭제` });
+    del.addEventListener('click', () => {
+      if (n <= 1) return; // 마지막 하나는 남긴다(빈 배열이면 렌더가 보조 영역을 통째로 생략한다)
+      const p = {};
+      for (const f of spec.fields) {
+        const arr = Array.isArray(obj[f]) ? obj[f] : [];
+        if (arr.length) p[f] = arr.slice(0, -1);
+      }
+      patch(p);
+    });
+    root.appendChild(el('div', { class: 'insp-row-buttons' }, [add, del]));
+  }
+
   function renderTypeFields(obj) {
     const patch = (p) => onPatchObject(obj.id, p);
     switch (obj.type) {
@@ -177,6 +229,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         const source = el('input', { type: 'text', id: 'insp-title-source', value: meta.source || '' });
         source.addEventListener('change', () => patchMeta('source', source.value.trim()));
         root.appendChild(field('출처 표기', source));
+        root.appendChild(el('p', { class: 'insp-note', text: '이미 붙인 배지·모서리 표기·출처는 캔버스에서 더블클릭해 바로 고칠 수 있습니다(비우면 사라집니다).' }));
         break;
       }
       case 'question': {
@@ -190,6 +243,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         const qnum = el('input', { type: 'number', id: 'insp-qnum', value: obj.qnum != null ? String(obj.qnum) : '' });
         qnum.addEventListener('change', () => patch({ qnum: qnum.value === '' ? undefined : Number(qnum.value) }));
         root.appendChild(field('번호', qnum));
+        renderQuestionItemFields(obj, patch);
         break;
       }
       case 'table': {
@@ -213,7 +267,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         caption.addEventListener('change', () => patch({ caption: caption.value }));
         root.appendChild(field('캡션', caption));
         // 표 테두리 색·두께(#5 2차) — CSS 변수로 렌더에 반영.
-        const bColor = el('input', { type: 'color', id: 'insp-table-border-color', value: /^#[0-9a-f]{6}$/i.test(obj.borderColor) ? obj.borderColor : '#cbd5c0' });
+        const bColor = el('input', { type: 'color', id: 'insp-table-border-color', value: HEX6.test(obj.borderColor) ? obj.borderColor : '#cbd5c0' });
         bColor.addEventListener('input', () => patch({ borderColor: bColor.value }));
         root.appendChild(field('테두리 색', bColor));
         const bWidth = el('input', { type: 'number', id: 'insp-table-border-width', min: '0', max: '6', step: '0.5', value: String(obj.borderWidth ?? 1) });
@@ -242,8 +296,11 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         break;
       }
       case 'answer-area': {
+        // 값은 계속 영문 토큰(line/dots/box)이지만 화면에는 한국어로 보인다 — 교사가 "dots" 가
+        // 무엇인지 고르기 전에 알 수 없었다(다른 select 는 전부 한국어 라벨을 쓴다).
+        const AA_STYLE_LABELS = { line: '밑줄', dots: '점(원형) 목록', box: '네모 칸' };
         const styleSel = el('select', { id: 'insp-aa-style' });
-        for (const s of ANSWER_AREA_STYLES) styleSel.appendChild(el('option', { value: s, text: s, selected: obj.style === s ? 'selected' : null }));
+        for (const s of ANSWER_AREA_STYLES) styleSel.appendChild(el('option', { value: s, text: AA_STYLE_LABELS[s] || s, selected: obj.style === s ? 'selected' : null }));
         styleSel.addEventListener('change', () => patch({ style: styleSel.value }));
         root.appendChild(field('스타일', styleSel));
         const lines = el('input', { type: 'number', min: '1', id: 'insp-aa-lines', value: String(obj.lines || 1) });
@@ -275,7 +332,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         for (const k of SHAPE_KINDS) kindSel.appendChild(el('option', { value: k, text: SHAPE_KIND_LABELS[k] || k, selected: obj.shapeKind === k ? 'selected' : null }));
         kindSel.addEventListener('change', () => patch({ shapeKind: kindSel.value }));
         root.appendChild(field('종류', kindSel));
-        const stroke = el('input', { type: 'color', id: 'insp-shape-stroke', value: /^#[0-9a-f]{6}$/i.test(obj.strokeColor) ? obj.strokeColor : '#111827' });
+        const stroke = el('input', { type: 'color', id: 'insp-shape-stroke', value: HEX6.test(obj.strokeColor) ? obj.strokeColor : '#111827' });
         stroke.addEventListener('input', () => patch({ strokeColor: stroke.value }));
         root.appendChild(field('선 색', stroke));
         const width = el('input', { type: 'number', id: 'insp-shape-width', min: '0.5', max: '12', step: '0.5', value: String(obj.strokeWidth ?? 1.6) });
@@ -285,7 +342,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         for (const d of DASH_STYLES) dashSel.appendChild(el('option', { value: d, text: DASH_LABELS[d] || d, selected: (obj.dash || 'solid') === d ? 'selected' : null }));
         dashSel.addEventListener('change', () => patch({ dash: dashSel.value }));
         root.appendChild(field('선 유형', dashSel));
-        const fill = el('input', { type: 'color', id: 'insp-shape-fill', value: /^#[0-9a-f]{6}$/i.test(obj.fillColor) ? obj.fillColor : '#ffffff' });
+        const fill = el('input', { type: 'color', id: 'insp-shape-fill', value: HEX6.test(obj.fillColor) ? obj.fillColor : '#ffffff' });
         fill.addEventListener('input', () => patch({ fillColor: fill.value }));
         root.appendChild(field('채우기', fill));
         break;
@@ -295,9 +352,12 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         break;
       }
       case 'passage-slot': {
+        // 3층 정책(2026-07-23 2차 델타)의 현재 내용을 그대로 적는다 — 종전 안내문은 "AI는 지문을
+        // 채우거나 재작성하지 않습니다"라고 단정했지만, 그 뒤 passage-slot 이 AI_EXCLUDED_TYPES 에서
+        // 빠져 편집기 AI 패널로 창작·재구성을 요청할 수 있게 됐다(사실과 어긋난 안내였다).
         root.appendChild(el('p', {
           class: 'insp-note',
-          text: 'AI는 지문을 채우거나 재작성하지 않습니다 — 본문은 교사가 직접 입력합니다(저작권법 제25조, 로컬 처리·교사 책임). 출처 표기를 권장합니다.',
+          text: '지문은 교사가 직접 입력하는 것이 기본입니다(저작권법 제25조, 로컬 처리·교사 책임). 명시적으로 요청하면 AI가 창작·재구성·수준 조정도 할 수 있지만, 실존 저작물의 원문을 그대로 옮기지는 않습니다. 출처 표기를 권장합니다.',
         }));
         const slotLabel = el('input', { type: 'text', id: 'insp-slot-label', value: obj.slotLabel || '' });
         slotLabel.addEventListener('change', () => patch({ slotLabel: slotLabel.value }));
@@ -311,16 +371,45 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         const source = el('input', { type: 'text', id: 'insp-slot-source', value: obj.source || '' });
         source.addEventListener('change', () => patch({ source: source.value }));
         root.appendChild(field('출처', source));
+        // 박스 서식(#3) — 지문 성격(자료·인용·안내)을 색으로 구분하고 싶다는 요구. 미지정이면
+        // blocks.css 의 var() 기본값(#bbb / 1.5px / #fcfcfa)이 그대로 쓰인다.
+        root.appendChild(el('h4', { text: '지문 상자 서식', style: 'margin-top:12px' }));
+        const psBorder = el('input', { type: 'color', id: 'insp-slot-border-color', value: HEX6.test(obj.borderColor) ? obj.borderColor : '#bbbbbb' });
+        psBorder.addEventListener('input', () => patch({ borderColor: psBorder.value }));
+        root.appendChild(field('테두리 색', psBorder));
+        const psWidth = el('input', { type: 'number', id: 'insp-slot-border-width', min: '0', max: '8', step: '0.5', value: String(obj.borderWidth ?? 1.5) });
+        psWidth.addEventListener('change', () => patch({ borderWidth: Math.max(0, Number(psWidth.value) || 0) }));
+        root.appendChild(field('테두리 두께(px)', psWidth));
+        const psBg = el('input', { type: 'color', id: 'insp-slot-bg-color', value: HEX6.test(obj.bgColor) ? obj.bgColor : '#fcfcfa' });
+        psBg.addEventListener('input', () => patch({ bgColor: psBg.value }));
+        root.appendChild(field('배경색', psBg));
+        const psReset = el('button', { type: 'button', class: 'insp-btn', id: 'insp-slot-style-reset', text: '서식 기본값으로' });
+        psReset.addEventListener('click', () => patch({ borderColor: undefined, borderWidth: undefined, bgColor: undefined }));
+        root.appendChild(psReset);
         break;
       }
       case 'std-box': {
-        // codes 는 curriculum-mapper 가 확정한 조회 참조라 편집기에서 직접 고치지 않는다(읽기 전용).
-        const codes = el('input', { type: 'text', id: 'insp-std-codes', value: (obj.codes || []).join(', '), readonly: 'readonly' });
-        root.appendChild(field('성취기준 코드(읽기 전용)', codes));
+        // 박스 제목(기본 '학습 목표') — 학교·교과마다 부르는 이름이 다르다. 캔버스에서도 고칠 수 있다.
+        const heading = el('input', { type: 'text', id: 'insp-std-heading', value: obj.heading || '', placeholder: '학습 목표' });
+        heading.addEventListener('change', () => patch({ heading: heading.value.trim() || undefined }));
+        root.appendChild(field('박스 제목', heading));
         // objectives = 학습목표(저작 영역) — codes 와 달리 교사가 편집기에서 직접 다듬을 수 있다.
         const objectives = el('textarea', { id: 'insp-std-objectives', rows: '4', text: (obj.objectives || []).join('\n') });
         objectives.addEventListener('change', () => patch({ objectives: objectives.value.split('\n').map((s) => s.trim()).filter(Boolean) }));
         root.appendChild(field('학습 목표(줄바꿈으로 구분)', objectives));
+        root.appendChild(el('p', { class: 'insp-note', text: '제목과 각 목표 문장은 캔버스에서 더블클릭해 바로 고칠 수 있습니다. 여기서는 줄을 늘리거나 줄입니다.' }));
+        // 근거 성취기준 표시 — 기본은 꺼짐(활동지에는 대개 학습목표만 싣는다). 켜면 교사용에만 보인다.
+        const stdLabel = el('label', { class: 'insp-check' });
+        const stdCb = el('input', { type: 'checkbox', id: 'insp-std-show-standards' });
+        stdCb.checked = obj.showStandards === true;
+        stdCb.addEventListener('change', () => patch({ showStandards: stdCb.checked ? true : undefined }));
+        stdLabel.appendChild(stdCb);
+        stdLabel.appendChild(el('span', { text: '근거 성취기준 함께 표시(교사용에만 보임)' }));
+        root.appendChild(stdLabel);
+        // codes 는 curriculum-mapper 가 확정한 조회 참조라 편집기에서 직접 고치지 않는다(읽기 전용).
+        // 표시를 꺼도 이 값은 그대로 남아, 다시 켜면 원문이 되살아난다.
+        const codes = el('input', { type: 'text', id: 'insp-std-codes', value: (obj.codes || []).join(', '), readonly: 'readonly' });
+        root.appendChild(field('성취기준 코드(읽기 전용)', codes));
         break;
       }
       default: break;

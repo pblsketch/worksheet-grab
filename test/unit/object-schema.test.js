@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { validateObjectShape, checkExportGate, OBJECT_TYPES } from '../../src/domain/schema/index.js';
+import { validateObjectShape, checkExportGate, OBJECT_TYPES, TYPE_SPECS } from '../../src/domain/schema/index.js';
 
 // S1.1 수용 기준(06_plan_final.md 132행): 각 타입 최소 픽스처 통과 / 미지정 타입 거부 /
 // 좌표(rect) 있는 AI 생성 개체 거부(placement:'flow'에 rect 금지) / scaffold export 거부·paginated 허용 계약.
@@ -134,4 +134,37 @@ test('std-box: objectives(학습목표 문장 배열)는 카탈로그 필드라 
 test('std-box: objectives 없이 codes 만 있어도(하위호환) 여전히 PASS', () => {
   const { ok, findings } = validateObjectShape({ id: 's4', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] });
   assert.equal(ok, true, JSON.stringify(findings));
+});
+
+// ── 2026-07-28: 지문 박스 서식 3필드 · std-box heading/showStandards ──
+
+test('passage-slot: 박스 서식 3필드(borderColor/borderWidth/bgColor)는 카탈로그 필드라 PASS', () => {
+  const { ok, findings } = validateObjectShape({
+    id: 'p5', type: 'passage-slot', placement: 'flow', slotLabel: '［지문］',
+    borderColor: '#2563eb', borderWidth: 2, bgColor: '#eef4fc',
+  });
+  assert.equal(ok, true, JSON.stringify(findings));
+});
+
+test('std-box: heading/showStandards 는 카탈로그 필드라 PASS(슬롯 불변식은 그 밖 필드에만 적용)', () => {
+  const { ok, findings } = validateObjectShape({
+    id: 's5', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'],
+    objectives: ['설명할 수 있다.'], heading: '오늘의 목표', showStandards: true,
+  });
+  assert.equal(ok, true, JSON.stringify(findings));
+});
+
+test('canonical JSON schema 와 카탈로그가 신규 필드에서도 1:1 대응', async () => {
+  const schema = JSON.parse(await readFile(resolve('schema/worksheet-object.schema.json'), 'utf8'));
+  const pairs = [
+    ['passageSlotObject', 'passage-slot'],
+    ['stdBoxObject', 'std-box'],
+  ];
+  for (const [defName, type] of pairs) {
+    const props = Object.keys(schema.$defs[defName].properties);
+    const catalog = new Set([...TYPE_SPECS[type].required, ...TYPE_SPECS[type].optional]);
+    for (const field of catalog) {
+      assert.ok(props.includes(field), `${defName} 에 카탈로그 필드 '${field}' 가 없다(두 산출물이 갈라졌다)`);
+    }
+  }
 });

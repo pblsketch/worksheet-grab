@@ -1514,6 +1514,107 @@ export async function runEditorTestSeed(seed, {
     doc.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey: true, bubbles: true }));
     await wait(30);
     document.body.dataset.eeShiftEnterIgnored = String(selection.state.editingId === null);
+  } else if (seed === 'part-edit-ux') {
+    // 2026-07-28 UX 배치 — 개체 부가 텍스트의 본문 인라인 편집(#1·#1b), 근거 성취기준 선택 표시(#1),
+    // 지문 박스 서식(#3), 연결점 간격(#4), 문항 항목 증감(#5)을 실 DOM 이벤트로 재현한다.
+    const partEl = (sel) => doc.querySelector(sel);
+    /** 조각을 더블클릭해 열고 텍스트를 바꾼 뒤(input) 상태를 남긴다 — partEdit 은 캡처 dblclick 소유. */
+    const editPart = (sel, text) => {
+      const el = partEl(sel);
+      if (!el) return null;
+      el.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      el.textContent = text;
+      el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+      return el;
+    };
+
+    // 1) 학습목표 문장 — 인스펙터를 열지 않고 본문에서 바로 고친다
+    const goal0 = editPart('.wg-part[data-part="objectives"][data-i="0"]', '본문에서 고친 목표');
+    document.body.dataset.peObjective0 = core.findObject('s1').obj.objectives[0];
+    document.body.dataset.peObjectiveOther = core.findObject('s1').obj.objectives[1];
+    // Enter = 줄바꿈이 아니라 편집 종료(조각 값에 개행이 섞이지 않는다)
+    goal0.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    await wait(20);
+    document.body.dataset.peEnterClosed = String(!goal0.hasAttribute('contenteditable'));
+    document.body.dataset.peObjectiveNoNewline = String(!core.findObject('s1').obj.objectives[0].includes('\n'));
+
+    // 2) 박스 제목(heading) — "학습 목표" 라는 제목 자체도 본문에서 고친다
+    editPart('.wg-part[data-part="heading"]', '오늘의 목표');
+    document.body.dataset.peHeading = core.findObject('s1').obj.heading ?? '(none)';
+
+    // 3) 제목 박스 배지·모서리 표기 — 인스펙터 전용이던 meta.* 를 본문에서 고친다
+    editPart('.wg-part[data-part="meta.pill"]', '중2 · 3차시');
+    document.body.dataset.pePill = core.findObject('t1').obj.meta.pill;
+    editPart('.wg-part[data-part="meta.page"]', '');
+    document.body.dataset.pePageCleared = String(core.findObject('t1').obj.meta.page === undefined);
+
+    // 4) 지문 제목·출처("출처: " 접두는 편집 대상 밖 — 값만 되읽는다)
+    editPart('.passage .wg-part[data-part="title"]', '지문 (다)');
+    document.body.dataset.pePassageTitle = core.findObject('p1').obj.title;
+    editPart('.passage .src .wg-part[data-part="source"]', '중학교 사회 2');
+    document.body.dataset.pePassageSource = core.findObject('p1').obj.source;
+
+    // 5) 근거 성취기준: 기본은 숨김, 인스펙터 체크박스로 켜면 교사용에 나타난다
+    document.body.dataset.peStdRefDefault = String(doc.querySelectorAll('.std-ref').length);
+    partEl('[data-oid="s1"]').click();
+    await wait(20);
+    const showCb = document.getElementById('insp-std-show-standards');
+    document.body.dataset.peStdCheckboxExists = String(!!showCb);
+    document.body.dataset.peStdCheckboxDefault = String(showCb?.checked === false);
+    showCb.checked = true;
+    showCb.dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(120);
+    doc = frames.teacher.contentDocument; // applyDocOp 가 프레임을 갈아끼운다
+    document.body.dataset.peStdRefOn = String(doc.querySelectorAll('.std-ref').length);
+    document.body.dataset.peStdCodesKept = String((core.findObject('s1').obj.codes || []).length);
+
+    // 6) 지문 박스 서식(#3) — 색/두께가 CSS 변수로 실제 렌더에 반영된다
+    doc.querySelector('[data-oid="p1"]').click();
+    await wait(20);
+    const psBorder = document.getElementById('insp-slot-border-color');
+    document.body.dataset.pePassageStyleFields = String(
+      !!psBorder && !!document.getElementById('insp-slot-border-width') && !!document.getElementById('insp-slot-bg-color'));
+    psBorder.value = '#2563eb';
+    psBorder.dispatchEvent(new Event('input', { bubbles: true }));
+    await wait(120);
+    doc = frames.teacher.contentDocument;
+    const passageEl = doc.querySelector('.passage');
+    document.body.dataset.pePassageBorderVar = passageEl.style.getPropertyValue('--wg-ps-border').trim();
+    document.body.dataset.pePassageBorderComputed = doc.defaultView.getComputedStyle(passageEl).borderTopColor;
+
+    // 7) 연결형 연결점(#4) — 점이 가운데 뭉치지 않고 각자 항목 쪽 끝에 붙는다(실측)
+    const dots = doc.querySelectorAll('.q-match tr:first-child .q-match-dot');
+    const lCell = doc.querySelector('.q-match tr:first-child .q-match-l');
+    const rCell = doc.querySelector('.q-match tr:first-child .q-match-r');
+    if (dots.length === 2 && lCell && rCell) {
+      const d0 = dots[0].getBoundingClientRect();
+      const d1 = dots[1].getBoundingClientRect();
+      const lr = lCell.getBoundingClientRect();
+      const rr = rCell.getBoundingClientRect();
+      document.body.dataset.peDotGapBetween = String(Math.round(d1.left - d0.right));
+      document.body.dataset.peDotToLeftItem = String(Math.round(d0.left - lr.right));
+      document.body.dataset.peDotToRightItem = String(Math.round(rr.left - d1.right));
+    }
+
+    // 8) 문항 항목 증감(#5) — 연결형 쌍을 인스펙터에서 늘린다(전엔 삽입 기본값에 갇혀 있었다)
+    doc.querySelector('[data-oid="q1"]').click();
+    await wait(20);
+    const addBtn = document.getElementById('insp-q-add-item');
+    document.body.dataset.peAddItemExists = String(!!addBtn);
+    addBtn.click();
+    await wait(120);
+    doc = frames.teacher.contentDocument;
+    const q1obj = core.findObject('q1').obj;
+    document.body.dataset.peMatchPairs = `${q1obj.left.length}/${q1obj.right.length}`;
+    document.body.dataset.peMatchRows = String(doc.querySelectorAll('.q-match tbody tr').length);
+
+    // 9) 이미지 자리(#2) — 맨 글자가 아니라 실제 박스로 그려진다(실측 높이·점선 테두리)
+    const ph = doc.querySelector('.image-slot.placeholder');
+    const phRect = ph.getBoundingClientRect();
+    const phStyle = doc.defaultView.getComputedStyle(ph);
+    document.body.dataset.peImageHeight = String(Math.round(phRect.height));
+    document.body.dataset.peImageBorderStyle = phStyle.borderTopStyle;
+    document.body.dataset.peImageHasIcon = String(!!ph.querySelector('svg.is-icon'));
   }
   document.body.dataset.seedDone = seed;
 }

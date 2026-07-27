@@ -157,15 +157,41 @@ function mm(n) {
   return `${Number(n)}mm`;
 }
 
-// ── 타입별 렌더 함수(닫힌 카탈로그 10종, HANDOFF §1) — loadBlockHtml(불투명 HTML) 대체 ──
+// ── 타입별 렌더 함수(닫힌 카탈로그 12종, HANDOFF §1) — loadBlockHtml(불투명 HTML) 대체 ──
+
+/**
+ * 인라인 편집 가능한 "부가 텍스트 조각"의 편집 좌표를 실어 주는 속성 문자열(#1/#1b).
+ *
+ * `.q-part`(선지·항목)와 같은 규약을 개체 전반으로 넓힌 것이다 — editMode 에서만 data-part(필드 경로)·
+ * data-i(배열 인덱스)를 붙이고, editor/partEdit.js 가 그 좌표로 개체 필드를 되쓴다. **속성만** 늘리므로
+ * 레이아웃 박스는 편집(editMode:true)과 인쇄(false)가 문자 그대로 같다 — R2-1(편집==인쇄) 안전.
+ * 값이 없는 조각은 호출부가 애초에 그리지 않는다(editMode 전용 빈 요소를 만들면 편집 측정 높이와
+ * 인쇄 높이가 갈린다 — selection.js 의 image-slot 캡션 주석과 같은 규약, 새로 다는 것은 인스펙터 몫).
+ */
+function partAttr(ctx, field, index = null) {
+  if (!ctx || !ctx.editMode) return '';
+  return ` data-part="${escapeHtml(field)}"${index != null ? ` data-i="${index}"` : ''}`;
+}
+
+/**
+ * 사용자 지정 색을 CSS 값 자리에 넣기 전 검사한다 — 인라인 style 에 들어가므로 escapeHtml 만으로는
+ * `;` 로 선언을 끊고 다른 속성을 주입하는 걸 못 막는다. 편집기 색 입력(#rrggbb)과 'transparent'·
+ * 'none' 같은 키워드만 통과시킨다. 통과 못 하면 null → 호출부가 그 선언 자체를 생략(기본값 유지).
+ */
+function cssColor(value) {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (/^#[0-9a-fA-F]{3,8}$/.test(v) || /^[a-zA-Z]+$/.test(v)) return v;
+  return null;
+}
 
 function renderByType(obj, ctx) {
   switch (obj.type) {
-    case 'title': return renderTitle(obj);
-    case 'passage-slot': return renderPassageSlot(obj);
+    case 'title': return renderTitle(obj, ctx);
+    case 'passage-slot': return renderPassageSlot(obj, ctx);
     case 'question': return renderQuestion(obj, ctx);
     case 'table': return renderTable(obj, ctx);
-    case 'image-slot': return renderImageSlot(obj);
+    case 'image-slot': return renderImageSlot(obj, ctx);
     case 'answer-area': return renderAnswerArea(obj);
     case 'divider': return renderDivider();
     case 'shape': return renderShape(obj);
@@ -178,13 +204,15 @@ function renderByType(obj, ctx) {
   }
 }
 
-function renderTitle(obj) {
+function renderTitle(obj, ctx = {}) {
   const level = obj.level === 2 ? 2 : 1;
   const tag = level === 1 ? 'h1' : 'h2';
   const meta = obj.meta || {};
-  const pill = meta.pill ? `<span class="pill">${escapeHtml(meta.pill)}</span>\n    ` : '';
-  const page = meta.page ? `<span class="corner-ref">${escapeHtml(meta.page)}</span>\n    ` : '';
-  const source = meta.source ? `\n    <div class="title-src">${escapeHtml(meta.source)}</div>` : '';
+  // 배지·모서리 표기·출처는 인스펙터에서만 고칠 수 있었다(#1b) — 값이 있으면 본문에서도
+  // 더블클릭으로 바로 고치도록 편집 좌표(meta.*)를 싣는다. 새로 다는 것은 여전히 인스펙터 몫.
+  const pill = meta.pill ? `<span class="pill wg-part"${partAttr(ctx, 'meta.pill')}>${escapeHtml(meta.pill)}</span>\n    ` : '';
+  const page = meta.page ? `<span class="corner-ref wg-part"${partAttr(ctx, 'meta.page')}>${escapeHtml(meta.page)}</span>\n    ` : '';
+  const source = meta.source ? `\n    <div class="title-src wg-part"${partAttr(ctx, 'meta.source')}>${escapeHtml(meta.source)}</div>` : '';
   // textHtml(인라인 서식 살균 HTML)이 있으면 그대로 방출(richtext.html 관례 — 이스케이프 없음),
   // 없으면 평문 text 를 이스케이프(하위호환).
   const titleInner = typeof obj.textHtml === 'string' && obj.textHtml !== '' ? obj.textHtml : escapeHtml(obj.text);
@@ -198,14 +226,26 @@ function renderTitle(obj) {
  * 과 동형 관례 — 무손실 HTML, 이스케이프 없이 그대로 방출)하고, 비어 있으면 현행 슬롯 플레이스홀더
  * 박스(.slot)를 렌더한다. source 는 있으면 출처 표기 줄을 덧붙인다(둘 중 어느 분기든).
  */
-function renderPassageSlot(obj) {
-  const titleHtml = obj.title ? `<h3>${escapeHtml(obj.title)}</h3>\n  ` : '';
+function renderPassageSlot(obj, ctx = {}) {
+  const titleHtml = obj.title ? `<h3 class="wg-part"${partAttr(ctx, 'title')}>${escapeHtml(obj.title)}</h3>\n  ` : '';
   const hasBody = typeof obj.bodyHtml === 'string' && obj.bodyHtml.trim() !== '';
   const bodyOrSlot = hasBody
     ? `<div class="passage-body">${obj.bodyHtml}</div>`
     : `<div class="slot">${escapeHtml(obj.slotLabel)}</div>`;
-  const source = obj.source ? `\n  <div class="src">출처: ${escapeHtml(obj.source)}</div>` : '';
-  return `<div class="passage">
+  // "출처: " 접두는 고정 문구라 편집 대상 밖에 둔다 — 값만 감싸야 되읽기(textContent)에 접두가 섞이지 않는다.
+  const source = obj.source
+    ? `\n  <div class="src">출처: <span class="wg-part"${partAttr(ctx, 'source')}>${escapeHtml(obj.source)}</span></div>`
+    : '';
+  // 박스 서식(#3) — 지문마다 성격이 달라(안내문·인용·자료) 색으로 구분하고 싶다는 요구.
+  // blocks.css `.passage` 가 var(--wg-ps-*, 기본값) 로 받으므로 미지정 개체는 현행 그대로다.
+  const decl = [];
+  const bc = cssColor(obj.borderColor);
+  if (bc) decl.push(`--wg-ps-border:${bc}`);
+  if (Number.isFinite(obj.borderWidth) && obj.borderWidth >= 0) decl.push(`--wg-ps-bw:${obj.borderWidth}px`);
+  const bg = cssColor(obj.bgColor);
+  if (bg) decl.push(`--wg-ps-bg:${bg}`);
+  const styleAttr = decl.length ? ` style="${decl.join('; ')};"` : '';
+  return `<div class="passage"${styleAttr}>
   ${titleHtml}${bodyOrSlot}${source}
 </div>`;
 }
@@ -280,7 +320,14 @@ function renderQuestionBody(obj, ctx = {}) {
       const rows = Array.from({ length: n }, (_, i) => {
         const l = left[i] != null ? part(cellText(left[i]), 'left', i, ctx) : '';
         const r = right[i] != null ? part(cellText(right[i]), 'right', i, ctx) : '';
-        return `<tr><td class="q-match-l">${l}</td><td class="q-match-mid">·&nbsp;&nbsp;&nbsp;·</td><td class="q-match-r">${r}</td></tr>`;
+        // 연결점은 **각 항목 바로 옆**에 붙어야 학생이 어느 항목의 점인지 안다(#4). 전엔 가운데
+        // 칸에 `·&nbsp;&nbsp;&nbsp;·` 를 넣어 두 점이 칸 한가운데 붙어 있었고(실측: 20% 폭 칸의
+        // 중앙 ~20px 간격) 양쪽 항목과는 멀었다. 점 2개를 좌우 끝으로 벌리는 일은 CSS(flex
+        // space-between)가 하고, 여기서는 좌/우 점을 명시적 요소로만 낸다.
+        return `<tr><td class="q-match-l">${l}</td>`
+          + '<td class="q-match-mid"><span class="q-match-dots" aria-hidden="true">'
+          + '<span class="q-match-dot"></span><span class="q-match-dot"></span></span></td>'
+          + `<td class="q-match-r">${r}</td></tr>`;
       }).join('');
       return `<table class="q-match"><tbody>${rows}</tbody></table>`;
     }
@@ -345,7 +392,9 @@ function renderTable(obj, ctx = {}) {
     }).join('');
     return `    <tr>${cells}</tr>`;
   }).join('\n');
-  const caption = obj.caption ? `\n    <caption>${escapeHtml(obj.caption)}</caption>` : '';
+  const caption = obj.caption
+    ? `\n    <caption class="wg-part"${partAttr(ctx, 'caption')}>${escapeHtml(obj.caption)}</caption>`
+    : '';
   // 표 테두리 서식(#5 2차) — blocks.css `.obj-table` 가 --wg-tb-color/--wg-tb-width 변수로 셀 테두리를 그린다.
   const tbColor = typeof obj.borderColor === 'string' && obj.borderColor ? ` --wg-tb-color:${escapeHtml(obj.borderColor)};` : '';
   const tbWidth = Number.isFinite(obj.borderWidth) && obj.borderWidth > 0 ? ` --wg-tb-width:${obj.borderWidth}px;` : '';
@@ -355,12 +404,33 @@ ${trs}
   </table>`;
 }
 
-function renderImageSlot(obj) {
+/**
+ * 이미지 자리. 채워진 이미지는 <figure>+<img>+캡션, 비어 있으면 플레이스홀더 박스다.
+ *
+ * 전엔 플레이스홀더가 `<div class="image-slot placeholder">［이미지 삽입 자리］</div>` 한 줄이었는데
+ * `.image-slot` 규칙이 blocks.css 에 **아예 없어서**(실 Chrome 관측) 좌측에 붙은 맨 글자로만 보였다 —
+ * 자리인지 본문인지 구분이 안 됐다(#2). 마크업을 아이콘+라벨 구조로 바꾸고 blocks.css 에서 점선
+ * 박스로 그린다. 안내 문구를 여기 넣지 않는 이유: blocks.css 는 인쇄본도 쓰는 공유 자산이라
+ * "업로드하세요" 같은 편집기 안내가 학생 배포본에 찍힌다 — 그 안내는 인스펙터 몫이다.
+ */
+function renderImageSlot(obj, ctx = {}) {
   if (obj.src) {
+    // 캡션은 이미 selection.js 의 EDIT_FIELD(image-slot → figcaption)가 더블클릭 편집을 소유한다 —
+    // data-part 를 겹쳐 실으면 partEdit 이 캡처 단계에서 가로채 편집 주체가 둘이 된다.
     const caption = obj.caption ? `<figcaption>${escapeHtml(obj.caption)}</figcaption>` : '';
     return `<figure class="image-slot"><img src="${escapeHtml(obj.src)}" alt="${escapeHtml(obj.alt || '')}">${caption}</figure>`;
   }
-  return '<div class="image-slot placeholder">［이미지 삽입 자리］</div>';
+  // alt(저작 내용)가 있으면 "무엇이 들어갈 자리인지"를 함께 보인다 — 교사가 미리 적어 둔 계획이다.
+  const alt = obj.alt ? `<span class="is-alt">${escapeHtml(obj.alt)}</span>` : '';
+  return '<div class="image-slot placeholder" role="img" aria-label="이미지 삽입 자리">'
+    + '<svg class="is-icon" viewBox="0 0 24 24" aria-hidden="true">'
+    + '<rect x="3" y="4" width="18" height="16" rx="2.5"/>'
+    + '<circle cx="8.5" cy="9.5" r="1.8"/>'
+    + '<path d="M4.5 18.5l4.8-5.2a1.4 1.4 0 0 1 2 0l2.6 2.8 2.1-2a1.4 1.4 0 0 1 1.9 0l3.6 3.3"/>'
+    + '</svg>'
+    + '<span class="is-label">이미지 삽입 자리</span>'
+    + alt
+    + '</div>';
 }
 
 function renderAnswerArea(obj) {
@@ -448,23 +518,36 @@ function renderStandardCodeList(codes, ctx) {
  *
  * objectives(2026-07-23 학습목표 표기 전환): 현장 관행상 활동지 상단에는 성취기준 원문이 아니라 해당
  * 차시에 맞게 구체화한 **학습목표**("~할 수 있다")를 제시한다 — objectives 가 있으면 학생/교사 공통
- * "학습 목표" 박스를 렌더하고, 그 아래 교사 전용 "근거 성취기준"(코드+원문)을 data-mode CSS
- * 메커니즘(assets/blocks.css `.std-ref`)으로만 숨긴다(정답과 달리 비밀이 아니므로 물리 제거 불필요).
- * objectives 가 없으면(하위호환) 현행 성취기준 박스를 그대로 렌더한다 — 기존 문서 무회귀.
+ * "학습 목표" 박스를 렌더한다. objectives 가 없으면(하위호환) 현행 성취기준 박스를 그대로 렌더한다.
+ *
+ * showStandards(2026-07-28 기본값 전환): "근거 성취기준"(코드+원문) 박스는 **명시적으로 켰을 때만**
+ * 낸다. 종전엔 objectives 가 있으면 항상 함께 나왔는데, 현장에서 활동지에 얹는 것은 학습목표뿐이고
+ * 성취기준 원문은 대개 넣지 않는다는 사용자 피드백이 근거다. 켰을 때의 동작은 종전과 같다 —
+ * `.std-ref` 로 방출해 학생용에서는 data-mode CSS 로만 숨긴다(정답과 달리 비밀이 아니라 물리 제거
+ * 불필요). 끄더라도 codes 는 개체에 그대로 남아 다시 켜면 원문이 되살아난다.
+ *
+ * heading/objectives 는 캔버스 인라인 편집 대상이다(#1) — editMode 에서만 data-part 좌표가 실린다.
  */
+const STD_HEADING_DEFAULT = '학습 목표';
+
 function renderStdBox(obj, ctx) {
   const codes = Array.isArray(obj.codes) ? obj.codes : [];
   const objectives = Array.isArray(obj.objectives) ? obj.objectives : [];
 
   if (objectives.length > 0) {
-    const goalLis = objectives.map((goal) => `      <li>${escapeHtml(goal)}</li>`).join('\n');
-    const refLis = renderStandardCodeList(codes, ctx);
-    return `<div class="std-box">
-    <div class="std-head">▣ 학습 목표</div>
+    const heading = typeof obj.heading === 'string' && obj.heading.trim() ? obj.heading : STD_HEADING_DEFAULT;
+    const goalLis = objectives.map((goal, i) =>
+      `      <li class="wg-part"${partAttr(ctx, 'objectives', i)}>${escapeHtml(goal)}</li>`).join('\n');
+    const goalBox = `<div class="std-box">
+    <div class="std-head">▣ <span class="wg-part std-head-text"${partAttr(ctx, 'heading')}>${escapeHtml(heading)}</span></div>
     <ul>
 ${goalLis}
     </ul>
-  </div>
+  </div>`;
+    // 참조할 코드가 없으면 켜져 있어도 빈 박스를 내지 않는다(제목만 있는 빈 테두리가 인쇄된다).
+    if (obj.showStandards !== true || codes.length === 0) return goalBox;
+    const refLis = renderStandardCodeList(codes, ctx);
+    return `${goalBox}
   <div class="std-box std-ref">
     <div class="std-head">▣ 근거 성취기준 (2022 개정 교육과정)</div>
     <ul>

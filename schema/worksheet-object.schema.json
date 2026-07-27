@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://worksheet-grab.local/schema/worksheet-object.schema.json",
   "title": "worksheet-grab editor-v4 개체 스키마 (M1 S1.1 동결본)",
-  "description": "닫힌 카탈로그 10종 + qtype 7종 + 문서 수준 pagination 상태(scaffold|paginated, D-A/R2-4). scratchpad/spike-editor-v4/candidate-schema.json 의 실사용 적합성 실증(S1.0)을 반영해 동결. 런타임 검증은 이 JSON Schema 를 직접 소비하지 않고 무빌드 바닐라 ESM 인 src/domain/schema/*.js 가 동일 규칙을 재구현한다(zero-dependency 원칙 — ajv 등 외부 JSON Schema 검증기 미사용). 두 산출물의 정합은 test/unit/object-schema.test.js 가 카탈로그 10종 픽스처로 상시 단정한다. 상세 근거는 docs/HANDOFF-object-schema.md 참조.",
+  "description": "닫힌 카탈로그 12종 + qtype 7종 + 문서 수준 pagination 상태(scaffold|paginated, D-A/R2-4). scratchpad/spike-editor-v4/candidate-schema.json 의 실사용 적합성 실증(S1.0)을 반영해 동결. 런타임 검증은 이 JSON Schema 를 직접 소비하지 않고 무빌드 바닐라 ESM 인 src/domain/schema/*.js 가 동일 규칙을 재구현한다(zero-dependency 원칙 — ajv 등 외부 JSON Schema 검증기 미사용). 두 산출물의 정합은 test/unit/object-schema.test.js 가 카탈로그 12종 픽스처로 상시 단정한다. 상세 근거는 docs/HANDOFF-object-schema.md 참조.",
   "type": "object",
   "required": ["pagination", "pages"],
   "properties": {
@@ -34,7 +34,8 @@
       "id": { "type": "string", "description": "문서 내 고유 ID." },
       "type": { "type": "string", "enum": [
         "title", "passage-slot", "question", "table", "image-slot",
-        "answer-area", "divider", "shape", "richtext", "std-box"
+        "answer-area", "divider", "shape", "richtext", "std-box",
+        "spacer", "page-break"
       ]},
       "answer": {
         "type": "boolean",
@@ -126,7 +127,10 @@
         "slotLabel": { "type": "string", "description": "슬롯 안내 문구(예: '［지문 삽입 슬롯］'). bodyHtml 이 비어 있을 때 플레이스홀더로 렌더된다." },
         "bodyHtml": { "type": "string", "description": "지문 본문(교사가 편집기에서 직접 입력, richtext.html 과 동형 관례 — 무손실 HTML). AI 는 이 필드를 채우거나 재작성하지 않는다(AI_EXCLUDED_TYPES, aiBridge 강제)." },
         "source": { "type": "string", "description": "지문 출처 표기(교사 입력). bodyHtml 이 채워졌는데 비어 있으면 ValidateObjectTree 가 advisory warning(passage-source-missing)을 낸다(게이트 차단 아님)." },
-        "footnotes": { "type": "array", "items": { "type": "string" } }
+        "footnotes": { "type": "array", "items": { "type": "string" } },
+        "borderColor": { "type": "string", "description": "지문 박스 테두리 색(CSS 색상 토큰 — #rrggbb 또는 색 이름). 렌더가 --wg-ps-border 커스텀 프로퍼티로 방출하고 blocks.css `.passage` 가 받는다. 미지정 시 기본 #bbb." },
+        "borderWidth": { "type": "number", "minimum": 0, "description": "지문 박스 테두리 두께(px). 미지정 시 기본 1.5px. 0 이면 테두리 없음." },
+        "bgColor": { "type": "string", "description": "지문 박스 배경색(CSS 색상 토큰). 미지정 시 기본 #fcfcfa." }
       },
       "additionalProperties": false
     },
@@ -287,7 +291,9 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "학습 목표 문장 배열(예: '전압과 전류의 관계를 설명할 수 있다.', 2~3개 권장). codes 와 달리 저작 영역이다 — 성취기준을 해당 차시 수업에 맞게 구체화한 문장으로, designer(또는 교사)가 codes 가 가리키는 성취기준에서 도출해 채운다(원칙 3은 '성취기준 원문' 창작 금지만 다루며 objectives 는 그 대상이 아니다). 비어 있으면(하위호환) 렌더러가 현행 성취기준 박스를 그대로 표시한다."
-        }
+        },
+        "heading": { "type": "string", "description": "학습목표 박스 제목(기본 '학습 목표'). 학교·교과마다 부르는 이름이 달라 교사가 캔버스에서 직접 고칠 수 있다." },
+        "showStandards": { "type": "boolean", "default": false, "description": "근거 성취기준(코드+원문) 박스를 교사용에 함께 낼지. 기본 false — 현장에서 활동지에 얹는 것은 학습목표뿐이라는 실사용 피드백에 따른 기본값(2026-07-28). true 일 때만 .std-ref 박스를 렌더하며, 그 경우에도 학생용에서는 data-mode CSS 로 숨는다. 표시 여부만 정할 뿐 codes 는 그대로 보존된다." }
       },
       "additionalProperties": false
     },

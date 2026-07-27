@@ -15,6 +15,9 @@
 .title-box { border: 2.2px solid var(--c2); border-radius: 14px; padding: 12px 18px;
   text-align: center; background: var(--clite); }
 .title-box h1 { margin: 0; font-size: 20pt; font-weight: 800; letter-spacing: -.5px; color: var(--cink); }
+/* 출처 표기 — 렌더는 계속 방출하는데 스타일이 없어 본문과 같은 크기의 맨 글자로 붙어 있었다
+   (실 Chrome 관측). 제목 아래 보조 정보로 읽히도록 작게·흐리게·오른쪽에 둔다. */
+.title-src { margin-top: 3px; font-size: 8.7pt; color: #666; text-align: right; }
 .unit-line { display: flex; align-items: center; gap: 10px; margin-top: 5mm; font-size: 9.5pt; }
 .unit-line .unit { flex: 1; }
 .unit-line .unit b { color: var(--cink); }
@@ -73,8 +76,11 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .cmp .hl { background: #efe6f7; padding: 2px 4px; border-radius: 3px; }
 .cmp td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 18%; }
 
-/* ---- reading passage box (국어) — 저작권 지문은 .slot 유지 ---- */
-.passage { border: 1.5px solid #bbb; border-radius: 8px; padding: 14px 18px; margin-top: 3mm; background: #fcfcfa; }
+/* ---- reading passage box (국어) — 저작권 지문은 .slot 유지 ----
+   테두리 색/두께·배경은 개체 필드(borderColor/borderWidth/bgColor)가 인라인 커스텀 프로퍼티로
+   덮어쓴다(#3). 미지정 개체는 var() 기본값이 그대로 적용돼 종전과 완전히 동일하다. */
+.passage { border: var(--wg-ps-bw, 1.5px) solid var(--wg-ps-border, #bbb); border-radius: 8px;
+  padding: 14px 18px; margin-top: 3mm; background: var(--wg-ps-bg, #fcfcfa); }
 .passage h3 { text-align: center; margin: 0 0 8px; font-size: 12pt; }
 .passage p { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
 .passage .slot { color: #b06a00; background: #fff5e6; border: 1px dashed #e0a94f;
@@ -92,6 +98,26 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 }
 .obj-table th { background: var(--clite); color: var(--cink); font-weight: 700; }
 .obj-table caption { font-size: 9pt; color: #555; margin-bottom: 3px; caption-side: top; }
+
+/* ---- 이미지 개체 (공통) ----
+   `.image-slot` 규칙이 이 파일에 아예 없어서, 채운 이미지는 원본 크기 그대로 지면을 넘칠 수 있었고
+   빈 자리는 "［이미지 삽입 자리］"가 좌측에 붙은 맨 글자로만 보였다(실 Chrome 관측, #2).
+   여기(blocks.css)에 두는 이유는 도형·텍스트 상자와 같다 — 편집 화면·저장본·인쇄본이 같은 선언을
+   써야 편집==인쇄가 성립한다. 편집기 안내 문구는 넣지 않는다(학생 배포본에 찍힌다). */
+.image-slot { margin: 2mm 0; text-align: center; }
+.image-slot img { max-width: 100%; height: auto; border-radius: 6px; }
+.image-slot figcaption { margin-top: 4px; font-size: 8.7pt; color: #555; }
+.image-slot.placeholder {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 30mm; padding: 10px 14px; border: 1.6px dashed var(--c2, #b9b9b9); border-radius: 10px;
+  background: repeating-linear-gradient(135deg, rgba(0,0,0,.018) 0 8px, transparent 8px 16px);
+  color: #8a8a8a;
+}
+.image-slot .is-icon { width: 30px; height: 30px; fill: none; stroke: var(--c2, #9aa0a6);
+  stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
+.image-slot .is-icon circle { fill: var(--c2, #9aa0a6); stroke: none; }
+.image-slot .is-label { font-size: 9pt; font-weight: 700; color: var(--cink, #6b7280); letter-spacing: -.2px; }
+.image-slot .is-alt { font-size: 8.5pt; color: #8a8a8a; }
 
 /* ---- question + answer slot (공통) ---- */
 .q { margin: 2.5mm 0 1.5mm; font-weight: 600; }
@@ -115,7 +141,12 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .q-match td { padding: 4px 8px; font-size: 9.5pt; vertical-align: middle; }
 .q-match .q-match-l { border: 1px solid #cbd5c0; border-radius: 6px; width: 40%; background: #fbfcfb; }
 .q-match .q-match-r { border: 1px solid #cbd5c0; border-radius: 6px; width: 40%; background: #fbfcfb; }
-.q-match .q-match-mid { width: 20%; text-align: center; color: #aaa; letter-spacing: 2px; }
+/* 연결점(#4): 두 점을 가운데 칸의 **좌우 끝**으로 벌려 각각 자기 항목 바로 옆에 붙인다.
+   전엔 `· · ` 두 글자가 칸 한가운데 붙어 있어 어느 항목의 점인지 알아보기 어려웠다.
+   td 자체에 display:flex 를 주면 table-cell 이 아니게 되어 열 너비가 깨지므로 안쪽 span 으로 편다. */
+.q-match .q-match-mid { width: 20%; padding: 4px 0; }
+.q-match .q-match-dots { display: flex; align-items: center; justify-content: space-between; padding: 0 3px; }
+.q-match .q-match-dot { display: block; width: 6px; height: 6px; border-radius: 50%; background: #777; flex: none; }
 .q-order { list-style: none; margin: 3px 0 0; padding: 0; }
 .q-order li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 8px; align-items: center; }
 .q-order-box { display: inline-block; width: 22px; height: 20px; border: 1.2px solid #999; border-radius: 4px; flex: none; }

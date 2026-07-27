@@ -189,3 +189,60 @@ test/unit/validate-object-tree.test.js S1.2 수용 기준(PASS + 위반 4계열 
 - **AI 저작 어휘에는 넣지 않는다.** designer/planner 는 계속 콘텐츠 10종만 저작하고, 이 둘은 교사가
   편집기에서 삽입한다(원칙 3 의 연장 — AI 는 내용을 만들고 조판은 교사와 리플로우가 정한다).
   다만 기존 문서에 있으면 **보존**한다.
+
+
+## 12. 본문 인라인 편집 · 표시 기본값 델타 (2026-07-28)
+
+편집기 UX 피드백 5건을 반영한 스키마/렌더 델타다. 새 **타입**은 없다 — 기존 타입에 필드 5개가 늘고,
+렌더가 편집 좌표(`data-part`)를 싣는 범위가 넓어졌다.
+
+### 12-1. `std-box.heading` / `std-box.showStandards`
+
+- `heading` — 학습목표 박스 제목(기본 `'학습 목표'`). 학교·교과마다 부르는 이름이 달라 교사가
+  캔버스에서 직접 고친다. `codes`(조회 참조)와 달리 **저작 영역**이라 원칙 3의 대상이 아니다.
+- `showStandards` — "근거 성취기준"(코드+원문) 박스를 낼지. **기본 false(미표시)**. 종전에는
+  `objectives`가 있으면 항상 함께 나왔는데, *활동지에 얹는 것은 학습목표뿐이고 성취기준 원문은 대개
+  넣지 않는다*는 실사용 피드백이 근거다. `true`일 때의 동작은 종전과 같다 — `.std-ref`로 방출해
+  학생용에서는 `data-mode` CSS로만 숨긴다(정답과 달리 비밀이 아니므로 물리 제거 불필요).
+  ⚠ **표시 여부만 정한다** — 끄더라도 `codes`는 개체에 그대로 남아 검수(objectives-alignment)와
+  나중의 재표시가 살아 있다. designer 는 이 필드를 기본적으로 싣지 않는다(사용자 명시 요청 시에만).
+
+### 12-2. `passage-slot.borderColor` / `borderWidth` / `bgColor`
+
+지문 성격(자료·인용·안내)을 색으로 구분하고 싶다는 요구. `table.borderColor/borderWidth`가 이미 쓰던
+경로와 동형이다 — 렌더가 인라인 커스텀 프로퍼티(`--wg-ps-border`/`--wg-ps-bw`/`--wg-ps-bg`)로 방출하고
+`assets/blocks.css`의 `.passage`가 `var(…, 기본값)`으로 받는다. **미지정 개체는 선언 자체가 붙지 않아
+종전 산출과 바이트 동일**하다.
+
+색 값은 `cssColor()`(`RenderObjectTree`)를 통과해야 방출된다 — `#rgb`~`#rrggbbaa` 또는 알파벳 키워드만
+허용한다. 인라인 `style` 자리라 `escapeHtml`만으로는 `;`로 선언을 끊고 다른 속성을 주입하는 것을
+막지 못하기 때문이다(값이 통과하지 못하면 그 선언을 생략 → 기본값 유지, fail-closed).
+
+### 12-3. 인라인 편집 좌표(`data-part`)의 확대
+
+`.q-part[data-part][data-i]`(문항 선지·항목)에만 있던 규약을 개체 부가 텍스트로 넓혔다.
+
+| 타입 | 조각 | 좌표 |
+|------|------|------|
+| `std-box` | 학습목표 문장 / 박스 제목 | `objectives`+`data-i` / `heading` |
+| `title` | 상단 배지 / 모서리 표기 / 출처 | `meta.pill` / `meta.page` / `meta.source` |
+| `passage-slot` | 지문 제목 / 출처 | `title` / `source` |
+| `table` | 캡션 | `caption` |
+
+- **속성만 는다.** `partAttr()`은 `editMode`에서만 `data-part`/`data-i`를 붙이므로 인쇄 산출은
+  종전과 같고 레이아웃 박스도 편집/인쇄가 동일하다(R2-1).
+- **값이 없는 조각은 애초에 그리지 않는다.** 편집 전용 빈 요소를 만들면 편집 측정 높이와 인쇄
+  높이가 갈린다 — 새로 다는 것은 인스펙터 몫이다(`selection.js`의 image-slot 캡션 규약과 동일).
+- 어떤 (타입, 필드)를 되쓸 수 있는지는 `partEdit.js`의 `EDITABLE_PARTS`가 닫는다. 렌더가 싣는 좌표와
+  이 목록의 정합은 `test/unit/part-edit.test.js`가 소스를 파싱해 상시 단정한다.
+- `image-slot`의 캡션은 **이 목록에 없다** — `selection.js`의 `EDIT_FIELD`가 이미 `figcaption` 편집을
+  소유한다. 한 조각에 편집 주체가 둘이면 캡처 단계의 `partEdit`이 조용히 이긴다.
+- 조각 편집 중 **Enter는 줄바꿈이 아니라 편집 종료**다. 조각은 전부 한 줄짜리 값인데 되읽기가
+  `textContent`라, `<br>`/`<div>`가 들어가면 개행이 그대로 필드에 섞인다.
+
+### 12-4. `image-slot` 플레이스홀더
+
+`.image-slot` 규칙이 `blocks.css`에 **아예 없어서**(실 Chrome 관측) 빈 자리가 좌측에 붙은 맨 글자로만
+보였고, 채운 이미지도 원본 크기 그대로 지면을 넘칠 수 있었다. 아이콘+라벨 구조로 바꾸고 점선 박스로
+그린다. `blocks.css`는 학생 배포본도 쓰는 공유 자산이므로 **편집기 안내 문구는 렌더에 넣지 않는다**
+(그 안내는 인스펙터가 낸다).

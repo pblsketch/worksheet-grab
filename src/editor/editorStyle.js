@@ -47,9 +47,16 @@ export function injectEditorStyle(doc) {
     .wg-rh-s  { bottom: -6px; left: calc(50% - 5.5px); cursor: ns-resize; }
     .wg-rh-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
     .wg-rh-w  { top: calc(50% - 5.5px); left: -6px; cursor: ew-resize; }
-    /* 문항 선지·항목 인라인 편집(#3 2차) */
-    .q-part[data-part] { cursor: text; }
-    .q-part.wg-part-editing { outline: 2px solid #dc2626; background: rgba(255,235,59,.12); border-radius: 3px; }
+    /* 문항 선지·항목 인라인 편집(#3 2차) + 개체 부가 텍스트 조각 인라인 편집(#1·#1b) —
+       학습목표 문장·박스 제목, 제목 배지/모서리/출처, 지문 제목/출처, 표 캡션.
+       hover 시 옅은 밑줄로 "여기 고칠 수 있다"를 알린다(outline 계열이라 레이아웃 박스 불변 — R2-1). */
+    .q-part[data-part], .wg-part[data-part] { cursor: text; }
+    .q-part[data-part]:hover, .wg-part[data-part]:hover {
+      outline: 1px dashed rgba(37,99,235,.55); outline-offset: 1px; border-radius: 3px;
+    }
+    .q-part.wg-part-editing, .wg-part.wg-part-editing {
+      outline: 2px solid #dc2626; background: rgba(255,235,59,.12); border-radius: 3px;
+    }
     /* 표 셀 편집·병합·열 너비(#10) */
     td[data-r], th[data-r] { cursor: text; }
     .wg-cell-active { outline: 2px solid #2563eb !important; outline-offset: -2px; background: rgba(37,99,235,.07); }

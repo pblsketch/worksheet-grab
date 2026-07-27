@@ -137,20 +137,30 @@ test('std-box: objectives 있으면 학생/교사 공통 "학습 목표" 박스�
   const { html } = new RenderObjectTree().execute(document, ASSETS, {
     standards: [{ code: '[9과14-02]', text: '전기 회로에서 전류를 모형으로 설명한다.' }],
   });
-  assert.match(html, /▣ 학습 목표/);
+  // 박스 제목은 교사가 본문에서 바로 고칠 수 있도록 인라인 편집 span 으로 감싼다(heading 필드).
+  // 그래서 "▣ 학습 목표" 가 더 이상 연속 문자열이 아니다 — 기본 제목 텍스트로 단정한다.
+  assert.match(html, /class="std-head"/);
+  assert.match(html, /std-head-text[^>]*>학습 목표</, '기본 박스 제목은 "학습 목표"');
   assert.ok(html.includes('전류와 전압의 관계를 설명할 수 있다.'), '학습목표 문장이 방출되어야 함');
   assert.ok(html.includes('옴의 법칙으로 저항을 구할 수 있다.'), '학습목표 문장이 방출되어야 함');
   assert.ok(!html.includes('▣ 관련 성취기준'), 'objectives 있으면 현행 성취기준 박스 제목은 방출되지 않아야 함');
 });
 
-test('std-box: objectives 있으면 "근거 성취기준"(코드+원문)이 교사전용(.std-ref) 클래스로 함께 방출', () => {
-  const document = docWith([{
+test('std-box: 근거 성취기준 박스는 showStandards:true 일 때만 방출된다(기본은 숨김)', () => {
+  // 2026-07-28 기본값 전환 — 현장에서 활동지에 얹는 것은 학습목표뿐이고 성취기준 원문은 대개
+  // 넣지 않는다는 실사용 피드백. codes 는 그대로 보존되므로 껐다 켜도 정보가 소실되지 않는다.
+  const base = {
     id: 'sb1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'],
     objectives: ['전류와 전압의 관계를 설명할 수 있다.'],
-  }]);
-  const { html } = new RenderObjectTree().execute(document, ASSETS, {
-    standards: [{ code: '[9과14-02]', text: '전기 회로에서 전류를 모형으로 설명한다.' }],
-  });
+  };
+  const meta = { standards: [{ code: '[9과14-02]', text: '전기 회로에서 전류를 모형으로 설명한다.' }] };
+
+  const off = new RenderObjectTree().execute(docWith([base]), ASSETS, meta).html;
+  assert.ok(!off.includes('class="std-box std-ref"'), '기본(showStandards 미지정)에는 근거 성취기준 박스가 없어야 함');
+  assert.ok(off.includes('전류와 전압의 관계를 설명할 수 있다.'), '학습목표는 그대로 방출');
+
+  const document = docWith([{ ...base, showStandards: true }]);
+  const { html } = new RenderObjectTree().execute(document, ASSETS, meta);
   assert.match(html, /class="std-box std-ref"/, '근거 성취기준 박스는 .std-ref 클래스(교사전용 data-mode CSS)를 가져야 함');
   assert.match(html, /▣ 근거 성취기준/);
   assert.match(html, /\[9과14-02\]/, '근거 성취기준 박스에 코드가 표기되어야 함');
@@ -265,4 +275,111 @@ test('page-break: 높이 0 표식만 남기고 인쇄용 개행 CSS 를 쓰지 �
   assert.match(html, /<div class="wg-pagebreak" style="height:0"><\/div>/);
   // 페이지 경계의 단일 권한은 측정 패스다(D-A) — CSS 개행을 섞으면 pages[] 와 실제 인쇄가 어긋난다.
   assert.ok(!/wg-pagebreak[^>]*break-before/.test(html), 'break-before 를 직접 쓰면 안 된다');
+});
+
+// ── 2026-07-28 UX 배치: 본문 인라인 편집 좌표 · 이미지 자리 · 지문 서식 · 연결점 간격 ──
+
+test('std-box: heading(박스 제목)을 지정하면 그 제목으로 렌더된다', () => {
+  const { html } = new RenderObjectTree().execute(docWith([{
+    id: 'sb1', type: 'std-box', placement: 'flow', objectives: ['설명할 수 있다.'], heading: '오늘의 목표',
+  }]), ASSETS);
+  assert.match(html, /std-head-text[^>]*>오늘의 목표</);
+  assert.ok(!html.includes('>학습 목표<'), 'heading 이 있으면 기본 제목은 쓰이지 않는다');
+});
+
+test('std-box: heading 이 공백뿐이면 기본 제목으로 떨어진다', () => {
+  const { html } = new RenderObjectTree().execute(docWith([{
+    id: 'sb1', type: 'std-box', placement: 'flow', objectives: ['설명할 수 있다.'], heading: '   ',
+  }]), ASSETS);
+  assert.match(html, /std-head-text[^>]*>학습 목표</);
+});
+
+test('인라인 편집 좌표(data-part)는 editMode 에서만 실린다 — 인쇄 산출은 종전과 동일', () => {
+  const flow = [
+    { id: 'sb1', type: 'std-box', placement: 'flow', objectives: ['목표 하나', '목표 둘'] },
+    { id: 't1', type: 'title', placement: 'flow', text: '제목', meta: { pill: '중1 · 2차시', page: 'p.24', source: '교과서' } },
+    { id: 'p1', type: 'passage-slot', placement: 'flow', slotLabel: '［지문］', title: '지문 (가)', source: '출처 표기' },
+    { id: 'tb1', type: 'table', placement: 'flow', splittable: false, rows: [[{ text: 'a' }]], caption: '표 설명' },
+  ];
+  const print = new RenderObjectTree().execute(docWith(flow), ASSETS).html;
+  assert.ok(!print.includes('data-part'), '인쇄 렌더에는 편집 좌표가 실리면 안 된다');
+
+  const edit = new RenderObjectTree().execute(docWith(flow), ASSETS, {}, { editMode: true }).html;
+  for (const expected of [
+    'data-part="objectives" data-i="0"', 'data-part="objectives" data-i="1"', 'data-part="heading"',
+    'data-part="meta.pill"', 'data-part="meta.page"', 'data-part="meta.source"',
+    'data-part="title"', 'data-part="source"', 'data-part="caption"',
+  ]) {
+    assert.ok(edit.includes(expected), `editMode 에 ${expected} 좌표가 있어야 함`);
+  }
+  // R2-1(편집==인쇄): 편집 좌표는 **속성**으로만 는다 — 편집 전용 텍스트·요소가 새로 생기면
+  // 편집 측정 높이와 인쇄 높이가 갈린다. 태그를 걷어낸 본문 텍스트가 양쪽에서 같아야 한다.
+  const textOf = (h) => h.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+  assert.equal(textOf(edit), textOf(print), '편집 렌더에만 있는 글자가 있으면 R2-1 이 깨진다');
+});
+
+test('image-slot: 빈 자리는 아이콘+라벨 플레이스홀더 박스로 렌더(맨 글자 아님)', () => {
+  const { html } = new RenderObjectTree().execute(docWith([{ id: 'i1', type: 'image-slot', placement: 'flow' }]), ASSETS);
+  assert.match(html, /class="image-slot placeholder"/);
+  assert.match(html, /<svg class="is-icon"/, '자리임을 알리는 아이콘이 있어야 함');
+  assert.match(html, /class="is-label">이미지 삽입 자리</);
+  // 편집기 안내 문구는 넣지 않는다 — blocks.css 는 학생 배포본도 쓰는 공유 자산이다.
+  assert.ok(!/업로드/.test(html), '편집기 안내 문구가 인쇄본에 찍히면 안 된다');
+});
+
+test('image-slot: alt 만 있으면 무엇이 들어갈 자리인지 함께 보인다(이스케이프)', () => {
+  const { html } = new RenderObjectTree().execute(
+    docWith([{ id: 'i1', type: 'image-slot', placement: 'flow', alt: '실험 <장치> 사진' }]), ASSETS);
+  assert.match(html, /class="is-alt">실험 &lt;장치&gt; 사진</);
+});
+
+test('image-slot: src 가 있으면 figure/img 경로는 종전과 동일', () => {
+  const { html } = new RenderObjectTree().execute(
+    docWith([{ id: 'i1', type: 'image-slot', placement: 'flow', src: 'a.png', caption: '캡션' }]), ASSETS);
+  assert.match(html, /<figure class="image-slot"><img src="a\.png" alt=""><figcaption>캡션<\/figcaption><\/figure>/);
+  // 캡션 편집은 selection.js EDIT_FIELD(figcaption)가 소유한다 — data-part 를 겹쳐 싣지 않는다.
+  const edit = new RenderObjectTree().execute(
+    docWith([{ id: 'i1', type: 'image-slot', placement: 'flow', src: 'a.png', caption: '캡션' }]), ASSETS, {}, { editMode: true }).html;
+  assert.ok(!/figcaption class="wg-part"/.test(edit));
+});
+
+test('passage-slot: 색·테두리 필드는 CSS 변수로만 방출되고, 미지정이면 style 자체가 없다', () => {
+  const plain = new RenderObjectTree().execute(
+    docWith([{ id: 'p1', type: 'passage-slot', placement: 'flow', slotLabel: '［지문］' }]), ASSETS).html;
+  assert.match(plain, /<div class="passage">/, '미지정 개체는 종전과 동일한 마크업');
+
+  const styled = new RenderObjectTree().execute(docWith([{
+    id: 'p1', type: 'passage-slot', placement: 'flow', slotLabel: '［지문］',
+    borderColor: '#2563eb', borderWidth: 2.5, bgColor: '#eef4fc',
+  }]), ASSETS).html;
+  assert.match(styled, /--wg-ps-border:#2563eb/);
+  assert.match(styled, /--wg-ps-bw:2\.5px/);
+  assert.match(styled, /--wg-ps-bg:#eef4fc/);
+});
+
+test('passage-slot: 색 값이 CSS 토큰이 아니면 선언을 생략한다(인라인 style 주입 차단)', () => {
+  const { html } = new RenderObjectTree().execute(docWith([{
+    id: 'p1', type: 'passage-slot', placement: 'flow', slotLabel: '［지문］',
+    borderColor: 'red; position:fixed; inset:0', bgColor: 'url(javascript:alert(1))', borderWidth: -3,
+  }]), ASSETS);
+  assert.ok(!html.includes('position:fixed'), '색 자리로 다른 CSS 선언이 들어가면 안 된다');
+  assert.ok(!html.includes('javascript:'), 'URL 값이 색 자리에 들어가면 안 된다');
+  assert.ok(!html.includes('--wg-ps-bw'), '음수 두께는 선언하지 않는다');
+});
+
+test('연결형: 좌우 연결점이 각각 항목 쪽 끝으로 벌어지도록 별개 요소로 방출된다(#4)', () => {
+  const { html } = new RenderObjectTree().execute(docWith([{
+    id: 'q1', type: 'question', placement: 'flow', qtype: 'matching',
+    prompt: '연결하시오.', left: ['가', '나'], right: ['1', '2'],
+  }]), ASSETS);
+  assert.match(html, /<td class="q-match-mid"><span class="q-match-dots" aria-hidden="true"><span class="q-match-dot"><\/span><span class="q-match-dot"><\/span><\/span><\/td>/);
+  // 종전의 "두 점이 가운데 칸 한복판에 붙어 있던" 마크업이 남아 있으면 회귀다.
+  assert.ok(!html.includes('·&nbsp;&nbsp;&nbsp;·'), '가운데 붙은 점 텍스트가 남아 있으면 안 된다');
+});
+
+test('std-box: showStandards 를 켜도 codes 가 없으면 빈 근거 성취기준 박스를 내지 않는다', () => {
+  const { html } = new RenderObjectTree().execute(docWith([{
+    id: 'sb1', type: 'std-box', placement: 'flow', codes: [], objectives: ['설명할 수 있다.'], showStandards: true,
+  }]), ASSETS);
+  assert.ok(!html.includes('std-ref'), '참조할 코드가 없으면 제목만 있는 빈 테두리가 인쇄된다');
 });
