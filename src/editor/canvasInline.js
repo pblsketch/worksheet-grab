@@ -248,6 +248,34 @@ export function createCanvasInline(deps) {
     }
   }
 
+  /**
+   * 최초 장식은 **레이아웃이 확정되기 전에** 돈다 — attach() 는 iframe 문서를 받자마자 불리고,
+   * 그 시점엔 웹폰트·이미지가 아직 안 앉아 모든 `.wg-obj` 가 같은 y 를 돌려준다. 그래서 손잡이가
+   * 전부 한 자리에 쌓였다(실측: 개체가 82/116/132/166 인데 손잡이 4개가 전부 top=23). 종전에는
+   * 선택을 한 번 바꿔 재장식 경로를 태워야만 제자리를 찾았고, 그전까지는 첫 개체 것 하나만
+   * 잡혔다 — "⠿ 를 못 잡는다"의 절반이 이것이었다.
+   *
+   * 그래서 ① 다음 프레임과 폰트 로드 완료 시점에 한 번씩 다시 그리고, ② 이후의 레이아웃 변화
+   * (이미지 지연 로드·용지 전환·줌)도 ResizeObserver 로 따라간다.
+   *
+   * **드래그 중에는 절대 다시 그리지 않는다** — 오버레이를 갈아치우면 포인터 캡처가 끊겨 한 칸씩만
+   * 움직이는 회귀가 난다(이 파일 `dragState` 머리말에 기록된 사고).
+   */
+  function scheduleHandleReflow(doc) {
+    const view = doc.defaultView;
+    if (!view) return;
+    const redraw = () => {
+      if (currentDoc !== doc || dragState) return;
+      decorateFlowHandles(doc);
+    };
+    view.requestAnimationFrame?.(() => view.requestAnimationFrame(redraw));
+    doc.fonts?.ready?.then(redraw).catch(() => { /* 폰트 API 없는 환경 — rAF 경로로 충분 */ });
+    if (typeof view.ResizeObserver === 'function') {
+      const ro = new view.ResizeObserver(() => redraw());
+      for (const sheet of doc.querySelectorAll('.sheet')) ro.observe(sheet);
+    }
+  }
+
   /** 크기 손잡이 방향 — flow 는 좌표가 없으므로 **오른쪽·아래만** 의미가 있다(자유 개체의 8방향과 다른
    *  점). 왼쪽으로 끌어도 개체는 흐름 시작점에 붙어 있어 손잡이가 손을 따라오지 못한다. */
   const SIZE_DIRS = Object.freeze(['e', 's', 'se']);
@@ -472,6 +500,7 @@ export function createCanvasInline(deps) {
     currentFrame = frameEl;
     decorateFlowHandles(doc);
     decorateRulers(doc);
+    scheduleHandleReflow(doc);
 
     doc.addEventListener('selectionchange', () => updateBubble());
     doc.addEventListener('mouseup', () => updateBubble());

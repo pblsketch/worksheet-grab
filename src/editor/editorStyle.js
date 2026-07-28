@@ -66,16 +66,23 @@ export function injectEditorStyle(doc) {
     .wg-col-handle::after { content: ""; position: absolute; left: 3px; top: 0; bottom: 0; width: 1px; background: #2563eb; opacity: .3; }
     .wg-col-handle:hover::after { opacity: 1; width: 2px; }
     .wg-flow-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 4; }
+    /* ⠿(끌기)와 +(삽입)를 **가로로** 갈라 놓는다(2026-07-28). 종전엔 둘 다 left:-22px 이고 세로로만
+       엇갈려 있었는데, 컨트롤이 18px 인데 본문 개체 높이가 20px 남짓이라 세로 공간이 애초에 모자랐다
+       — 실측에서 ⠿ 중심(top+9)이 정확히 + 의 시작점이라, 나중에 append 되는 + 가 히트테스트를
+       가져가 ⠿ 를 아예 잡을 수 없었다(divider 처럼 높이 2px 면 완전히 겹친다). 세로 간격을 벌리는
+       방식은 개체 사이 gap(약 14px)이 컨트롤보다 좁아 다음 개체의 ⠿ 를 덮는 문제로 옮겨갈 뿐이다.
+       + 의 세로 위치(개체 하단)는 "이 개체 뒤에 삽입"이라는 뜻이라 그대로 두고 x 만 옮겼다.
+       z-index 는 그래도 ⠿ 를 위로 — 좁은 여백에서 둘이 스치더라도 끌기를 잃지 않게 하는 안전판. */
     .wg-flow-handle {
       position: absolute; left: -22px; width: 18px; height: 18px; display: flex; align-items: center;
       justify-content: center; background: #374151; color: #fff; border-radius: 4px; font-size: 11px;
-      opacity: .35; pointer-events: auto; cursor: grab; user-select: none;
+      opacity: .35; pointer-events: auto; cursor: grab; user-select: none; z-index: 2;
     }
     .wg-flow-handle:hover { opacity: 1; }
     .wg-flow-insert {
-      position: absolute; left: -22px; width: 18px; height: 18px; border: 0; border-radius: 4px;
+      position: absolute; left: -44px; width: 18px; height: 18px; border: 0; border-radius: 4px;
       background: #2563eb; color: #fff; font-size: 13px; line-height: 1; opacity: .35;
-      pointer-events: auto; cursor: pointer;
+      pointer-events: auto; cursor: pointer; z-index: 1;
     }
     .wg-flow-insert:hover { opacity: 1; }
     /* flow 개체 크기 손잡이(2026-07-28) — 오버레이 층이라 개체 레이아웃 박스를 건드리지 않는다.
