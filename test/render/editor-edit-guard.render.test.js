@@ -51,7 +51,9 @@ function fixtureDocument() {
     standards: [],
     pages: [{
       flow: [
-        { id: 't1', type: 'title', placement: 'flow', text: '탐구 활동' },
+        // meta.pill = 제목 배지(.pill) — 자기 배경 위에 흰 글자를 얹는 유일한 편집 조각이라
+        // "편집 표식이 배경을 덮어쓰면 글자가 사라진다"를 잴 수 있는 대상이다.
+        { id: 't1', type: 'title', placement: 'flow', text: '탐구 활동', meta: { pill: '탐구 실험', page: '중학교 과학' } },
         { id: 's1', type: 'std-box', placement: 'flow', objectives: ['광합성 조건을 설명할 수 있다.'] },
         { id: 'r1', type: 'richtext', placement: 'flow', html: '<p>본문 문단</p>' },
         { id: 'b1', type: 'table', placement: 'flow', splittable: true, rows: [[{ text: '준비물' }, { text: '검정말' }]] },
@@ -197,6 +199,64 @@ test('드래그 직후의 첫 클릭이 먹히지 않는다 — 본체 드래그
     const back = JSON.parse(await s.evaluate(viewportCenterOf('[data-oid="r3"]')));
     await s.click(back.x, back.y);
     assert.equal(await s.evaluate(SELECTED), '["r3"]', '크기조정 직후 첫 클릭으로 선택이 바뀌어야 한다');
+  } finally {
+    await teardown(server, s);
+  }
+});
+
+test('조각 편집 표식이 그 조각의 글자색·배경을 바꾸지 않는다(배지가 안 보이던 결함)', { skip: !HAS_CHROME, timeout: 240000 }, async () => {
+  // 고치기 전: 더블클릭하면 .wg-part-editing 이 배지의 청록 배경을 반투명 노랑으로 덮어썼는데
+  // 글자색은 흰색 그대로라 **흰 바탕에 흰 글자**가 됐다(실측 background rgb(0,131,143) → rgba(...)).
+  const { server, s } = await boot('wsg-editguard-badge-chrome-');
+  try {
+    await s.waitFor(`${countOf('[data-ot="title"] .pill')} === 1`, { message: '배지 렌더' });
+    const styleOf = `(() => {
+      const el = ${CV}.querySelector('[data-ot="title"] .pill');
+      const cs = ${CV}.defaultView.getComputedStyle(el);
+      return JSON.stringify({ color: cs.color, background: cs.backgroundColor, ce: el.getAttribute('contenteditable') });
+    })()`;
+    const before = JSON.parse(await s.evaluate(styleOf));
+    assert.equal(before.background, 'rgb(0, 131, 143)', `전제: 배지는 색 배경을 갖는다 — ${JSON.stringify(before)}`);
+
+    const p = JSON.parse(await s.evaluate(viewportCenterOf('[data-ot="title"] .pill')));
+    await s.click(p.x, p.y);
+    await s.click(p.x, p.y, { clickCount: 2 });
+    await s.waitFor(`${countOf('[contenteditable="true"]')} === 1`, { message: '배지 편집 진입' });
+
+    const after = JSON.parse(await s.evaluate(styleOf));
+    assert.equal(after.ce, 'true', '배지가 편집 상태여야 한다');
+    assert.equal(after.background, before.background, `편집 표식이 배경을 덮으면 안 된다 — ${JSON.stringify(after)}`);
+    assert.equal(after.color, before.color, `글자색도 그대로여야 한다 — ${JSON.stringify(after)}`);
+  } finally {
+    await teardown(server, s);
+  }
+});
+
+test('세로로 늘리면 보이는 테두리 상자도 함께 늘어난다(영역만 늘던 결함)', { skip: !HAS_CHROME, timeout: 240000 }, async () => {
+  // 고치기 전: 래퍼만 93→112px 로 커지고 .title-box 는 93px 그대로였다 — 교사 눈에는 여백만 생겼다.
+  // 제목은 .wg-obj > .title-wrap > .title-box 로 한 겹 더 들어가는 유일한 타입이라 이걸로 잰다.
+  const { server, s } = await boot('wsg-editguard-stretch-chrome-');
+  try {
+    const heights = `(() => {
+      const w = ${CV}.querySelector('[data-oid="t1"]');
+      const box = w.querySelector('.title-box');
+      const h = (el) => Math.round(el.getBoundingClientRect().height);
+      return JSON.stringify({ wrapper: h(w), box: h(box), minh: w.getAttribute('data-minh') });
+    })()`;
+    const obj = JSON.parse(await s.evaluate(viewportCenterOf('[data-oid="t1"]')));
+    await s.click(obj.x, obj.y);
+    await s.waitFor(`${countOf('.wg-size-handle')} === 3`, { message: '크기 손잡이 렌더' });
+    const before = JSON.parse(await s.evaluate(heights));
+    assert.equal(before.minh, null, '전제: 아직 최소높이가 없다');
+
+    const sh = JSON.parse(await s.evaluate(viewportCenterOf('.wg-size-handle.wg-sh-s')));
+    await s.drag(sh.x, sh.y, sh.x, sh.y + 90, { steps: 14 });
+    await s.waitFor(`${CV}.querySelector('[data-oid="t1"]').getAttribute('data-minh') === '1'`, { message: '최소높이 반영' });
+
+    const after = JSON.parse(await s.evaluate(heights));
+    assert.ok(after.wrapper > before.wrapper, `래퍼가 늘어야 한다 — ${before.wrapper}→${after.wrapper}`);
+    assert.ok(after.box > before.box,
+      `실제 테두리 상자(.title-box)도 늘어야 한다 — ${before.box}→${after.box} (래퍼 ${before.wrapper}→${after.wrapper})`);
   } finally {
     await teardown(server, s);
   }

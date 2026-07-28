@@ -54,6 +54,29 @@
 - 원인: `saveController.save()` 가 응답의 `result.document` 를 **무조건** `setDocument` 한 뒤
   `dirty=false` 로 만들고 자동저장 타이머까지 지운다. 요청 식별자도, 시작 이후 변경 여부 검사도 없다.
 
+### D6 [P1] 조각을 더블클릭하면 **글자가 사라진다**(제목 배지) (사용자 보고+실측)
+- 재현: 제목 상단 배지(`.pill`)를 더블클릭한다. 윤곽선만 남고 글자가 안 보인다.
+- 원인: 편집 표식 `.wg-part-editing` 이 **배경을 반투명 노랑으로 덮어쓰는데 글자색은 건드리지
+  않는다.** 배지는 청록 바탕(`rgb(0,131,143)`)에 **흰 글자**라, 배경이 사라지는 순간 흰 종이 위
+  흰 글자가 된다. 다른 조각(`.corner-ref` — 회색 글자·연한 배경)은 멀쩡해서 오래 안 보였다.
+- 수정: 표식이 **글자색·배경을 건드리지 않게** 하고 바깥 글(`box-shadow`)로만 강조 — 어떤 배색의
+  조각이 와도 안전하다. 레이아웃 박스도 안 바뀌어 R2-1 무해.
+
+### D7 [P1] 세로로 늘려도 **실제 테두리 높낮이는 그대로**다 (사용자 보고+실측)
+- 재현: 개체를 `s` 손잡이로 아래로 끈다. 차지하는 영역만 커지고 눈에 보이는 테두리 상자는 그대로다.
+  실측: 래퍼 93→112px 인데 `.title-box` 는 93px 고정.
+- 원인: 최소높이를 `.wg-obj` **래퍼**에만 얹었는데 블록 자식은 부모의 min-height 를 따라 늘지 않는다.
+  `.wg-obj` 에는 CSS 가 아예 없어서(무스타일 래퍼) 늘어난 만큼은 그냥 빈 여백이 됐다.
+- 수정: 최소높이를 준 개체에만 `data-minh` 표식을 붙이고, `paper.css` 가 그 개체의 속 내용을
+  flex 로 늘린다. 제목은 `.title-wrap` 이 한 겹 더 있어 안쪽 `.title-box` 까지 따로 늘린다.
+  **폭만 준 개체에는 붙이지 않는다** — 블록 자식은 이미 폭을 채우고, flex 로 바꾸면 마진 상쇄가
+  사라져 선언 없던 문서의 조판까지 흔든다. 표식·style 이 인쇄에도 함께 나가 R2-1 유지(단위로 고정).
+
+> **자책 기록**: D6 수정 중 주석에 백틱을 썼다가 편집기 전체를 부팅 불가로 만들었다 —
+> `editorStyle.js` 의 CSS 는 **JS 템플릿 리터럴 안**이라 주석의 백틱도 리터럴을 끊는다
+> (`".pill is not a function`). 프로브가 "모든 높이 0"으로 나왔을 때 문서 오염을 먼저 의심했는데,
+> 실제 원인은 내가 방금 넣은 백틱이었다. 파일에 경고 주석을 남겼다.
+
 ### 수정 요약
 | # | 파일 | 한 일 |
 |---|---|---|
@@ -62,6 +85,8 @@
 | D3 | `src/editor/selection.js` | 새 pointerdown 마다 `swallowNextClick` 무장 해제 — click 은 항상 다음 pointerdown 보다 먼저 오므로 정상 경로는 무손상 |
 | D4 | `src/domain/schema/ObjectCatalog.js` · `inspector.js` · `contextToolbar.js` | `PLACEMENT_TOGGLEABLE_TYPES`(두 배치 다 지원하는 타입) 파생 상수를 신설해 UI 두 곳이 같은 계약을 본다 |
 | D5 | `src/editor/saveController.js` | `editSeq`(markDirty 마다 증가)를 요청 시점과 대조 — 왕복 중 편집이 있었으면 서버 문서를 채택하지 않고 dirty 를 유지한다. 배너도 "저장하는 동안 수정한 내용은 아직 저장 전"이라고 밝힌다 |
+| D6 | `src/editor/editorStyle.js` | 편집 표식에서 `background` 를 빼고 `box-shadow` 로만 강조 — 조각의 배색을 건드리지 않는다 |
+| D7 | `src/usecases/RenderObjectTree.js` · `assets/paper.css` | 최소높이 개체에 `data-minh` 표식 + 그 개체만 속 내용을 flex 로 stretch(제목은 `.title-box` 까지 한 겹 더) |
 
 ---
 

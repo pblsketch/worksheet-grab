@@ -75,8 +75,17 @@ export function injectEditorStyle(doc) {
     .q-part[data-part]:hover, .wg-part[data-part]:hover {
       outline: 1px dashed rgba(37,99,235,.55); outline-offset: 1px; border-radius: 3px;
     }
+    /* 편집 표식은 조각의 **글자색·배경을 건드리지 않는다**(2026-07-28). 종전엔 배경을 반투명
+       노랑으로 덮어썼는데, 자기 배경 위에 흰 글자를 얹은 조각 — 제목 배지 .pill(청록 바탕
+       흰 글자) — 은 더블클릭하는 순간 **흰 바탕에 흰 글자가 되어 글자가 사라졌다**(사용자 보고,
+       실측: background rgb(0,131,143) → rgba(255,235,59,.12) 인데 color 는 흰색 그대로).
+       어떤 배색의 조각이 와도 안전하도록 바깥 글(box-shadow)로만 강조한다 — outline/box-shadow 는
+       레이아웃 박스를 바꾸지 않아 R2-1 에도 무해하다.
+       ⚠ 이 CSS 는 JS 템플릿 리터럴 안이다 — 주석에도 백틱을 쓰면 리터럴이 거기서 끊겨
+       편집기 전체가 부팅에 실패한다(이 주석을 쓰다가 실제로 냈다). */
     .q-part.wg-part-editing, .wg-part.wg-part-editing {
-      outline: 2px solid #dc2626; background: rgba(255,235,59,.12); border-radius: 3px;
+      outline: 2px solid #dc2626; outline-offset: 1px; border-radius: 3px;
+      box-shadow: 0 0 0 3px rgba(220,38,38,.18);
     }
     /* 표 셀 편집·병합·열 너비(#10) */
     td[data-r], th[data-r] { cursor: text; }

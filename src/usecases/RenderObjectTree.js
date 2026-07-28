@@ -152,15 +152,21 @@ function renderAnswerWrap(obj, inner) {
  * 그래서 크기를 준 개체는 안 준 개체와 상하 간격이 미세하게 다를 수 있다 — 그러나 **편집과 인쇄가
  * 같은 래퍼를 쓰므로 둘 사이의 동치는 그대로 성립한다**(R2-1 이 요구하는 것은 그것뿐이다).
  */
+/** 최소높이 선언이 실제로 나가는가 — 아래 style 생성과 `data-minh` 표식이 **같은 판정**을 쓰도록
+ *  하나로 묶는다(갈라지면 표식만 붙고 높이는 없거나 그 반대가 되어 stretch 가 조용히 어긋난다). */
+function hasMinHeight(obj) {
+  const minH = obj?.minHeightMm;
+  return typeof minH === 'number' && Number.isFinite(minH) && minH > 0;
+}
+
 function flowBoxStyle(obj) {
   const decl = [];
   const pct = obj?.widthPct;
   if (typeof pct === 'number' && Number.isFinite(pct) && pct >= WIDTH_PCT_MIN && pct <= WIDTH_PCT_MAX) {
     decl.push(`width:${pct}%`);
   }
-  const minH = obj?.minHeightMm;
-  if (typeof minH === 'number' && Number.isFinite(minH) && minH > 0) {
-    decl.push(`min-height:${minH}mm`);
+  if (hasMinHeight(obj)) {
+    decl.push(`min-height:${obj.minHeightMm}mm`);
   }
   // align 은 margin-inline 으로만 낸다(높이 무영향 = R2-1 무위험). 폭을 줄이지 않았으면 시각 효과가
   // 없지만(auto 마진이 남는 공간이 없다) 선언을 막지는 않는다 — 폭을 나중에 줄이면 바로 살아난다.
@@ -184,7 +190,14 @@ function renderFlowObject(obj, ctx) {
     ? ` data-oid="${escapeHtml(String(obj.id))}" data-ot="${escapeHtml(obj.type)}"`
     : '';
   const styleAttr = boxStyle ? ` style="${boxStyle}"` : '';
-  return `<div class="wg-obj"${oidAttrs}${styleAttr}>${inner}</div>`;
+  // 최소높이를 준 개체는 **속 내용도 함께** 늘어나야 한다. 종전엔 래퍼만 커지고 안의 실제 상자
+  // (`.title-box` 등)는 제 높이를 지켜서, 교사 눈에는 "영역만 늘어나지 테두리 높낮이는 안 바뀐다"로
+  // 보였다(사용자 보고, 실측: 래퍼 93→112px 인데 .title-box 는 93px 그대로).
+  // 표식만 붙이고 stretch 는 CSS(paper.css)가 건다 — 인쇄·편집이 같은 스타일시트를 쓰므로 R2-1 유지.
+  // 폭만 준 개체에는 붙이지 않는다: 블록 자식은 폭을 이미 채우고, flex 로 바꾸면 마진 상쇄가 사라져
+  // 선언 없던 문서의 레이아웃까지 흔든다.
+  const minHAttr = hasMinHeight(obj) ? ' data-minh="1"' : '';
+  return `<div class="wg-obj"${oidAttrs}${minHAttr}${styleAttr}>${inner}</div>`;
 }
 
 function renderFloatObject(obj, ctx) {
