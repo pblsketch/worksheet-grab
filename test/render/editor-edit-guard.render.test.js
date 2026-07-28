@@ -343,6 +343,49 @@ test("'내 블록으로 저장'에 편집 손잡이가 딸려 들어가지 않�
   }
 });
 
+test('모드 왕복 뒤 버튼·body.dataset·보이는 프레임이 서로 일치한다(불변식 점검)', { skip: !HAS_CHROME, timeout: 240000 }, async () => {
+  // ⚠ 이 테스트는 **경합을 재현하지 못한다.** 변이 실험으로 확인했다 — `setMode` 의 세대 가드
+  //   두 줄을 지워도 초록이었다. CDP 클릭 사이 간격(160ms)이 학생 프레임 재렌더 창보다 짧게
+  //   맞아떨어지지 않아, 두 번째 클릭이 느린 구간 **안에** 떨어지지 않는다.
+  //   따라서 이것은 회귀 방어가 아니라 **불변식 스모크**다(버튼·dataset·프레임 삼자 일치).
+  //   세대 가드의 정당성은 코드 근거에 있다(editor.js setMode 주석).
+  //   결정적 재현에는 서버 응답을 늦추는 테스트 훅이 필요하다 — 계획 문서에 후속으로 적었다.
+  const { server, s } = await boot('wsg-editguard-mode-chrome-');
+  try {
+    // 편집을 한 번 만들어 studentStale 을 켠다 — 그래야 학생 전환이 재렌더(느린 구간)를 탄다.
+    const r = JSON.parse(await s.evaluate(viewportCenterOf('[data-oid="r1"]')));
+    await s.click(r.x, r.y);
+    await s.click(r.x, r.y, { clickCount: 2 });
+    await s.waitFor(`${countOf('[contenteditable="true"]')} === 1`, { message: '편집 진입' });
+    await s.insertText('가');
+    await s.press('Escape');
+
+    const btn = (id) => `(() => { const b = document.getElementById(${JSON.stringify(id)}); const q = b.getBoundingClientRect();
+      return JSON.stringify({ x: Math.round(q.left + q.width / 2), y: Math.round(q.top + q.height / 2) }); })()`;
+    const stu = JSON.parse(await s.evaluate(btn('btn-student')));
+    const tea = JSON.parse(await s.evaluate(btn('btn-teacher')));
+
+    await s.click(stu.x, stu.y);   // 느린 재렌더 시작
+    await s.click(tea.x, tea.y);   // 그 도중에 되돌린다
+
+    // 첫 호출이 끝나고도 남을 만큼 기다린 뒤 불변식을 본다.
+    const state = `JSON.stringify({
+      btn: document.getElementById('btn-teacher').classList.contains('active') ? 'teacher' : 'student',
+      dataset: document.body.dataset.mode,
+      visible: [...document.querySelectorAll('#stage iframe')].findIndex((f) => f.offsetParent !== null),
+      teacherIdx: 0,
+    })`;
+    await s.waitFor(`${state} && true`, { message: '상태 읽기' });
+    await new Promise((res) => setTimeout(res, 4000));
+    const after = JSON.parse(await s.evaluate(state));
+    assert.equal(after.btn, 'teacher', '마지막 의도는 교사용이다');
+    assert.equal(after.dataset, 'teacher', `body.dataset.mode 가 버튼과 같아야 한다 — ${JSON.stringify(after)}`);
+    assert.equal(after.visible, after.teacherIdx, `보이는 프레임이 교사 프레임이어야 한다 — ${JSON.stringify(after)}`);
+  } finally {
+    await teardown(server, s);
+  }
+});
+
 test('배치 전환은 두 배치를 다 지원하는 타입에만 제안된다', { skip: !HAS_CHROME, timeout: 240000 }, async () => {
   const { server, s } = await boot('wsg-editguard-placement-chrome-');
   try {

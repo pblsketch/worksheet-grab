@@ -371,14 +371,24 @@ const shortcuts = createShortcuts({
 });
 window.addEventListener('keydown', shortcuts.onKeydown);
 
+// 모드 전환 세대 번호(2026-07-29) — 아래 경합 방어의 유일한 근거다.
+let modeSeq = 0;
+
 async function setMode(m) {
+  // 버튼은 동기로 바꾸고 프레임은 await 뒤에 바꾼다. 그 사이가 비어 있었다: 학생 프레임 재렌더는
+  // 저장+서버 조립이라 수 초 걸리는데, 교사가 그동안 '교사용'을 누르면 **늦게 끝난 첫 호출**이
+  // 클로저의 낡은 `m` 으로 프레임 가시성과 body.dataset.mode 를 되돌려 **버튼은 교사인데 화면은
+  // 학생**이 된다. 자기 세대가 최신일 때만 화면을 만진다(마지막 의도가 이긴다).
+  const seq = ++modeSeq;
   mode = m;
   document.getElementById('btn-teacher').classList.toggle('active', m === 'teacher');
   document.getElementById('btn-student').classList.toggle('active', m === 'student');
   const f = await ensureFrame(m);
+  if (seq !== modeSeq) return; // 그 사이 다른 전환이 시작됐다 — 이 호출의 화면 갱신은 무효
   // US-E1: 학생용 미리보기는 교사 편집을 반영해야 한다 — 편집이 있었으면(studentStale) 저장 후
   // 서버가 새로 조립한 studentHtml 로 프레임을 교체한다(초기 스냅샷 재사용 금지 = stale 방지).
   if (m === 'student' && studentStale) await refreshStudentFrame();
+  if (seq !== modeSeq) return; // 재렌더가 가장 긴 구간이라 여기서 한 번 더 본다
   for (const [name, frame] of Object.entries(frames)) {
     if (frame) frame.classList.toggle('hidden', name !== m);
   }
