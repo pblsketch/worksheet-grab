@@ -28,10 +28,14 @@ const HAS_CHROME = chromeAvailable();
 const A4_PT = { w: 595.3, h: 841.9 };
 const PT_TOL = 3;
 
-// 화면(연속 매체)에선 column-fill:auto + 높이 auto 가 좌열 단일 흐름이 된다(=화면은 근사).
-// 인쇄 페이지드 흐름을 화면에서 충실히 재현하려면 .sheet-body 를 페이지 콘텐츠 박스
-// 높이로 제약한다(A4 세로 padding 12/10 → 297-22mm). 실측 x군집이 실인쇄와 일치한다.
-const PAGED_PROXY = '.sheet-body{ height: calc(var(--sheet-h, 297mm) - 22mm); }';
+// 2026-07-29: 여기 있던 PAGED_PROXY 를 없앴다.
+//
+// 종전에는 이 테스트가 `.sheet-body{ height: calc(var(--sheet-h) - 22mm) }` 를 **스스로 주입해**
+// 2단을 재현했다. 그 주입이 배포 CSS 의 공백을 가리고 있었다 — 실제 산출물에는 열 높이 제약이
+// 없어서 `column-fill:auto` 가 열을 나누지 못했고(컨테이너 높이가 정해져야 나눈다), `.sheet` 가
+// min-height 라 그냥 늘어났다. 실측: sheetH 2247px(A4 는 1123px) · x 군집 1개 = 사실상 단단.
+// 이제 paper.js 가 columns>1 에서만 `--sheet-colh` 를 방출하고 paper.css 가 그걸 소비하므로,
+// 주입 없이도 열이 형성된다 — 이 테스트가 비로소 **진짜 산출물**을 검증한다.
 
 const MEASURE = `<script>
 window.addEventListener('load', function(){
@@ -146,7 +150,7 @@ for (const variant of ['student', 'teacher']) {
   test(`(b) column-count=2 실현 — 블록 x좌표 좌/우 두 군집 분포(${variant})`,
     { skip: !HAS_CHROME, timeout: 120000 }, async () => {
       const blocks = Array.from({ length: 24 }, (_, i) => block(i, true));
-      const rects = await measure(manifest({ columns: 2, pages: [blocks] }), variant, PAGED_PROXY);
+      const rects = await measure(manifest({ columns: 2, pages: [blocks] }), variant);
       assert.equal(rects.length, 24, '블록 24개 측정');
       const leftX = Math.min(...rects.map((r) => r.x));
       const left = rects.filter((r) => r.x <= leftX + 100);

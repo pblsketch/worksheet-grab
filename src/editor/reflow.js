@@ -22,14 +22,18 @@
 // 받은 teacherHtml 문자열 안의 CSS 를 재사용한다(과제 범위: EditorHttpServer 등 엔진 유스케이스는
 // 손대지 않는다).
 //
-// 한계(기록, 2026-07-28 갱신): 다단(columns) 문서의 열 간 재배분은 **아직 미완**이다.
-// assignFlowToPages 는 열 커서를 갖췄고 단위로 검증됐지만(columns 옵션), 배선하지 않았다 —
-// 측정 렌더가 renderMeta 를 그대로 써서 2단 레이아웃에서 높이를 재기 때문이다. 그러면 열 경계에서
-// next.top-cur.top 델타가 무의미해져 총 높이가 과소평가된다(실측: 모델 4쪽 vs 인쇄 7쪽 — 열 수만
-// 넘기면 파리티가 종전보다 나빠진다). 먼저 측정을 **열 폭의 단일 열**로 바꿔야 한다.
+// 다단(columns) 지원(2026-07-29): assignFlowToPages 에 열 수를 넘겨 열 단위로 채운다. 여기서
+// 재는 높이는 열 폭 기준으로 이미 맞다 — 측정 렌더도 문서와 같은 columns 를 쓰므로 본문이 열 폭에서
+// 접힌다.
+//
+// 알려진 미세 오차(기록): 측정은 flow 전체를 단일 논리 페이지에 펼치므로 열 경계에서 다음 개체의
+// top 이 되돌아가 `next.top - cur.top` 델타가 음수가 되고, 상류에서 0 으로 잘린다 — 열 경계마다
+// 개체 하나의 높이가 0 으로 계산된다. 측정 중에만 열을 하나로 접어 없앨 수 있으나, 2단·3단 픽스처
+// 어느 쪽으로도 페이지 귀속이 달라지지 않아(변이 실험) **검증할 수 없는 코드는 싣지 않았다.**
+// 이 오차가 실제로 경계를 바꾸는 사례를 만나면 그때 접는 방식을 넣을 것.
 
 import { RenderObjectTree, deriveRenderMeta } from '/src/usecases/RenderObjectTree.js';
-import { assignFlowToPages, computeAvailableHeightPx, rebuildPaginatedPages } from '/src/usecases/PaginateObjectTree.js';
+import { assignFlowToPages, computeAvailableHeightPx, paperColumns, rebuildPaginatedPages } from '/src/usecases/PaginateObjectTree.js';
 
 const renderer = new RenderObjectTree();
 const STYLE_RE = /<style>[\s\S]*?<\/style>/;
@@ -157,11 +161,11 @@ export function applyReflow(document, heights, opts = {}) {
   const srcPages = Array.isArray(document?.pages) ? document.pages : [];
   const flatFlow = flattenFlow(document);
   const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0, breakBefore: obj.type === 'page-break' }));
-  // ⚠ columns 미배선 — PaginateObjectTree.execute 와 **같은 이유로** 아직 넘기지 않는다(측정
-  //   경로가 2단 레이아웃에서 높이를 재는 문제). 둘 중 하나만 넘기면 하드 동치가 즉시 깨지므로
-  //   반드시 함께 켠다.
   const availableHeightPx = computeAvailableHeightPx(document?.paper ?? null);
-  const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, { tolerancePx: opts.tolerancePx });
+  const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, {
+    tolerancePx: opts.tolerancePx,
+    columns: paperColumns(document?.paper ?? null),
+  });
   const pages = rebuildPaginatedPages(
     srcPages,
     pageOfId,

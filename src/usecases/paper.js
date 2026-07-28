@@ -55,6 +55,10 @@ export function paperDims(resolved) {
 }
 
 /** CSS 여백 shorthand(mm) → {top,right,bottom,left} (mm 숫자). 1·2·3·4값 지원. */
+/** 다단 열 사이 간격(mm). paperCss 가 방출하는 `--sheet-colgap` 의 값이자, 페이지네이션이 열 폭을
+ *  계산할 때 쓰는 값이다 — 두 곳에 따로 적으면 조용히 어긋나므로 여기 하나만 둔다. */
+export const COLUMN_GAP_MM = 8;
+
 export function paperMargins(resolved) {
   return parseMarginShorthand(resolved.margins);
 }
@@ -86,8 +90,13 @@ export function paperCss(resolved) {
   const { w, h } = paperDims(resolved);
   const m = paperMargins(resolved);
   // 다단은 columns>1 일 때만 방출한다 — columns<=1 은 델타 ∅(기존 스니펫과 바이트 동일).
+  // --sheet-colh: 열 높이 = 페이지 콘텐츠 박스 높이. `column-fill:auto` 는 컨테이너 높이가
+  // **정해져야** 열을 나눈다 — .sheet 가 min-height 라 이걸 안 주면 .sheet-body 가 그냥 자라서
+  // 내용이 전부 1열에 들어가고 2단이 아예 형성되지 않는다(2026-07-29 실측: sheetH 2247px,
+  // x 군집 1개). columns>1 일 때만 방출하므로 단단 출력은 바이트 불변이다.
   const colVars = resolved.columns > 1
-    ? `\n  --sheet-cols: ${resolved.columns};\n  --sheet-colgap: 8mm;`
+    ? `\n  --sheet-cols: ${resolved.columns};\n  --sheet-colgap: ${COLUMN_GAP_MM}mm;`
+      + `\n  --sheet-colh: ${mm(h - m.top - m.bottom)};`
     : '';
   return `/* ===== 용지 오버라이드 (manifest.paper: ${resolved.size} ${resolved.orientation}) ===== */
 @page { size: ${mm(w)} ${mm(h)}; margin: 0; }

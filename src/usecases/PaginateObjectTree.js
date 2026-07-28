@@ -1,5 +1,5 @@
 import { RenderObjectTree } from './RenderObjectTree.js';
-import { resolvePaper, paperDims, paperMargins } from './paper.js';
+import { resolvePaper, paperDims, paperMargins, COLUMN_GAP_MM } from './paper.js';
 import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
 
 // PaginateObjectTree — S2.5(M2) 페이지네이션 패스 모듈(06_plan_final.md 167~172행, D-A/R2-1).
@@ -126,6 +126,7 @@ export function paperColumns(paper) {
   return normalizeColumns(resolved?.columns);
 }
 
+
 /**
  * rebuildPaginatedPages — 순수 계산부(Chrome/FS/DOM 무접촉). 원본 pages[](flow/float 버킷 —
  * 마이그레이션 안 된 flow 재배정 전 원본 배치)과 새 flow 귀속(assignFlowToPages 산출
@@ -217,13 +218,11 @@ export class PaginateObjectTree {
     const { heights, gating } = await this.measurer.measure({ html, timeoutMs: opts.timeoutMs });
 
     const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0, breakBefore: obj.type === 'page-break' }));
-    // ⚠ columns 는 아직 넘기지 않는다 — 패커는 준비됐지만 **측정 경로가 먼저 고쳐져야** 한다.
-    //   측정 렌더가 meta 를 그대로 쓰므로 다단 문서는 2단 레이아웃에서 높이를 재는데, 그러면
-    //   열 경계에서 next.top-cur.top 델타가 무의미해져 총 높이가 과소평가된다(실측: 모델 4쪽 vs
-    //   인쇄 7쪽). 지금 열 수만 넘기면 파리티가 **종전보다 나빠진다**. 상세는 assignFlowToPages
-    //   머리말과 docs/DECISION-object-resize.md §7.
     const availableHeightPx = computeAvailableHeightPx(meta.paper);
-    const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, { tolerancePx: opts.tolerancePx });
+    const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, {
+      tolerancePx: opts.tolerancePx,
+      columns: paperColumns(meta.paper),
+    });
 
     // float 재배치를 포함한 pages[] 재구성은 rebuildPaginatedPages(순수) 로 위임 — 브라우저
     // 편집기 리플로우(S4.2, reflow.js)가 이 Chrome 측정 경로와 동일한 함수를 호출해 하드 동치를 보장한다.

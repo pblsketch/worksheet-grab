@@ -222,6 +222,35 @@ test('3자 하드 동치 — 합성 넘침 픽스처: 편집기 리플로우 == 
   assert.equal(printedPages, chromeResult.pageCount, '인쇄 PDF 페이지 수가 Chrome 페이지네이션 페이지 수와도 동치여야 함');
 });
 
+// 다단(columns:2) — 2026-07-29. 이 테스트가 US-005 의 진짜 결함을 잡아냈다: 패커에 열 커서를 넣고
+// 단위 8건이 전부 초록인데도 **인쇄 PDF 만 7쪽**이었다(모델은 4쪽). 원인은 패커가 아니라 측정으로,
+// 2단 그대로 재면 열 경계에서 next.top-cur.top 델타가 음수가 되어 총 높이가 과소평가된 것이었다.
+// 순수 단위 테스트로는 절대 드러나지 않는 종류라 인쇄 쪽수까지 대조하는 이 자리에 둔다.
+test('3자 하드 동치 — 2단(columns:2) 픽스처: 편집기 리플로우 == PaginateObjectTree(Chrome) == 인쇄 PDF', { skip: !HAS_CHROME, timeout: TIMEOUT }, async () => {
+  const repo = new FsBlockRepository({ root: ROOT });
+  const assets = await loadAssets(repo);
+  // 2단은 한 쪽이 대략 두 배를 담으므로 단단 픽스처보다 넉넉히 넣어야 여러 쪽이 된다.
+  const items = buildOverflowItems(90);
+  const meta = {
+    docTitle: '3자 하드동치 — 2단', dataSubject: 'korean', themeName: 'ko', lang: 'ko',
+    paper: { size: 'A4', columns: 2 },
+  };
+
+  const chromeResult = await computeChromePagination(items, assets, meta);
+  assert.ok(chromeResult.pageCount >= 2, `2단 픽스처가 여러 페이지를 만들어야 검증 의미가 있음(실측 ${chromeResult.pageCount})`);
+
+  const editorResult = await computeEditorPagination(items, '3자동치-2단', meta);
+  assertEditPrintDeclarationParity(editorResult.document, assets, meta, '리플로우 저장본(2단)');
+
+  assert.deepEqual(editorResult.pageOfId, chromeResult.pageOfId,
+    '2단에서도 편집기 리플로우 귀속 == Chrome 귀속(하드 동치, R2-1)');
+  assert.equal(editorResult.pageCount, chromeResult.pageCount, '2단 페이지 수 동일');
+
+  const printedPages = await countPrintedPages(editorResult.document, assets, meta, 'parity-columns2');
+  assert.equal(printedPages, editorResult.pageCount, '2단 인쇄 PDF 쪽수 == 편집기 리플로우 쪽수');
+  assert.equal(printedPages, chromeResult.pageCount, '2단 인쇄 PDF 쪽수 == Chrome 페이지네이션 쪽수');
+});
+
 test('3자 하드 동치 — 표 포함 픽스처(통째 이동): 편집기 리플로우 == PaginateObjectTree(Chrome) == 인쇄 PDF', { skip: !HAS_CHROME, timeout: TIMEOUT }, async () => {
   const repo = new FsBlockRepository({ root: ROOT });
   const assets = await loadAssets(repo);

@@ -54,6 +54,10 @@ test('columns:2 → .sheet-body 래퍼 + --sheet-cols:2 방출', async () => {
   assert.ok(html.includes('<div class="sheet-body">'), '본문이 .sheet-body 로 래핑');
   assert.ok(html.includes('--sheet-cols: 2;'), '열 수 변수 방출');
   assert.ok(html.includes('--sheet-colgap: 8mm;'), '열 간격 변수 방출');
+  // 열 높이(2026-07-29) — column-fill:auto 는 컨테이너 높이가 정해져야 열을 나눈다. 이 변수가
+  // 없으면 .sheet 가 min-height 라 본문이 그냥 자라 2단이 아예 형성되지 않는다(실측 확인).
+  // JIS B4 세로 364mm(ISO 353 아님) − 상하 여백 20/20 → 324mm = 페이지 콘텐츠 박스 높이.
+  assert.ok(html.includes('--sheet-colh: 324mm;'), `열 높이 변수 방출 — ${/--sheet-colh: [^;]*/.exec(html)?.[0]}`);
   // 크롬(run-head/foot/mode-badge)은 .sheet 직속 유지 — .sheet-body 밖.
   assert.match(html, /<span class="mode-badge"><\/span>\s*\n\s*<div class="run-head">/, 'mode-badge·run-head 는 래퍼 밖 .sheet 직속');
   assert.ok(html.includes('<div class="run-foot">'), 'run-foot 존재(래퍼 밖)');
@@ -65,6 +69,7 @@ test('columns 미지정/1 → .sheet-body 래퍼 무·--sheet-cols 선언 무(�
   const none = await assemble(null);
   assert.ok(!none.includes('<div class="sheet-body">'), 'paper 미지정: 래퍼 요소 부재');
   assert.ok(!none.includes('--sheet-cols:'), 'columns 변수 선언 부재(var 사용부와 구분)');
+  assert.ok(!none.includes('--sheet-colh:'), '열 높이 선언도 부재 — 단단은 .sheet-body 높이 auto 그대로');
 
   // columns:1 명시는 columns 키 생략과 정확히 같은 바이트(무-op)여야 한다.
   const b4plain = await assemble((m) => { m.paper = { size: 'B4', orientation: 'portrait' }; });

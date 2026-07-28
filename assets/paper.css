@@ -41,6 +41,12 @@ body {
   column-count: var(--sheet-cols, 1);
   column-gap: var(--sheet-colgap, 8mm);
   column-fill: auto;
+  /* 열 높이를 못 박는 것이 핵심이다(2026-07-29). column-fill:auto 는 컨테이너 높이가 **정해져야**
+     열을 나눈다 — .sheet 가 min-height 라 이 선언이 없으면 .sheet-body 가 그대로 자라서 내용이
+     전부 1열에 들어가고 2단이 형성되지 않는다(실측: sheetH 2247px · x 군집 1개). 종전에는
+     columns.render.test.js 가 테스트 안에서 같은 높이를 직접 주입해(PAGED_PROXY) 이 공백을
+     가리고 있었다. --sheet-colh 는 columns>1 일 때만 방출되므로 단단 출력은 바이트 불변. */
+  height: var(--sheet-colh, auto);
 }
 .sheet-body > * { break-inside: avoid; }
 
