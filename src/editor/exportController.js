@@ -27,7 +27,12 @@ export function createExportController({
     previewStatus.classList.remove('hidden');
     previewStatus.textContent = '미리보기 생성 중… (저장 후 Chrome 렌더 — 수 초 걸릴 수 있어요)';
     try {
-      if (isDirty()) await save();
+      // 저장이 실패하면 서버엔 최신 편집이 없다 — 그대로 진행하면 **마지막 저장본**이 렌더돼
+      // 화면과 미리보기가 조용히 어긋난다(editor.js:397 의 학생 모드 전환과 같은 형태).
+      if (isDirty() && !(await save())) {
+        previewStatus.textContent = '미리보기 실패: 저장에 실패해 최신 내용을 렌더할 수 없습니다.';
+        return;
+      }
       const res = await fetch(`/preview.png?mode=${getMode()}&_=${Date.now()}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -55,7 +60,11 @@ export function createExportController({
     exportButton.textContent = '내보내는 중…';
     showBanner('warn', 'PDF 내보내는 중… (Chrome 렌더 — 수십 초 걸릴 수 있어요)');
     try {
-      if (isDirty()) await save();
+      // 미리보기와 같은 이유 — 저장 실패 시 진행하면 낡은 저장본으로 PDF 가 나간다.
+      if (isDirty() && !(await save())) {
+        showBanner('error', '내보내기 중단: 저장에 실패해 최신 내용을 내보낼 수 없습니다.');
+        return;
+      }
       const res = await fetch('/export', { method: 'POST' });
       const result = await res.json().catch(() => ({}));
       if (!res.ok) { showBanner('error', `내보내기 실패: ${result.error ?? result.message ?? res.status}`); return; }
