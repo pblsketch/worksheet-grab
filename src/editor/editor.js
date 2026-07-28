@@ -7,7 +7,7 @@
 // 의 순수 연산으로 다음 문서를 계산한 뒤 applyDocOp() 한 곳으로 몰아 reload→select→commit→
 // review→reflow 순서를 항상 동일하게 유지한다.
 import { createDocumentStore } from '/editor/core.js';
-import { createSelectionController } from '/editor/selection.js';
+import { createSelectionController, innerHtmlWithoutChrome } from '/editor/selection.js';
 import { createHistory } from '/editor/history.js';
 import { reflowDocument, buildFullHtml, buildRenderMeta, extractStyleTag } from '/editor/reflow.js';
 import { createLeftPanel } from '/editor/leftPanel.js';
@@ -711,10 +711,23 @@ async function saveObjectAsPreset(id) {
   const el = doc?.querySelector(`[data-oid="${escId}"]`);
   if (!el || !found) return;
   try {
-    await fetch('/presets', {
+    // 편집 크롬을 뺀 HTML 만 굳힌다(2026-07-28). 종전엔 `el.innerHTML` 를 날것으로 보내서, 자유
+    // 개체를 프리셋으로 저장하면 ⠿ 손잡이와 리사이즈 사각형 8개가 그대로 담겼고(실측: 저장된 html
+    // 이 `<div class="wg-float-handle">⠿</div>` 로 시작) 그 프리셋은 삽입 시 richtext.html 이 되므로
+    // **학생 배포본에 인쇄**됐다. 제거 규칙은 selection.js 의 단일 관문이 소유한다.
+    const res = await fetch('/presets', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: `${found.obj.type}-${Date.now().toString(36)}`, type: 'content', html: el.innerHTML }),
+      body: JSON.stringify({
+        name: `${found.obj.type}-${Date.now().toString(36)}`, type: 'content',
+        html: innerHtmlWithoutChrome(el),
+      }),
     });
+    // fetch 는 4xx/5xx 에 throw 하지 않는다 — 확인하지 않으면 서버가 거절해도 "저장했습니다"가 뜬다.
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      showBanner('error', `내 블록 저장 실패: ${body.error ?? `HTTP ${res.status}`}`);
+      return;
+    }
     if (leftPanel.getActiveTab() === 'myblocks') leftPanel.refreshPresets();
     showBanner('ok', '내 블록에 저장했습니다.');
   } catch (e) {
