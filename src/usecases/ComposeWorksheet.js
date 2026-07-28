@@ -18,10 +18,16 @@ export class ComposeWorksheet {
   }
 
   /**
-   * @param {{grade:string, subject:string, topic:string, archetype?:string|null, codes?:string[]|null, limit?:number}} args
+   * @param {{grade:string, subject:string, topic:string, archetype?:string|null, codes?:string[]|null,
+   *   limit?:number, objectives?:string[], objectivesHeading?:string|null, showStandards?:boolean}} args
+   *   objectives: 학습목표(저작 문장, "~할 수 있다") — 성취기준 원문과 달리 **저작 영역**이라 엔진이
+   *   조회하지 않고 호출부(교사·designer)가 준다. 주면 스캐폴드가 그 문장을 학습목표로 싣는다.
    * @returns {Promise<{manifest, brief, archetype, archetypeReason, standards, subjectLabel}>}
    */
-  async execute({ grade, subject, topic, archetype = null, codes = null, limit = 6 }) {
+  async execute({
+    grade, subject, topic, archetype = null, codes = null, limit = 6,
+    objectives = [], objectivesHeading = null, showStandards = false,
+  }) {
     if (!topic) throw new Error('compose: 주제(topic)가 필요합니다.');
     const spec = resolveSubject(subject);
     const { school } = parseGrade(grade);
@@ -56,6 +62,7 @@ export class ComposeWorksheet {
       standards: standards.map((s) => s.code),
       standardsText: Object.fromEntries(standards.map((s) => [s.code, s.text])),
       dataSubject: spec.dataSubject ?? spec.template,
+      objectives, objectivesHeading, showStandards,
     });
     const manifest = await this.#inlineScaffold(skeleton, {
       pill: lib.get(archetypeId).pill || '활동',

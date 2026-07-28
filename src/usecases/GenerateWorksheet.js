@@ -1,4 +1,4 @@
-import { AssembleWorksheet } from './AssembleWorksheet.js';
+import { AssembleWorksheet, normalizeObjectives } from './AssembleWorksheet.js';
 
 // GenerateWorksheet — (학년+교과, 주제) → 성취기준 검색(CSV/MCP) + 교과 템플릿 조립 → 활동지 HTML.
 // 콘텐츠는 슬롯 스캐폴드(교사/AI 저작). 성취기준 원문만 외부 조회(창작 금지).
@@ -64,7 +64,12 @@ export class GenerateWorksheet {
    *   codes 지정 시 키워드 검색 대신 해당 성취기준 코드들을 직접 조회한다(교사 선택권).
    * @returns {Promise<{html:string, worksheet, standards, manifest}>}
    */
-  async execute({ grade, subject, topic, limit = 6, codes = null }) {
+  /** objectives: 학습목표(저작 문장) — 엔진은 조회만 하고 목표는 짓지 않으므로 호출부가 준다.
+   *  주지 않으면 종전대로 성취기준 문장을 기계 변환해 목표 자리에 쓴다(하위호환). */
+  async execute({
+    grade, subject, topic, limit = 6, codes = null,
+    objectives = [], objectivesHeading = null, showStandards = false,
+  }) {
     if (!topic) throw new Error('generate: 주제(topic)가 필요합니다.');
     const spec = resolveSubject(subject);
     const { school } = parseGrade(grade);
@@ -95,7 +100,10 @@ export class GenerateWorksheet {
     }
 
     const template = await this.repo.readTemplate(spec.template);
-    const manifest = buildManifest(template, { grade, school, topic, subjectLabel: spec.label, standards: found });
+    const manifest = buildManifest(template, {
+      grade, school, topic, subjectLabel: spec.label, standards: found,
+      objectives, objectivesHeading, showStandards,
+    });
 
     const asm = new AssembleWorksheet({ blockRepository: this.repo, curriculum: this.curriculum });
     const { html, worksheet } = await asm.execute(manifest);
@@ -145,6 +153,14 @@ function buildManifest(template, ctx) {
     runFoot: { left: subVars(runFootT.left || '', vars), rightPrefix: subVars(runFootT.rightPrefix || '', vars) },
     standards: ctx.standards.map((s) => s.code),
     standardsText,
+    // 학습목표(저작 영역) — 미저작이면 키를 만들지 않아 산출이 종전과 바이트 동일하다(하위호환).
+    ...(normalizeObjectives(ctx.objectives).length > 0
+      ? {
+        objectives: normalizeObjectives(ctx.objectives),
+        ...(ctx.objectivesHeading ? { objectivesHeading: ctx.objectivesHeading } : {}),
+        ...(ctx.showStandards === true ? { showStandards: true } : {}),
+      }
+      : {}),
     pages,
   };
 }

@@ -54,6 +54,11 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       활동지 + student/teacher 2벌 생성. --pdf 지정 시 A4 PDF, --png 지정 시 미리보기 PNG(첫 페이지) 렌더.
       --standards [9과12-01],[9과12-02] 로 성취기준을 직접 선택, --limit 로 자동 조회 개수 제한(기본 6).
       "중2 과학 광합성" 처럼 학년·교과를 띄어 써도 된다.
+      학습목표(저작 영역) — generate/compose 공통:
+        --objectives "광합성에 필요한 요소를 말할 수 있다.|광합성 산물을 설명할 수 있다."  (구분자 |)
+        --objectives-heading "오늘의 목표"   박스 제목(기본 "학습 목표")
+        --show-standards                     근거 성취기준을 교사용에 함께 표기(기본 미표기)
+      미지정 시 종전대로 성취기준 문장을 기계 변환해 목표 자리에 쓴다(하위호환).
   worksheet-grab pipeline <학년교과> <주제> [--out <dir>] [--no-render] [--standards <코드,..>] [--limit <N>]
       종단 파이프라인: 조회→조립→2벌→검수 게이트→(통과 시) 렌더. 검수 실패 시 렌더 중단(fail-closed).
       HITL: 산출 후 교사 검토를 거쳐 인쇄하도록 안내.
@@ -182,6 +187,16 @@ function gradeTopicArgs(positionals) {
 function parseStandardsFlag(flags) {
   if (typeof flags.standards !== 'string' || !flags.standards.trim()) return null;
   return flags.standards.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * `--objectives "문장1|문장2"` — 학습목표(저작 문장). 구분자가 쉼표가 아니라 `|` 인 이유는
+ * 목표 문장에 쉼표가 흔히 들어가기 때문이다(`--standards` 는 코드 목록이라 쉼표로 충분하다).
+ * 미지정이면 빈 배열 → 엔진이 종전대로 성취기준 문장을 기계 변환해 목표 자리에 쓴다(하위호환).
+ */
+function parseObjectivesFlag(flags) {
+  if (typeof flags.objectives !== 'string' || !flags.objectives.trim()) return [];
+  return flags.objectives.split('|').map((s) => s.trim()).filter(Boolean);
 }
 
 /** --limit N (기본 6). */
@@ -442,7 +457,12 @@ async function cmdGenerate(gradeSubject, topic, flags, repo, { log }) {
   const curriculum = new GepaiCurriculum({ csvPath: typeof flags.csv === 'string' ? flags.csv : null });
   const gen = new GenerateWorksheet({ blockRepository: repo, curriculum });
   const { html, worksheet, standards, manifest } =
-    await gen.execute({ grade, subject, topic, limit: parseLimitFlag(flags), codes: parseStandardsFlag(flags) });
+    await gen.execute({
+      grade, subject, topic, limit: parseLimitFlag(flags), codes: parseStandardsFlag(flags),
+      objectives: parseObjectivesFlag(flags),
+      objectivesHeading: typeof flags['objectives-heading'] === 'string' ? flags['objectives-heading'] : null,
+      showStandards: flags['show-standards'] === true,
+    });
 
   log(`✔ generate: ${grade} ${subject} "${topic}" (${worksheet.pageCount()}쪽, 성취기준 ${standards.map((s) => s.code).join(', ')})`);
   if (manifest.paper) log(`  용지: ${paperLine(manifest.paper)}`);
@@ -542,6 +562,9 @@ async function cmdCompose(gradeSubject, topic, flags, repo, { log, err }) {
     archetype: typeof flags.archetype === 'string' ? flags.archetype : null,
     codes: parseStandardsFlag(flags),
     limit: parseLimitFlag(flags),
+    objectives: parseObjectivesFlag(flags),
+    objectivesHeading: typeof flags['objectives-heading'] === 'string' ? flags['objectives-heading'] : null,
+    showStandards: flags['show-standards'] === true,
   });
 
   const base = worksheetBase(manifest.subject, topic) + '.scaffold';
@@ -551,6 +574,13 @@ async function cmdCompose(gradeSubject, topic, flags, repo, { log, err }) {
   log(`  1) 성취기준: ${standards.map((s) => s.code).join(', ')}`);
   log(`  2) 아키타입: ${archetype} · ${brief.name} (${archetypeReason})`);
   log(`  3) 스캐폴드: ${mPath} (${manifest.pages.length}쪽 · 인라인 저작 대기)`);
+  // 학습목표는 인라인 html 이 아니라 매니페스트 필드라 브리프만 보면 놓치기 쉽다 — 상태를 명시한다.
+  if (Array.isArray(manifest.objectives) && manifest.objectives.length > 0) {
+    log(`     학습목표(저작됨, ${manifest.objectives.length}개): ${manifest.objectives.join(' / ')}`);
+  } else {
+    log('     학습목표: 미저작 — 성취기준 문장을 그대로 목표 자리에 씁니다.');
+    log('       직접 저작: --objectives "…할 수 있다.|…할 수 있다." (매니페스트 objectives 필드를 고쳐도 됩니다)');
+  }
   log('  4) 저작 브리프 — designer AI/교사가 각 블록의 인라인 html 을 주제에 맞게 저작:');
   brief.pages.forEach((pg, i) => {
     log(`     · p${i + 1}`);

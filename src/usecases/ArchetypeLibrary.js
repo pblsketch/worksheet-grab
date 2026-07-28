@@ -1,3 +1,5 @@
+import { normalizeObjectives } from './AssembleWorksheet.js';
+
 // ArchetypeLibrary — 아키타입(교과 초월 구조 패턴)을 교과에 바인딩해 구체 블록 시퀀스와
 // 렌더 가능한 스켈레톤 매니페스트로 해석한다.
 // 순수(포트 무관): 로드된 vocabulary + archetypes 레지스트리만 받는다.
@@ -119,9 +121,15 @@ export class ArchetypeLibrary {
   /**
    * 해석 결과 → 렌더 가능한 스켈레톤 매니페스트(exemplar 자리표시).
    * Phase 4 compose 가 요청·성취기준으로 콘텐츠를 저작해 이 자리표시를 대체한다.
-   * @param {{docTitle?:string, standards?:string[], standardsText?:object, dataSubject?:string}} opts
+   * @param {{docTitle?:string, standards?:string[], standardsText?:object, dataSubject?:string,
+   *   objectives?:string[], objectivesHeading?:string|null, showStandards?:boolean}} opts
+   *   objectives: 학습목표(저작 문장) — 있으면 standard-label 블록이 성취기준 기계 변환 대신 이 문장을
+   *   싣는다(AssembleWorksheet#renderStandardLabel). 비어 있으면 키 자체를 만들지 않는다(하위호환).
    */
-  toSkeletonManifest(id, subject, { docTitle = null, standards = [], standardsText = {}, dataSubject = null } = {}) {
+  toSkeletonManifest(id, subject, {
+    docTitle = null, standards = [], standardsText = {}, dataSubject = null,
+    objectives = [], objectivesHeading = null, showStandards = false,
+  } = {}) {
     const r = this.resolve(id, subject);
     const katex = r.pages.some((pg) => pg.some((b) => this.vocab.types[b.type]?.requiresKatex));
     const pages = r.pages.map((pg) => pg.map((b) => (
@@ -139,6 +147,14 @@ export class ArchetypeLibrary {
       runFoot: { left: `${r.name} 구조 스켈레톤`, rightPrefix: subject },
       standards,
       standardsText,
+      // 학습목표(저작 영역) — 미저작이면 키를 만들지 않아 스캐폴드 산출이 종전과 바이트 동일하다.
+      ...(normalizeObjectives(objectives).length > 0
+        ? {
+          objectives: normalizeObjectives(objectives),
+          ...(objectivesHeading ? { objectivesHeading } : {}),
+          ...(showStandards === true ? { showStandards: true } : {}),
+        }
+        : {}),
       pages,
     };
   }
