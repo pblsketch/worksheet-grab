@@ -13,6 +13,10 @@ import {
   TYPE_SPECS,
   OBJECT_TYPES,
   ANSWERABLE_TYPES,
+  SIZEABLE_TYPES,
+  ALIGN_VALUES,
+  WIDTH_PCT_MIN,
+  WIDTH_PCT_MAX,
   createUniquePageId,
 } from '/src/domain/schema/index.js';
 
@@ -403,6 +407,73 @@ export function patchObject(document, id, patch) {
   if (!loc) return document;
   Object.assign(pages[loc.page][loc.bucket][loc.index], patch);
   return { ...document, pages };
+}
+
+/** 소수 1자리 반올림 — 손잡이 드래그가 만드는 긴 소수를 문서에 그대로 싣지 않는다(diff 소음 방지). */
+const round1 = (n) => Math.round(n * 10) / 10;
+
+/** widthPct 클램프 — 스키마 범위(WIDTH_PCT_MIN~MAX)를 벗어난 값은 경계로 접는다. 수가 아니면 null. */
+function clampWidthPct(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return round1(Math.min(WIDTH_PCT_MAX, Math.max(WIDTH_PCT_MIN, n)));
+}
+
+/** minHeightMm 정규화 — 0 이하는 "높이 지정 없음"이므로 거부(호출부가 삭제하려면 null 을 준다). */
+function normalizeMinHeight(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return round1(n);
+}
+
+/**
+ * flow 개체의 크기·정렬 갱신(2026-07-28 — docs/DECISION-object-resize.md). 손잡이 드래그와 인스펙터
+ * 입력이 **공유하는 단일 관문**이다.
+ *
+ * 클램프를 순수 함수 한 곳에 두는 이유: 두 입력 경로가 각자 범위를 검사하면 언젠가 갈라지고, 범위 밖
+ * 값이 문서에 실리면 ValidateObjectTree 가 저장을 거부한다(invalid-size-value) — 교사는 "저장이 안
+ * 된다"만 보게 된다. `toggleFlowFloat` 이 rect 삭제 계약을 순수 함수 안에 둔 것과 같은 이유다.
+ *
+ * 값 규약: `null` 은 그 필드를 **삭제**한다(기본값 복귀 — 인스펙터 "원래대로"). `undefined`(키 부재)는
+ * 무변경. 실제로 바뀐 것이 없으면 **입력 문서를 그대로 돌려준다** — 히스토리에 빈 단계를 쌓지 않는다.
+ *
+ * float 개체와 크기를 받지 않는 타입(shape·spacer·page-break)에는 아무것도 하지 않는다. 스키마가
+ * 거부할 문서를 애초에 만들지 않는다(size-forbidden-in-float / unknown-field).
+ *
+ * @param {object} document
+ * @param {string} id
+ * @param {{widthPct?:number|null, minHeightMm?:number|null, align?:string|null}} patch
+ */
+export function resizeFlow(document, id, patch = {}) {
+  const pages = clonePages(document);
+  const loc = locate(pages, id);
+  if (!loc) return document;
+  const obj = pages[loc.page][loc.bucket][loc.index];
+  if (obj.placement !== 'flow' || !SIZEABLE_TYPES.includes(obj.type)) return document;
+
+  let changed = false;
+  /** 한 필드 적용 — null 이면 삭제, 정규화 실패면 무시(잘못된 입력이 기존 값을 지우지 않게 한다). */
+  const apply = (key, normalize) => {
+    if (!(key in patch)) return;
+    const raw = patch[key];
+    if (raw === null) {
+      if (obj[key] !== undefined) { delete obj[key]; changed = true; }
+      return;
+    }
+    const next = normalize(raw);
+    if (next === null || next === obj[key]) return;
+    obj[key] = next;
+    changed = true;
+  };
+
+  apply('widthPct', clampWidthPct);
+  apply('minHeightMm', normalizeMinHeight);
+  // align:'left' 는 기본값이라 필드로 남기지 않는다 — 렌더도 선언을 만들지 않으므로(flowBoxStyle)
+  // 문서에 남겨 두면 "지정했는데 출력이 같다"는 혼동만 생긴다.
+  apply('align', (v) => (v === 'left' ? null : (ALIGN_VALUES.includes(v) ? v : null)));
+  if (patch.align === 'left' && obj.align !== undefined) { delete obj.align; changed = true; }
+
+  return changed ? { ...document, pages } : document;
 }
 
 /** id 개체를 nextObj 로 완전히 치환한 새 문서(patchObject 와 달리 부분 병합이 아니라 전체 교체 —
