@@ -16,6 +16,7 @@ import { PaginateObjectTree } from '../../src/usecases/PaginateObjectTree.js';
 import { RenderObjectTree } from '../../src/usecases/RenderObjectTree.js';
 import { RenderPdf } from '../../src/usecases/RenderPdf.js';
 import { countPdfPages, chromeAvailable } from '../helpers/pdf.js';
+import { assertEditPrintDeclarationParity } from '../helpers/renderParity.js';
 
 // US-17(S4.2, M4a) — "편집==인쇄 하드 동치" 3자 대조(과제 지시 §산출 3, R2-1). 같은 flow 개체
 // 목록을 세 경로로 각각 페이지네이션하고 비교한다:
@@ -207,6 +208,11 @@ test('3자 하드 동치 — 합성 넘침 픽스처: 편집기 리플로우 == 
 
   const editorResult = await computeEditorPagination(items, '3자동치-넘침', meta);
 
+  // 골격 가드: pageOfId 대조에 **앞서** 편집·인쇄 렌더의 레이아웃 선언이 같은지 본다.
+  // 아래 대조는 두 측정 경로가 모두 editMode:true 라 "편집에만 반영되는 선언"을 구조적으로 못 잡는다
+  // (test/helpers/renderParity.js 머리말 — 2026-07-28 변이 실험으로 실증). 이 한 줄이 그 맹점을 막는다.
+  assertEditPrintDeclarationParity(editorResult.document, assets, meta, '리플로우 저장본');
+
   assert.deepEqual(editorResult.pageOfId, chromeResult.pageOfId,
     '편집기 리플로우 귀속이 Chrome PaginateObjectTree 귀속과 완전히 같아야 함(하드 동치, R2-1)');
   assert.equal(editorResult.pageCount, chromeResult.pageCount, '페이지 수도 동일해야 함');
@@ -226,6 +232,11 @@ test('3자 하드 동치 — 표 포함 픽스처(통째 이동): 편집기 리�
   assert.ok(chromeResult.pageCount >= 2, '채움 문단이 표를 다음 페이지로 밀어내야 검증 의미가 있음');
 
   const editorResult = await computeEditorPagination(items, '3자동치-표', meta);
+
+  // 골격 가드: pageOfId 대조에 **앞서** 편집·인쇄 렌더의 레이아웃 선언이 같은지 본다.
+  // 아래 대조는 두 측정 경로가 모두 editMode:true 라 "편집에만 반영되는 선언"을 구조적으로 못 잡는다
+  // (test/helpers/renderParity.js 머리말 — 2026-07-28 변이 실험으로 실증). 이 한 줄이 그 맹점을 막는다.
+  assertEditPrintDeclarationParity(editorResult.document, assets, meta, '리플로우 저장본');
 
   assert.deepEqual(editorResult.pageOfId, chromeResult.pageOfId,
     '편집기 리플로우 귀속이 Chrome PaginateObjectTree 귀속과 완전히 같아야 함(하드 동치, R2-1)');
@@ -254,6 +265,11 @@ test('3자 하드 동치 — 개체 크기 픽스처(widthPct·minHeightMm·alig
   assert.ok(chromeResult.pageCount >= 2, `픽스처가 여러 페이지를 만들어야 검증 의미가 있음(실측 ${chromeResult.pageCount})`);
 
   const editorResult = await computeEditorPagination(items, '3자동치-크기', meta);
+
+  // 골격 가드: pageOfId 대조에 **앞서** 편집·인쇄 렌더의 레이아웃 선언이 같은지 본다.
+  // 아래 대조는 두 측정 경로가 모두 editMode:true 라 "편집에만 반영되는 선언"을 구조적으로 못 잡는다
+  // (test/helpers/renderParity.js 머리말 — 2026-07-28 변이 실험으로 실증). 이 한 줄이 그 맹점을 막는다.
+  assertEditPrintDeclarationParity(editorResult.document, assets, meta, '리플로우 저장본');
 
   assert.deepEqual(editorResult.pageOfId, chromeResult.pageOfId,
     '편집기 리플로우 귀속이 Chrome PaginateObjectTree 귀속과 완전히 같아야 함(하드 동치, R2-1)');
