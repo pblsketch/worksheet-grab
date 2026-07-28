@@ -97,6 +97,40 @@ function buildTableItems(fillerCount = 10, rows = 25) {
   ];
 }
 
+/**
+ * 크기 픽스처(2026-07-28 — docs/DECISION-object-resize.md) — widthPct/minHeightMm/align 을 섞는다.
+ *
+ * **검출력이 나오는 지점:** 폭을 줄이면 같은 글이 더 많은 줄로 접혀 **높이가 달라진다.** 그래서
+ * 편집 렌더와 인쇄 렌더가 폭 선언을 다르게 받으면(예: 크기를 editMode 전용 래퍼에만 실으면) 개체
+ * 높이가 갈리고 → 페이지 귀속이 갈려 이 테스트가 즉시 빨개진다. minHeightMm 은 내용보다 큰 값을 줘
+ * 실제로 흐름을 밀어 올린다. 둘 다 "선언이 한쪽에만 들어가는" R2-1 붕괴를 직접 겨냥한다.
+ */
+function buildSizedItems(n = 26) {
+  const items = [
+    { id: 'sz-title', type: 'title', placement: 'flow', text: '크기 조정 — 3자 하드 동치', widthPct: 70, align: 'center' },
+  ];
+  for (let i = 0; i < n; i++) {
+    const narrow = i % 2 === 0;
+    items.push({
+      id: `sz-p-${i}`,
+      type: 'richtext',
+      placement: 'flow',
+      widthPct: narrow ? 55 : 100,
+      align: narrow ? 'center' : 'left',
+      html: `<p>크기 조정 하드 동치 픽스처 문단 ${i} — 폭을 좁히면 같은 문장이 더 많은 줄로 접혀 ` +
+        `개체 높이가 달라지므로, 편집 렌더와 인쇄 렌더가 폭 선언을 동일하게 받는지 검증할 수 있습니다.</p>`,
+    });
+  }
+  // 내용(한 줄)보다 훨씬 큰 최소 높이 — 흐름을 실제로 밀어 올려 페이지 경계를 움직인다.
+  items.push({ id: 'sz-minh', type: 'richtext', placement: 'flow', minHeightMm: 45, html: '<p>최소 높이 45mm 를 확보한 문단입니다.</p>' });
+  items.push({
+    id: 'sz-table', type: 'table', placement: 'flow', splittable: false,
+    widthPct: 60, align: 'center',
+    rows: Array.from({ length: 12 }, (_, i) => [{ text: `항목 ${i + 1}` }, { text: `내용 ${i + 1}` }]),
+  });
+  return items;
+}
+
 /** ②PaginateObjectTree(Chrome 어댑터 측정) 경로 — 순수 scaffold→paginated. */
 async function computeChromePagination(items, assets, meta) {
   const measurer = new ChromePaginationMeasurer({});
@@ -203,6 +237,45 @@ test('3자 하드 동치 — 표 포함 픽스처(통째 이동): 편집기 리�
   assert.equal(pagesWithTable[0].flow.find((o) => o.id === 'pv-big-table').rows.length, 25, '표 행 수는 분할 없이 원본 그대로');
 
   const printedPages = await countPrintedPages(editorResult.document, assets, meta, 'parity-table');
+  assert.equal(printedPages, editorResult.pageCount, '인쇄 PDF 페이지 수가 편집기 리플로우 페이지 수와 동치여야 함');
+  assert.equal(printedPages, chromeResult.pageCount, '인쇄 PDF 페이지 수가 Chrome 페이지네이션 페이지 수와도 동치여야 함');
+});
+
+test('3자 하드 동치 — 개체 크기 픽스처(widthPct·minHeightMm·align): 편집기 리플로우 == PaginateObjectTree(Chrome) == 인쇄 PDF', { skip: !HAS_CHROME, timeout: TIMEOUT }, async () => {
+  // 크기 조정(2026-07-28)의 R2-1 게이트. 크기 선언은 RenderObjectTree 가 `.wg-obj` 래퍼에 인라인으로
+  // 내되 **방출 조건이 `editMode || 선언있음`** 이라 편집·인쇄가 같은 박스를 갖는다. 그 성질이 실제
+  // 브라우저·실제 인쇄에서도 성립하는지를 여기서 확인한다(단위 테스트는 문자열까지만 본다).
+  const repo = new FsBlockRepository({ root: ROOT });
+  const assets = await loadAssets(repo);
+  const items = buildSizedItems(26);
+  const meta = { docTitle: '3자 하드동치 — 개체 크기', dataSubject: 'korean', themeName: 'ko', lang: 'ko', paper: null };
+
+  const chromeResult = await computeChromePagination(items, assets, meta);
+  assert.ok(chromeResult.pageCount >= 2, `픽스처가 여러 페이지를 만들어야 검증 의미가 있음(실측 ${chromeResult.pageCount})`);
+
+  const editorResult = await computeEditorPagination(items, '3자동치-크기', meta);
+
+  assert.deepEqual(editorResult.pageOfId, chromeResult.pageOfId,
+    '편집기 리플로우 귀속이 Chrome PaginateObjectTree 귀속과 완전히 같아야 함(하드 동치, R2-1)');
+  assert.equal(editorResult.pageCount, chromeResult.pageCount, '페이지 수도 동일해야 함');
+
+  // ⚠ 이 블록은 장식이 아니라 **이 테스트의 주 검출기**다(2026-07-28 변이 실험으로 확인).
+  //
+  // 위의 pageOfId 대조는 이 버그를 구조적으로 잡지 못한다 — 두 측정 경로가 **둘 다 editMode:true 로
+  // 렌더**하기 때문이다(PaginateObjectTree.execute 의 `{editMode:true}`, reflow.js buildMeasureHtml 도
+  // 동일). 크기가 편집 렌더에만 들어가고 인쇄 렌더에서 빠지면 두 측정기는 여전히 서로 일치하고,
+  // 어긋나는 것은 오직 실제 인쇄뿐이다. 셋째 다리(인쇄 PDF 쪽수)가 남지만 그건 높이 차가 마침
+  // 페이지 경계를 넘을 때만 걸리는 확률적 검출이다.
+  //
+  // 실제로 방출 조건을 옛 형태(`if (!ctx.editMode) return inner`)로 되돌려 보니 위 pageOfId 단정 2개는
+  // 그대로 통과했고 아래 단정이 잡아냈다. 그래서 "크기가 인쇄 HTML 에 실제로 있는가"를 직접 본다.
+  const { html: printHtml } = new RenderObjectTree().execute(editorResult.document, assets, meta);
+  assert.match(printHtml, /class="wg-obj" style="width:55%/, '인쇄 HTML 에 폭 선언이 있어야 함(없으면 검증이 공허하다)');
+  assert.match(printHtml, /min-height:45mm/, '인쇄 HTML 에 최소 높이 선언이 있어야 함');
+  assert.match(printHtml, /margin-inline:auto/, '인쇄 HTML 에 정렬 선언이 있어야 함');
+  assert.ok(!printHtml.includes('data-oid'), '인쇄 렌더에는 편집용 data-oid 가 없어야 함(편집 전용 속성 누출 방지)');
+
+  const printedPages = await countPrintedPages(editorResult.document, assets, meta, 'parity-sized');
   assert.equal(printedPages, editorResult.pageCount, '인쇄 PDF 페이지 수가 편집기 리플로우 페이지 수와 동치여야 함');
   assert.equal(printedPages, chromeResult.pageCount, '인쇄 PDF 페이지 수가 Chrome 페이지네이션 페이지 수와도 동치여야 함');
 });

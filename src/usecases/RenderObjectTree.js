@@ -1,5 +1,8 @@
 import { escapeHtml, wrapSheetBody, buildSheetSection, buildDocumentHtml } from './AssembleWorksheet.js';
 import { resolvePaper, paperCss as paperCssOverride } from './paper.js';
+// 크기 필드 범위(2026-07-28) — 렌더가 방어적으로 재확인한다(아래 flowBoxStyle 주석). ObjectCatalog 는
+// browserGraph 화이트리스트에 이미 있으므로 편집기 ESM 그래프에서도 404 나지 않는다(실측 확인).
+import { WIDTH_PCT_MIN, WIDTH_PCT_MAX } from '../domain/schema/ObjectCatalog.js';
 
 // RenderObjectTree — S2.1(M2) 순수 render-core(06_plan_final.md 150~152행, C-5/GAP-2).
 //
@@ -131,11 +134,57 @@ function renderAnswerWrap(obj, inner) {
   return obj.answer === true ? `<div class="answer">${inner}</div>` : inner;
 }
 
+/**
+ * flow 개체의 크기·정렬 선언(2026-07-28 — docs/DECISION-object-resize.md). 없으면 빈 문자열.
+ *
+ * **인라인으로 방출하는 이유(R2-1).** 편집 화면과 인쇄가 같은 선언을 써야 페이지 경계가 갈리지
+ * 않는다. 편집 전용 CSS(editorStyle.js)에 크기를 주면 리플로우 측정은 그 값을 보고 인쇄는 못 봐서
+ * 페이지 수가 어긋난다 — renderSpacer 의 heightMm 이 정확히 같은 이유로 인라인이다.
+ *
+ * widthPct 가 %인 것이 핵심이다 — 포함 블록(`.sheet-body` 의 열 폭) 기준으로 해석되므로 용지·단 수를
+ * 바꿔도 비율이 유지된다(mm 였다면 열을 넘겨 클램프가 필요하고, 클램프는 값을 되돌릴 수 없게 덮어쓴다).
+ *
+ * 값 범위를 **여기서 다시 확인하는 이유**: 렌더는 검증을 안 거친 문서(마이그레이션 중간물 등)도 받고,
+ * 이 값은 인라인 style 에 그대로 들어간다 — 범위 밖 수가 새어 나가면 조판이 깨진다. 통과 못 한 필드는
+ * 선언 자체를 생략해 기본 동작(폭 100%·높이 내용대로)으로 되돌린다.
+ *
+ * ⚠ min-height 는 마진 상쇄를 막는다(CSS: bottom 마진 상쇄는 height:auto && min-height:0 일 때만).
+ * 그래서 크기를 준 개체는 안 준 개체와 상하 간격이 미세하게 다를 수 있다 — 그러나 **편집과 인쇄가
+ * 같은 래퍼를 쓰므로 둘 사이의 동치는 그대로 성립한다**(R2-1 이 요구하는 것은 그것뿐이다).
+ */
+function flowBoxStyle(obj) {
+  const decl = [];
+  const pct = obj?.widthPct;
+  if (typeof pct === 'number' && Number.isFinite(pct) && pct >= WIDTH_PCT_MIN && pct <= WIDTH_PCT_MAX) {
+    decl.push(`width:${pct}%`);
+  }
+  const minH = obj?.minHeightMm;
+  if (typeof minH === 'number' && Number.isFinite(minH) && minH > 0) {
+    decl.push(`min-height:${minH}mm`);
+  }
+  // align 은 margin-inline 으로만 낸다(높이 무영향 = R2-1 무위험). 폭을 줄이지 않았으면 시각 효과가
+  // 없지만(auto 마진이 남는 공간이 없다) 선언을 막지는 않는다 — 폭을 나중에 줄이면 바로 살아난다.
+  // 'left' 는 기본값이라 선언을 만들지 않는다: 미지정 개체의 출력을 기준선과 문자 그대로 같게 둔다.
+  if (obj?.align === 'center') decl.push('margin-inline:auto');
+  else if (obj?.align === 'right') decl.push('margin-inline:auto 0');
+  return decl.length > 0 ? `${decl.join('; ')};` : '';
+}
+
 function renderFlowObject(obj, ctx) {
   const inner = renderAnswerWrap(obj, renderByType(obj, ctx));
-  if (!ctx.editMode) return inner;
+  // 방출 조건이 `editMode` 가 아니라 **`editMode || 선언있음`** 인 것이 이 함수의 핵심이다.
+  // 이 래퍼는 원래 editMode 에서만 나왔다 — 크기를 여기 얹으면서 조건을 그대로 뒀다면 편집에만
+  // 적용되고 인쇄에는 빠져 R2-1(편집==인쇄)이 조용히 깨진다. 편집 전용 CSS 를 피하고도 같은 붕괴가
+  // 나는, 더 은밀한 경로다. 선언이 없는 개체는 종전대로 래퍼 없이 inner 만 내므로 인쇄 출력이
+  // 기준선과 바이트 단위로 같다(회귀 0) — 이 두 성질을 render-object-size.test.js 가 단정한다.
+  const boxStyle = flowBoxStyle(obj);
+  if (!ctx.editMode && !boxStyle) return inner;
   // editMode 개체 경계 래퍼 — data-oid 기반(D-A/HANDOFF §6, AssembleWorksheet 의 wg-block 관례와 동형).
-  return `<div class="wg-obj" data-oid="${escapeHtml(String(obj.id))}" data-ot="${escapeHtml(obj.type)}">${inner}</div>`;
+  const oidAttrs = ctx.editMode
+    ? ` data-oid="${escapeHtml(String(obj.id))}" data-ot="${escapeHtml(obj.type)}"`
+    : '';
+  const styleAttr = boxStyle ? ` style="${boxStyle}"` : '';
+  return `<div class="wg-obj"${oidAttrs}${styleAttr}>${inner}</div>`;
 }
 
 function renderFloatObject(obj, ctx) {
