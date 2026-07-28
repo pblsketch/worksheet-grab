@@ -31,9 +31,18 @@ export const DEFAULT_TOLERANCE_PX = 2;
  * 개체 혼자서도 가용 높이를 넘는 경우(예: 매우 큰 표)는 그 개체 하나만 담은 페이지로 "최선을 다해"
  * 배치한다(분할이 불가능하므로 넘침 자체는 허용 — 인쇄 CSS 의 break-inside:avoid 가 조판 안전망).
  *
+ * **다단(columns>1)**: 페이지는 열 N 개로 이루어지고, 각 열의 가용 높이는 페이지와 같다(열은
+ * 나란히 서므로). `assets/paper.css` 가 `column-fill:auto` + 자식 `break-inside:avoid` 를 쓰므로
+ * 브라우저는 **좌열을 끝까지 채우고 다음 열로 넘어가며 블록을 쪼개지 않는다** — 즉 아래의 열 단위
+ * 그리디 패킹이 브라우저 동작과 1:1 대응이다. "열 수 × 열 높이"를 한 덩어리 용량으로 합산하면 안
+ * 된다: 한 열에 안 들어가는 개체는 다음 열로 밀리며 빈틈을 남기므로 합산은 용량을 과대평가한다.
+ *
+ * 열 넘김은 CSS 가 하고 **페이지 경계는 계속 이 함수가 혼자 정한다**(D-A 무접촉).
+ * columns=1 이면 열 커서가 항상 0 이라 종전 코드와 **완전히 같은 값**을 낸다.
+ *
  * @param {Array<{id:string, heightPx:number, breakBefore?:boolean}>} items 순서대로 배치할 flow 개체(평평한 목록). breakBefore 는 page-break 개체 표식.
- * @param {number} availableHeightPx 페이지 1개의 가용 콘텐츠 높이(px, 상하 여백 제외)
- * @param {{tolerancePx?:number}} [opts]
+ * @param {number} availableHeightPx 열 1개의 가용 콘텐츠 높이(px, 상하 여백 제외). 단단이면 곧 페이지 높이.
+ * @param {{tolerancePx?:number, columns?:number}} [opts]
  * @returns {{pageOfId:Record<string,number>, pageOfIndex:number[], pageCount:number}}
  */
 export function assignFlowToPages(items, availableHeightPx, opts = {}) {
@@ -44,28 +53,32 @@ export function assignFlowToPages(items, availableHeightPx, opts = {}) {
     throw new TypeError('assignFlowToPages 는 availableHeightPx(양수) 가 필요합니다.');
   }
   const tolerancePx = opts.tolerancePx ?? DEFAULT_TOLERANCE_PX;
+  const columns = normalizeColumns(opts.columns);
 
   const pageOfIndex = [];
   const pageOfId = {};
   let cursor = 0;
+  let column = 0;
   let page = 0;
   for (const item of items) {
     // page-break 개체: 여기서 페이지를 강제로 끊는다(높이 0). 그리디 패킹만으로는 "여기서
     // 끊어라"를 표현할 방법이 없어 교사가 의도한 페이지 구성이 매 리플로우마다 되돌아갔다.
     // ⚠ 페이지 '용량'을 늘리지는 않는다 — 끊는 위치만 정한다. 넘치는 분량은 여전히 뒤로 밀린다.
-    // 이미 새 페이지의 첫 자리(cursor===0)면 빈 페이지를 만들지 않도록 건너뛴다.
+    // 이미 새 페이지의 첫 자리(첫 열의 맨 위)면 빈 페이지를 만들지 않도록 건너뛴다.
     if (item?.breakBefore) {
-      if (cursor > 0) { page += 1; cursor = 0; }
+      if (cursor > 0 || column > 0) { page += 1; column = 0; cursor = 0; }
       pageOfIndex.push(page);
       if (item?.id != null) pageOfId[item.id] = page;
       continue;
     }
     const h = Math.max(0, Number(item?.heightPx) || 0);
-    // cursor>0(현재 페이지에 이미 개체가 있음) 이고, 더하면 허용오차를 넘어 넘치면 -> 통째로 다음
-    // 페이지로. cursor===0(새 페이지의 첫 개체)이면 그 개체 혼자 용량을 넘겨도 분할 없이 그대로
-    // 싣는다(표 등 분할불가 개체가 "통째 이동"으로 최종 착지하는 지점, R7).
+    // cursor>0(현재 열에 이미 개체가 있음) 이고, 더하면 허용오차를 넘어 넘치면 -> 통째로 다음
+    // 열로(열이 남아 있으면), 없으면 다음 페이지 첫 열로. cursor===0(열의 첫 개체)이면 그 개체
+    // 혼자 용량을 넘겨도 분할 없이 그대로 싣는다(표 등 분할불가 개체가 "통째 이동"으로 최종
+    // 착지하는 지점, R7).
     if (cursor > 0 && cursor + h > availableHeightPx + tolerancePx) {
-      page += 1;
+      if (column + 1 < columns) column += 1;
+      else { page += 1; column = 0; }
       cursor = 0;
     }
     pageOfIndex.push(page);
@@ -73,6 +86,12 @@ export function assignFlowToPages(items, availableHeightPx, opts = {}) {
     cursor += h;
   }
   return { pageOfId, pageOfIndex, pageCount: page + 1 };
+}
+
+/** 열 수 정규화 — 1 미만·비정수·비수치는 전부 1(단단)로 본다. */
+function normalizeColumns(value) {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) && n > 1 ? n : 1;
 }
 
 // 페이지 경계 안전 버퍼(px) — 실측 근거: 측정은 flow 전체를 단일 논리 페이지로 평탄화해 개체 높이를
@@ -93,6 +112,18 @@ export function computeAvailableHeightPx(paper) {
   const { h } = paperDims(resolved);
   const m = paperMargins(resolved);
   return (h - m.top - m.bottom) * MM_TO_PX - PAGE_BOUNDARY_BUFFER_PX;
+}
+
+/**
+ * 문서 paper 설정 → 열 수(1 이상 정수). 순수 함수.
+ *
+ * 소비자가 둘(편집기 reflow · 엔진 PaginateObjectTree)이라 해석을 여기 한 곳에 둔다 — 둘이
+ * 다르게 읽으면 "편집 == 인쇄" 하드 동치가 조용히 깨진다(computeAvailableHeightPx 와 같은 이유).
+ * @param {object|null|undefined} paper manifest.paper 와 동형(미지정이면 단단)
+ */
+export function paperColumns(paper) {
+  const resolved = resolvePaper(paper) ?? resolvePaper({});
+  return normalizeColumns(resolved?.columns);
 }
 
 /**
@@ -186,6 +217,11 @@ export class PaginateObjectTree {
     const { heights, gating } = await this.measurer.measure({ html, timeoutMs: opts.timeoutMs });
 
     const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0, breakBefore: obj.type === 'page-break' }));
+    // ⚠ columns 는 아직 넘기지 않는다 — 패커는 준비됐지만 **측정 경로가 먼저 고쳐져야** 한다.
+    //   측정 렌더가 meta 를 그대로 쓰므로 다단 문서는 2단 레이아웃에서 높이를 재는데, 그러면
+    //   열 경계에서 next.top-cur.top 델타가 무의미해져 총 높이가 과소평가된다(실측: 모델 4쪽 vs
+    //   인쇄 7쪽). 지금 열 수만 넘기면 파리티가 **종전보다 나빠진다**. 상세는 assignFlowToPages
+    //   머리말과 docs/DECISION-object-resize.md §7.
     const availableHeightPx = computeAvailableHeightPx(meta.paper);
     const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, { tolerancePx: opts.tolerancePx });
 

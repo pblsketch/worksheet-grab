@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  assignFlowToPages, computeAvailableHeightPx, MM_TO_PX, DEFAULT_TOLERANCE_PX, PAGE_BOUNDARY_BUFFER_PX,
+  assignFlowToPages, computeAvailableHeightPx, paperColumns, MM_TO_PX, DEFAULT_TOLERANCE_PX, PAGE_BOUNDARY_BUFFER_PX,
 } from '../../src/usecases/PaginateObjectTree.js';
 import { resolvePaper, paperDims, paperMargins } from '../../src/usecases/paper.js';
 
@@ -199,4 +199,91 @@ test('breakBefore 없는 items 는 종전과 완전히 동일(하위호환)', ()
   const before = assignFlowToPages(items, 300);
   const withFalse = assignFlowToPages(items.map((i) => ({ ...i, breakBefore: false })), 300);
   assert.deepEqual(withFalse, before);
+});
+
+// ── 다단(columns) 열 인식 패킹 (2026-07-28) ──────────────────────────────────
+//
+// paper.css 가 `column-fill:auto` + 자식 `break-inside:avoid` 라 브라우저는 좌열을 끝까지 채우고
+// 다음 열로 넘어가며 블록을 쪼개지 않는다. 열 단위 그리디 패킹이 그 동작과 1:1 대응이다.
+// 열 넘김은 CSS 가 하고 **페이지 경계는 여전히 assignFlowToPages 혼자 정한다**(D-A 무접촉).
+
+const H = (n, h) => ({ id: `i${n}`, heightPx: h });
+
+test('assignFlowToPages(columns:2): 한 열이 차면 다음 열, 열이 다 차야 다음 페이지', () => {
+  // 열 높이 100, 개체 60 → 한 열에 하나씩만 들어간다(60+60=120 > 100+2).
+  const items = [H(1, 60), H(2, 60), H(3, 60), H(4, 60), H(5, 60)];
+  const { pageOfIndex, pageCount } = assignFlowToPages(items, 100, { columns: 2 });
+  assert.deepEqual(pageOfIndex, [0, 0, 1, 1, 2], '2개씩 한 페이지(열 2개)');
+  assert.equal(pageCount, 3);
+});
+
+test('assignFlowToPages: columns 를 안 주면 종전과 완전히 같다(단단 회귀 0)', () => {
+  const items = [H(1, 60), H(2, 60), H(3, 60), H(4, 60), H(5, 60)];
+  const base = assignFlowToPages(items, 100);
+  assert.deepEqual(base.pageOfIndex, [0, 1, 2, 3, 4], '단단이면 개체마다 한 페이지');
+  // 1 · 0 · 음수 · 소수 · 문자열 · null — 전부 단단으로 떨어져야 한다.
+  for (const columns of [1, 0, -3, 1.9, 'two', null, undefined, NaN]) {
+    assert.deepEqual(
+      assignFlowToPages(items, 100, { columns }).pageOfIndex, base.pageOfIndex,
+      `columns=${String(columns)} 은 단단과 같아야 한다`,
+    );
+  }
+});
+
+test('assignFlowToPages(columns:2): 열 하나에 여러 개가 들어가면 그대로 쌓인다', () => {
+  // 열 높이 100, 개체 30 → 한 열에 3개(90), 4번째부터 다음 열.
+  const items = Array.from({ length: 7 }, (_, i) => H(i + 1, 30));
+  const { pageOfIndex, pageCount } = assignFlowToPages(items, 100, { columns: 2 });
+  assert.deepEqual(pageOfIndex, [0, 0, 0, 0, 0, 0, 1], '3개×2열 = 6개가 1쪽, 7번째가 2쪽');
+  assert.equal(pageCount, 2);
+});
+
+test('assignFlowToPages(columns:2): page-break 는 열이 아니라 **페이지**를 끊는다', () => {
+  const items = [H(1, 30), { id: 'pb', heightPx: 0, breakBefore: true }, H(2, 30)];
+  const { pageOfId } = assignFlowToPages(items, 100, { columns: 2 });
+  assert.equal(pageOfId.i1, 0);
+  assert.equal(pageOfId.pb, 1, '첫 열에 여유가 남아도 페이지를 끊는다');
+  assert.equal(pageOfId.i2, 1);
+});
+
+test('assignFlowToPages(columns:2): 페이지 첫 열 맨 위의 page-break 는 빈 페이지를 만들지 않는다', () => {
+  const items = [{ id: 'pb', heightPx: 0, breakBefore: true }, H(1, 30)];
+  const { pageOfId, pageCount } = assignFlowToPages(items, 100, { columns: 2 });
+  assert.equal(pageOfId.pb, 0);
+  assert.equal(pageOfId.i1, 0);
+  assert.equal(pageCount, 1);
+});
+
+test('assignFlowToPages(columns:2): 열보다 큰 개체도 쪼개지 않고 그 열에 그대로 싣는다(R7)', () => {
+  const items = [H(1, 250), H(2, 30)];
+  const { pageOfIndex } = assignFlowToPages(items, 100, { columns: 2 });
+  assert.deepEqual(pageOfIndex, [0, 0], '큰 개체는 1열에, 다음 개체는 2열에 — 페이지는 그대로');
+});
+
+test('paperColumns: 열 수 해석은 한 곳에서만 — 미지정·불량은 단단', () => {
+  assert.equal(paperColumns(null), 1);
+  assert.equal(paperColumns(undefined), 1);
+  assert.equal(paperColumns({ size: 'A4' }), 1);
+  assert.equal(paperColumns({ size: 'A4', columns: 1 }), 1);
+  assert.equal(paperColumns({ size: 'A4', columns: 2 }), 2);
+  assert.equal(paperColumns({ size: 'A4', columns: 3 }), 3);
+});
+
+test('assignFlowToPages(columns:2): 뒷 열 맨 위의 page-break 도 페이지를 끊는다', () => {
+  // 열 커서가 0 인데 열 인덱스가 0 이 아닌 상태를 만든다: 열보다 큰 개체(250)가 1열을 넘겨
+  // 놓으면 뒤따르는 높이 0 개체가 2열 맨 위로 밀린다(cursor 0 · column 1).
+  // 이때 page-break 를 만나면 "이미 페이지 첫 자리"로 오인해 넘어가지 않으면 안 된다 —
+  // 교사가 끊으라고 한 지점이 조용히 무시된다.
+  const items = [
+    { id: 'big', heightPx: 250 },
+    { id: 'z', heightPx: 0 },
+    { id: 'pb', heightPx: 0, breakBefore: true },
+    { id: 'after', heightPx: 30 },
+  ];
+  const { pageOfId, pageCount } = assignFlowToPages(items, 100, { columns: 2 });
+  assert.equal(pageOfId.big, 0);
+  assert.equal(pageOfId.z, 0, '2열로 밀렸지만 아직 같은 페이지');
+  assert.equal(pageOfId.pb, 1, '2열 맨 위여도 page-break 는 페이지를 끊는다');
+  assert.equal(pageOfId.after, 1);
+  assert.equal(pageCount, 2);
 });

@@ -22,9 +22,11 @@
 // 받은 teacherHtml 문자열 안의 CSS 를 재사용한다(과제 범위: EditorHttpServer 등 엔진 유스케이스는
 // 손대지 않는다).
 //
-// 한계(범위 밖, 기록): columns(다단) 문서는 skeleton 렌더에 document.paper 를 그대로 넘겨 열
-// 수(래퍼 유무) 자체는 재현하지만, 다단 내부의 열 간 높이 재배분 리플로우 고도화는 이번 스토리
-// 범위 밖이다 — assignFlowToPages 는 단일 flow 순서 기준으로만 페이지 경계를 계산한다.
+// 한계(기록, 2026-07-28 갱신): 다단(columns) 문서의 열 간 재배분은 **아직 미완**이다.
+// assignFlowToPages 는 열 커서를 갖췄고 단위로 검증됐지만(columns 옵션), 배선하지 않았다 —
+// 측정 렌더가 renderMeta 를 그대로 써서 2단 레이아웃에서 높이를 재기 때문이다. 그러면 열 경계에서
+// next.top-cur.top 델타가 무의미해져 총 높이가 과소평가된다(실측: 모델 4쪽 vs 인쇄 7쪽 — 열 수만
+// 넘기면 파리티가 종전보다 나빠진다). 먼저 측정을 **열 폭의 단일 열**로 바꿔야 한다.
 
 import { RenderObjectTree, deriveRenderMeta } from '/src/usecases/RenderObjectTree.js';
 import { assignFlowToPages, computeAvailableHeightPx, rebuildPaginatedPages } from '/src/usecases/PaginateObjectTree.js';
@@ -155,6 +157,9 @@ export function applyReflow(document, heights, opts = {}) {
   const srcPages = Array.isArray(document?.pages) ? document.pages : [];
   const flatFlow = flattenFlow(document);
   const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0, breakBefore: obj.type === 'page-break' }));
+  // ⚠ columns 미배선 — PaginateObjectTree.execute 와 **같은 이유로** 아직 넘기지 않는다(측정
+  //   경로가 2단 레이아웃에서 높이를 재는 문제). 둘 중 하나만 넘기면 하드 동치가 즉시 깨지므로
+  //   반드시 함께 켠다.
   const availableHeightPx = computeAvailableHeightPx(document?.paper ?? null);
   const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, { tolerancePx: opts.tolerancePx });
   const pages = rebuildPaginatedPages(
