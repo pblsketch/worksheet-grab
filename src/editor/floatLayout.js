@@ -36,19 +36,77 @@ export const OVERLAP_TOL_MM = 1;
 export const BOUNDS_TOL_MM = 2;
 
 /**
- * 회전된 개체는 모든 규칙에서 제외한다.
+ * 회전 여부. 순수 규칙 2종은 이제 회전을 **제외하지 않고 꼭짓점(OBB)으로 계산**한다(2026-07-28).
  *
- * 렌더가 float 에 `transform: rotate()` 를 걸면(RenderObjectTree) 개체의 실제 점유 영역은 rect 와
- * 달라진다 — 45°면 외접 상자가 약 1.41배다. 그 상태로 rect 기반 AABB 로 판정하면 순수 규칙은
- * **미탐**(실제로 벗어났는데 rect 는 안에 있다), 측정 규칙은 getBoundingClientRect 가 회전 요소에
- * AABB 를 돌려주므로 **오탐**(실제보다 크게 잡는다)이 되어 두 규칙군이 반대 방향으로 틀린다.
- * 정확히 하려면 꼭짓점 교차(OBB) 계산이 필요한데 규칙 3종에 전부 비용이 붙는다.
+ * 종전에는 규칙 3종에서 통째로 뺐다 — 렌더가 `transform: rotate()` 를 걸면 실제 점유 영역이
+ * rect 와 달라지는데(45°면 외접 상자가 약 1.41배) rect 기반 AABB 로 판정하면 순수 규칙은
+ * **미탐**, 측정 규칙은 getBoundingClientRect 가 AABB 를 돌려주므로 **오탐**이라 두 규칙군이
+ * 반대 방향으로 틀렸기 때문이다. 순수 규칙 쪽은 모델에 rect·angle 이 다 있으므로 꼭짓점을
+ * 직접 구하면 정확해진다 — 그래서 그쪽만 OBB 로 올렸다.
  *
- * 회전은 인스펙터에서 각도를 직접 넣어야 생기는 **의도적 장식 배치**라 빈도가 낮고, "의도적으로
- * 배치한 것은 경고하지 않는다"는 shape 제외와 같은 논리다 — 그래서 이번에는 제외를 택했다.
+ * **측정 규칙(measureFloatCoverage)은 여전히 제외한다.** 그쪽은 브라우저가 돌려주는 AABB 가
+ * 입력이라 같은 방법을 쓸 수 없고(모델 좌표를 화면 좌표로 다시 사영해야 한다), 그건 이번 범위
+ * 밖이다. 제외를 유지하는 편이 오탐보다 낫다.
  */
 function isRotated(obj) {
   return typeof obj?.angle === 'number' && obj.angle !== 0;
+}
+
+const DEG = Math.PI / 180;
+
+/** 회전 각도(도). 렌더와 같은 범위로 클램프한다(RenderObjectTree 는 [-180,180]). */
+function angleOf(obj) {
+  const a = typeof obj?.angle === 'number' ? obj.angle : 0;
+  return Math.max(-180, Math.min(180, a));
+}
+
+/** (회전 가능) rect 의 꼭짓점 4개(mm). 회전 중심은 렌더와 같은 `transform-origin:center center`. */
+function cornersOf(rect, angleDeg) {
+  const cx = rect.xMm + rect.wMm / 2;
+  const cy = rect.yMm + rect.hMm / 2;
+  const a = angleDeg * DEG;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  const hw = rect.wMm / 2;
+  const hh = rect.hMm / 2;
+  return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]]
+    .map(([x, y]) => ({ x: cx + x * cos - y * sin, y: cy + x * sin + y * cos }));
+}
+
+/** 꼭짓점들의 축 정렬 외접 상자(mm). 회전 0 이면 원래 rect 와 정확히 같다. */
+function aabbOfCorners(corners) {
+  const xs = corners.map((p) => p.x);
+  const ys = corners.map((p) => p.y);
+  const xMm = Math.min(...xs);
+  const yMm = Math.min(...ys);
+  return { xMm, yMm, wMm: Math.max(...xs) - xMm, hMm: Math.max(...ys) - yMm };
+}
+
+/**
+ * 두 볼록 사각형의 **최소 침투 깊이**(mm). 떨어져 있으면 0. 분리축 정리(SAT).
+ *
+ * 축 정렬 사각형 둘이면 결과가 `min(겹침폭, 겹침높이)` 와 같다 — 즉 종전 규칙
+ * "두 축 모두 TOL 이상"과 **정확히 같은 판정**이다(회전 0 산출 불변의 근거).
+ */
+function satPenetrationMm(ca, cb) {
+  let min = Infinity;
+  for (const poly of [ca, cb]) {
+    for (let i = 0; i < 4; i++) {
+      const p = poly[i];
+      const q = poly[(i + 1) % 4];
+      const len = Math.hypot(q.x - p.x, q.y - p.y);
+      if (!len) continue;
+      const ax = -(q.y - p.y) / len; // 변의 법선(단위)
+      const ay = (q.x - p.x) / len;
+      let aLo = Infinity; let aHi = -Infinity; let bLo = Infinity; let bHi = -Infinity;
+      for (const pt of ca) { const v = pt.x * ax + pt.y * ay; if (v < aLo) aLo = v; if (v > aHi) aHi = v; }
+      for (const pt of cb) { const v = pt.x * ax + pt.y * ay; if (v < bLo) bLo = v; if (v > bHi) bHi = v; }
+      const ov = Math.min(aHi, bHi) - Math.max(aLo, bLo);
+      if (ov <= 0) return 0; // 분리축을 찾았다 = 안 겹친다
+      if (ov < min) min = ov;
+    }
+  }
+  return min === Infinity ? 0 : min;
 }
 
 /** 유한 number 4종 rect 만 계산에 넣는다(불량 rect 는 조용히 건너뛴다 — 여기서 던지면 칩이 빨개진다). */
@@ -89,8 +147,7 @@ export function checkFloatGeometry(document) {
     const findings = [];
 
     pages.forEach((page, pageIndex) => {
-      const floats = (Array.isArray(page?.float) ? page.float : [])
-        .filter((o) => usableRect(o) && !isRotated(o));
+      const floats = (Array.isArray(page?.float) ? page.float : []).filter((o) => usableRect(o));
 
       // ① 겹침 — shape 는 제외한다. 도형은 배경으로 깔라고 있는 타입이고(float 전용),
       //    float[] 배열 순서가 곧 페인트 순서라 "도형 위에 얹기"는 정상 사용이다.
@@ -99,13 +156,25 @@ export function checkFloatGeometry(document) {
         for (let j = i + 1; j < overlapTargets.length; j++) {
           const a = overlapTargets[i];
           const b = overlapTargets[j];
-          const ov = overlapMm(a.rect, b.rect);
-          if (ov.w < OVERLAP_TOL_MM || ov.h < OVERLAP_TOL_MM) continue;
+          // 회전이 없으면 종전 경로 그대로 — evidence 문자열까지 바이트 동일하게 둔다.
+          // 하나라도 회전했으면 꼭짓점 교차(SAT)로 판정한다.
+          const rotated = isRotated(a) || isRotated(b);
+          let ov;
+          if (rotated) {
+            const depth = satPenetrationMm(cornersOf(a.rect, angleOf(a)), cornersOf(b.rect, angleOf(b)));
+            if (depth < OVERLAP_TOL_MM) continue;
+            ov = { w: depth, h: depth, depth };
+          } else {
+            ov = overlapMm(a.rect, b.rect);
+            if (ov.w < OVERLAP_TOL_MM || ov.h < OVERLAP_TOL_MM) continue;
+          }
           findings.push({
             rule: 'float-overlap',
             severity: 'warning',
             message: `${pageIndex + 1}쪽 자유 개체 2개가 겹칩니다 — 필요한 자리로 옮기세요.`,
-            evidence: `${round1(ov.w)}mm × ${round1(ov.h)}mm 겹침`,
+            evidence: ov.depth != null
+              ? `${round1(ov.depth)}mm 겹침(회전 개체 — 꼭짓점 기준)`
+              : `${round1(ov.w)}mm × ${round1(ov.h)}mm 겹침`,
             objectId: a.id, otherId: b.id, page: pageIndex,
           });
         }
@@ -113,7 +182,8 @@ export function checkFloatGeometry(document) {
 
       // ② 지면 이탈 — shape 도 받는다(용지 밖으로 나간 도형은 실제로 잘린다).
       for (const o of floats) {
-        const r = o.rect;
+        // 회전 개체는 꼭짓점의 외접 상자로 잰다 — 회전 0 이면 rect 와 정확히 같아 산출이 안 바뀐다.
+        const r = isRotated(o) ? aabbOfCorners(cornersOf(o.rect, angleOf(o))) : o.rect;
         const out = {
           left: area.left - r.xMm,
           top: area.top - r.yMm,

@@ -515,8 +515,22 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     return { pageIndex: targetIdx, rect: { xMm: mm.xMm, yMm: mm.yMm } };
   }
 
+  /** 회전 각도(도) — 렌더와 같은 범위로 클램프한다(RenderObjectTree 는 [-180,180]). */
+  function angleOf(obj) {
+    const a = typeof obj?.angle === 'number' ? obj.angle : 0;
+    return Math.max(-180, Math.min(180, a));
+  }
+
   /** 리사이즈 손잡이 드래그 — dir(nw/n/ne/e/se/s/sw/w)에 따라 rect{wMm/hMm(+xMm/yMm)}을 갱신한다.
-   *  좌표는 startFloatDrag 와 동일하게 screen 기준(iframe 경계 무관), 최소 10mm 로 클램프. */
+   *  좌표는 startFloatDrag 와 동일하게 screen 기준(iframe 경계 무관), 최소 10mm 로 클램프.
+   *
+   *  **회전 보정(2026-07-28)**: 손잡이는 `.wg-float` 의 자식이라 `transform:rotate()` 를 함께 받아
+   *  화면 위치는 이미 맞다. 틀렸던 것은 **계산**이다 — 화면 델타를 그대로 wMm/hMm 에 더하면 45°
+   *  돌린 개체의 오른쪽 손잡이를 오른쪽으로 끌 때 폭과 높이가 뒤섞인다. 그래서
+   *   ① 화면 델타를 −θ 로 돌려 개체 로컬 축으로 바꾸고,
+   *   ② 회전 중심이 rect 중심이므로(transform-origin:center center) 크기가 변하면 중심이 움직인다 —
+   *      **반대편 변이 화면에서 제자리에 있도록** 중심을 +θ 로 돌린 만큼 보정한다.
+   *  θ=0 이면 이 식은 종전 식과 **정확히 같은 값**을 낸다(회귀 0 의 근거 — 전용 테스트로 고정). */
   function startFloatResize(e, el, id, dir) {
     if (state.editingId === id) return;
     const found = core.findObject(id);
@@ -529,17 +543,39 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     const base = { ...found.obj.rect };
     const MIN = 10;
     let moved = false;
+    const rad = (angleOf(found.obj) * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    // 방향 부호 — 어느 변을 끌고 있는지(반대편이 고정된다).
+    const sx = dir.includes('e') ? 1 : (dir.includes('w') ? -1 : 0);
+    const sy = dir.includes('s') ? 1 : (dir.includes('n') ? -1 : 0);
+    const baseCx = base.xMm + base.wMm / 2;
+    const baseCy = base.yMm + base.hMm / 2;
+
     const onMove = (ev) => {
-      const dxMm = (ev.screenX - startX) / MM_TO_PX;
-      const dyMm = (ev.screenY - startY) / MM_TO_PX;
-      if (Math.abs(dxMm) + Math.abs(dyMm) > 0.5) moved = true;
+      const screenDx = (ev.screenX - startX) / MM_TO_PX;
+      const screenDy = (ev.screenY - startY) / MM_TO_PX;
+      if (Math.abs(screenDx) + Math.abs(screenDy) > 0.5) moved = true;
+      // ① 화면 델타 → 개체 로컬 축(−θ 회전).
+      const dxMm = screenDx * cos + screenDy * sin;
+      const dyMm = -screenDx * sin + screenDy * cos;
+
       const r = { ...base };
-      if (dir.includes('e')) r.wMm = base.wMm + dxMm;
-      if (dir.includes('s')) r.hMm = base.hMm + dyMm;
-      if (dir.includes('w')) { r.wMm = base.wMm - dxMm; r.xMm = base.xMm + dxMm; }
-      if (dir.includes('n')) { r.hMm = base.hMm - dyMm; r.yMm = base.yMm + dyMm; }
-      if (r.wMm < MIN) { if (dir.includes('w')) r.xMm = base.xMm + (base.wMm - MIN); r.wMm = MIN; }
-      if (r.hMm < MIN) { if (dir.includes('n')) r.yMm = base.yMm + (base.hMm - MIN); r.hMm = MIN; }
+      if (sx) r.wMm = base.wMm + sx * dxMm;
+      if (sy) r.hMm = base.hMm + sy * dyMm;
+      if (r.wMm < MIN) r.wMm = MIN;
+      if (r.hMm < MIN) r.hMm = MIN;
+
+      // ② 중심 보정 — 클램프 뒤의 **실제** 크기 변화만큼만 옮긴다(로컬 → +θ 회전 → 부모 좌표).
+      const dw = r.wMm - base.wMm;
+      const dh = r.hMm - base.hMm;
+      const localShiftX = (sx * dw) / 2;
+      const localShiftY = (sy * dh) / 2;
+      const cx = baseCx + localShiftX * cos - localShiftY * sin;
+      const cy = baseCy + localShiftX * sin + localShiftY * cos;
+      r.xMm = cx - r.wMm / 2;
+      r.yMm = cy - r.hMm / 2;
+
       found.obj.rect.xMm = round1(r.xMm);
       found.obj.rect.yMm = round1(r.yMm);
       found.obj.rect.wMm = round1(r.wMm);

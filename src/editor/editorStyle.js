@@ -26,6 +26,19 @@ export function injectEditorStyle(doc) {
        통과한다(스파이크 §4-5 z-order 완화 취지 보존 — 내용 위 클릭만 개체를 잡는다). 드래그 역학은
        ⠿ 핸들 경로와 동일(pointerdown → startFloatDrag: 선택 후 이동, 실마우스 검증된 pointer capture). */
     .wg-float:not(.wg-selected) > * { pointer-events: auto; }
+    /* 도형은 **칠해진 곳만** 잡는다(2026-07-28 — HANDOFF-object-schema §8 의 미해결 항목).
+       도형 마크업은 div.wg-shape > svg > (rect|ellipse|line) 인데, div 와 svg 루트가 블록 박스라
+       rect 전면에서 클릭을 먹었다 — 실측: fill:none 인 테두리 도형의 **빈 속**을 눌러도 아래 문단이
+       아니라 도형이 선택됐다. 도형은 배경으로 깔라고 있는 타입이고(그래서 겹침 advisory 에서도
+       제외한다) 속이 비었으면 아래가 눌리는 것이 자연스럽다.
+       박스 두 겹을 통과시키고 실제 그려진 요소만 남기면, 판정은 CSS 가 알아서 해 준다 —
+       visiblePainted 는 fill:none 이면 내부를 잡지 않고 stroke 만 잡는다. 그래서 "채운 도형은
+       자기가 잡고, 테두리 도형은 선만 잡는다"가 별도 분기 없이 성립한다.
+       선택 여부로 가르지 않는다: 선택된 도형이라고 빈 속이 갑자기 실체가 되지는 않으며, 조작은
+       손잡이·리사이즈 핸들·stroke 로 충분하다.
+       이 규칙은 편집기 전용이다 — blocks.css(학생 배포본 공유 자산)에는 넣지 않는다. */
+    .wg-float > .wg-shape, .wg-float > .wg-shape > svg { pointer-events: none; }
+    .wg-float > .wg-shape > svg > * { pointer-events: visiblePainted; }
     .wg-float.wg-selected, .wg-float.wg-editing { pointer-events: auto; cursor: grab; }
     /* flow 조작 칩과 같은 규칙(2026-07-28): 평소엔 숨고 가리킨 개체의 것만 드러난다. 종전엔 자유
        배치 개체마다 검은 칩이 불투명하게 항상 떠 있었다. 이 손잡이는 없앨 수 없다 — 미선택 float

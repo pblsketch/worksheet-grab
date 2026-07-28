@@ -121,20 +121,60 @@ test('checkFloatGeometry: shape 은 겹침에서 빠지고 이탈은 받는다',
   assert.equal(out[0].rule, 'float-out-of-bounds');
 });
 
-test('checkFloatGeometry: 회전(angle!==0) 개체는 두 규칙 모두에서 제외된다', async () => {
+// 2026-07-28: 종전 이 자리는 "회전 개체는 두 규칙 모두에서 제외된다"를 고정하고 있었다.
+// 순수 규칙은 모델에 rect·angle 이 다 있어 꼭짓점을 직접 구할 수 있으므로 OBB 로 올렸다.
+// (측정 규칙 measureFloatCoverage 는 브라우저 AABB 가 입력이라 여전히 제외 — 아래 별도 테스트.)
+test('checkFloatGeometry: 회전 개체의 겹침을 꼭짓점(OBB)으로 판정한다 — AABB 오탐을 걸러낸다', async () => {
   const { checkFloatGeometry } = await loadFloatLayout();
-  const overlapping = [
-    flt('a', { xMm: 20, yMm: 20, wMm: 60, hMm: 40 }, { angle: 30 }),
-    flt('b', { xMm: 30, yMm: 30, wMm: 60, hMm: 40 }, { angle: 30 }),
+
+  // 45° 로 돌린 40mm 정사각형 둘을 대각선으로 떼어 놓는다. 회전 좌표계에서 두 중심의 거리는
+  // (40,40) → 40√2 ≈ 56.6mm 라 변 길이 40mm 보다 멀다 = **안 겹친다**.
+  // 그런데 각자의 외접 상자는 56.6mm 라 AABB 로 보면 x·y 모두 약 16.6mm 겹친 것처럼 보인다.
+  const obbSeparated = [
+    flt('a', { xMm: 60, yMm: 60, wMm: 40, hMm: 40 }, { angle: 45 }),   // 중심 (80,80)
+    flt('b', { xMm: 100, yMm: 100, wMm: 40, hMm: 40 }, { angle: 45 }), // 중심 (120,120)
   ];
-  assert.deepEqual(checkFloatGeometry(doc(overlapping)), [], '회전 개체는 rect 가 실제 점유 영역이 아니다');
+  assert.deepEqual(
+    checkFloatGeometry(doc(obbSeparated)).filter((f) => f.rule === 'float-overlap'), [],
+    'AABB 로는 겹쳐 보여도 실제 꼭짓점이 안 겹치면 경고하지 않는다',
+  );
 
-  // angle:0 이면 정상 판정(제외 조건이 angle 존재가 아니라 0 이 아님인지 확인)
-  const zero = overlapping.map((o) => ({ ...o, angle: 0 }));
-  assert.equal(checkFloatGeometry(doc(zero)).filter((f) => f.rule === 'float-overlap').length, 1);
+  // 같은 45° 인데 중심 거리가 (10,10) → 회전 좌표계에서 14.1mm 로 변 길이 40mm 안쪽 = 겹친다.
+  const obbOverlapping = [
+    flt('a', { xMm: 60, yMm: 60, wMm: 40, hMm: 40 }, { angle: 45 }),
+    flt('b', { xMm: 70, yMm: 70, wMm: 40, hMm: 40 }, { angle: 45 }),
+  ];
+  const hits = checkFloatGeometry(doc(obbOverlapping)).filter((f) => f.rule === 'float-overlap');
+  assert.equal(hits.length, 1, '실제로 겹치는 회전 개체는 경고한다');
+  assert.match(hits[0].evidence, /회전 개체 — 꼭짓점 기준/, '회전 판정임이 근거에 드러난다');
+  assert.equal(hits[0].severity, 'warning', 'advisory 유지 — export 게이트 무접촉');
 
-  const outside = [flt('a', { xMm: 190, yMm: 20, wMm: 60, hMm: 20 }, { angle: 15 })];
-  assert.deepEqual(checkFloatGeometry(doc(outside)), [], '회전 개체는 이탈 판정도 받지 않는다');
+  // angle:0 경로는 종전 그대로(문자열까지) — 회전 지원이 기존 산출을 건드리지 않았다는 증거.
+  const zero = [
+    flt('a', { xMm: 20, yMm: 20, wMm: 60, hMm: 40 }, { angle: 0 }),
+    flt('b', { xMm: 30, yMm: 30, wMm: 60, hMm: 40 }, { angle: 0 }),
+  ];
+  const zeroHits = checkFloatGeometry(doc(zero)).filter((f) => f.rule === 'float-overlap');
+  assert.equal(zeroHits.length, 1);
+  assert.match(zeroHits[0].evidence, /^50mm × 30mm 겹침$/, '회전 0 은 종전 evidence 문자열 그대로');
+});
+
+test('checkFloatGeometry: 회전 개체의 지면 이탈은 꼭짓점 외접 상자로 잰다', async () => {
+  const { checkFloatGeometry } = await loadFloatLayout();
+
+  // A4 안전영역: 좌 15 · 상 12 · 우 195 · 하 287 (여백 12/15/10/15).
+  // 100×20 을 아래쪽에 눕혀 두면 rect 로는 y 260~280 이라 안쪽이다. 45° 로 돌리면 외접 상자
+  // 높이가 (100+20)·cos45 ≈ 84.9mm 로 커져 중심 270 기준 227.6~312.4 — 아래 여백선을 25mm 넘는다.
+  const rotated = [flt('a', { xMm: 55, yMm: 260, wMm: 100, hMm: 20 }, { angle: 45 })];
+  const rot = checkFloatGeometry(doc(rotated)).filter((f) => f.rule === 'float-out-of-bounds');
+  assert.equal(rot.length, 1, '회전으로 실제 점유가 넓어진 이탈을 잡는다(종전엔 미탐)');
+
+  // 같은 rect 를 안 돌리면 여백 안이라 조용하다 — 회전이 판정을 만든 것임을 못 박는다.
+  const upright = [flt('a', { xMm: 55, yMm: 260, wMm: 100, hMm: 20 }, { angle: 0 })];
+  assert.deepEqual(
+    checkFloatGeometry(doc(upright)).filter((f) => f.rule === 'float-out-of-bounds'), [],
+    '같은 rect 라도 회전이 없으면 이탈이 아니다',
+  );
 });
 
 test('checkFloatGeometry: 모든 finding 의 severity 는 warning (예외 0)', async () => {
