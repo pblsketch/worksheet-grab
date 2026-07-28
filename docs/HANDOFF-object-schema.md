@@ -37,6 +37,18 @@ editor-v4 문서 모델은 **닫힌 카탈로그 12종**(콘텐츠 10 + 레이�
 `rect`(`{xMm,yMm,wMm,hMm}`, `placement:'float'`일 때만 필수·`'flow'`일 때는 존재 자체가 위반) ·
 `answer`(boolean, 선택 — 타입이 명시적으로 허용한 경우만, §5).
 
+**크기·정렬 3종(2026-07-28 신설 — `docs/DECISION-object-resize.md`)**: `widthPct`(본문 폭 = `.sheet-body`
+열 폭 대비 %, 5~100) · `minHeightMm`(최소 높이, 0 초과) · `align`(`left|center|right`). **flow 전용**이며
+float 에 실으면 `size-forbidden-in-float` 위반이다(float 은 `rect` 가 이미 크기를 갖는다 — `rect`
+금지 규칙의 대칭). 9종이 받는다 — `shape`(float 전용) · `spacer`(이미 `heightMm` 소유) ·
+`page-break`(높이 0 표식)만 제외(`SIZEABLE_TYPES` 로 파생).
+
+> **크기는 좌표가 아니다.** 원칙 3이 막는 것은 *AI가 지면 위 위치를 지어내는 것*이고, 이 필드들은
+> 위치가 아니라 흐름 안에서의 상대 크기만 말한다(페이지 경계는 여전히 `assignFlowToPages` 단독 권한).
+> 다만 **AI 저작 어휘는 아니다** — `spacer`/`page-break` 와 같이 교사가 편집기에서 정하는 조판 도구다.
+> 렌더는 `.wg-obj` 래퍼에 **인라인으로** 방출하며, 그 래퍼의 방출 조건은 `editMode` 가 아니라
+> **`editMode || 선언있음`** 이다 — 그러지 않으면 크기가 인쇄에서 빠져 R2-1이 조용히 깨진다.
+
 산출 코드: `src/domain/schema/ObjectCatalog.js`(`OBJECT_TYPES`·`TYPE_SPECS`), 계약 문서
 `schema/worksheet-object.schema.json`.
 
