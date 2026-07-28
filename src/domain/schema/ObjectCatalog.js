@@ -178,3 +178,13 @@ export const ANSWERABLE_TYPES = Object.freeze(
 export const SIZEABLE_TYPES = Object.freeze(
   OBJECT_TYPES.filter((t) => SIZE_FIELDS.every((f) => TYPE_SPECS[t].optional.includes(f))),
 );
+
+/**
+ * '본문 배치 ⇄ 자유 배치' 전환을 **제안해도 되는** 타입 — 두 배치를 다 지원하는 타입만(2026-07-28).
+ * 편집기 UI 가 이 목록을 보지 않던 탓에, flow 전용인 제목·학습목표 박스에도 "자유 배치로 전환"이
+ * 활성 버튼으로 나왔고 누르면 **아무 일도 일어나지 않았다**(실 Chrome 재현: .wg-float 0개, 클래스
+ * 불변, 아무 피드백 없음). float 전용인 shape 도 같은 이유로 제외된다 — 되돌아갈 flow 가 없다.
+ */
+export const PLACEMENT_TOGGLEABLE_TYPES = Object.freeze(
+  OBJECT_TYPES.filter((t) => ['flow', 'float'].every((p) => TYPE_SPECS[t].placements.includes(p))),
+);
