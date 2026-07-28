@@ -103,12 +103,21 @@ export function createHistory({
       clearTimeout(typingTimer);
       typingTimer = setTimeout(commit, TYPING_IDLE_MS);
     },
-    /** 명령(이동 등) 실행 래퍼 — 대기 중인 타이핑을 먼저 확정한 뒤 실행하고 한 단계로 확정한다. */
-    run(fn) {
+    /**
+     * 대기 중인 타이핑을 **지금** 확정한다 — 뒤이어 실행되는 구조 명령이 그 타이핑을 자기 단계에
+     * 삼키지 않도록(2026-07-28).
+     *
+     * 타이핑은 유휴 500ms 로 묶여 확정되는데, 그 안에 복제·삭제·속성 변경 같은 명령이 들어오면
+     * `applyDocOp` 의 `commit()` 이 **타이핑과 명령을 한 상태로** 찍었다. 그 결과 Ctrl+Z 한 번에
+     * 명령뿐 아니라 직전에 친 글자까지 사라졌다. 원래 이 목적의 `run(fn)` 래퍼가 있었지만
+     * **호출부가 하나도 없었다** — 쓰이지 않는 래퍼 대신, 문서 변경의 단일 관문(applyDocOp)이
+     * 직접 부를 수 있는 최소 원시 연산으로 바꾼다.
+     *
+     * 대기 중인 타이핑이 없으면 무동작이고, 있어도 상태가 같으면 `commit` 이 제자리 갱신하므로
+     * 빈 단계가 쌓이지 않는다.
+     */
+    flushTyping() {
       if (typingTimer) commit();
-      const result = fn();
-      commit();
-      return result;
     },
     commit,
     /**
