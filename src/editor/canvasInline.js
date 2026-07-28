@@ -215,6 +215,26 @@ export function createCanvasInline(deps) {
     setTimeout(() => document.addEventListener('click', () => { closeAll(popupsHost); document.body.dataset.slashOpen = 'false'; }, { once: true }), 0);
   }
 
+  // ── 어느 개체의 조작 칩을 드러낼 것인가(hover 추적) ──
+  //
+  // 칩은 CSS 가 기본 `opacity:0` 으로 숨기고, 여기서 붙이는 `.is-hot` 이 붙은 것만 보인다.
+  // 오버레이가 `.wg-obj` **밖**(왼쪽 여백)에 있으므로 "개체 위" 만으로는 부족하다 — 개체에서
+  // 칩으로 마우스를 옮기는 순간 hover 가 끊겨 다가가는 도중에 사라진다. 그래서 칩 자신 위도
+  // 같은 개체를 가리키는 것으로 친다.
+  let hotOid = null;
+
+  function applyHot(doc) {
+    for (const el of doc.querySelectorAll('.wg-flow-handle, .wg-flow-insert')) {
+      el.classList.toggle('is-hot', !!hotOid && el.dataset.forOid === hotOid);
+    }
+  }
+
+  function setHotOid(doc, oid) {
+    if (hotOid === oid) return;
+    hotOid = oid;
+    applyHot(doc);
+  }
+
   // ── flow 개체 hover ⠿ 핸들 + `+` 삽입 버튼(오버레이 — `.wg-obj` 밖) ──
   function decorateFlowHandles(doc) {
     for (const sheet of doc.querySelectorAll('.sheet')) {
@@ -246,6 +266,9 @@ export function createCanvasInline(deps) {
       }
       decorateSizeHandles(doc, sheet, overlay, sheetRect);
     }
+    // 오버레이를 통째로 다시 만들었으니(replaceChildren) hover 표시를 다시 입힌다 —
+    // 안 그러면 재장식이 일어나는 순간(선택 변경·리플로우) 가리키던 칩이 사라진다.
+    applyHot(doc);
   }
 
   /**
@@ -501,6 +524,16 @@ export function createCanvasInline(deps) {
     decorateFlowHandles(doc);
     decorateRulers(doc);
     scheduleHandleReflow(doc);
+
+    // 가리키는 개체의 조작 칩만 드러낸다. 끌고 있는 동안에는 갱신하지 않는다 — 포인터가 개체를
+    // 벗어나는 순간 잡고 있던 칩이 사라져 보이는 것을 막는다(칩 자체는 캡처 중이라 계속 동작한다).
+    doc.addEventListener('pointermove', (e) => {
+      if (dragState) return;
+      const chip = e.target.closest?.('.wg-flow-handle, .wg-flow-insert');
+      const objEl = e.target.closest?.('.wg-obj[data-oid]');
+      setHotOid(doc, chip?.dataset.forOid ?? objEl?.dataset.oid ?? null);
+    });
+    doc.documentElement.addEventListener('pointerleave', () => setHotOid(doc, null));
 
     doc.addEventListener('selectionchange', () => updateBubble());
     doc.addEventListener('mouseup', () => updateBubble());

@@ -55,6 +55,26 @@ const HANDLE_REPORT = `(() => {
 
 const FLOW_ORDER = `[...${IFR}.contentDocument.querySelectorAll('.wg-obj[data-oid]')].map((e) => e.dataset.oid).join(',')`;
 
+/** 조작 칩(⠿·+)의 계산된 opacity 를 개체별로 읽는다 — "보이는가"는 클래스가 아니라 이걸로 판정한다. */
+const CHIP_OPACITY = `(() => {
+  const d = ${IFR}.contentDocument; const v = d.defaultView;
+  const out = {};
+  for (const el of d.querySelectorAll('.wg-flow-handle, .wg-flow-insert')) {
+    const kind = el.classList.contains('wg-flow-handle') ? 'handle' : 'plus';
+    out[el.dataset.forOid + ':' + kind] = Number(v.getComputedStyle(el).opacity);
+  }
+  return JSON.stringify(out);
+})()`;
+
+/** 뷰포트 좌표(줌 스케일 보정) — 실마우스에 넘길 값. */
+const viewportCenterOf = (selector) => `(() => {
+  const f = ${IFR}; const d = f.contentDocument;
+  const fr = f.getBoundingClientRect(); const scale = fr.width / f.offsetWidth;
+  const el = d.querySelector(${JSON.stringify(selector)});
+  const r = el.getBoundingClientRect();
+  return JSON.stringify({ x: Math.round(fr.left + (r.left + r.width / 2) * scale), y: Math.round(fr.top + (r.top + r.height / 2) * scale) });
+})()`;
+
 function fixtureDocument() {
   return {
     pagination: 'paginated',
@@ -128,6 +148,42 @@ test('⠿ 손잡이: 실마우스로 끌면 flow 순서가 바뀐다(재장식 �
     const after = await s.evaluate(FLOW_ORDER);
     assert.notEqual(after, before, `⠿ 드래그가 순서를 바꿔야 한다 — ${after}`);
     assert.ok(after.startsWith('a3'), `a3 가 맨 앞으로 와야 한다 — ${after}`);
+  } finally {
+    await new Promise((r) => server.close(r));
+    await s.close();
+  }
+});
+
+test('조작 칩: 평소엔 안 보이고 가리킨 개체의 것만 드러난다', { skip: !HAS_CHROME, timeout: 240000 }, async () => {
+  const { server, url } = await startEditServer();
+  const s = await openCdpSession(`${url}/`, { prefix: 'wsg-flowhandle-hover-chrome-' });
+  try {
+    await s.waitFor(`document.body.dataset.ready === 'true'`, { message: '편집기 부팅' });
+    await s.waitFor(`${IFR}.contentDocument.querySelectorAll('.wg-flow-handle').length === 4`, { message: '칩 렌더' });
+
+    // ① 아무 데도 안 가리킨 상태 — 여백이 비어 있어야 한다(상시 노출이 사용자 불만의 실체였다).
+    const atRest = JSON.parse(await s.evaluate(CHIP_OPACITY));
+    assert.equal(Object.keys(atRest).length, 8, '개체 4개 × (⠿·+) = 8개 칩');
+    for (const [key, op] of Object.entries(atRest)) {
+      assert.equal(op, 0, `${key}: 가리키기 전에는 보이지 않아야 한다 — ${op}`);
+    }
+
+    // ② a3 를 가리키면 a3 것만 드러난다.
+    const a3 = JSON.parse(await s.evaluate(viewportCenterOf('.wg-obj[data-oid="a3"]')));
+    await s.hover(a3.x, a3.y);
+    const hovered = JSON.parse(await s.evaluate(CHIP_OPACITY));
+    assert.ok(hovered['a3:handle'] > 0, `가리킨 개체의 ⠿ 는 보여야 한다 — ${hovered['a3:handle']}`);
+    assert.ok(hovered['a3:plus'] > 0, `가리킨 개체의 + 도 보여야 한다 — ${hovered['a3:plus']}`);
+    for (const oid of ['a1', 'a2', 'a4']) {
+      assert.equal(hovered[`${oid}:handle`], 0, `${oid}: 가리키지 않은 개체의 칩은 숨어 있어야 한다`);
+      assert.equal(hovered[`${oid}:plus`], 0, `${oid}: 가리키지 않은 개체의 + 도 숨어 있어야 한다`);
+    }
+
+    // ③ 개체를 벗어나 칩 위로 옮겨도 유지된다 — 여기서 꺼지면 손잡이에 다가가는 도중 사라져 못 잡는다.
+    const chip = JSON.parse(await s.evaluate(viewportCenterOf('.wg-flow-handle[data-for-oid="a3"]')));
+    await s.hover(chip.x, chip.y);
+    const onChip = JSON.parse(await s.evaluate(CHIP_OPACITY));
+    assert.ok(onChip['a3:handle'] > 0, `칩 위로 옮기면 유지되어야 한다 — ${onChip['a3:handle']}`);
   } finally {
     await new Promise((r) => server.close(r));
     await s.close();

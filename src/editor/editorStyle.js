@@ -73,18 +73,29 @@ export function injectEditorStyle(doc) {
        방식은 개체 사이 gap(약 14px)이 컨트롤보다 좁아 다음 개체의 ⠿ 를 덮는 문제로 옮겨갈 뿐이다.
        + 의 세로 위치(개체 하단)는 "이 개체 뒤에 삽입"이라는 뜻이라 그대로 두고 x 만 옮겼다.
        z-index 는 그래도 ⠿ 를 위로 — 좁은 여백에서 둘이 스치더라도 끌기를 잃지 않게 하는 안전판. */
+    /* 평소에는 **보이지 않는다**(2026-07-28). 종전엔 개체마다 ⠿ 와 + 가 opacity:.35 로 항상 떠
+       있어 왼쪽 여백에 칩이 개체 수만큼 줄줄이 늘어섰다 — 사용자 피드백의 실체는 기능이 아니라
+       이 상시 노출이었다. 그래서 **가리키는 개체의 것만** 드러낸다(캔버스 편집기의 일반 관례).
+       기능은 그대로 둔다: 얇은 개체는 몸통으로 못 잡는다(실측 — page-break 는 높이 0, divider 는
+       2px 이라 본체 드래그가 성립하지 않는다). 편집 모드 래퍼에 높이를 주는 우회는 편집 레이아웃만
+       키워 R2-1 을 깨므로, 레이아웃을 안 건드리는 오버레이 진입점은 여전히 필요하다.
+       pointer-events 는 숨은 동안에도 auto 로 둔다 — 개체에서 여백의 손잡이로 마우스를 옮기는
+       동안 hover 가 끊기면 다가가는 도중에 사라진다(종전과 히트테스트 동작 동일). */
+    .wg-flow-handle, .wg-flow-insert { opacity: 0; transition: opacity .12s ease-out; }
+    .wg-flow-handle.is-hot, .wg-flow-insert.is-hot { opacity: .55; }
     .wg-flow-handle {
       position: absolute; left: -22px; width: 18px; height: 18px; display: flex; align-items: center;
       justify-content: center; background: #374151; color: #fff; border-radius: 4px; font-size: 11px;
-      opacity: .35; pointer-events: auto; cursor: grab; user-select: none; z-index: 2;
+      pointer-events: auto; cursor: grab; user-select: none; z-index: 2;
     }
     .wg-flow-handle:hover { opacity: 1; }
     .wg-flow-insert {
       position: absolute; left: -44px; width: 18px; height: 18px; border: 0; border-radius: 4px;
-      background: #2563eb; color: #fff; font-size: 13px; line-height: 1; opacity: .35;
+      background: #2563eb; color: #fff; font-size: 13px; line-height: 1;
       pointer-events: auto; cursor: pointer; z-index: 1;
     }
-    .wg-flow-insert:hover { opacity: 1; }
+    /* 키보드 사용자는 hover 가 없다 — + 는 button 이라 초점을 받을 수 있으므로 그때 드러낸다. */
+    .wg-flow-insert:hover, .wg-flow-insert:focus-visible { opacity: 1; }
     /* flow 개체 크기 손잡이(2026-07-28) — 오버레이 층이라 개체 레이아웃 박스를 건드리지 않는다.
        크기 **값** 자체는 절대 여기 두지 않는다(R2-1): 인쇄가 못 보는 선언이 되어 페이지 수가
        갈린다. 값은 RenderObjectTree 가 인라인으로 낸다. 여기 있는 것은 손잡이 모양뿐이다.

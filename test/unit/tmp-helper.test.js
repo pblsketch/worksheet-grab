@@ -55,7 +55,7 @@ async function runFixture(body) {
   // 헛통과 방어: 픽스처가 실제로 돌았는지 확인한다(0건 실행이면 잔존도 0 이라 단정이 무의미).
   // 리포터는 spec(`ℹ pass 3`)이지만 TAP(`# pass 3`)으로 바뀌어도 읽히게 둘 다 받는다.
   const count = (label) => Number(new RegExp(`^[ℹ#]\\s*${label} (\\d+)`, 'm').exec(stdout)?.[1] ?? 0);
-  return { tempHome, code, ran: count('pass') + count('fail') };
+  return { tempHome, code, stdout, ran: count('pass') + count('fail') };
 }
 
 /** 샌드박스 TMPDIR 에 남은 wsg-* 개수(픽스처가 만든 것만 보인다). */
@@ -76,6 +76,13 @@ test('autoTmpDir: 파일 종료 시 만든 것을 전부 정리한다 — 실패
 
 test('makeTmpDirSync: 즉시 cleanup() 을 못 불러도 파일 종료 훅이 거둔다', async () => {
   // cleanup() 미호출 = 즉시 정리가 EPERM 으로 실패한 상황과 동치. 그래도 회수되어야 한다.
+  //
+  // ⚠ 커버 못 하는 것: 훅의 **2패스 재시도**(첫 삭제 실패분을 800ms 뒤 다시 시도). 그걸 단위로
+  //   겨냥하려면 첫 삭제를 확실히 실패시켰다가 재시도 전에 풀어 줘야 하는데, rmSync 자체가
+  //   maxRetries:3(≈300ms)로 이미 버티는 탓에 창이 300~800ms 로 좁다 — 실제로 열린 핸들을
+  //   250ms 쥐는 방식을 시도했더니 1패스에서 그냥 성공해 변이를 못 잡았고, 시간을 늘리면
+  //   부하에서 흔들리는 타이밍 테스트가 된다(이 파일에서 방금 제거한 종류의 플레이크).
+  //   재시도의 근거는 단위 테스트가 아니라 **실측**이다: 렌더 전량 실행 후 잔존이 71 → 0.
   const { tempHome, ran } = await runFixture(`
     import { test } from 'node:test';
     import { makeTmpDirSync, makeTmpDir } from '__HELPER__';
@@ -88,7 +95,7 @@ test('makeTmpDirSync: 즉시 cleanup() 을 못 불러도 파일 종료 훅이 �
 
 test('sweepStaleWsgTmp: 기본 나이 기준은 갓 만든 것을 보호한다(병행 세션 안전장치)', async () => {
   // 판정은 자식 안에서 한다 — 진짜 os.tmpdir() 를 쓸면 병렬 실행 중인 남의 tmp 가 날아간다.
-  const { tempHome, code, ran } = await runFixture(`
+  const { tempHome, code, ran, stdout } = await runFixture(`
     import { test } from 'node:test';
     import assert from 'node:assert/strict';
     import { existsSync, mkdtempSync } from 'node:fs';
@@ -98,15 +105,27 @@ test('sweepStaleWsgTmp: 기본 나이 기준은 갓 만든 것을 보호한다(�
 
     test('기본 인자는 지우지 않는다', () => {
       const fresh = mkdtempSync(join(tmpdir(), 'wsg-fresh-'));
-      const before = countWsgTmp();
-      sweepStaleWsgTmp();                       // 인자 없음 = 60분 기준
+      assert.ok(countWsgTmp() >= 1, 'countWsgTmp 가 방금 만든 것을 센다');
+
+      // 기본 나이 기준(60분)은 갓 만든 것을 **반드시** 남긴다 — 이건 1회 단정이 정당하다.
+      // 건너뛰기 판정이 순수 비교라 타이밍·부하와 무관하다.
+      sweepStaleWsgTmp();
       assert.ok(existsSync(fresh), '갓 만든 것은 살아 있어야 한다');
-      assert.equal(countWsgTmp(), before, '개수도 그대로');
-      sweepStaleWsgTmp(0);                      // 보호 해제 — 샌드박스 안이라 안전
-      assert.equal(existsSync(fresh), false, '(0) 은 실행 중인 것까지 지운다');
+
+      // (0) 은 그 보호를 없앤다. 다만 **삭제 자체는 최선노력**이다 — Windows 에서는 핸들이 잠깐
+      // 안 풀려 rmSync 가 EPERM 으로 실패할 수 있고 sweepStaleWsgTmp 는 그걸 조용히 삼킨다.
+      // 여기서 고정하려는 성질은 "(0)이면 지운다"이지 "한 번에 지운다"가 아니므로 몇 번 두드린다.
+      // (1회 결과를 단정했더니 CPU 부하 아래에서 5회 중 2회 빨개졌다 — 실측으로 잡은 자기 결함.)
+      let gone = false;
+      for (let i = 0; i < 20 && !gone; i++) {
+        sweepStaleWsgTmp(0);
+        gone = !existsSync(fresh);
+      }
+      assert.equal(gone, true, '(0) 은 실행 중인 것까지 지운다');
     });
   `);
   assert.equal(ran, 1, '픽스처 1건이 실제로 실행됐다(헛통과 방어)');
-  assert.equal(code, 0, '자식 단정 통과');
+  // 실패 시 자식의 출력을 그대로 얹는다 — 안 그러면 "자식 단정 통과" 한 줄만 남아 진단이 불가능하다.
+  assert.equal(code, 0, `자식 단정 통과\n--- 자식 출력 ---\n${stdout}`);
   assert.deepEqual(leftover(tempHome), [], '픽스처가 남긴 것 없음');
 });

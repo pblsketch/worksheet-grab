@@ -171,6 +171,13 @@ export async function openCdpSession(url, {
      * 승격(5px)이나 스텝마다의 실시간 반영이 검증되지 않고, 실제 사용자의 움직임과도 다르다.
      * `buttons:1` 을 이동 중에도 유지해야 드래그로 인식된다(빠뜨리면 hover 로 처리된다).
      */
+    /** 누르지 않고 포인터만 옮긴다. hover 로만 드러나는 UI(조작 칩 등)는 이것 없이는 검증할 수
+     *  없다 — click 은 이미 눌러 버린 뒤라 "가리키기만 했을 때" 상태를 못 본다. */
+    async function hover(x, y, { settle = settleMs } = {}) {
+      await cdp('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y, buttons: 0 });
+      await sleep(settle);
+    }
+
     async function drag(fromX, fromY, toX, toY, { steps = 12, settle = settleMs } = {}) {
       await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: fromX, y: fromY, button: 'left', clickCount: 1, buttons: 1 });
       for (let i = 1; i <= steps; i++) {
@@ -201,7 +208,7 @@ export async function openCdpSession(url, {
       await sleep(settleMs);
     }
 
-    return { evaluate, waitFor, click, drag, press, insertText, consoleErrors, close };
+    return { evaluate, waitFor, click, hover, drag, press, insertText, consoleErrors, close };
   } catch (e) {
     await close();
     throw e;
