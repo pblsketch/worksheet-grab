@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
 import { FsAiBridgeRepository } from '../../src/adapters/FsAiBridgeRepository.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E5 CLI: 구독 AI 측 표면(pending/watch/respond/list/clear). 무API — 파일 큐 왕복만.
 
@@ -61,7 +61,7 @@ function reqV4(id, { scope = 'page' } = {}) {
 }
 
 test('Phase 4 ai pending: v4 요청(페이지 전체 scope) 무크래시 렌더 + 페이지 컨텍스트 표기', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-v4pending-'));
+  const base = await autoTmpDir('wsg-aicli-v4pending-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(reqV4('req-v4'));
   const { lines, log, err } = logger();
@@ -77,7 +77,7 @@ test('Phase 4 ai pending: v4 요청(페이지 전체 scope) 무크래시 렌더 
 });
 
 test('Phase 4 ai list: v4 요청도 무크래시(양형 방어)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-v4list-'));
+  const base = await autoTmpDir('wsg-aicli-v4list-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(reqV4('req-v4-list', { scope: 'objects' }));
   const { lines, log, err } = logger();
@@ -86,7 +86,7 @@ test('Phase 4 ai list: v4 요청도 무크래시(양형 방어)', async () => {
 });
 
 test('Phase 4 ai respond --ops: v4 계획 기록(replace+insert+delete) + 요약 무크래시', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-ops-'));
+  const base = await autoTmpDir('wsg-aicli-ops-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(reqV4('req-ops'));
 
@@ -108,7 +108,7 @@ test('Phase 4 ai respond --ops: v4 계획 기록(replace+insert+delete) + 요약
 });
 
 test('Phase 4 ai respond --ops: {ops:[…]} 래핑 허용 · 형태 불일치는 거부', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-opsbad-'));
+  const base = await autoTmpDir('wsg-aicli-opsbad-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(reqV4('req-ops-wrap'));
   await bridge.putRequest(reqV4('req-ops-bad'));
@@ -131,7 +131,7 @@ test('Phase 4 ai respond --ops: {ops:[…]} 래핑 허용 · 형태 불일치는
 });
 
 test('ai pending: 대기 요청 출력(--json 전문 포함)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-'));
+  const base = await autoTmpDir('wsg-aicli-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(req('req-1'));
   const { lines, log, err } = logger();
@@ -145,7 +145,7 @@ test('ai pending: 대기 요청 출력(--json 전문 포함)', async () => {
 });
 
 test('F4 ai pending/list: v1·v2 양형 무크래시 렌더(TypeError 없음)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-mix-'));
+  const base = await autoTmpDir('wsg-aicli-mix-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(req('req-v1'));    // 단일 block
   await bridge.putRequest(reqV2('req-v2'));  // blocks[2]
@@ -162,7 +162,7 @@ test('F4 ai pending/list: v1·v2 양형 무크래시 렌더(TypeError 없음)', 
 });
 
 test('US-19 ai pending/list: v3(objects[]) 요청도 무크래시 렌더', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-v3-'));
+  const base = await autoTmpDir('wsg-aicli-v3-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(req('req-v1')); // v1 도 섞어 양형 무크래시 재확인
   await bridge.putRequest(reqV3('req-v3'));
@@ -177,7 +177,7 @@ test('US-19 ai pending/list: v3(objects[]) 요청도 무크래시 렌더', async
 });
 
 test('US-19 ai respond --objects: v3 응답 기록(개체 ID 에코 왕복, aiBridge.validateResponse 재사용)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-obj-'));
+  const base = await autoTmpDir('wsg-aicli-obj-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(reqV3('req-obj'));
 
@@ -198,7 +198,7 @@ test('US-19 ai respond --objects: v3 응답 기록(개체 ID 에코 왕복, aiBr
 });
 
 test('US-19 ai respond --objects: {objects:[…]} 래핑 형태도 허용', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-objwrap-'));
+  const base = await autoTmpDir('wsg-aicli-objwrap-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(reqV3('req-wrap'));
   const objectsFile = join(base, 'objects.json');
@@ -210,7 +210,7 @@ test('US-19 ai respond --objects: {objects:[…]} 래핑 형태도 허용', asyn
 });
 
 test('US-19 ai respond --objects: 스키마 불일치(id 누락) → 거부(비영 종료)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-objbad-'));
+  const base = await autoTmpDir('wsg-aicli-objbad-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(reqV3('req-bad'));
   const objectsFile = join(base, 'objects.json');
@@ -223,7 +223,7 @@ test('US-19 ai respond --objects: 스키마 불일치(id 누락) → 거부(비�
 });
 
 test('F4 ai respond --blocks: v2 응답 리터럴 태깅(schemaVersion:2, 슬롯 보존)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-b-'));
+  const base = await autoTmpDir('wsg-aicli-b-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(reqV2('req-b'));
 
@@ -243,7 +243,7 @@ test('F4 ai respond --blocks: v2 응답 리터럴 태깅(schemaVersion:2, 슬롯
 });
 
 test('F4 ai respond --from: v1 응답 리터럴 태깅(schemaVersion:1, 상수 승격에 오태깅 안 됨)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-v1r-'));
+  const base = await autoTmpDir('wsg-aicli-v1r-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(req('req-v1r')); // v1 요청
   const f = join(base, 'ans.html');
@@ -256,7 +256,7 @@ test('F4 ai respond --from: v1 응답 리터럴 태깅(schemaVersion:1, 상수 �
 });
 
 test('ai respond: 응답 기록 → answered · cancelled 요청은 거부(비영 종료)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-r-'));
+  const base = await autoTmpDir('wsg-aicli-r-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(req('req-ok'));
   await bridge.putRequest(req('req-cxl'));
@@ -275,7 +275,7 @@ test('ai respond: 응답 기록 → answered · cancelled 요청은 거부(비�
 });
 
 test('ai pending --watch --once: 새 요청 도착을 감시로 포착', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-w-'));
+  const base = await autoTmpDir('wsg-aicli-w-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   const { lines, log, err } = logger();
   const watching = run(['ai', 'pending', '--watch', '--once', '--workspaces-dir', base], { root: ROOT, log, err });
@@ -286,7 +286,7 @@ test('ai pending --watch --once: 새 요청 도착을 감시로 포착', async (
 });
 
 test('ai list/clear: 상태 조회·terminal 정리', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aicli-l-'));
+  const base = await autoTmpDir('wsg-aicli-l-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });
   await bridge.putRequest(req('req-p'));
   await bridge.putRequest(req('req-x'));

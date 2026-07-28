@@ -1,9 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { mkdtemp, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, rm } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -17,6 +15,7 @@ import { RenderObjectTree } from '../../src/usecases/RenderObjectTree.js';
 import { RenderPdf } from '../../src/usecases/RenderPdf.js';
 import { countPdfPages, chromeAvailable } from '../helpers/pdf.js';
 import { assertEditPrintDeclarationParity } from '../helpers/renderParity.js';
+import { autoTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 
 // US-17(S4.2, M4a) — "편집==인쇄 하드 동치" 3자 대조(과제 지시 §산출 3, R2-1). 같은 flow 개체
 // 목록을 세 경로로 각각 페이지네이션하고 비교한다:
@@ -33,7 +32,8 @@ const TIMEOUT = 180000;
 
 function dumpDom(url, timeoutMs = 90000, windowSize = '1280,1600') {
   const chrome = resolveChromePath(null);
-  const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-parity-chrome-'));
+  const profile = makeTmpDirSync('wsg-parity-chrome-');
+  const userDataDir = profile.dir;
   const args = [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`,
@@ -48,10 +48,10 @@ function dumpDom(url, timeoutMs = 90000, windowSize = '1280,1600') {
     const timer = setTimeout(() => { child.kill('SIGKILL'); rejectPromise(new Error(`dump-dom 타임아웃: ${url}`)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d.toString(); });
     child.stderr.on('data', (d) => { errOut += d.toString(); });
-    child.on('error', (e) => { clearTimeout(timer); rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 }); rejectPromise(e); });
+    child.on('error', (e) => { clearTimeout(timer); profile.cleanup(); rejectPromise(e); });
     child.on('close', () => {
       clearTimeout(timer);
-      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 });
+      profile.cleanup();
       if (!out.includes('<body')) rejectPromise(new Error(`dump-dom 실패: ${errOut.slice(-1200)}`));
       else resolvePromise(out);
     });
@@ -146,7 +146,7 @@ async function computeChromePagination(items, assets, meta) {
  * paginator(reflow.js) 를 1회 실행·저장하고, /shell.json 재조회로 실제 귀속을 읽어낸다.
  */
 async function computeEditorPagination(items, docName, meta) {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-parity-ws-'));
+  const base = await autoTmpDir('wsg-parity-ws-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });
@@ -184,7 +184,7 @@ async function computeEditorPagination(items, docName, meta) {
 /** ③인쇄 PDF 페이지 수 — 저장된 paginated 문서를 그대로 렌더 → print-to-pdf 실측. */
 async function countPrintedPages(document, assets, meta, label) {
   const { html } = new RenderObjectTree().execute(document, assets, meta);
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-parity-print-'));
+  const dir = await autoTmpDir('wsg-parity-print-');
   const inPath = join(dir, `${label}.html`);
   const outPath = join(dir, `${label}.pdf`);
   await writeFile(inPath, html, 'utf8');

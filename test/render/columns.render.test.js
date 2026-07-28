@@ -1,9 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { writeFile, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -16,6 +14,7 @@ import { RenderPdf } from '../../src/usecases/RenderPdf.js';
 import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
 import { countPdfPages, pdfPageSizePt, chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 
 // F2 다단(columns) 실물 검증 — 인쇄가 진실의 원천(정적 CSS 검사로 대체하지 않는다).
 //  (a) column-fill:auto 로 부분 페이지 콘텐츠가 좌열에 순차 정착(좌우 balance 반토막 아님).
@@ -73,7 +72,8 @@ function dumpDom(url, timeoutMs = 60000) {
   const chrome = resolveChromePath(null);
   // 생성한 쪽이 지운다 — 안 지우면 스위트 반복 실행에 임시 폴더가 수천 개 쌓여
   // 디스크가 차고 렌더 테스트가 통째로 멎는다(실측 7,000개).
-  const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-cols-chrome-'));
+  const profile = makeTmpDirSync('wsg-cols-chrome-');
+  const userDataDir = profile.dir;
   const args = [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`,
@@ -85,10 +85,10 @@ function dumpDom(url, timeoutMs = 60000) {
     const timer = setTimeout(() => { child.kill('SIGKILL'); rejectPromise(new Error(`dump-dom 타임아웃: ${url}`)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d.toString(); });
     child.stderr.on('data', (d) => { errOut += d.toString(); });
-    child.on('error', (e) => { clearTimeout(timer); rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 }); rejectPromise(e); });
+    child.on('error', (e) => { clearTimeout(timer); profile.cleanup(); rejectPromise(e); });
     child.on('close', () => {
       clearTimeout(timer);
-      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 });
+      profile.cleanup();
       if (!out.includes('<body')) rejectPromise(new Error(`dump-dom 실패: ${errOut.slice(-500)}`));
       else resolvePromise(out);
     });
@@ -109,7 +109,7 @@ function parseRects(dom) {
 async function measure(m, variant, extraStyle = '') {
   const html = await buildVariant(m, variant);
   const inject = (extraStyle ? `<style>${extraStyle}</style>` : '') + MEASURE;
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-cols-'));
+  const dir = await autoTmpDir('wsg-cols-');
   const p = join(dir, `${variant}.html`);
   await writeFile(p, html.replace('</body>', `${inject}\n</body>`), 'utf8');
   return parseRects(await dumpDom(pathToFileURL(p).href));
@@ -117,7 +117,7 @@ async function measure(m, variant, extraStyle = '') {
 
 async function renderPdf(m, variant) {
   const html = await buildVariant(m, variant);
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-cols-pdf-'));
+  const dir = await autoTmpDir('wsg-cols-pdf-');
   const inP = join(dir, `${variant}.html`);
   const outP = join(dir, `${variant}.pdf`);
   await writeFile(inP, html, 'utf8');
@@ -187,7 +187,7 @@ for (const variant of ['student', 'teacher']) {
 // /save 왕복 후 개체 수·페이지 경계가 그대로인지 실 Chrome 으로 단정한다.
 test('(d) 다단 문서 왕복 — 개체 트리 무변경 /save 후 구조·개체 수 보존(.sheet-body 렌더 포함)',
   { skip: !HAS_CHROME, timeout: 120000 }, async () => {
-    const base = await mkdtemp(join(tmpdir(), 'wsg-cols-edit-'));
+    const base = await autoTmpDir('wsg-cols-edit-');
     const workspace = new FsWorkspaceRepository({ baseDir: base });
     const blockRepository = new FsBlockRepository({ root: ROOT });
     const document = {

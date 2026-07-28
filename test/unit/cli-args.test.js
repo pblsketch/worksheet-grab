@@ -3,12 +3,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
 import { DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const CSV_READY = existsSync(DEFAULT_CSV_PATH);
@@ -33,7 +32,7 @@ test('값 필수 플래그: --doc 도 동일 정책(bare --doc 이 조용히 out
 });
 
 test('다단어 주제: 뒷 토큰이 조용히 잘리지 않고 주제로 흡수·생성된다(토큰화 매칭)', { skip: !CSV_READY }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-cliargs-'));
+  const dir = await autoTmpDir('wsg-cliargs-');
   const io = capture();
   // 과거: "작용" 유실 + exit 0 오생성 → 현재: 전체 주제로 토큰화 조회·정상 생성.
   const code = await run(['generate', '중2과학', '광합성', '작용', '--no-render', '--out', dir], { root: ROOT, ...io });
@@ -42,7 +41,7 @@ test('다단어 주제: 뒷 토큰이 조용히 잘리지 않고 주제로 흡�
 });
 
 test('다단어 주제 + 띄어 쓴 학년교과("중2 과학") 조합도 동일하게 흡수된다', { skip: !CSV_READY }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-cliargs-'));
+  const dir = await autoTmpDir('wsg-cliargs-');
   const io = capture();
   const code = await run(['generate', '중2', '과학', '광합성', '작용', '--no-render', '--out', dir], { root: ROOT, ...io });
   assert.equal(code, 0, io.lines.join('\n'));

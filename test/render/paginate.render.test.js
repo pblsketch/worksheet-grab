@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFile, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, rm } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -14,6 +13,7 @@ import { RenderPdf } from '../../src/usecases/RenderPdf.js';
 import { PaginateObjectTree } from '../../src/usecases/PaginateObjectTree.js';
 import { checkExportGate } from '../../src/domain/schema/index.js';
 import { countPdfPages, chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // S2.5 수용 기준(06_plan_final.md 167~172행, 과제 지시 §산출 2): 결정성(개체→페이지 귀속 동일,
 // 바이트 비교 아님, R2-1) · 게이팅(document.fonts.ready + KaTeX 완료 대기 실증) · 넘침 개체 다음
@@ -106,7 +106,7 @@ function outputFlowIds(paginatedDoc) {
 /** paginated 문서를 실제 렌더 → Chrome print-to-pdf → 실측 페이지 수가 pages[] 길이와 하드 동치. */
 async function assertPrintEquivalence(t, { paginatedDoc, assets, meta, label }) {
   const { html } = new RenderObjectTree().execute(paginatedDoc, assets, meta);
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-paginate-print-'));
+  const dir = await autoTmpDir('wsg-paginate-print-');
   const inPath = join(dir, `${label}.html`);
   const outPath = join(dir, `${label}.pdf`);
   await writeFile(inPath, html, 'utf8');

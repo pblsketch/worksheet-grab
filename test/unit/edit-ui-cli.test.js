@@ -1,10 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E2 CLI edit-ui 배선(인프로세스). onServer 시임으로 리스닝 서버를 즉시 close 한다.
 
@@ -16,7 +15,7 @@ function logger() {
 }
 
 test('edit-ui: 문서 로드 → 서버 기동 → URL 로그 → close', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-editui-'));
+  const base = await autoTmpDir('wsg-editui-');
   const q = logger();
   await run(['doc', 'save', '문서', '--from', join(ROOT, 'manifests/sci.json'), '--workspaces-dir', base],
     { root: ROOT, log: q.log, err: q.err });
@@ -41,7 +40,7 @@ test('edit-ui: 문서 로드 → 서버 기동 → URL 로그 → close', async 
 });
 
 test('edit-ui: 문서명 누락·없는 문서는 명확한 오류', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-editui-e-'));
+  const base = await autoTmpDir('wsg-editui-e-');
   const { log, err } = logger();
   await assert.rejects(() => run(['edit-ui'], { root: ROOT, log, err }), /<문서명> 이 필요합니다/);
   await assert.rejects(

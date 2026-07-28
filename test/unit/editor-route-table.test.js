@@ -1,14 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
 import { PASS, dispatch, readBinaryBody } from '../../src/adapters/editor-routes/httpKit.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // Phase 5 — 라우트 테이블 계약. EditorHttpServer 의 라우트가 주제별 모듈 + 선언적 테이블로
 // 나뉘면서, 구 선형 `if` 사슬이 암묵적으로 갖고 있던 **폴백 순서**가 계약이 되었다:
@@ -76,7 +75,7 @@ test('readBinaryBody: 상한 누락은 fail-closed 거부(무제한 업로드 �
 });
 
 test('EditorHttpServer 폴백 계약: 미처리 non-GET → 405, 미처리 GET → 404', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-routetable-'));
+  const base = await autoTmpDir('wsg-routetable-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const manifest = await blockRepository.readManifest('sci');
@@ -113,7 +112,7 @@ test('EditorHttpServer 폴백 계약: 미처리 non-GET → 405, 미처리 GET �
 });
 
 test('정적 서빙 최소권한: /src 는 화이트리스트만·/editor 는 MIME 표에 있는 확장자만', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-routestatic-'));
+  const base = await autoTmpDir('wsg-routestatic-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const manifest = await blockRepository.readManifest('sci');

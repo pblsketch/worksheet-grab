@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { writeFile, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -12,6 +11,7 @@ import { BuildVariants } from '../../src/usecases/BuildVariants.js';
 import { RenderPdf } from '../../src/usecases/RenderPdf.js';
 import { ChromeRenderer } from '../../src/adapters/ChromeRenderer.js';
 import { countPdfPages, chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const READY = chromeAvailable() && existsSync(DEFAULT_CSV_PATH);
@@ -28,7 +28,7 @@ test('M2 수용: generate 중2과학 광합성 → 유효 A4 student+teacher PDF
   assert.match(html, /광합성 과정을 이해하고/, '헤더 원문 주입');
 
   const { student, teacher } = new BuildVariants().execute(html);
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-gen-'));
+  const dir = await autoTmpDir('wsg-gen-');
   const renderer = new ChromeRenderer({});
   const rp = new RenderPdf({ renderer });
 

@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { stat, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { stat } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
 import { DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
 import { chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const READY = chromeAvailable() && existsSync(DEFAULT_CSV_PATH);
@@ -22,7 +22,7 @@ async function isPng(path) {
 
 // US-M6-1 수용: generate --png 가 PDF 와 별개의 PNG 파일을 산출한다.
 test('US-M6-1: generate --png → student/teacher PNG 산출(유효 PNG)', { skip: !READY, timeout: 180000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-png-'));
+  const dir = await autoTmpDir('wsg-png-');
   const code = await run(['generate', '중2과학', '광합성', '--out', dir, '--png'], { root: ROOT, log: quiet, err: quiet });
   assert.equal(code, 0, 'generate --png 성공');
 

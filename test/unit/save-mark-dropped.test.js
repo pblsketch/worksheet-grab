@@ -1,13 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../../src/usecases/SaveDocument.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E3 M2: 마크 소멸 감지 — ⭐ unwrap 누출의 최후 그물(긴 저작 정답 한정).
 // 주 방어는 에디터의 세션 마크 태깅 + 기존 마크 confirm 이고, 이 감지는 confirm
@@ -31,7 +30,7 @@ const MARKED = manifestWith([
 ]);
 
 async function fixture() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-markdrop-'));
+  const base = await autoTmpDir('wsg-markdrop-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });
@@ -82,7 +81,7 @@ test('케이스 d: 태그·공백 섞인 평문 잔존 → 정규화 검색이 �
 });
 
 test('한계 문서화: MIN_ANSWER_LEN 미만 단답은 (iii) 미탐 — 주 방어(세션 태깅·confirm) 소관', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-markdrop-s-'));
+  const base = await autoTmpDir('wsg-markdrop-s-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const saver = new SaveDocument({ workspace, blockRepository: new FsBlockRepository({ root: ROOT }), curriculum: null });
   await saver.execute({ name: '문서', manifest: manifestWith([{ type: 'content', html: '<div class="answer">산소</div>' }]), now: new Date('2026-07-21T01:00:00.000Z') });

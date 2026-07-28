@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // T6 — workbook CLI(합의 계획 §4 Phase 2). create/add/remove/order/list/show 는 순수
 // FS(Chrome 불필요) — export 만 Chrome 을 쓰는데, 여기서는 run({renderer}) 주입점으로
@@ -21,7 +21,7 @@ function logger() {
 }
 
 async function tmpBase(prefix) {
-  return mkdtemp(join(tmpdir(), prefix));
+  return autoTmpDir(prefix);
 }
 
 /** 목 렌더러: 입력 HTML 의 <section class="sheet"> 개수만큼 /Type /Page 를 담은 가짜

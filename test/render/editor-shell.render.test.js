@@ -1,12 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
 import { FsAiBridgeRepository } from '../../src/adapters/FsAiBridgeRepository.js';
@@ -14,6 +11,7 @@ import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
 import { resolveChromePath } from '../../src/adapters/ChromeRenderer.js';
 import { chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 
 // S4.3(신 UI 셸, US-18) 추가분: 앱 바·컨텍스트 툴바 상태 교체·좌 3탭·인스펙터 반응·슬래시 카탈로그
 // 제한을 실 Chrome(--dump-dom, testSeed 게이트 서버)으로 검증한다. 위 S4.0 스위트(HTTP 계약)와
@@ -33,7 +31,7 @@ const LEGACY_ANSWER_SNIPPET = '전압이 커질수록 전류의 세기도';
 const ANSWER = '전압과 전류의 관계를 설명할 수 있다(테스트 정답)';
 
 async function startWorkspace() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-editor-shell-'));
+  const base = await autoTmpDir('wsg-editor-shell-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   return { workspace, blockRepository };
@@ -291,7 +289,8 @@ const HAS_CHROME = chromeAvailable();
 
 function dumpDom(url, timeoutMs = 60000, windowSize = '1440,960') {
   const chrome = resolveChromePath(null);
-  const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-shellui-chrome-'));
+  const profile = makeTmpDirSync('wsg-shellui-chrome-');
+  const userDataDir = profile.dir;
   const args = [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`,
@@ -306,10 +305,10 @@ function dumpDom(url, timeoutMs = 60000, windowSize = '1440,960') {
     const timer = setTimeout(() => { child.kill('SIGKILL'); rejectPromise(new Error(`dump-dom 타임아웃: ${url}`)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d.toString(); });
     child.stderr.on('data', (d) => { errOut += d.toString(); });
-    child.on('error', (e) => { clearTimeout(timer); rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 }); rejectPromise(e); });
+    child.on('error', (e) => { clearTimeout(timer); profile.cleanup(); rejectPromise(e); });
     child.on('close', () => {
       clearTimeout(timer);
-      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 });
+      profile.cleanup();
       if (!out.includes('<body')) rejectPromise(new Error(`dump-dom 실패: ${errOut.slice(-800)}`));
       else resolvePromise(out);
     });
@@ -345,7 +344,7 @@ function shellUiFixtureDocument() {
 }
 
 async function startShellUiServer(docName) {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-shellui-render-'));
+  const base = await autoTmpDir('wsg-shellui-render-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });

@@ -1,9 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
@@ -11,6 +10,7 @@ import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
 import { run } from '../../src/cli/index.js';
 import { chromeAvailable, countPdfPages, pdfPageSizePt } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E6 실물 검증(실 Chrome): 서버 POST /export·CLI doc export 의 PDF MediaBox 실측 —
 // A4 595×842 / A3 가로 1191×841 / B4 729×1032pt(E0 실측 수치와 동일 기준) +
@@ -21,7 +21,7 @@ const HAS_CHROME = chromeAvailable();
 const ANSWER = '광합성은 빛에너지를 화학에너지로 전환하는 생명 활동 과정이다';
 
 async function makeDoc(docName, { paper = null, leaky = false } = {}) {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-exportrender-'));
+  const base = await autoTmpDir('wsg-exportrender-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const manifest = await blockRepository.readManifest('sci');

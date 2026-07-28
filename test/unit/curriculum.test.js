@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { writeFile, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseCsv, normalizeCode, GepaiCurriculum, DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 test('normalizeCode: 대괄호 유무 무관하게 [코드] 정규화', () => {
   assert.equal(normalizeCode('9과14-02'), '[9과14-02]');
@@ -68,7 +68,7 @@ test('CSV 경로 설정: 생성자 csvPath > GEPAI_CSV 환경변수 > 기본 경
 });
 
 test('search 다단어 키워드: 토큰 분해 + 특이도(매칭 토큰 총 길이) 랭킹', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-cur-'));
+  const dir = await autoTmpDir('wsg-cur-');
   const csv = join(dir, 'std.csv');
   await writeFile(csv, [
     '학교,과목,학년,성취기준 코드,성취기준 내용',

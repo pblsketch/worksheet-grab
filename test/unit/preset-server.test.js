@@ -1,14 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E4 서버 API: 프리셋 CRUD(자산 — SaveDocument 게이트 미경유) + 교차 문서 재사용 e2e.
 
@@ -27,7 +27,7 @@ async function startDocServer(base, docName) {
 }
 
 test('프리셋 CRUD 왕복: 저장(.answer 허용)·목록·삭제·빌트인 숨김·복원·400', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-psrv-'));
+  const base = await autoTmpDir('wsg-psrv-');
   const { server, url } = await startDocServer(base, '문서');
   try {
     // 저장 — 정답 포함 프리셋 허용(§3.2 자산, 게이트 미경유)
@@ -71,7 +71,7 @@ test('프리셋 CRUD 왕복: 저장(.answer 허용)·목록·삭제·빌트인 �
 });
 
 test('§6 수용 e2e: 문서 A 에서 저장한 프리셋을 문서 B 에서 재사용(같은 워크스페이스)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-psrv-x-'));
+  const base = await autoTmpDir('wsg-psrv-x-');
   const a = await startDocServer(base, '문서A');
   const b = await startDocServer(base, '문서B');
   try {

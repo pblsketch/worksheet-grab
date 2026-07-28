@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveBrowserGraph } from '../../src/editor/browserGraph.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E2 순수성 가드(Chrome 무관): 검수 체인이 브라우저 ESM 으로 로드 가능함을 상시 단정.
 // domain 등에 node: 한 줄이 섞이면 153 유닛이 green 이어도 에디터만 조용히 깨진다 —
@@ -38,7 +38,7 @@ test('순수성: 그래프 내 전 파일에 node:/require/process/__dirname 부
 });
 
 test('가드 실효성: export-from 배럴 뒤의 node: 오염을 검출한다(픽스처 증명)', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-purity-'));
+  const dir = await autoTmpDir('wsg-purity-');
   // entry → (export-from 배럴) → leaf 에 node:fs — import 전용 추출이라면 leaf 에 도달 못 한다.
   await writeFile(join(dir, 'entry.js'), `export { x } from './barrel.js';\n`, 'utf8');
   await writeFile(join(dir, 'barrel.js'), `export { x } from './leaf.js';\nexport * from './star.js';\n`, 'utf8');
@@ -52,7 +52,7 @@ test('가드 실효성: export-from 배럴 뒤의 node: 오염을 검출한다(�
 });
 
 test('주석 내 위반 표기는 오탐하지 않는다', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-purity-c-'));
+  const dir = await autoTmpDir('wsg-purity-c-');
   await writeFile(join(dir, 'entry.js'),
     `// import { readFile } from 'node:fs' — 주석\n/* process.env 도 주석 */\nexport const ok = 'https://cdn.example/x'; // URL 보존\n`, 'utf8');
   const { violations } = resolveBrowserGraph(dir, 'entry.js');

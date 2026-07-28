@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { readFile, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
@@ -10,6 +9,7 @@ import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { ValidateWorksheet } from '../../src/usecases/ValidateWorksheet.js';
 import { DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
 import { countPdfPages, chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const READY = chromeAvailable() && existsSync(DEFAULT_CSV_PATH);
@@ -23,7 +23,7 @@ async function knownSubjectHexes() {
 
 // US-M5-2 수용: 영어 교과가 자체 블록(어휘·대화문)·테마로 student/teacher A4 PDF 로 렌더된다.
 test('US-M5-2: generate 중2영어 → 어휘·대화문 블록 + english 테마, A4 PDF 렌더', { skip: !READY, timeout: 180000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-english-'));
+  const dir = await autoTmpDir('wsg-english-');
   const code = await run(['generate', '중2영어', '감정', '--out', dir, '--pdf'], { root: ROOT, log: quiet, err: quiet });
   assert.equal(code, 0, 'generate 영어 성공');
 

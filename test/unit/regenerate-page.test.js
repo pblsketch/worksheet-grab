@@ -1,7 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeFile } from 'node:fs/promises';
@@ -10,6 +8,7 @@ import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.
 import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { RegeneratePage } from '../../src/usecases/RegeneratePage.js';
 import { run } from '../../src/cli/index.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // T2 — RegeneratePage 유스케이스 + CLI(doc regenerate-page). 합의 계획 §2(d), C7·C9.
 // pages[N-1] 만 교체 → SaveDocument 저장 위임(누출 재검증·히스토리 스냅샷 +1 자동) +
@@ -49,7 +48,7 @@ function threePageManifest() {
 }
 
 async function fixture() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-regen-'));
+  const base = await autoTmpDir('wsg-regen-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const manifest = threePageManifest();
@@ -123,7 +122,7 @@ test('C9 위조 거부: 제외-타입이 없던 페이지에 새로 끼워 넣�
 });
 
 test('C7 vocabulary 로드 실패 시 fail-closed(null 이면 저장 거부)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-regen-novocab-'));
+  const base = await autoTmpDir('wsg-regen-novocab-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const realRepo = new FsBlockRepository({ root: ROOT });
   const noVocabRepo = new NoVocabRepository({ root: ROOT });
@@ -191,7 +190,7 @@ function logger() {
 }
 
 test('CLI doc regenerate-page: 정상 재생성 → exit 0 + rev 증가', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-regen-cli-'));
+  const base = await autoTmpDir('wsg-regen-cli-');
   const setup = logger();
   const manifestPath = join(base, 'fixture.manifest.json');
   await writeFile(manifestPath, JSON.stringify(threePageManifest(), null, 2), 'utf8');
@@ -211,7 +210,7 @@ test('CLI doc regenerate-page: 정상 재생성 → exit 0 + rev 증가', async 
 });
 
 test('CLI doc regenerate-page: 가드 위반은 비영 종료(오류 출력)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-regen-cli-guard-'));
+  const base = await autoTmpDir('wsg-regen-cli-guard-');
   const setup = logger();
   const manifestPath = join(base, 'fixture.manifest.json');
   await writeFile(manifestPath, JSON.stringify(threePageManifest(), null, 2), 'utf8');
@@ -230,7 +229,7 @@ test('CLI doc regenerate-page: 가드 위반은 비영 종료(오류 출력)', a
 });
 
 test('CLI doc regenerate-page: unsafe 결과는 exit 1 + 경고 로그', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-regen-cli-unsafe-'));
+  const base = await autoTmpDir('wsg-regen-cli-unsafe-');
   const setup = logger();
   const manifestPath = join(base, 'fixture.manifest.json');
   await writeFile(manifestPath, JSON.stringify(threePageManifest(), null, 2), 'utf8');
@@ -249,7 +248,7 @@ test('CLI doc regenerate-page: unsafe 결과는 exit 1 + 경고 로그', async (
 });
 
 test('CLI 인자 검증: 문서명·N·--from 누락은 명확한 오류', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-regen-cli-args-'));
+  const base = await autoTmpDir('wsg-regen-cli-args-');
   const { log, err } = logger();
   await assert.rejects(
     () => run(['doc', 'regenerate-page', '--workspaces-dir', base], { root: ROOT, log, err }),

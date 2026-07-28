@@ -1,10 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
@@ -12,6 +9,7 @@ import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
 import { resolveChromePath } from '../../src/adapters/ChromeRenderer.js';
 import { chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 
 // US-17(S4.2, M4a) — 편집기 내장 브라우저 paginator 실측(06_plan_final.md 217~221행, 과제 지시
 // §목표 1~4). editor.js:runSeed('reflow-grow') 가 실 DOM 이벤트(dblclick/innerHTML 편집/input)로
@@ -26,7 +24,8 @@ const HAS_CHROME = chromeAvailable();
 
 function dumpDom(url, timeoutMs = 90000, windowSize = '1280,1600') {
   const chrome = resolveChromePath(null);
-  const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-reflow-chrome-'));
+  const profile = makeTmpDirSync('wsg-reflow-chrome-');
+  const userDataDir = profile.dir;
   const args = [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`,
@@ -41,10 +40,10 @@ function dumpDom(url, timeoutMs = 90000, windowSize = '1280,1600') {
     const timer = setTimeout(() => { child.kill('SIGKILL'); rejectPromise(new Error(`dump-dom 타임아웃: ${url}`)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d.toString(); });
     child.stderr.on('data', (d) => { errOut += d.toString(); });
-    child.on('error', (e) => { clearTimeout(timer); rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 }); rejectPromise(e); });
+    child.on('error', (e) => { clearTimeout(timer); profile.cleanup(); rejectPromise(e); });
     child.on('close', () => {
       clearTimeout(timer);
-      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 });
+      profile.cleanup();
       if (!out.includes('<body')) rejectPromise(new Error(`dump-dom 실패: ${errOut.slice(-1200)}`));
       else resolvePromise(out);
     });
@@ -86,7 +85,7 @@ function fixtureDocument() {
 }
 
 async function startEditServer(docName) {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-reflow-render-'));
+  const base = await autoTmpDir('wsg-reflow-render-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });

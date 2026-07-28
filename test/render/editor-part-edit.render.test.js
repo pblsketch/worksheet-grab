@@ -1,10 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
@@ -12,6 +9,7 @@ import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
 import { resolveChromePath } from '../../src/adapters/ChromeRenderer.js';
 import { chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 
 // 2026-07-28 UX 배치 실물 검증(실 Chrome, editor-select.render.test.js 하네스와 동형).
 //   #1  학습목표 문장·박스 제목을 **본문에서** 더블클릭 편집 / 근거 성취기준은 켤 때만 표시
@@ -29,7 +27,8 @@ const HAS_CHROME = chromeAvailable();
 
 function dumpDom(url, timeoutMs = 60000) {
   const chrome = resolveChromePath(null);
-  const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-partedit-chrome-'));
+  const profile = makeTmpDirSync('wsg-partedit-chrome-');
+  const userDataDir = profile.dir;
   const args = [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`, '--virtual-time-budget=25000', '--window-size=1280,900',
@@ -42,10 +41,10 @@ function dumpDom(url, timeoutMs = 60000) {
     const timer = setTimeout(() => { child.kill('SIGKILL'); rejectPromise(new Error(`dump-dom 타임아웃: ${url}`)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d.toString(); });
     child.stderr.on('data', (d) => { errOut += d.toString(); });
-    child.on('error', (e) => { clearTimeout(timer); rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 }); rejectPromise(e); });
+    child.on('error', (e) => { clearTimeout(timer); profile.cleanup(); rejectPromise(e); });
     child.on('close', () => {
       clearTimeout(timer);
-      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 });
+      profile.cleanup();
       if (!out.includes('<body')) rejectPromise(new Error(`dump-dom 실패: ${errOut.slice(-800)}`));
       else resolvePromise(out);
     });
@@ -88,7 +87,7 @@ function fixtureDocument() {
 }
 
 async function startEditServer() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-partedit-render-'));
+  const base = await autoTmpDir('wsg-partedit-render-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });

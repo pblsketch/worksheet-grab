@@ -1,14 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { checkCommitIntegrity } from '../../src/usecases/workspace.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // S2.4 수용 기준(06_plan_final.md 162~165행, US-08): SaveDocument 2층 재정의 — 개체 트리
 // 체크포인트 경로(checkpoint())는 "호출 1회 = 디스크 커밋 1회"다. 조작-단위 디스크 접촉(가드레일
@@ -44,7 +43,7 @@ const CLEAN_DOC = objDoc([QUESTION_BLOCK, ANSWER_BLOCK]);
 const LEAKY_DOC = objDoc([QUESTION_BLOCK, ANSWER_BLOCK, LEAK_BLOCK]);
 
 async function fixture() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-save-checkpoint-'));
+  const base = await autoTmpDir('wsg-save-checkpoint-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });

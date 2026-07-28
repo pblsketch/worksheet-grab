@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // §6 E1 수용 실물 시연: 문서 생성 → 편집 → 다시 열기 → 버전 히스토리 왕복.
 // CSV·Chrome 불필요(sci.json 은 standardsText 폴백, 렌더는 HTML 2벌까지).
@@ -17,7 +17,7 @@ function logger() {
 }
 
 test('E1 수용: 생성→편집→다시 열기→히스토리 복원 왕복(비파괴·재렌더 일관)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-history-'));
+  const base = await autoTmpDir('wsg-history-');
   const doc = '광합성탐구';
   const paths = {
     manifest: join(base, doc, 'worksheet.manifest.json'),

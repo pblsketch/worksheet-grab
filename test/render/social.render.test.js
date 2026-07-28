@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { readFile, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
@@ -10,6 +9,7 @@ import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { ValidateWorksheet } from '../../src/usecases/ValidateWorksheet.js';
 import { DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
 import { countPdfPages, chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 async function knownSubjectHexes() {
   const repo = new FsBlockRepository({ root: ROOT });
@@ -23,7 +23,7 @@ const quiet = () => {};
 
 // US-M5-1 수용: 사회 교과가 자체 블록(지도·연표)·테마로 student/teacher A4 PDF 로 렌더된다.
 test('US-M5-1: generate 중2사회 → 지도·연표 블록 + social 테마, A4 PDF 렌더', { skip: !READY, timeout: 180000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-social-'));
+  const dir = await autoTmpDir('wsg-social-');
   const code = await run(['generate', '중2사회', '인구', '--out', dir, '--pdf'], { root: ROOT, log: quiet, err: quiet });
   assert.equal(code, 0, 'generate 사회 성공');
 

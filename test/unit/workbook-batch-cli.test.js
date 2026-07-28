@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
 import { buildDocName, assertNoRowCollisions } from '../../src/usecases/workbook.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // T7b — workbook batch-plan/status/mark CLI(합의 계획 §2(c)·§4 Phase 3). 무API: 배치는
 // 콘텐츠를 저작하지 않고 멱등 장부만 등록한다(status:pending) — 실제 저작·상태 전이는
@@ -19,7 +19,7 @@ function logger() {
 }
 
 async function tmpBase(prefix) {
-  return mkdtemp(join(tmpdir(), prefix));
+  return autoTmpDir(prefix);
 }
 
 const LIST_ROWS = [

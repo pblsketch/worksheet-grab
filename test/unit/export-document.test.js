@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { rm, writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -15,6 +14,7 @@ import {
 } from '../../src/usecases/ExportDocument.js';
 import { PAPER_PRESETS, matchPreset, resolvePaper } from '../../src/usecases/paper.js';
 import { workspaceLayout } from '../../src/usecases/workspace.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E6 ExportDocument — meta.unsafe fail-closed 승격(student 차단·teacher 보존) 5케이스
 // + 워크스페이스 PDF 슬롯·프리셋 역판정. Renderer 는 목(Chrome 0).
@@ -51,7 +51,7 @@ function mockRenderer() {
 }
 
 async function fixture() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-export-'));
+  const base = await autoTmpDir('wsg-export-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });

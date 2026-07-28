@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { writeFile, mkdtemp, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, rm } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -18,6 +17,7 @@ import { PaginateAndExport } from '../../src/usecases/PaginateAndExport.js';
 import { ChromeRenderer } from '../../src/adapters/ChromeRenderer.js';
 import { countPdfPages, chromeAvailable } from '../helpers/pdf.js';
 import { run } from '../../src/cli/index.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const READY = chromeAvailable() && existsSync(DEFAULT_CSV_PATH);
@@ -34,7 +34,7 @@ test('M3 수용: pipeline 한 문장 → 검수 PASS → student/teacher A4 PDF 
   assert.equal(r.gate, true, '검수 게이트 PASS 여야 렌더 진행(fail-closed)');
   assert.ok(r.standards.some((s) => s.code === '[9과12-01]'), '성취기준 조회');
 
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-pipe-'));
+  const dir = await autoTmpDir('wsg-pipe-');
   const rp = new RenderPdf({ renderer: new ChromeRenderer({}) });
   for (const [mode, doc] of [['student', r.student], ['teacher', r.teacher]]) {
     const inPath = join(dir, `p-${mode}.html`);
@@ -48,7 +48,7 @@ test('M3 수용: pipeline 한 문장 → 검수 PASS → student/teacher A4 PDF 
 // 회귀(QA): CLI 기본 렌더 경로 — base 가 if(!useDoc) 블록 스코프에 갇혀
 // ReferenceError 로 전멸하던 버그. usecase 직접 호출이 아닌 run() 종단으로 계측한다.
 test('M3 회귀: CLI pipeline 기본 렌더 경로가 student/teacher PDF 를 산출(exit 0)', { skip: !READY, timeout: 120000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-pipe-cli-'));
+  const dir = await autoTmpDir('wsg-pipe-cli-');
   const lines = [];
   const code = await run(['pipeline', '중2과학', '광합성', '--out', dir], {
     root: ROOT, log: (s) => lines.push(String(s)), err: (s) => lines.push(String(s)),
@@ -98,7 +98,7 @@ async function loadAssets(repo, themeName = 'ko') {
 }
 
 test('US-14: scaffold 문서 직접 export → 거부(checkExportGate 사유, fail-closed)', { skip: !HAS_CHROME, timeout: TIMEOUT }, async () => {
-  const wsDir = await mkdtemp(join(tmpdir(), 'wsg-us14-gate-'));
+  const wsDir = await autoTmpDir('wsg-us14-gate-');
   try {
     const repo = new FsBlockRepository({ root: ROOT });
     const workspace = new FsWorkspaceRepository({ baseDir: wsDir });
@@ -118,7 +118,7 @@ test('US-14: scaffold 문서 직접 export → 거부(checkExportGate 사유, fa
 });
 
 test('US-14: scaffold → 페이지네이션 패스(PaginateAndExport) → paginated → export 성공(2벌 PDF)', { skip: !HAS_CHROME, timeout: TIMEOUT }, async () => {
-  const wsDir = await mkdtemp(join(tmpdir(), 'wsg-us14-export-'));
+  const wsDir = await autoTmpDir('wsg-us14-export-');
   try {
     const repo = new FsBlockRepository({ root: ROOT });
     const workspace = new FsWorkspaceRepository({ baseDir: wsDir });
@@ -162,7 +162,7 @@ test('US-14: 생성 경계 == 재페이지네이션 경계 — 같은 scaffold �
 });
 
 test('US-14: 인쇄 동치 — paginated 귀속 페이지수 == print-to-pdf 실측 페이지수', { skip: !HAS_CHROME, timeout: TIMEOUT }, async () => {
-  const wsDir = await mkdtemp(join(tmpdir(), 'wsg-us14-printeq-'));
+  const wsDir = await autoTmpDir('wsg-us14-printeq-');
   try {
     const repo = new FsBlockRepository({ root: ROOT });
     const workspace = new FsWorkspaceRepository({ baseDir: wsDir });

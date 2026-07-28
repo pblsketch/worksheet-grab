@@ -1,13 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
 import { DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
 import { resolveChromePath } from '../../src/adapters/ChromeRenderer.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E1 CLI 배선(run() 인프로세스, edit-cli.test 관례). doc save/open/history/edit 등
 // 대부분은 Chrome 불필요. 단, doc export(F3 --canva 포함) 테스트만 실제 PDF 렌더를
@@ -25,7 +25,7 @@ function logger() {
 }
 
 async function tmpBase() {
-  return mkdtemp(join(tmpdir(), 'wsg-doccli-'));
+  return autoTmpDir('wsg-doccli-');
 }
 
 const LEAKY_MANIFEST = {

@@ -191,9 +191,14 @@ const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?
 ```bash
 git status --porcelain            # 비어 있어야 한다
 npm run test:unit                 # 기준 개수 기록(핸드오프는 642, 동시 작업이 바꿨을 수 있음)
-node -e "import('./test/helpers/tmp.js').then(m=>m.sweepStaleWsgTmp(0))"
+node -e "import('./test/helpers/tmp.js').then(m=>m.sweepStaleWsgTmp())"
 npm run test:render               # 기준 개수 기록(핸드오프는 102)
 ```
+> **인자를 넣지 않는다**(2026-07-28 정정 — 종전 이 자리에 적혀 있던 `sweepStaleWsgTmp(0)` 은
+> 위험한 처방이었다). 나이 인자는 성능 옵션이 아니라 **안전장치**다 — `(0)` 은 지금 돌고 있는 다른
+> 세션의 Chrome user-data-dir 과 출력 PDF 까지 지워, "바이트는 썼다는데 파일이 없다"는 렌더 실패로
+> 나타난다(코드 회귀로 오진하기 쉽다). `docs/CONCURRENT-SESSIONS.md` §임시파일 과 이제 일치한다.
+> 정말로 비워야 하면 `node --test`·`chrome` 프로세스가 0인지 먼저 확인하고 그때만 `(0)`.
 > 핸드오프의 642/102 를 그대로 신뢰하지 않는다 — 동시 진행된 기능이 테스트를 추가/변경했다면
 > 기준선 숫자 자체가 이동했다. **그때 실측한 값**을 기준선으로 삼고 문서에 갱신한다.
 

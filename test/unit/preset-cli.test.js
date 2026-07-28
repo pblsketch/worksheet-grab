@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E4 CLI: preset list/delete/restore + doc list 의 .presets 무시.
 
@@ -16,7 +16,7 @@ function logger() {
 }
 
 test('preset list: 빌트인 6종 노출(--json 포함)', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-pcli-'));
+  const base = await autoTmpDir('wsg-pcli-');
   const { lines, log, err } = logger();
   assert.equal(await run(['preset', 'list', '--workspaces-dir', base], { root: ROOT, log, err }), 0);
   assert.ok(lines.some((l) => /builtin-subq — 발문/.test(l)));
@@ -29,7 +29,7 @@ test('preset list: 빌트인 6종 노출(--json 포함)', async () => {
 });
 
 test('preset delete(빌트인 숨김)→restore 왕복', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-pcli-d-'));
+  const base = await autoTmpDir('wsg-pcli-d-');
   const q = logger();
   assert.equal(await run(['preset', 'delete', 'builtin-rubric', '--workspaces-dir', base], { root: ROOT, log: q.log, err: q.err }), 0);
   assert.ok(q.lines.some((l) => /숨김.*restore/.test(l)));
@@ -43,7 +43,7 @@ test('preset delete(빌트인 숨김)→restore 왕복', async () => {
 });
 
 test('doc list 는 .presets 디렉토리를 문서로 표시하지 않는다', async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-pcli-doc-'));
+  const base = await autoTmpDir('wsg-pcli-doc-');
   await mkdir(join(base, '.presets'), { recursive: true });
   await writeFile(join(base, '.presets', 'presets.json'), '{"version":1,"userPresets":[],"hiddenBuiltins":[]}', 'utf8');
   await run(['doc', 'save', '진짜문서', '--from', join(ROOT, 'manifests/sci.json'), '--workspaces-dir', base],

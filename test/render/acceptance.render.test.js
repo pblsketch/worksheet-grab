@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFile, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -15,6 +14,7 @@ import { ChromePaginationMeasurer } from '../../src/adapters/PaginationMeasurer.
 import { RenderPdf } from '../../src/usecases/RenderPdf.js';
 import { rm } from 'node:fs/promises';
 import { countPdfPages, chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // S2.1 수용 기준(06_plan_final.md 152행): ko.json·sci.json 을 마이그레이션 → 재페이지네이션(제품 동작
 // 동형) → render-core(순수) 렌더 → Chrome 실측 — 페이지수 일치(국어 5·과학 3)·주요 컴포넌트 존재.
@@ -92,7 +92,7 @@ async function renderMigratedPages(manifestName) {
 
   const { html } = new RenderObjectTree().execute(paginated, assets, meta);
 
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-oc-'));
+  const dir = await autoTmpDir('wsg-oc-');
   const inPath = join(dir, `${manifestName}-oc.html`);
   const outPath = join(dir, `${manifestName}-oc.pdf`);
   await writeFile(inPath, html, 'utf8');

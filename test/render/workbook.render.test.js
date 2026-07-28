@@ -1,8 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, writeFile, mkdir, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile, writeFile, mkdir, rm } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -15,6 +14,7 @@ import { collectTextInside } from '../../src/usecases/html-scan.js';
 import { ANSWER_CLASSES } from '../../src/usecases/BuildVariants.js';
 import { run } from '../../src/cli/index.js';
 import { countPdfPages, pdfPageSizePt, chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // T6 — 자료집(합본) 실물 검증(실 Chrome, 합의 계획 §4 Phase 2·§3 게이트 표).
 // WorkbookAssemble(순수 조립 + IO) + WorkbookExport(C4 countPdfPages fail-closed) 를
@@ -45,7 +45,7 @@ function fixtureManifest({ theme, subject, pages, katex = false }) {
 }
 
 async function makeWorkspace(prefix) {
-  const base = await mkdtemp(join(tmpdir(), prefix));
+  const base = await autoTmpDir(prefix);
   return { base, workspace: new FsWorkspaceRepository({ baseDir: base }), blockRepository: new FsBlockRepository({ root: ROOT }) };
 }
 
@@ -70,7 +70,7 @@ function renderPdfFactory(tmpDir, renderer) {
 test('T6 3멤버 합본(sci/ko/social·자산·KaTeX): 쪽수 실측·연속쪽번호·목차시작쪽·MediaBox·student 정답부재',
   { skip: !HAS_CHROME, timeout: 300000 }, async () => {
     const { base, workspace, blockRepository } = await makeWorkspace('wsg-wbrender-normal-');
-    const tmpDir = await mkdtemp(join(tmpdir(), 'wsg-wbrender-normal-out-'));
+    const tmpDir = await autoTmpDir('wsg-wbrender-normal-out-');
     try {
       // 멤버1: sci, KaTeX, 정답 마크 포함(student 정답부재 검증용), 2쪽.
       await saveDoc(workspace, blockRepository, '과학멤버', fixtureManifest({
@@ -173,7 +173,7 @@ test('T6 3멤버 합본(sci/ko/social·자산·KaTeX): 쪽수 실측·연속쪽�
 test('T6 오버플로 멤버 지목: 물리 쪽수 불일치 → fail-closed + 넘친 멤버 pinpoint',
   { skip: !HAS_CHROME, timeout: 300000 }, async () => {
     const { base, workspace, blockRepository } = await makeWorkspace('wsg-wbrender-overflow-');
-    const tmpDir = await mkdtemp(join(tmpdir(), 'wsg-wbrender-overflow-out-'));
+    const tmpDir = await autoTmpDir('wsg-wbrender-overflow-out-');
     try {
       await saveDoc(workspace, blockRepository, '정상멤버', fixtureManifest({
         theme: 'sci', subject: 'science', pages: [[{ type: 'content', html: '<p>정상 1쪽</p>' }]],
@@ -221,7 +221,7 @@ test('T6 오버플로 멤버 지목: 물리 쪽수 불일치 → fail-closed + �
 test('T6 unsafe 멤버(CLI 종단): student 미산출·teacher 산출·종료코드 1',
   { skip: !HAS_CHROME, timeout: 300000 }, async () => {
     const { base: wsBase, workspace, blockRepository } = await makeWorkspace('wsg-wbrender-unsafe-ws-');
-    const wbBase = await mkdtemp(join(tmpdir(), 'wsg-wbrender-unsafe-wb-'));
+    const wbBase = await autoTmpDir('wsg-wbrender-unsafe-wb-');
     try {
       await saveDoc(workspace, blockRepository, '안전멤버', fixtureManifest({
         theme: 'sci', subject: 'science', pages: [[{ type: 'content', html: '<p>안전 1쪽</p>' }]],

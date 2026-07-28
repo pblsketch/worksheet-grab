@@ -1,16 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
 import { FsPresetRepository } from '../../src/adapters/FsPresetRepository.js';
 import { emptyIndex } from '../../src/usecases/presets.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E4 저장소: 원자 교체·백업 보존·정합 실패 폴백(자산 손상 폭발 반경 방어).
 
 async function freshRepo() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-preset-'));
+  const base = await autoTmpDir('wsg-preset-');
   return { repo: new FsPresetRepository({ baseDir: base }), base };
 }
 

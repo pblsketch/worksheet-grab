@@ -1,9 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
@@ -13,6 +11,7 @@ import { createEditorServer, listenEditorServer } from '../../src/adapters/Edito
 import { FsAiBridgeRepository } from '../../src/adapters/FsAiBridgeRepository.js';
 import { resolveChromePath } from '../../src/adapters/ChromeRenderer.js';
 import { chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 
 // US-19(S4.4, editor-v4) — AI UX 전면 재작성: preview-then-commit + 인라인 diff + 재생성 버전 +
 // 도메인 프리셋. 무API 이므로 "구독 AI"는 이 테스트가 FsAiBridgeRepository 를 직접 폴링·응답하는
@@ -30,7 +29,8 @@ const HAS_CHROME = chromeAvailable();
 // 반환 형태 — 하류의 ds() 정규식 파서는 그대로 재사용).
 function dumpDom(url, { timeoutMs = 90000 } = {}) {
   const chrome = resolveChromePath(null);
-  const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-ai-chrome-'));
+  const profile = makeTmpDirSync('wsg-ai-chrome-');
+  const userDataDir = profile.dir;
   const args = [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`, '--remote-debugging-port=0', '--window-size=1200,1600',
@@ -81,7 +81,7 @@ function dumpDom(url, { timeoutMs = 90000 } = {}) {
         setTimeout(res, 3000); // 프로세스 종료 이벤트가 지연되는 경우의 안전판
       });
       // Windows 는 프로세스 종료 직후에도 잠시 파일 핸들을 쥐고 있을 수 있다(EPERM) — 넉넉한 재시도.
-      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+      profile.cleanup();
     }
   })();
 }
@@ -202,7 +202,7 @@ function opsDocument() {
 }
 
 async function startEditServer({ document: initialDocument = freshDocument() } = {}) {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-ai-render-'));
+  const base = await autoTmpDir('wsg-ai-render-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });

@@ -1,14 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
 import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { OpenDocument } from '../../src/usecases/OpenDocument.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E1 저장/로드 오케스트레이션 + 누출 봉합 3케이스(§7 fail-closed × P5 저장 관대성).
 
@@ -37,7 +37,7 @@ const LEAKY = baseManifest([
 ]);
 
 async function fixture() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-save-'));
+  const base = await autoTmpDir('wsg-save-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });

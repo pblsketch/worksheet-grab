@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, mkdir } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E1 IO 어댑터 (temp dir).
 
 async function freshRepo() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-ws-'));
+  const base = await autoTmpDir('wsg-ws-');
   return { ws: new FsWorkspaceRepository({ baseDir: base }), base };
 }
 

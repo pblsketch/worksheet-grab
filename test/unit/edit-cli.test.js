@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { readFile, mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../src/cli/index.js';
 import { DEFAULT_CSV_PATH } from '../../src/adapters/GepaiCurriculum.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const HAS_CSV = existsSync(DEFAULT_CSV_PATH);
@@ -17,7 +17,7 @@ const countSubq = (html) => (html.match(/class="qnum">/g) || []).length;
 // US-M4-3 수용: "3번 문항 빼고 성찰 추가" 가 매니페스트·HTML 양쪽에 왕복 반영(재렌더는 render 테스트에서).
 // G4: 기본은 원본 보존 — 편집본은 -v2 접미사로 저장되고 원본 파일은 그대로 남는다.
 test('US-M4-3: edit 왕복 — 편집본은 -v2 로 저장되고 원본은 보존(--no-render)', { skip: !HAS_CSV }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-edit-'));
+  const dir = await autoTmpDir('wsg-edit-');
 
   // 1) 생성 → manifest.json 확보(Chrome 불필요: --pdf 미지정)
   const g = await run(['generate', '중2과학', '광합성', '--out', dir], { root: ROOT, log: quiet, err: quiet });
@@ -58,7 +58,7 @@ test('US-M4-3: edit 왕복 — 편집본은 -v2 로 저장되고 원본은 보�
 });
 
 test('US-M4-3: edit 플래그 경로(--remove/--add)도 동일 동작(-v2 산출)', { skip: !HAS_CSV }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-editf-'));
+  const dir = await autoTmpDir('wsg-editf-');
   await run(['generate', '중2과학', '광합성', '--out', dir], { root: ROOT, log: quiet, err: quiet });
   const manifestPath = join(dir, 'science-광합성.manifest.json');
   const code = await run(
@@ -72,7 +72,7 @@ test('US-M4-3: edit 플래그 경로(--remove/--add)도 동일 동작(-v2 산출
 });
 
 test('G4: --in-place 지정 시에만 원본을 덮어쓴다', { skip: !HAS_CSV }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-editip-'));
+  const dir = await autoTmpDir('wsg-editip-');
   await run(['generate', '중2과학', '광합성', '--out', dir], { root: ROOT, log: quiet, err: quiet });
   const manifestPath = join(dir, 'science-광합성.manifest.json');
   const before = await readFile(manifestPath, 'utf8');
@@ -87,7 +87,7 @@ test('G4: --in-place 지정 시에만 원본을 덮어쓴다', { skip: !HAS_CSV 
 });
 
 test('G4: 연속 편집은 v2 → v3 로 증가(기존 버전 덮어쓰지 않음)', { skip: !HAS_CSV }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-editv-'));
+  const dir = await autoTmpDir('wsg-editv-');
   await run(['generate', '중2과학', '광합성', '--out', dir], { root: ROOT, log: quiet, err: quiet });
   const m1 = join(dir, 'science-광합성.manifest.json');
   await run(['edit', m1, '3번 문항 빼줘', '--out', dir, '--no-render'], { root: ROOT, log: quiet, err: quiet });

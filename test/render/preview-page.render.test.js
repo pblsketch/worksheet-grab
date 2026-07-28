@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { readFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -10,6 +9,7 @@ import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
 import { paperToPx, resolvePaper } from '../../src/usecases/paper.js';
 import { chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // T3(§2e) 실물 검증(실 Chrome): GET /preview.png?page=N 의 단일-페이지 슬라이스 렌더 +
 // 오버플로 감지(X-Preview-Overflow 헤더). 3쪽 문서(sci 픽스처, manifests/sci.json)로
@@ -28,7 +28,7 @@ const PAGE2_MARK = '전압을 바꾸며 전류를 측정하고';
 const PAGE3_MARK = '결과를 해석하며 저항·전류·전압의 관계를 정리해 보자';
 
 async function makeDoc(docName, { paper = null, leaky = false } = {}) {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-previewpage-'));
+  const base = await autoTmpDir('wsg-previewpage-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const manifest = await blockRepository.readManifest('sci');
@@ -110,7 +110,7 @@ test('T3 범위 밖·비정수 page → 4xx(정수 파싱 실패는 renderBusy �
   });
 
 test('T3 오버플로 감지: 1섹션 과다 콘텐츠 → X-Preview-Overflow 헤더', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-previewpage-overflow-'));
+  const base = await autoTmpDir('wsg-previewpage-overflow-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const manifest = await blockRepository.readManifest('sci');

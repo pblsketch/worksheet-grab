@@ -1,10 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join, resolve, dirname } from 'node:path';
+import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { FsWorkspaceRepository } from '../../src/adapters/FsWorkspaceRepository.js';
@@ -12,6 +9,7 @@ import { SaveDocument } from '../../src/usecases/SaveDocument.js';
 import { createEditorServer, listenEditorServer } from '../../src/adapters/EditorHttpServer.js';
 import { resolveChromePath } from '../../src/adapters/ChromeRenderer.js';
 import { chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 
 // US-18(S4.3) 재작성 — 좌측 페이지 썸네일 탭(개체 트리 기반). 구판(US-E1, HTML manifest 시절)은
 // DOM 스크래핑만으로 썸네일을 그렸지만, 신 UI 셸은 leftPanel.js 의 renderThumbs()가 teacher
@@ -25,7 +23,8 @@ const HAS_CHROME = chromeAvailable();
 
 function dumpDom(url, timeoutMs = 60000, windowSize = '1440,960') {
   const chrome = resolveChromePath(null);
-  const userDataDir = mkdtempSync(join(tmpdir(), 'wsg-thumb-chrome-'));
+  const profile = makeTmpDirSync('wsg-thumb-chrome-');
+  const userDataDir = profile.dir;
   const args = [
     '--headless=new', '--disable-gpu', '--no-sandbox', '--no-first-run', '--no-default-browser-check',
     `--user-data-dir=${userDataDir}`,
@@ -40,10 +39,10 @@ function dumpDom(url, timeoutMs = 60000, windowSize = '1440,960') {
     const timer = setTimeout(() => { child.kill('SIGKILL'); rejectPromise(new Error(`dump-dom 타임아웃: ${url}`)); }, timeoutMs);
     child.stdout.on('data', (d) => { out += d.toString(); });
     child.stderr.on('data', (d) => { errOut += d.toString(); });
-    child.on('error', (e) => { clearTimeout(timer); rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 }); rejectPromise(e); });
+    child.on('error', (e) => { clearTimeout(timer); profile.cleanup(); rejectPromise(e); });
     child.on('close', () => {
       clearTimeout(timer);
-      rmSync(userDataDir, { recursive: true, force: true, maxRetries: 3 });
+      profile.cleanup();
       if (!out.includes('<body')) rejectPromise(new Error(`dump-dom 실패: ${errOut.slice(-500)}`));
       else resolvePromise(out);
     });
@@ -73,7 +72,7 @@ function thumbsFixtureDocument() {
 }
 
 async function startEditServer() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-thumb-render-'));
+  const base = await autoTmpDir('wsg-thumb-render-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   await new SaveDocument({ workspace, blockRepository, curriculum: null })

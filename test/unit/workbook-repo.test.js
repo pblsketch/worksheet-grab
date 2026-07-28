@@ -1,15 +1,15 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { FsWorkbookRepository } from '../../src/adapters/FsWorkbookRepository.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // FsWorkbookRepository — 자료집 장부 파일 IO 단위 테스트(경로 이탈 방지·round-trip·목록).
 
 async function fresh() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-wbrepo-'));
+  const base = await autoTmpDir('wsg-wbrepo-');
   return { base, repo: new FsWorkbookRepository({ baseDir: base }) };
 }
 

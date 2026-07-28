@@ -1,7 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFile, mkdtemp, readFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, readFile } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -13,6 +12,7 @@ import { RenderPdf } from '../../src/usecases/RenderPdf.js';
 import { RenderImage } from '../../src/usecases/RenderImage.js';
 import { resolvePaper, paperToPx } from '../../src/usecases/paper.js';
 import { countPdfPages, pdfPageSizePt, chromeAvailable } from '../helpers/pdf.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E0 수용 #3·#4: 선택 용지가 실물 Chrome 렌더의 PDF MediaBox / PNG IHDR 치수로
 // 정확히 실현되는지 실측한다. 인쇄가 진실의 원천 — 정적 CSS 검사로 대체하지 않는다.
@@ -32,7 +32,7 @@ async function renderManifest(manifest, name) {
   const asm = new AssembleWorksheet({ blockRepository: repo, curriculum: new GepaiCurriculum({}) });
   const { html } = await asm.execute(manifest);
   const { student } = new BuildVariants().execute(html);
-  const dir = await mkdtemp(join(tmpdir(), 'wsg-paper-'));
+  const dir = await autoTmpDir('wsg-paper-');
   const inPath = join(dir, `${name}-student.html`);
   const outPath = join(dir, `${name}-student.pdf`);
   await writeFile(inPath, student, 'utf8');

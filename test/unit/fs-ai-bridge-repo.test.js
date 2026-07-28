@@ -1,11 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, writeFile, readdir } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { FsAiBridgeRepository } from '../../src/adapters/FsAiBridgeRepository.js';
 import { AI_SCHEMA_VERSION } from '../../src/usecases/aiBridge.js';
+import { autoTmpDir } from '../helpers/tmp.js';
 
 // E5 파일 큐 IO: 원자 교체·상태 소유권·취소 우선·prune.
 
@@ -17,7 +17,7 @@ function req(id, over = {}) {
 }
 
 async function fresh() {
-  const base = await mkdtemp(join(tmpdir(), 'wsg-aibridge-'));
+  const base = await autoTmpDir('wsg-aibridge-');
   return { repo: new FsAiBridgeRepository({ baseDir: base }), base };
 }
 
