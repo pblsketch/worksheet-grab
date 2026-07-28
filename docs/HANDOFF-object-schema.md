@@ -258,3 +258,30 @@ test/unit/validate-object-tree.test.js S1.2 수용 기준(PASS + 위반 4계열 
 보였고, 채운 이미지도 원본 크기 그대로 지면을 넘칠 수 있었다. 아이콘+라벨 구조로 바꾸고 점선 박스로
 그린다. `blocks.css`는 학생 배포본도 쓰는 공유 자산이므로 **편집기 안내 문구는 렌더에 넣지 않는다**
 (그 안내는 인스펙터가 낸다).
+
+### 12-5. 레거시 결정적 엔진(AssembleWorksheet)의 학습목표 저작
+
+`gen:'standard-label'` 경로는 지금까지 학습목표를 **지을 수 없었다** — 엔진이 성취기준 CSV/MCP 원문만
+조립했기 때문이다. 그건 원칙 3 때문이 아니다(원칙 3은 *성취기준 원문* 창작만 금지하며 학습목표는 애초에
+그 대상 밖이다). 그래서 원문 조회 규칙(`#resolveStandards` — 창작 없이 CSV/MCP/폴백만, 못 찾으면 throw)은
+그대로 두고 **저작 문장을 실을 통로만** 열었다.
+
+| manifest 필드 | 개체 트리 대응 | 기본값 |
+|---|---|---|
+| `objectives: string[]` | `std-box.objectives` | 없음(→ 하위호환 경로) |
+| `objectivesHeading: string` | `std-box.heading` | `'학습 목표'` |
+| `showStandards: boolean` | `std-box.showStandards` | `false` |
+
+- **저작 시**: 그 문장이 학습목표로 렌더되고, 근거 성취기준은 `showStandards:true` 일 때만 함께 난다
+  (개체 트리와 같은 기본값).
+- **미저작 시**: 종전 기계 변환 산출과 **바이트 동일**하다 — 코드 뗀 성취기준 문장을 목표 자리에 쓰고
+  근거 성취기준 박스를 항상 함께 낸다. 저작 문장이 없는 문서에서 근거까지 숨기면 성취기준 정보가
+  화면에서 완전히 사라지기 때문이다(개체 트리의 "objectives 없으면 관련 성취기준 박스" 분기와 같은 취지).
+- **마이그레이션 승계**: `MigrateManifestToObjectTree` 가 세 필드를 `std-box` 로 옮긴다. 옮기지 않으면
+  레거시 문서를 편집기에서 여는 순간 교사가 쓴 목표가 사라진다(`codes` 만 남던 종전 동작).
+- **도메인**: `Worksheet.objectives` 는 `Standard[]` 가 아니라 **문자열 배열**이다 — 조회 원문이 아니라
+  저작 문장이라 원문 주입 강제(`Standard` 인스턴스 검사)의 대상이 아니다.
+- **저작 경로**: `compose`/`generate` 유스케이스 인자와 CLI 플래그
+  (`--objectives "문장1|문장2"` · `--objectives-heading` · `--show-standards`). 구분자가 `|` 인 이유는
+  목표 문장에 쉼표가 흔하기 때문이다(`--standards` 는 코드 목록이라 쉼표로 충분하다). 저작 값은
+  산출 manifest 에 실려 왕복하므로 `edit`/`assemble` 재실행에도 보존된다.

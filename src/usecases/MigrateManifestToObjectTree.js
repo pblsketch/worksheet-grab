@@ -1,4 +1,5 @@
 import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
+import { normalizeObjectives } from './AssembleWorksheet.js';
 
 // MigrateManifestToObjectTree — S1.3(M1) 마이그레이션 + 무손실·개체화율 게이트 산출물.
 // 결정 A1(06_plan_final.md 40~46행): 온-오픈 지연 마이그레이션 + richtext 폴백.
@@ -296,6 +297,16 @@ async function migratePage(pageEntries, pageIdx, manifest, blockRepository) {
     if (isStdLabel) {
       // std-box 는 원문을 저장하지 않고 codes 참조만 저장(원칙 3 — 창작 금지, 슬롯 불변).
       obj = { id, type: 'std-box', placement: 'flow', codes: (manifest.standards || []).slice() };
+      // 학습목표(2026-07-28)는 성취기준 원문과 달리 **저작 문장**이라 개체가 직접 들고 간다 —
+      // 여기서 옮기지 않으면 레거시 문서를 편집기에서 여는 순간 교사가 쓴 목표가 사라진다.
+      // 표시 설정(제목·근거 성취기준 노출)도 같은 이유로 함께 승계한다.
+      const objectives = normalizeObjectives(manifest.objectives);
+      if (objectives.length > 0) {
+        obj.objectives = objectives;
+        const heading = typeof manifest.objectivesHeading === 'string' ? manifest.objectivesHeading.trim() : '';
+        if (heading) obj.heading = heading;
+        if (manifest.showStandards === true) obj.showStandards = true;
+      }
       obj = applyLosslessSafetyNet(obj, html, id, srcType);
     } else {
       obj = buildObjectForEntry(id, srcType, html) ?? { id, type: 'richtext', placement: 'flow', html, sourceType: srcType };

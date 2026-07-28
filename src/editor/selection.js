@@ -22,8 +22,13 @@ const MM_TO_PX = 96 / 25.4; // editor.js 구 관례와 동일(고정, zoom/DPR �
  * passage-slot(2층 정책, 2026-07-23): AI 는 여전히 이 필드를 채우지 못하지만(aiBridge 타입 가드),
  * 교사는 편집기에서 본문(bodyHtml)을 더블클릭·붙여넣기로 직접 입력할 수 있다. 렌더가 bodyHtml
  * 유무로 .passage-body/.slot 중 하나만 그리므로 selector 는 둘 다 커버한다.
- * 나머지 4종(std-box·table·image-slot·divider·shape)은 구조/슬롯 편집이 필요해 S4.1 범위 밖 —
- * 더블클릭해도 선택만 유지된다(us16.md 비활성 목록 기록).
+ * 나머지 타입(std-box·table·divider·shape·spacer·page-break)은 **개체 전체**를 여는 편집 대상이
+ * 아니다 — 더블클릭해도 선택만 유지된다(us16.md 비활성 목록 기록).
+ * 단 그중 일부는 **개체 안의 조각**을 partEdit.js 가 따로 연다(2026-07-28): std-box 의 학습목표
+ * 문장·박스 제목, table 의 캡션, title 의 배지/모서리/출처, passage-slot 의 제목/출처.
+ * 여기(EDIT_FIELD)와 거기(EDITABLE_PARTS)는 **겹치면 안 된다** — partEdit 이 캡처 단계에서
+ * dblclick 을 가로채므로, 같은 요소를 둘 다 등록하면 이쪽이 조용히 죽는다(image-slot 캡션이 그 예:
+ * 여기가 소유하므로 렌더는 figcaption 에 data-part 를 싣지 않는다).
  */
 const EDIT_FIELD = Object.freeze({
   // htmlField(선택): 인라인 서식(굵게/기울임 등)을 적용하면 그 살균 HTML 을 이 필드에 병행 저장한다

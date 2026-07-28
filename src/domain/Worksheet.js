@@ -7,6 +7,9 @@ import { Standard } from './Standard.js';
 // 불변식:
 //  - 최소 1개 페이지, 각 페이지는 정렬된 Block[].
 //  - 성취기준은 외부 주입된 Standard[](원문 포함)만.
+//  - 학습목표(objectives)는 성취기준과 **다른 층**이다 — 조회 원문이 아니라 저작 문장이라
+//    Standard 인스턴스를 요구하지 않고 평문 문자열 배열로 받는다(원칙 3은 "성취기준 원문"에만
+//    적용되며 학습목표는 그 대상 밖). 개체 트리의 `std-box.objectives` 와 같은 개념이다.
 //  - 저작권 지문은 슬롯으로 유지(도메인은 슬롯 텍스트를 채우지 않는다).
 export class Worksheet {
   constructor({
@@ -14,6 +17,7 @@ export class Worksheet {
     themeName,
     docTitle = '',
     standards = [],
+    objectives = [],
     pages = [],
     head = { katex: false },
     runHead = '',
@@ -39,10 +43,14 @@ export class Worksheet {
         throw new TypeError('standards 는 Standard 인스턴스 배열이어야 합니다(원문 주입 강제).');
       }
     }
+    if (!Array.isArray(objectives) || objectives.some((o) => typeof o !== 'string')) {
+      throw new TypeError('objectives 는 문자열 배열이어야 합니다(학습목표 — 저작 문장).');
+    }
     this.subject = subject;
     this.themeName = themeName;
     this.docTitle = docTitle;
     this.standards = [...standards];
+    this.objectives = [...objectives];
     this.pages = pages.map((p) => [...p]);
     this.head = { katex: false, ...head };
     this.runHead = runHead;

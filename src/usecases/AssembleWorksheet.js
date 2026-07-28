@@ -37,13 +37,14 @@ export class AssembleWorksheet {
    */
   async execute(manifest, { editMode = false } = {}) {
     const standards = await this.#resolveStandards(manifest);
+    const objectives = normalizeObjectives(manifest.objectives);
 
     // 페이지별 블록 로드/생성 → 도메인 Block[][]
     const pages = [];
     for (const pageEntries of manifest.pages) {
       const blocks = [];
       for (const entry of pageEntries) {
-        const html = await this.#entryHtml(entry, standards);
+        const html = await this.#entryHtml(entry, standards, manifest);
         const type = entry.type || 'content';
         blocks.push(new Block({
           id: entry.file || `gen:${type}`,
@@ -61,6 +62,7 @@ export class AssembleWorksheet {
       themeName: manifest.theme,
       docTitle: manifest.docTitle || '',
       standards,
+      objectives,
       pages,
       head: manifest.head || { katex: false },
       runHead: manifest.runHead || '',
@@ -94,27 +96,64 @@ export class AssembleWorksheet {
     return out;
   }
 
-  async #entryHtml(entry, standards) {
+  async #entryHtml(entry, standards, manifest) {
     if (entry.gen === 'standard-label' || entry.type === 'standard-label') {
-      return this.#renderStandardLabel(standards);
+      return this.#renderStandardLabel(standards, manifest);
     }
     if (typeof entry.html === 'string') return entry.html; // 인라인 블록(템플릿 슬롯 치환 결과)
     if (!entry.file) throw new Error(`블록 엔트리에 file/html/gen 이 없습니다: ${JSON.stringify(entry)}`);
     return this.repo.loadBlockHtml(entry.file);
   }
 
-  // 학습목표 표기 전환(2026-07-23): 이 경로(결정적 엔진, gen:'standard-label')는 AI 저작이 아니라
-  // 성취기준 CSV/MCP 원문을 그대로 조립하므로 새 학습목표 문장을 스스로 지을 수 없다 — 대신 기계
-  // 변환으로 표기만 개선한다. 학생/교사 공통 박스 제목은 "학습 목표"로 바꾸고, 목록에는 코드를 뗀
-  // 성취기준 문장만 실어 문장 자체가 목표 서술문처럼 읽히게 한다. 코드+원문 병기("근거 성취기준")는
-  // 별도 박스에 담아 교사용에서만 보이게 한다(`.std-ref`, assets/blocks.css [data-mode] 분기 —
-  // 성취기준은 비밀이 아니므로 물리 제거가 아니라 CSS 표시 제어로 충분하다).
-  #renderStandardLabel(standards) {
+  /**
+   * gen:'standard-label' 블록 → 학습목표 박스(+선택적 근거 성취기준 박스).
+   *
+   * **학습목표 저작(2026-07-28)**: `manifest.objectives`(문자열 배열)가 있으면 그 문장을 그대로
+   * 학습목표로 싣는다 — 개체 트리의 `std-box.objectives` 와 같은 계약이다. 이 경로가 "저작 불가"
+   * 였던 것은 엔진이 성취기준 원문만 조립했기 때문이지 원칙 3 때문이 아니다(원칙 3은 **성취기준
+   * 원문** 창작만 금지하며 학습목표는 애초에 그 대상 밖이다). 그래서 원문 조회 규칙은 그대로 두고
+   * (`#resolveStandards` 는 여전히 창작 없이 CSV/MCP/폴백만 쓴다) 저작 문장을 실을 통로만 연다.
+   *   - `manifest.objectivesHeading` — 박스 제목(기본 '학습 목표').
+   *   - `manifest.showStandards` — 근거 성취기준 박스를 함께 낼지(기본 false). 개체 트리
+   *     `std-box.showStandards` 와 같은 기본값 — 활동지에 얹는 것은 학습목표뿐이라는 현장 관행.
+   *     켜도 `.std-ref` 라 학생용에서는 data-mode CSS 로 숨는다(비밀이 아니라 물리 제거 불필요).
+   *
+   * **하위호환(objectives 미저작)**: 종전 기계 변환 경로를 **바이트 그대로** 유지한다 — 박스 제목은
+   * "학습 목표", 목록은 코드를 뗀 성취기준 문장, 그리고 근거 성취기준 박스를 항상 함께 낸다.
+   * 저작 문장이 없는 문서에서 근거까지 숨기면 성취기준 정보가 화면에서 완전히 사라지기 때문이다.
+   */
+  #renderStandardLabel(standards, manifest) {
+    const refBox = () => {
+      const refLis = standards
+        .map((s) => `      <li><b>${s.bracketedCode()}</b> ${escapeHtml(s.text)}</li>`)
+        .join('\n');
+      return `<div class="std-box std-ref">
+    <div class="std-head">▣ 근거 성취기준 (2022 개정 교육과정)</div>
+    <ul>
+${refLis}
+    </ul>
+  </div>`;
+    };
+
+    const objectives = normalizeObjectives(manifest?.objectives);
+    if (objectives.length > 0) {
+      const rawHeading = typeof manifest?.objectivesHeading === 'string' ? manifest.objectivesHeading.trim() : '';
+      const heading = rawHeading || '학습 목표';
+      const goalLis = objectives.map((g) => `      <li>${escapeHtml(g)}</li>`).join('\n');
+      const goalBox = `<div class="std-box">
+    <div class="std-head">▣ ${escapeHtml(heading)}</div>
+    <ul>
+${goalLis}
+    </ul>
+  </div>`;
+      // 참조할 성취기준이 없으면 켜져 있어도 빈 박스를 내지 않는다(제목만 있는 빈 테두리가 인쇄된다).
+      if (manifest?.showStandards !== true || standards.length === 0) return goalBox;
+      return `${goalBox}
+  ${refBox()}`;
+    }
+
     const goalLis = standards
       .map((s) => `      <li>${escapeHtml(s.text)}</li>`)
-      .join('\n');
-    const refLis = standards
-      .map((s) => `      <li><b>${s.bracketedCode()}</b> ${escapeHtml(s.text)}</li>`)
       .join('\n');
     return `<div class="std-box">
     <div class="std-head">▣ 학습 목표</div>
@@ -122,12 +161,7 @@ export class AssembleWorksheet {
 ${goalLis}
     </ul>
   </div>
-  <div class="std-box std-ref">
-    <div class="std-head">▣ 근거 성취기준 (2022 개정 교육과정)</div>
-    <ul>
-${refLis}
-    </ul>
-  </div>`;
+  ${refBox()}`;
   }
 
   async #serialize(worksheet, manifest, editMode = false) {
@@ -179,6 +213,16 @@ export function escapeHtml(s) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+/**
+ * 학습목표(저작 영역) 정규화 — 문자열 배열에서 공백 줄을 걷어낸다(개체 트리 인스펙터가
+ * `objectives.split('\n')...filter(Boolean)` 로 하는 것과 같은 규칙). 배열이 아니면 빈 배열.
+ * 결과가 비면 렌더는 하위호환 경로(성취기준 기계 변환)로 떨어진다.
+ */
+export function normalizeObjectives(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((s) => String(s ?? '').trim()).filter(Boolean);
 }
 
 // ── S2.1(M2) 공유 추출 — head/섹션 조립의 순수 조각. AssembleWorksheet(manifest 경로)와
