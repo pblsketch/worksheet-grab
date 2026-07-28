@@ -519,6 +519,9 @@ async function applyDocOp(next, {
 } = {}) {
   const current = core.getDocument();
   if (next === current) return false;
+  // 대기 중인 타이핑을 먼저 자기 단계로 확정한다(2026-07-28). 이걸 빠뜨리면 아래 history.commit()
+  // 이 "직전에 친 글자 + 이 명령"을 한 상태로 찍어, Ctrl+Z 한 번에 둘 다 사라진다.
+  history.flushTyping();
   const activeIndexBefore = Math.max(0, (current.pages || []).findIndex((page) => page.id === activePageId));
   if (requestedActivePageId != null) history.refreshUiState();
   core.setDocument(next);
