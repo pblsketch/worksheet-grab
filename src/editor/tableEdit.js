@@ -20,6 +20,57 @@ function cssEscape(id) {
  *   onTablePatch: (id:string, patch:object)=>void, // 구조 변경(rows 교체) → applyDocOp(reload)
  * }} deps
  */
+/**
+ * 셀 병합/분할의 **순수 계산** — rows 를 받아 새 rows 를 돌려준다(불가능하면 null).
+ * UI 상태(active·문서·history)는 호출부가 소유한다. 순수하게 떼어 놓은 이유는 병합 규칙이
+ * "이미 병합된 칸을 다시 병합"처럼 손으로 확인하기 어려운 조합을 갖기 때문이다.
+ *
+ * @param {Array<Array<object>>} rows 원본(변이하지 않는다)
+ * @param {{r:number,c:number}} at 활성 셀 좌표
+ * @param {'right'|'down'|'split'} dir
+ * @returns {Array<Array<object>>|null}
+ */
+export function mergeCells(rows, { r, c }, dir) {
+  if (!Array.isArray(rows)) return null;
+  const next = rows.map((row) => row.map((cell) => ({ ...cell })));
+  const cell = next[r]?.[c];
+  if (!cell || cell.merged) return null;
+  if (dir === 'right') {
+    const span = cell.colspan || 1;
+    const target = next[r][c + span];
+    if (!target || target.merged) return null;
+    // 축이 어긋나면 거절한다 — 세로로 더 걸친 칸을 가로로 흡수하면 아래 행들의 열 수가 어긋난다.
+    // 조용히 깨진 표를 만드는 것보다 아무 일도 안 하는 편이 낫다(fail-closed).
+    if ((target.rowspan || 1) !== (cell.rowspan || 1)) return null;
+    // 흡수 대상이 **이미 여러 칸을 덮고 있으면 그만큼**을 가져와야 한다. 종전엔 항상 +1 이라
+    // 3열에서 B+C 를 병합한 뒤 A 를 병합하면 A 는 2칸만 먹고 C 는 숨은 채 남아 그 행이 2칸만
+    // 덮었다(표의 열 수는 3). 숨은 칸이 자기 span 을 들고 있는 것도 같은 붕괴의 일부라 지운다.
+    const targetSpan = target.colspan || 1;
+    target.merged = true; target.text = '';
+    delete target.colspan; delete target.rowspan;
+    cell.colspan = span + targetSpan;
+  } else if (dir === 'down') {
+    const span = cell.rowspan || 1;
+    const target = next[r + span]?.[c];
+    if (!target || target.merged) return null;
+    if ((target.colspan || 1) !== (cell.colspan || 1)) return null; // 가로 축 불일치 — 위와 같은 이유
+    const targetSpan = target.rowspan || 1;
+    target.merged = true; target.text = '';
+    delete target.colspan; delete target.rowspan;
+    cell.rowspan = span + targetSpan;
+  } else if (dir === 'split') {
+    const cs = cell.colspan || 1; const rs = cell.rowspan || 1;
+    for (let rr = r; rr < r + rs; rr++) {
+      for (let cc = c; cc < c + cs; cc++) {
+        if (rr === r && cc === c) continue;
+        if (next[rr]?.[cc]) next[rr][cc].merged = false;
+      }
+    }
+    delete cell.colspan; delete cell.rowspan;
+  } else return null;
+  return next;
+}
+
 export function createTableEditor({ findObject, getSelectionState, onCellText, onTablePatch }) {
   let currentDoc = null;
   const active = { id: null, r: null, c: null };
@@ -68,36 +119,12 @@ export function createTableEditor({ findObject, getSelectionState, onCellText, o
     }
   }
 
-  /** 활성 셀 기준 병합(오른쪽/아래) 또는 분할. rows 를 깊은 복제해 새 문서로 넘긴다. */
+  /** 활성 셀 기준 병합(오른쪽/아래) 또는 분할. 계산은 순수 mergeCells 가 하고 여기선 넘기기만 한다. */
   function merge(dir) {
     if (active.id == null) return;
     const obj = tableObjOf(active.id); if (!obj) return;
-    const rows = obj.rows.map((row) => row.map((cell) => ({ ...cell })));
-    const { r, c } = active;
-    const cell = rows[r]?.[c];
-    if (!cell || cell.merged) return;
-    if (dir === 'right') {
-      const span = cell.colspan || 1;
-      const target = rows[r][c + span];
-      if (!target || target.merged) return;
-      target.merged = true; target.text = '';
-      cell.colspan = span + 1;
-    } else if (dir === 'down') {
-      const span = cell.rowspan || 1;
-      const target = rows[r + span]?.[c];
-      if (!target || target.merged) return;
-      target.merged = true; target.text = '';
-      cell.rowspan = span + 1;
-    } else if (dir === 'split') {
-      const cs = cell.colspan || 1; const rs = cell.rowspan || 1;
-      for (let rr = r; rr < r + rs; rr++) {
-        for (let cc = c; cc < c + cs; cc++) {
-          if (rr === r && cc === c) continue;
-          if (rows[rr]?.[cc]) rows[rr][cc].merged = false;
-        }
-      }
-      delete cell.colspan; delete cell.rowspan;
-    } else return;
+    const rows = mergeCells(obj.rows, active, dir);
+    if (!rows) return;
     onTablePatch(active.id, { rows });
   }
 

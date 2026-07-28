@@ -81,6 +81,27 @@ function round1(n) {
   return Math.round(n * 10) / 10;
 }
 
+/** 편집 전용 크롬 — DOM 을 콘텐츠로 굳힐 때 반드시 빼야 하는 것들. 자유 개체는 래퍼 **안**에
+ *  손잡이를 넣으므로(decorateFloats·refreshResizeHandles) innerHTML 에 그대로 딸려 온다. */
+const EDIT_CHROME_SELECTOR = '.wg-float-handle, .wg-resize-handle';
+
+/**
+ * 편집 크롬을 뺀 innerHTML — **DOM 을 문서 콘텐츠로 굳히는 모든 경로가 이 하나를 쓴다.**
+ *
+ * 2026-07-28: 종전엔 이 제거가 selection.js 안(readField/readHtmlField)에만 있었고,
+ * '내 블록으로 저장'(editor.js saveObjectAsPreset)은 `el.innerHTML` 을 날것으로 보냈다.
+ * 그래서 자유 개체를 프리셋으로 저장하면 저장된 html 이 `<div class="wg-float-handle">⠿</div>`
+ * 로 시작했고(실측), 그 프리셋은 삽입될 때 richtext.html 이 되므로 **⠿ 와 파란 리사이즈 사각형이
+ * 학생 배포본에 인쇄**됐다. 제거 규칙이 두 벌로 갈라져 있던 것이 원인이라 하나로 모은다.
+ */
+export function innerHtmlWithoutChrome(el) {
+  if (!el) return '';
+  if (!el.querySelector(EDIT_CHROME_SELECTOR)) return el.innerHTML; // 흔한 경로 — 복제 없이
+  const clone = el.cloneNode(true);
+  for (const n of clone.querySelectorAll(EDIT_CHROME_SELECTOR)) n.remove();
+  return clone.innerHTML;
+}
+
 /**
  * @param {{core:object, onDirty?:(kind:'text'|'move')=>void, onSelectionChange?:()=>void}} deps
  *   core: core.js 의 createDocumentStore() 인스턴스. onDirty: 편집이 실제로 문서를 바꿨을 때
@@ -106,10 +127,7 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     if (spec.field === 'html' || spec.field === 'bodyHtml') {
       // 편집 크롬(자유 개체 드래그 ⠿ 손잡이·리사이즈 손잡이)이 richtext/지문 innerHTML 에 섞여
       // 저장되지 않도록 걸러낸다(자유 개체 richtext 는 래퍼 자신이 편집 대상이라 손잡이가 자식으로 들어온다).
-      if (!targetEl.querySelector('.wg-float-handle, .wg-resize-handle')) return targetEl.innerHTML;
-      const clone = targetEl.cloneNode(true);
-      for (const n of clone.querySelectorAll('.wg-float-handle, .wg-resize-handle')) n.remove();
-      return clone.innerHTML;
+      return innerHtmlWithoutChrome(targetEl);
     }
     if (spec.stripSelector) {
       const clone = targetEl.cloneNode(true);
@@ -122,7 +140,7 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
   /** 편집 대상의 서식 보존 HTML 을 읽는다(qnum 배지·편집 크롬 제외 후 정제). title/question 전용. */
   function readHtmlField(targetEl, spec) {
     const clone = targetEl.cloneNode(true);
-    for (const n of clone.querySelectorAll('.wg-float-handle, .wg-resize-handle')) n.remove();
+    for (const n of clone.querySelectorAll(EDIT_CHROME_SELECTOR)) n.remove();
     if (spec.stripSelector) for (const n of clone.querySelectorAll(spec.stripSelector)) n.remove();
     return sanitizeInlineHtml(clone.innerHTML.trim());
   }

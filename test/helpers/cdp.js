@@ -163,6 +163,14 @@ export async function openCdpSession(url, {
       await sleep(settleMs);
     }
 
+    /** 실 우클릭 — contextmenu 는 좌클릭과 다른 경로라 click() 으로 대신할 수 없고,
+     *  dispatchEvent('contextmenu') 는 hit-test 를 건너뛴다(이 파일 머리말의 이유와 동일). */
+    async function rightClick(x, y) {
+      await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'right', clickCount: 1, buttons: 2 });
+      await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'right', clickCount: 1, buttons: 0 });
+      await sleep(settleMs);
+    }
+
     /**
      * 실 마우스 드래그(누르기 → 여러 번 이동 → 놓기). 합성 이벤트로는 잡히지 않는 결함 —
      * hit-test, `pointer-events`, 포인터 캡처, iframe 경계 — 이 전부 이 경로에서만 드러난다.
@@ -208,7 +216,7 @@ export async function openCdpSession(url, {
       await sleep(settleMs);
     }
 
-    return { evaluate, waitFor, click, hover, drag, press, insertText, consoleErrors, close };
+    return { evaluate, waitFor, click, rightClick, hover, drag, press, insertText, consoleErrors, close };
   } catch (e) {
     await close();
     throw e;

@@ -77,6 +77,26 @@
 > (`".pill is not a function`). 프로브가 "모든 높이 0"으로 나왔을 때 문서 오염을 먼저 의심했는데,
 > 실제 원인은 내가 방금 넣은 백틱이었다. 파일에 경고 주석을 남겼다.
 
+### D8 [P1] '내 블록으로 저장'이 **편집 손잡이를 인쇄물에 굳힌다** (codex+실측)
+- 재현: 자유 개체를 선택(리사이즈 손잡이 8개가 붙은 상태) → 우클릭 → 내 블록으로 저장 → `GET /presets`.
+  저장된 html 이 **`<div class="wg-float-handle" aria-hidden="true">⠿</div>` 로 시작**하고
+  `wg-resize-handle` 도 포함한다. 이 프리셋은 삽입 시 `richtext.html` 이 되므로 **학생 배포본에
+  ⠿ 와 파란 사각형이 인쇄된다.**
+- 원인: 제거 규칙이 `selection.js` 의 `readField`/`readHtmlField` **안에만** 있었고,
+  `saveObjectAsPreset` 은 `el.innerHTML` 을 날것으로 보냈다 — 같은 규칙이 두 벌로 갈라져 있었다.
+- 수정: `innerHtmlWithoutChrome()` 를 export 해 **DOM 을 콘텐츠로 굳히는 모든 경로가 하나를 쓰게**
+  했다. 곁들여 프리셋 저장이 `res.ok` 를 확인하지 않아 서버가 거절해도 "저장했습니다"가 뜨던 것도
+  고쳤다(`fetch` 는 4xx/5xx 에 throw 하지 않는다).
+
+### D9 [P1] 병합된 칸을 다시 병합하면 **표 구조가 무너진다** (codex+단위 재현)
+- 재현: 3열 표에서 B+C 를 병합한 뒤 A 를 오른쪽으로 병합한다. 결과 행이 덮는 열 수가 **2**인데
+  표의 열 수는 3 — 칸 하나가 사라진 것처럼 보인다. 숨은 칸이 `colspan:2` 를 그대로 들고 있다.
+- 원인: `cell.colspan = span + 1` — 흡수 대상이 **이미 여러 칸을 덮고 있어도 항상 +1**만 했고,
+  흡수돼 숨은 칸의 span 도 지우지 않았다.
+- 수정: 계산을 순수 함수 `mergeCells(rows, {r,c}, dir)` 로 떼어 내고(단위 8건),
+  ① 대상의 span 을 **합산**, ② 숨은 칸의 span 제거, ③ 축이 어긋나는 병합(가로로 흡수할 칸이
+  세로로 더 걸친 경우)은 **거절**한다 — 조용히 깨진 표를 만드는 것보다 무동작이 낫다.
+
 ### 수정 요약
 | # | 파일 | 한 일 |
 |---|---|---|
@@ -87,6 +107,8 @@
 | D5 | `src/editor/saveController.js` | `editSeq`(markDirty 마다 증가)를 요청 시점과 대조 — 왕복 중 편집이 있었으면 서버 문서를 채택하지 않고 dirty 를 유지한다. 배너도 "저장하는 동안 수정한 내용은 아직 저장 전"이라고 밝힌다 |
 | D6 | `src/editor/editorStyle.js` | 편집 표식에서 `background` 를 빼고 `box-shadow` 로만 강조 — 조각의 배색을 건드리지 않는다 |
 | D7 | `src/usecases/RenderObjectTree.js` · `assets/paper.css` | 최소높이 개체에 `data-minh` 표식 + 그 개체만 속 내용을 flex 로 stretch(제목은 `.title-box` 까지 한 겹 더) |
+| D8 | `src/editor/selection.js` · `editor.js` | `innerHtmlWithoutChrome()` export — 편집 크롬 제거의 단일 관문. 프리셋 저장의 `res.ok` 미확인도 함께 수정 |
+| D9 | `src/editor/tableEdit.js` | 병합 계산을 순수 `mergeCells()` 로 분리 + span 합산·숨은 칸 span 제거·축 불일치 거절 |
 
 ---
 
@@ -94,10 +116,8 @@
 
 | # | 심각도 | 요약 | 상태 |
 |---|---|---|---|
-| C2 | P1 | 저장 실패를 무시하고 용지·테마 변경·PNG·PDF 가 진행 | 미검증 |
+| C2 | P1 | 저장 실패를 무시하고 용지·테마 변경·PNG·PDF 가 진행 | 미검증(프리셋 경로의 같은 결함은 D8 에서 수정) |
 | C5 | P1 | flow 없는 다쪽 float 문서가 편집 후 1쪽으로 축소 | codex 순수 프로브 재현 |
-| C6 | P1 | float 을 '내 블록'으로 저장하면 `⠿`·리사이즈 손잡이 DOM 이 인쇄물에 섞임 | **전제 확인됨** — float 자식에 `wg-float-handle` + `wg-resize-handle` 8개 실재 |
-| C7 | P1 | 병합된 셀 재병합 시 colspan/rowspan 붕괴 | 미검증 |
 | C4 | P1 | 타이핑 직후 명령이 한 undo 단계로 병합 | 미검증 |
 | C8~C15 | P2 | 편집 중 리플로우가 캐럿·편집상태를 끊음 · 모드 토글 경합 · 검수 칩/썸네일 미갱신 · 제목 undo 미반영 · 빈 페이지로 드래그 불가 · 프리셋 실패 은폐 | 미검증 |
 

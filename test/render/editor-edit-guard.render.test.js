@@ -299,6 +299,50 @@ test('대조군: 빈 배경 마퀴 드래그는 그대로 자유 개체를 다�
   }
 });
 
+test("'내 블록으로 저장'에 편집 손잡이가 딸려 들어가지 않는다(인쇄물 오염)", { skip: !HAS_CHROME, timeout: 240000 }, async () => {
+  // 고치기 전: 저장된 프리셋 html 이 `<div class="wg-float-handle">⠿</div>` 로 시작했고
+  // 리사이즈 손잡이 8개까지 담겼다. 그 프리셋은 삽입될 때 richtext.html 이 되므로 ⠿ 와 파란
+  // 사각형이 **학생 배포본에 인쇄**된다. 제거 규칙이 selection.js 안에만 있고 프리셋 경로가
+  // 날 innerHTML 을 보내던 것이 원인 — 관문을 하나로 모았고, 그 사실을 여기서 고정한다.
+  const { server, url } = await startEditServer(fixtureWithFloats());
+  const s = await openCdpSession(`${url}/`, { prefix: 'wsg-editguard-preset-chrome-' });
+  try {
+    await s.waitFor(`document.body.dataset.ready === 'true'`, { message: '편집기 부팅' });
+    await s.waitFor(`${countOf('.wg-float[data-oid="fl1"]')} === 1`, { message: '자유 개체 렌더' });
+
+    // 선택해서 리사이즈 손잡이 8개까지 붙인 **최악 조건**에서 저장한다.
+    const p = JSON.parse(await s.evaluate(viewportCenterOf('.wg-float[data-oid="fl1"]')));
+    await s.click(p.x, p.y);
+    await s.waitFor(`${countOf('.wg-float[data-oid="fl1"] > .wg-resize-handle')} === 8`, { message: '리사이즈 손잡이' });
+    assert.equal(await s.evaluate(countOf('.wg-float[data-oid="fl1"] > .wg-float-handle')), 1, '전제: ⠿ 손잡이가 래퍼 자식이다');
+
+    await s.rightClick(p.x, p.y);
+    await s.waitFor(`!!document.getElementById('canvas-ctx-menu')`, { message: '우클릭 메뉴' });
+    const item = `(() => {
+      const b = [...document.querySelectorAll('#canvas-ctx-menu button')].find((x) => /내 블록으로 저장/.test(x.textContent));
+      const r = b.getBoundingClientRect();
+      return JSON.stringify({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+    })()`;
+    const it = JSON.parse(await s.evaluate(item));
+    await s.click(it.x, it.y);
+    await s.waitFor(`/내 블록에 저장/.test(document.getElementById('save-banner').textContent)`, { message: '저장 완료 배너' });
+
+    const saved = JSON.parse(await s.evaluate(`(async () => {
+      const list = await (await fetch('/presets')).json();
+      const items = Array.isArray(list) ? list : (list.presets || list.items || []);
+      const mine = items.filter((x) => /answer-area/.test(x.name || ''));
+      const p = mine[mine.length - 1];
+      return JSON.stringify({ found: !!p, html: p ? p.html : '' });
+    })()`));
+    assert.ok(saved.found, '프리셋이 저장돼 있어야 한다');
+    assert.doesNotMatch(saved.html, /wg-float-handle/, `⠿ 손잡이가 콘텐츠로 굳으면 안 된다 — ${saved.html.slice(0, 160)}`);
+    assert.doesNotMatch(saved.html, /wg-resize-handle/, `리사이즈 손잡이도 마찬가지 — ${saved.html.slice(0, 160)}`);
+    assert.ok(saved.html.trim().length > 0, '내용까지 통째로 지우면 안 된다');
+  } finally {
+    await teardown(server, s);
+  }
+});
+
 test('배치 전환은 두 배치를 다 지원하는 타입에만 제안된다', { skip: !HAS_CHROME, timeout: 240000 }, async () => {
   const { server, s } = await boot('wsg-editguard-placement-chrome-');
   try {
