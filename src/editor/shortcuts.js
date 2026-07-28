@@ -54,11 +54,18 @@ export function createShortcuts({
   }
 
   /** 텍스트 편집 중이거나 폼 필드/제목에 포커스가 있으면 개체 단축키(삭제·넛지·복사/붙여넣기)를
-   *  가로채지 않는다 — 정상 글자 입력/삭제/복사가 우선(#7·US-E2·US-E3 공통 가드). */
-  function isTypingContext() {
+   *  가로채지 않는다 — 정상 글자 입력/삭제/복사가 우선(#7·US-E2·US-E3 공통 가드).
+   *
+   *  **이벤트 대상을 먼저 본다(2026-07-28).** 종전엔 `selection.state.editingId` 와 **부모 문서의**
+   *  `activeElement` 만 봤는데, 표 셀(tableEdit)·조각(partEdit)은 자기 지역 상태만 세우고 공통
+   *  editingId 를 세우지 않고, 캐럿이 iframe 안에 있으면 부모 activeElement 는 `<iframe>` 요소라
+   *  contentEditable 이 아니다 — 두 판정이 모두 false 라 **글자 하나 지우려던 Backspace 가 표·학습목표
+   *  박스를 통째로 삭제했다**(실 Chrome 재현: 표 4→3, std-box 1→0). 키가 실제로 어디서 났는지는
+   *  `e.target` 이 알고 있고, 이 핸들러는 부모와 teacher iframe 양쪽에 걸려 있으므로 그것으로 족하다. */
+  function isTypingContext(e) {
     if (selection.state.editingId) return true;
-    const ae = hostDocument.activeElement;
-    return !!(ae && (ae.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName)));
+    const candidates = [e?.target, e?.target?.ownerDocument?.activeElement, hostDocument.activeElement];
+    return candidates.some((n) => n && (n.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName)));
   }
 
   /** 단일 선택된 float 개체를 dxMm/dyMm 넛지한다(US-E2). 전체 재로드 없이 라이브 DOM 의 해당
@@ -141,7 +148,7 @@ export function createShortcuts({
     // Delete/Backspace = 선택 개체 삭제(#7). 단, 텍스트 편집 중이거나 폼 필드/제목 편집에 포커스가
     // 있으면 개입하지 않는다(정상 글자 삭제가 우선). 개체 선택만 된 상태에서만 개체를 지운다.
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      if (isTypingContext()) return;
+      if (isTypingContext(e)) return;
       if (selection.state.selectedIds.size === 0) return;
       e.preventDefault();
       deleteSelectedObjects();
@@ -149,7 +156,7 @@ export function createShortcuts({
     }
     // 방향키 = 단일 선택된 자유 개체 미세 이동(1mm, Shift=10mm) — US-E2. 텍스트/폼 편집 중엔 무개입.
     if (NUDGE_DELTAS[e.key] && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      if (isTypingContext()) return;
+      if (isTypingContext(e)) return;
       const [dx, dy] = NUDGE_DELTAS[e.key];
       const step = e.shiftKey ? 10 : 1;
       if (nudgeSelectedFloat(dx * step, dy * step)) e.preventDefault();
@@ -168,11 +175,11 @@ export function createShortcuts({
       history.redo();
     } else if (key === 'c') {
       // 개체 복사(US-E3) — 텍스트 편집/폼 컨텍스트면 브라우저 기본 복사가 우선.
-      if (isTypingContext()) return;
+      if (isTypingContext(e)) return;
       if (copySelectedObjects()) e.preventDefault();
     } else if (key === 'v') {
       // 개체 붙여넣기(US-E3) — 텍스트 편집/폼 컨텍스트면 브라우저 기본 붙여넣기가 우선.
-      if (isTypingContext()) return;
+      if (isTypingContext(e)) return;
       if (objectClipboard.length) { e.preventDefault(); pasteObjects(); }
     }
   }

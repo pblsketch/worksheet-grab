@@ -718,6 +718,19 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     }
 
     doc.addEventListener('pointerdown', (e) => {
+      // 새 제스처가 시작됐다 = 직전 제스처의 click 은 끝내 오지 않았다 → 무장 해제(2026-07-28).
+      // 드래그 종료 시 arm 한 플래그는 "곧 따라올 click 1회"를 겨냥한 것인데, 재장식으로 pointerdown
+      // 대상이 DOM 에서 떨어져 나가면 브라우저가 그 click 을 아예 만들지 않는다(실측: 드래그 구간
+      // 이벤트 로그에 click 0건). 남은 플래그는 사용자의 **다음 진짜 클릭**을 먹어 "한 번 더 눌러야
+      // 선택되는" 증상이 됐다. click 은 언제나 다음 pointerdown 보다 먼저 오므로 여기서 지워도
+      // 정상 경로는 손상되지 않는다.
+      swallowNextClick = false;
+      // flow 오버레이(크기 손잡이 ⠿ · + 삽입)는 `.wg-obj` **밖**에 그려진다 — 아래 마퀴 판정이 그걸
+      // "빈 배경"으로 보고 마퀴를 함께 시작해, 드롭에서 finishMarquee 가 선택을 float 교차분(문서에
+      // float 이 없으면 빈 집합)으로 덮어써 **크기조정 직후 선택이 사라졌다.** 이 컨트롤들은 자기
+      // 드래그 핸들러를 가지므로 선택 계층은 손대지 않는다. canvasInline 의 stopPropagation() 은
+      // 여기에 닿지 않는다 — 두 리스너가 같은 `doc` 노드에 달려 전파 중단이 형제를 막지 못한다.
+      if (e.target.closest?.('.wg-flow-overlay')) return;
       const handle = e.target.closest('.wg-resize-handle');
       if (handle) {
         const floatEl = handle.closest('.wg-float[data-oid]');

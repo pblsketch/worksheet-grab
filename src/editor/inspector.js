@@ -10,7 +10,8 @@
 import { icon } from './icons.js';
 import { QTYPE_LABELS, SHAPE_KINDS, DASH_STYLES, ANSWER_AREA_STYLES } from './objectFactory.js';
 import {
-  ANSWERABLE_TYPES, QUESTION_TYPES, SIZEABLE_TYPES, ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX,
+  ANSWERABLE_TYPES, QUESTION_TYPES, SIZEABLE_TYPES, PLACEMENT_TOGGLEABLE_TYPES,
+  ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX,
 } from '/src/domain/schema/index.js';
 import { PAPER_PRESETS, resolvePaper, matchPreset, paperDims, paperMargins } from '/src/usecases/paper.js';
 
@@ -192,12 +193,15 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
       }
     }
 
-    const flowFloatBtn = el('button', {
-      type: 'button', id: 'insp-flowfloat-toggle', class: 'insp-btn',
-      html: `${icon('layers')}<span>${obj.placement === 'float' ? '본문 배치로 전환' : '자유 배치로 전환'}</span>`,
-      onclick: () => onToggleFlowFloat(obj.id),
-    });
-    root.appendChild(flowFloatBtn);
+    // 두 배치를 다 지원하는 타입에만 전환을 제안한다 — 제목·학습목표 박스처럼 flow 전용인 타입에
+    // 버튼을 내밀면 눌러도 아무 일이 없어(무동작) 교사가 "고장 났다"고 읽는다.
+    if (PLACEMENT_TOGGLEABLE_TYPES.includes(obj.type)) {
+      root.appendChild(el('button', {
+        type: 'button', id: 'insp-flowfloat-toggle', class: 'insp-btn',
+        html: `${icon('layers')}<span>${obj.placement === 'float' ? '본문 배치로 전환' : '자유 배치로 전환'}</span>`,
+        onclick: () => onToggleFlowFloat(obj.id),
+      }));
+    }
 
     if (ANSWERABLE_TYPES.includes(obj.type)) {
       const label = el('label', { class: 'insp-check' });

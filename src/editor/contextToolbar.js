@@ -8,6 +8,7 @@
 
 import { icon } from './icons.js';
 import { CATALOG_ITEMS } from './objectFactory.js';
+import { PLACEMENT_TOGGLEABLE_TYPES } from '/src/domain/schema/index.js';
 
 function btn({ id, title, iconName, label, onClick, disabled = false }) {
   const b = document.createElement('button');
@@ -185,7 +186,10 @@ export function createContextToolbar(opts) {
     }));
     wrap.appendChild(btn({ title: '복제', iconName: 'copy', id: 'tb-duplicate', onClick: () => opts.onDuplicate(id) }));
     wrap.appendChild(btn({ title: '삭제', iconName: 'trash', id: 'tb-delete', onClick: () => opts.onDelete(id) }));
-    wrap.appendChild(btn({ title: '본문 배치 ⇄ 자유 배치 전환', iconName: 'layers', id: 'tb-flowfloat', onClick: () => opts.onFlowFloat(id) }));
+    // 인스펙터와 같은 판정 — 두 배치를 다 지원하는 타입에만 낸다(무동작 버튼 금지).
+    if (PLACEMENT_TOGGLEABLE_TYPES.includes(obj.type)) {
+      wrap.appendChild(btn({ title: '본문 배치 ⇄ 자유 배치 전환', iconName: 'layers', id: 'tb-flowfloat', onClick: () => opts.onFlowFloat(id) }));
+    }
     // z-순서(맨앞/맨뒤) — 자유 배치(float) 개체 전용. 겹친 자유 개체의 앞뒤를 바꾼다(같은 페이지
     // float[] 배열 위치 = 페인트 순서, 편집 캔버스=인쇄 동일). flow 개체는 좌표·겹침이 없어 미노출.
     if (obj.placement === 'float') {
