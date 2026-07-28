@@ -126,3 +126,39 @@ test('결정성: 크기를 준 문서도 2회 렌더가 바이트 동일', () =>
   const flow = [table({ widthPct: 60, minHeightMm: 30, align: 'center' })];
   assert.equal(render(flow, { editMode: false }), render(flow, { editMode: false }));
 });
+
+// ── 6) data-minh 표식 — 최소높이를 준 개체의 **속 내용까지** 늘리는 CSS 훅 ──────────
+//
+// 종전엔 래퍼에 min-height 만 얹어서, 늘린 만큼 빈 여백이 생기고 교사가 보는 실제 테두리 상자는
+// 그대로였다("영역만 늘어나지 테두리 높낮이는 안 바뀐다" — 사용자 보고). stretch 는 paper.css 가
+// 걸고, 그 대상을 고르는 표식이 이것이다. 표식이 **인쇄 렌더에도** 나가야 편집==인쇄가 유지된다.
+
+test('data-minh: 최소높이를 준 개체는 인쇄 렌더에도 표식이 붙는다(R2-1)', () => {
+  const tag = wrapperTag(render([table({ minHeightMm: 30 })], { editMode: false }));
+  assert.match(tag, /data-minh="1"/, `인쇄 래퍼에 표식이 있어야 한다 — ${tag}`);
+});
+
+test('data-minh: 폭만 준 개체에는 붙지 않는다(블록 자식은 이미 폭을 채운다 · 마진 상쇄 보존)', () => {
+  const tag = wrapperTag(render([table({ widthPct: 60 })], { editMode: false }));
+  assert.ok(tag, '폭 선언이 있으면 래퍼는 나온다');
+  assert.doesNotMatch(tag, /data-minh/, `폭만으로는 stretch 하지 않는다 — ${tag}`);
+});
+
+test('data-minh: 무효한 최소높이는 style 도 표식도 만들지 않는다(두 판정이 갈리지 않는다)', () => {
+  for (const extra of [{ minHeightMm: 0 }, { minHeightMm: -5 }, { minHeightMm: '30' }, { minHeightMm: NaN }]) {
+    const html = render([table(extra)], { editMode: false });
+    const tag = wrapperTag(html);
+    // 선언이 없으면 래퍼 자체가 안 나온다(기존 계약) — 나오더라도 표식은 없어야 한다.
+    if (tag) assert.doesNotMatch(tag, /data-minh/, `${JSON.stringify(extra)}: 표식이 붙으면 안 된다 — ${tag}`);
+    assert.doesNotMatch(html, /min-height/, `${JSON.stringify(extra)}: style 도 없어야 한다`);
+  }
+});
+
+test('data-minh: 편집과 인쇄의 표식·style 이 같다', () => {
+  const flow = [table({ widthPct: 60, minHeightMm: 30 })];
+  const edit = wrapperTag(render(flow, { editMode: true }));
+  const print = wrapperTag(render(flow, { editMode: false }));
+  const minh = (t) => /data-minh="1"/.test(t);
+  assert.equal(minh(edit), minh(print), `표식이 한쪽에만 있으면 편집==인쇄가 깨진다 — 편집 ${edit} / 인쇄 ${print}`);
+  assert.equal(wrapperStyle(edit), wrapperStyle(print));
+});
