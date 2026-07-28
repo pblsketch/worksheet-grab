@@ -94,12 +94,29 @@ function fixtureDocument() {
   };
 }
 
-async function startEditServer() {
+/** 자유 배치 개체 2개 — float 손잡이의 노출 규칙 검증용. */
+function fixtureWithFloats() {
+  return {
+    pagination: 'paginated',
+    docTitle: 'float 손잡이 노출',
+    subject: 'korean', dataSubject: 'korean', themeName: 'ko', lang: 'ko', paper: null,
+    standards: [],
+    pages: [{
+      flow: [{ id: 'a1', type: 'richtext', placement: 'flow', html: '<p>본문</p>' }],
+      float: [
+        { id: 'fl1', type: 'answer-area', placement: 'float', style: 'box', label: '메모', rect: { xMm: 100, yMm: 60, wMm: 50, hMm: 25 } },
+        { id: 'fl2', type: 'answer-area', placement: 'float', style: 'box', label: '둘째', rect: { xMm: 30, yMm: 150, wMm: 50, hMm: 25 } },
+      ],
+    }],
+  };
+}
+
+async function startEditServer(document = fixtureDocument()) {
   const base = await autoTmpDir('wsg-flowhandle-render-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
   const saver = new SaveDocument({ workspace, blockRepository, curriculum: null });
-  await saver.checkpoint({ name: '문서', document: fixtureDocument(), now: new Date('2026-07-28T00:00:00.000Z') });
+  await saver.checkpoint({ name: '문서', document, now: new Date('2026-07-28T00:00:00.000Z') });
   const server = createEditorServer({
     root: ROOT, docName: '문서', workspace, blockRepository, curriculum: null, testSeed: false,
   });
@@ -184,6 +201,60 @@ test('조작 칩: 평소엔 안 보이고 가리킨 개체의 것만 드러난�
     await s.hover(chip.x, chip.y);
     const onChip = JSON.parse(await s.evaluate(CHIP_OPACITY));
     assert.ok(onChip['a3:handle'] > 0, `칩 위로 옮기면 유지되어야 한다 — ${onChip['a3:handle']}`);
+  } finally {
+    await new Promise((r) => server.close(r));
+    await s.close();
+  }
+});
+
+test('자유 개체 손잡이: 평소엔 숨고 내용 위 hover 로 드러나며 미선택 상태로도 끌린다', { skip: !HAS_CHROME, timeout: 240000 }, async () => {
+  const { server, url } = await startEditServer(fixtureWithFloats());
+  const s = await openCdpSession(`${url}/`, { prefix: 'wsg-floathandle-chrome-' });
+  try {
+    await s.waitFor(`document.body.dataset.ready === 'true'`, { message: '편집기 부팅' });
+    await s.waitFor(`${IFR}.contentDocument.querySelectorAll('.wg-float-handle').length === 2`, { message: '손잡이 렌더' });
+
+    const opacities = `(() => {
+      const d = ${IFR}.contentDocument; const v = d.defaultView;
+      const out = {};
+      for (const el of d.querySelectorAll('.wg-float[data-oid]')) {
+        const h = el.querySelector(':scope > .wg-float-handle');
+        out[el.dataset.oid] = h ? Number(v.getComputedStyle(h).opacity) : null;
+      }
+      return JSON.stringify(out);
+    })()`;
+    const styleOf = (oid) => `(() => {
+      const el = ${IFR}.contentDocument.querySelector('.wg-float[data-oid="${oid}"]');
+      return JSON.stringify({ left: el.style.left, top: el.style.top, w: el.style.width, h: el.style.height });
+    })()`;
+
+    // ① 가리키기 전에는 자유 개체 손잡이도 보이지 않는다.
+    const atRest = JSON.parse(await s.evaluate(opacities));
+    assert.equal(atRest.fl1, 0, `fl1: 가리키기 전에는 숨어 있어야 한다 — ${atRest.fl1}`);
+    assert.equal(atRest.fl2, 0, `fl2: 가리키기 전에는 숨어 있어야 한다 — ${atRest.fl2}`);
+
+    // ② 미선택 float 의 **내용** 위 hover 로 드러난다. 래퍼는 pointer-events:none 이지만
+    //    자식은 auto 라 내용 위에서는 이벤트가 뜬다(스파이크 §4-5 정책 그대로).
+    const body = JSON.parse(await s.evaluate(viewportCenterOf('.wg-float[data-oid="fl1"]')));
+    await s.hover(body.x, body.y);
+    const hovered = JSON.parse(await s.evaluate(opacities));
+    assert.ok(hovered.fl1 > 0, `가리킨 자유 개체의 손잡이는 보여야 한다 — ${hovered.fl1}`);
+    assert.equal(hovered.fl2, 0, '가리키지 않은 자유 개체의 손잡이는 숨어 있어야 한다');
+
+    // ③ 손잡이 위로 옮겨도 유지된다(래퍼 밖으로 나가는 순간 꺼지면 잡을 수 없다).
+    const chip = JSON.parse(await s.evaluate(viewportCenterOf('.wg-float[data-oid="fl1"] > .wg-float-handle')));
+    await s.hover(chip.x, chip.y);
+    const onChip = JSON.parse(await s.evaluate(opacities));
+    assert.ok(onChip.fl1 > 0, `손잡이 위에서 유지되어야 한다 — ${onChip.fl1}`);
+
+    // ④ 숨어 있어도 기능은 그대로 — 미선택 상태에서 손잡이로 끌면 이동하고 크기는 안 바뀐다.
+    const before = JSON.parse(await s.evaluate(styleOf('fl1')));
+    await s.drag(chip.x, chip.y, chip.x + 50, chip.y + 35, { steps: 14 });
+    const after = JSON.parse(await s.evaluate(styleOf('fl1')));
+    assert.notEqual(`${after.left},${after.top}`, `${before.left},${before.top}`,
+      `손잡이 드래그가 좌표를 옮겨야 한다 — ${JSON.stringify(after)}`);
+    assert.equal(after.w, before.w, '이동이지 리사이즈가 아니다(폭 불변)');
+    assert.equal(after.h, before.h, '이동이지 리사이즈가 아니다(높이 불변)');
   } finally {
     await new Promise((r) => server.close(r));
     await s.close();

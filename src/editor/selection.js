@@ -147,7 +147,12 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
   }
 
   /** float 래퍼에 항상 클릭 가능한 작은 손잡이를 붙인다(미선택 float pointer-events:none 정책의
-   *  탈출구 — 스파이크 §4-5: float 이 아래 flow 개체 클릭을 가로채는 z-order 문제 완화). */
+   *  탈출구 — 스파이크 §4-5: float 이 아래 flow 개체 클릭을 가로채는 z-order 문제 완화).
+   *
+   *  DOM 은 항상 붙이되 **보이는 것은 가리킨 개체의 것뿐**이다(2026-07-28) — CSS 가 기본
+   *  opacity:0 이고 여기 붙는 `is-hot` 만 드러낸다. 손잡이를 아예 없앨 수는 없다: 미선택 float
+   *  래퍼가 pointer-events:none 이라 이것이 유일한 진입점이고, 얇거나 내용이 비치지 않는 개체는
+   *  몸통으로 잡을 수단이 없다. */
   function decorateFloats(doc) {
     for (const el of doc.querySelectorAll('.wg-float[data-oid]')) {
       if (!el.querySelector(':scope > .wg-float-handle')) {
@@ -158,6 +163,24 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
         el.prepend(handle);
       }
     }
+    applyFloatHot(doc); // 새로 붙인 손잡이에도 현재 hover 상태를 입힌다
+  }
+
+  // 가리키는 자유 개체의 손잡이만 드러낸다. canvasInline 의 flow 조작 칩과 같은 규칙이되,
+  // 이 손잡이는 selection.js 소관이라 여기서 따로 추적한다(NO_BODY_DRAG_SELECTORS 의 소유 구분).
+  let hotFloatOid = null;
+
+  function applyFloatHot(doc) {
+    for (const el of doc.querySelectorAll('.wg-float[data-oid]')) {
+      const handle = el.querySelector(':scope > .wg-float-handle');
+      if (handle) handle.classList.toggle('is-hot', el.dataset.oid === hotFloatOid);
+    }
+  }
+
+  function setHotFloat(doc, oid) {
+    if (hotFloatOid === oid) return;
+    hotFloatOid = oid;
+    applyFloatHot(doc);
   }
 
   const RESIZE_DIRS = Object.freeze(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w']);
@@ -544,6 +567,15 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     currentDoc = doc;
     decorateFloats(doc);
     refreshVisual();
+
+    // 가리키는 자유 개체의 손잡이만 드러낸다. 미선택 래퍼는 pointer-events:none 이지만 자식은
+    // auto 라 **내용 위**에서는 이벤트가 뜬다 — 그래서 hover 로도 발견된다. 손잡이 자신 위도
+    // 같은 개체로 친다(래퍼를 벗어나 손잡이로 다가가는 도중에 꺼지면 잡을 수 없다).
+    doc.addEventListener('pointermove', (e) => {
+      const floatEl = e.target.closest?.('.wg-float[data-oid]');
+      setHotFloat(doc, floatEl?.dataset.oid ?? null);
+    });
+    doc.documentElement.addEventListener('pointerleave', () => setHotFloat(doc, null));
 
     doc.addEventListener('click', (e) => {
       if (swallowNextClick) { swallowNextClick = false; return; }

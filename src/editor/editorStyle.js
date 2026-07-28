@@ -27,12 +27,20 @@ export function injectEditorStyle(doc) {
        ⠿ 핸들 경로와 동일(pointerdown → startFloatDrag: 선택 후 이동, 실마우스 검증된 pointer capture). */
     .wg-float:not(.wg-selected) > * { pointer-events: auto; }
     .wg-float.wg-selected, .wg-float.wg-editing { pointer-events: auto; cursor: grab; }
+    /* flow 조작 칩과 같은 규칙(2026-07-28): 평소엔 숨고 가리킨 개체의 것만 드러난다. 종전엔 자유
+       배치 개체마다 검은 칩이 불투명하게 항상 떠 있었다. 이 손잡이는 없앨 수 없다 — 미선택 float
+       래퍼는 pointer-events:none 이라(스파이크 4-5 의 z-order 완화) 이것이 유일한 진입점이다.
+       내용 위 hover 로 드러나므로 발견성은 유지된다: 래퍼는 none 이어도 자식은 auto 라 내용
+       위에서는 pointermove 가 뜬다. */
     .wg-float-handle {
       position: absolute; top: -9px; left: -9px; width: 18px; height: 18px; z-index: 5;
       display: flex; align-items: center; justify-content: center;
       background: #111827; color: #fff; border-radius: 4px; font-size: 11px;
       pointer-events: auto; cursor: grab; user-select: none;
+      opacity: 0; transition: opacity .12s ease-out;
     }
+    .wg-float-handle.is-hot { opacity: .55; }
+    .wg-float-handle:hover { opacity: 1; }
     /* 자유 개체 8방향 리사이즈 손잡이(#8) — 단일 선택·비편집 상태에서만 selection.js 가 붙인다. */
     .wg-resize-handle {
       position: absolute; width: 11px; height: 11px; z-index: 7; background: #2563eb;
