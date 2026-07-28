@@ -489,10 +489,16 @@ function updateAll() {
     const allFloat = sel.ids.every((id) => core.findObject(id)?.obj.placement === 'float');
     inspector.render({ mode: 'multi', ids: sel.ids, allFloat });
   } else {
-    inspector.render({ mode: 'object', obj: sel.obj });
+    // paper 를 함께 넘긴다 — flow 크기 UI 가 %를 mm 로 환산해 보조 표시하는 데 쓴다(용지·단 수 의존).
+    inspector.render({ mode: 'object', obj: sel.obj, paper: core.getDocument().paper });
   }
   // #10: 표 선택 시 열 너비 손잡이·활성 셀 하이라이트를 선택 상태에 맞춰 갱신(reload 없이).
   tableEditor?.refresh();
+  // 크기 손잡이(2026-07-28)는 **선택된 개체에만** 뜨므로 선택이 바뀔 때마다 오버레이를 다시 그려야
+  // 한다. 종전 오버레이 내용물(⠿·+ 삽입)은 선택과 무관해서 여기서 부를 이유가 없었고, 그래서
+  // refreshDecoration 은 문서 변경·리플로우·뷰 토글에만 걸려 있었다(실마우스 테스트로 드러난 공백 —
+  // 합성 이벤트 테스트는 내부 함수를 직접 불러서 이 배선을 건너뛴다).
+  canvasInline.refreshDecoration();
   refreshLayers(); // 레이어 목록도 선택/문서 상태에 맞춰 갱신(파생 뷰)
 }
 
@@ -935,6 +941,13 @@ const inspector = createInspector({
   onToggleFlowFloat: (id) => toggleFlowFloatFor(id),
   onToggleAnswer: (id) => { const next = ObjOps.toggleAnswer(core.getDocument(), id); applyDocOp(next, { selectId: id }); },
   onAlign: (ids, mode2) => { const next = ObjOps.alignFloats(core.getDocument(), ids, mode2); applyDocOp(next); },
+  // 크기·정렬(2026-07-28) — 손잡이 드래그(canvasInline)와 **같은 순수 관문**을 쓴다. 두 입력이
+  // 갈라지지 않도록 클램프는 resizeFlow 안에만 있다.
+  onResize: (id, patch) => {
+    const next = ObjOps.resizeFlow(core.getDocument(), id, patch);
+    if (next === core.getDocument()) return;
+    applyDocOp(next, { reflow: true, selectId: id });
+  },
   onImageUpload: (id, file) => uploadImage(id, file),
   onThemeChange: (name) => changeTheme(name),
 });
@@ -978,6 +991,13 @@ const canvasInline = createCanvasInline({
     applyDocOp(next, { reflow: true, selectId: draggedId ?? null });
   },
   onDragEnd: () => selection.armSwallowClick(),
+  // 크기 손잡이 드롭(2026-07-28) — 클램프·반올림은 resizeFlow(순수)가 소유한다. reflow:true 인
+  // 이유: 폭·최소높이가 바뀌면 개체 높이가 바뀌고 그러면 페이지 경계가 바뀐다(D-A).
+  onResize: (id, patch) => {
+    const next = ObjOps.resizeFlow(core.getDocument(), id, patch);
+    if (next === core.getDocument()) return; // 변경 없음 — 히스토리에 빈 단계를 쌓지 않는다
+    applyDocOp(next, { reflow: true, selectId: id });
+  },
 });
 
 // #10 표 셀 편집(인라인)·병합/분할·열 너비 조정 — 셀 텍스트는 reload 없이 즉시 변이(리플로우만 예약),

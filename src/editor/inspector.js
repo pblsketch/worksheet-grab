@@ -9,8 +9,10 @@
 
 import { icon } from './icons.js';
 import { QTYPE_LABELS, SHAPE_KINDS, DASH_STYLES, ANSWER_AREA_STYLES } from './objectFactory.js';
-import { ANSWERABLE_TYPES, QUESTION_TYPES } from '/src/domain/schema/index.js';
-import { PAPER_PRESETS, resolvePaper, matchPreset } from '/src/usecases/paper.js';
+import {
+  ANSWERABLE_TYPES, QUESTION_TYPES, SIZEABLE_TYPES, ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX,
+} from '/src/domain/schema/index.js';
+import { PAPER_PRESETS, resolvePaper, matchPreset, paperDims, paperMargins } from '/src/usecases/paper.js';
 
 function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
@@ -52,11 +54,11 @@ const HEX6 = /^#[0-9a-f]{6}$/i;
  *   onImageUpload: (id:string, file:File)=>void,
  * }} opts
  */
-export function createInspector({ root, onPaperChange, onPatchObject, onToggleFlowFloat, onToggleAnswer, onAlign, onImageUpload, onThemeChange = () => {} }) {
+export function createInspector({ root, onPaperChange, onPatchObject, onToggleFlowFloat, onToggleAnswer, onAlign, onImageUpload, onThemeChange = () => {}, onResize = () => {} }) {
   function render(state) {
     root.dataset.inspMode = state.mode;
     root.replaceChildren();
-    if (state.mode === 'object') renderSingle(state.obj);
+    if (state.mode === 'object') renderSingle(state.obj, state.paper ?? null);
     else if (state.mode === 'multi') renderMulti(state.ids, state.allFloat);
     else renderDocument(state.paper, state.findings || [], state.themeName || '', state.themes || []);
   }
@@ -114,7 +116,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
   }
 
   // ── 단일 선택 ──
-  function renderSingle(obj) {
+  function renderSingle(obj, paper = null) {
     const typeName = TYPE_LABELS[obj.type] || obj.type;
     root.appendChild(el('h3', { text: `${typeName} · ${PLACEMENT_LABEL[obj.placement] || ''}`, 'data-insp-type': obj.type }));
 
@@ -133,6 +135,61 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
       const angleInput = el('input', { type: 'number', min: '-180', max: '180', step: '5', id: 'insp-angle', value: String(typeof obj.angle === 'number' ? obj.angle : 0) });
       angleInput.addEventListener('change', () => onPatchObject(obj.id, { angle: Math.max(-180, Math.min(180, Number(angleInput.value) || 0)) }));
       root.appendChild(field('회전(도)', angleInput));
+    }
+
+    // ── 본문 배치(flow) 개체의 크기·정렬(2026-07-28) ─────────────────────────────
+    // float 의 X/Y/W/H 와 나란히 놓이지만 성격이 다르다 — 좌표가 아니라 **흐름 안에서의 상대 크기**다
+    // (flow 는 rect 를 가질 수 없다, 원칙 3). 그래서 폭은 mm 가 아니라 본문 폭 대비 %다.
+    if (obj.placement === 'flow' && SIZEABLE_TYPES.includes(obj.type)) {
+      const hasPct = typeof obj.widthPct === 'number';
+      const grid = el('div', { class: 'insp-grid4' });
+
+      const pctInput = el('input', {
+        type: 'number', min: String(WIDTH_PCT_MIN), max: String(WIDTH_PCT_MAX), step: '5',
+        id: 'insp-width-pct', value: hasPct ? String(obj.widthPct) : String(WIDTH_PCT_MAX),
+      });
+      pctInput.addEventListener('change', () => onResize(obj.id, { widthPct: Number(pctInput.value) }));
+      grid.appendChild(field('폭(%)', pctInput, true));
+
+      const minHInput = el('input', {
+        type: 'number', min: '1', step: '1', id: 'insp-min-height',
+        value: typeof obj.minHeightMm === 'number' ? String(obj.minHeightMm) : '',
+      });
+      minHInput.addEventListener('change', () => {
+        const v = minHInput.value.trim();
+        onResize(obj.id, { minHeightMm: v === '' ? null : Number(v) });
+      });
+      grid.appendChild(field('최소높이(mm)', minHInput, true));
+      root.appendChild(grid);
+
+      // %를 mm 로 환산해 함께 보인다 — 교사는 mm 로 감을 잡는데 저장은 %로 해야 용지·단 수를 바꿔도
+      // 비율이 유지된다(mm 저장은 열을 넘겨 클램프가 필요하고, 클램프는 값을 되돌릴 수 없게 덮어쓴다).
+      const bodyMm = contentWidthMm(paper);
+      if (bodyMm) {
+        const pct = hasPct ? obj.widthPct : WIDTH_PCT_MAX;
+        root.appendChild(el('p', {
+          class: 'insp-hint', id: 'insp-width-mm',
+          text: `본문 폭 ${Math.round(bodyMm)}mm 기준 약 ${Math.round((bodyMm * pct) / 100)}mm`,
+        }));
+      }
+
+      const alignSel = el('select', { id: 'insp-align' });
+      for (const [value, label] of [['left', '왼쪽'], ['center', '가운데'], ['right', '오른쪽']]) {
+        alignSel.appendChild(el('option', { value, text: label }));
+      }
+      alignSel.value = ALIGN_VALUES.includes(obj.align) ? obj.align : 'left';
+      // 폭이 100%면 정렬이 시각적으로 아무 일도 하지 않는다(남는 공간이 없다) — 끄고 이유를 밝힌다.
+      alignSel.disabled = !hasPct || obj.widthPct >= WIDTH_PCT_MAX;
+      alignSel.addEventListener('change', () => onResize(obj.id, { align: alignSel.value }));
+      root.appendChild(field(alignSel.disabled ? '정렬(폭을 줄이면 사용)' : '정렬', alignSel));
+
+      if (hasPct || typeof obj.minHeightMm === 'number' || obj.align !== undefined) {
+        root.appendChild(el('button', {
+          type: 'button', id: 'insp-size-reset', class: 'insp-btn',
+          text: '크기 원래대로',
+          onclick: () => onResize(obj.id, { widthPct: null, minHeightMm: null, align: null }),
+        }));
+      }
     }
 
     const flowFloatBtn = el('button', {
@@ -435,6 +492,23 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
     const distV = el('button', { type: 'button', class: 'insp-btn', 'data-align': 'distribute-v', text: '세로 균등 분배' });
     distV.addEventListener('click', () => onAlign(ids, 'distribute-v'));
     root.appendChild(el('div', { class: 'insp-row-buttons' }, [distH, distV]));
+  }
+
+  /**
+   * 본문 폭(mm) — `.sheet-body` 열 하나의 폭. widthPct 의 % 가 실제로 몇 mm 인지 보조 표시하는 데 쓴다.
+   * 다단이면 열 간격을 빼고 단 수로 나눈다(paper.css 의 column-count/column-gap 과 같은 계산).
+   * paper 를 못 받았으면 null — 호출부가 힌트를 생략한다(틀린 수를 보여주느니 안 보이는 게 낫다).
+   */
+  function contentWidthMm(paper) {
+    if (paper === null || paper === undefined) return null;
+    const resolved = resolvePaper(paper) ?? resolvePaper({ size: 'A4' });
+    if (!resolved) return null;
+    const { w } = paperDims(resolved);
+    const m = paperMargins(resolved);
+    const cols = Math.max(1, resolved.columns ?? 1);
+    const gapMm = 8; // paper.css `--sheet-colgap` 기본값과 동일
+    const body = w - m.left - m.right;
+    return cols === 1 ? body : (body - gapMm * (cols - 1)) / cols;
   }
 
   function field(label, inputEl, compact = false) {

@@ -78,6 +78,19 @@ export function injectEditorStyle(doc) {
       pointer-events: auto; cursor: pointer;
     }
     .wg-flow-insert:hover { opacity: 1; }
+    /* flow 개체 크기 손잡이(2026-07-28) — 오버레이 층이라 개체 레이아웃 박스를 건드리지 않는다.
+       크기 **값** 자체는 절대 여기 두지 않는다(R2-1): 인쇄가 못 보는 선언이 되어 페이지 수가
+       갈린다. 값은 RenderObjectTree 가 인라인으로 낸다. 여기 있는 것은 손잡이 모양뿐이다.
+       flow 는 좌표가 없어 오른쪽(폭)·아래(최소 높이)·모서리 3방향만 낸다. */
+    .wg-size-handle {
+      position: absolute; width: 10px; height: 10px; margin: -5px 0 0 -5px;
+      background: #fff; border: 2px solid #2563eb; border-radius: 2px;
+      pointer-events: auto; z-index: 5;
+    }
+    .wg-size-handle:hover { background: #2563eb; }
+    .wg-sh-e { cursor: ew-resize; }
+    .wg-sh-s { cursor: ns-resize; }
+    .wg-sh-se { cursor: nwse-resize; }
     /* 기본 개체 연속 드래그 재정렬 중 시각 피드백(#1·#2 2차) */
     .wg-flow-dragging { opacity: .55; outline: 2px dashed #2563eb; outline-offset: 1px; }
     /* 개체 몸통 드래그 재정렬 중 텍스트 선택 억제 — 승격 전 임계 구간(≤5px)에서 브라우저 네이티브

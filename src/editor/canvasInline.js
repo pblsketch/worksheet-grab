@@ -11,6 +11,8 @@
 // 오염시킨다(실제로 처음엔 안에 넣었다가 이 문제를 realize 하고 오버레이 방식으로 다시 짰다).
 
 import { CATALOG_ITEMS } from './objectFactory.js';
+// 크기 손잡이(2026-07-28) — 어느 타입에 손잡이를 낼지·폭 한계는 스키마가 단일 출처다.
+import { SIZEABLE_TYPES, WIDTH_PCT_MIN, WIDTH_PCT_MAX } from '/src/domain/schema/index.js';
 
 const MM_TO_PX = 96 / 25.4;
 
@@ -34,6 +36,7 @@ export const FLOW_DRAG_THRESHOLD_PX = 5;
  */
 export const NO_BODY_DRAG_SELECTORS = Object.freeze([
   '.wg-flow-handle', '.wg-flow-insert',      // canvasInline 자신의 오버레이 진입점
+  '.wg-size-handle',                         // flow 개체 크기 조정(2026-07-28) — 같은 오버레이 층
   '.wg-resize-handle', '.wg-float-handle',   // selection.js 소관(자유 개체 이동·리사이즈)
   '.wg-col-handle',                          // tableEdit.js 소관(표 열 너비)
   '[contenteditable="true"]',                // 캐럿 이동·드래그 선택
@@ -241,7 +244,114 @@ export function createCanvasInline(deps) {
         plus.style.top = `${top + Math.max(0, r.height - 11)}px`;
         overlay.appendChild(plus);
       }
+      decorateSizeHandles(doc, sheet, overlay, sheetRect);
     }
+  }
+
+  /** 크기 손잡이 방향 — flow 는 좌표가 없으므로 **오른쪽·아래만** 의미가 있다(자유 개체의 8방향과 다른
+   *  점). 왼쪽으로 끌어도 개체는 흐름 시작점에 붙어 있어 손잡이가 손을 따라오지 못한다. */
+  const SIZE_DIRS = Object.freeze(['e', 's', 'se']);
+
+  /**
+   * 선택된 flow 개체 하나에 크기 손잡이 3개를 오버레이로 띄운다(2026-07-28).
+   *
+   * `.wg-obj` **안**에 넣지 않는 이유는 이 파일 머리말과 같다 — richtext 는 `.wg-obj` 자신이
+   * contenteditable 대상이라 자식을 넣으면 readField(innerHTML)가 손잡이 마크업을 본문으로 저장한다.
+   * (자유 개체는 `.wg-float` 안에 넣고 selection.js 가 읽을 때 걸러내지만, flow 는 애초에 오버레이
+   * 규약으로 그 문제를 피해 왔다.)
+   */
+  function decorateSizeHandles(doc, sheet, overlay, sheetRect) {
+    const { selectedIds, editingId } = deps.getSelectionState();
+    if (editingId || !selectedIds || selectedIds.size !== 1) return;
+    const targetId = [...selectedIds][0];
+    const objEl = sheet.querySelector(`:scope .wg-obj[data-oid="${cssEscape(targetId)}"]`);
+    if (!objEl || !SIZEABLE_TYPES.includes(objEl.dataset.ot)) return;
+
+    // 줌(스테이지 transform:scale)으로 getBoundingClientRect 는 스크린 px 를 준다. 오버레이는 스케일된
+    // 서브트리 안이라 style 값은 **레이아웃 px** 여야 한다 — tableEdit.js 열 손잡이와 같은 환산.
+    const scale = sheet.offsetWidth ? sheetRect.width / sheet.offsetWidth : 1;
+    const r = objEl.getBoundingClientRect();
+    const x = (r.left - sheetRect.left) / scale;
+    const y = (r.top - sheetRect.top) / scale;
+    const w = r.width / scale;
+    const h = r.height / scale;
+
+    for (const dir of SIZE_DIRS) {
+      const el = doc.createElement('div');
+      el.className = `wg-size-handle wg-sh-${dir}`;
+      el.dataset.dir = dir;
+      el.dataset.forOid = targetId;
+      el.setAttribute('aria-hidden', 'true');
+      el.style.left = `${dir === 's' ? x + w / 2 : x + w}px`;
+      el.style.top = `${dir === 'e' ? y + h / 2 : y + h}px`;
+      overlay.appendChild(el);
+    }
+  }
+
+  /**
+   * 크기 손잡이 드래그. 드래그 중에는 DOM 에 직접 인라인 style 을 써서 즉시 반응시키고, 드롭에서만
+   * 문서를 바꾼다(startFloatResize 와 같은 패턴 — 매 스텝 문서를 교체하면 재로드로 캡처가 끊긴다).
+   *
+   * 폭 기준(basis) 산출: 지금 개체가 차지한 폭과 그 개체의 현재 widthPct 로부터 **열 폭을 역산**한다.
+   * `.sheet-body` 의 clientWidth 를 쓰지 않는 이유는 다단(column-count)에서 그것이 열 폭이 아니라 본문
+   * 전체 폭이기 때문이다. 역산은 단 수와 무관하게 항상 맞는다.
+   *
+   * 줌: 폭은 비율(px/px)이라 스케일이 약분돼 보정이 필요 없지만, 높이는 mm(절대 단위)로 환산하므로
+   * 반드시 scale 로 나눠야 한다.
+   */
+  function startSizeDrag(e, handle) {
+    const id = handle.dataset.forOid;
+    const dir = handle.dataset.dir;
+    const found = deps.findObject(id);
+    if (!found) return;
+    const objEl = currentDoc.querySelector(`.wg-obj[data-oid="${cssEscape(id)}"]`);
+    const sheet = objEl?.closest('.sheet');
+    if (!objEl || !sheet) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const scale = sheet.offsetWidth ? sheet.getBoundingClientRect().width / sheet.offsetWidth : 1;
+    const startRect = objEl.getBoundingClientRect();
+    const startPct = typeof found.obj.widthPct === 'number' ? found.obj.widthPct : 100;
+    const basisPx = startPct > 0 ? startRect.width / (startPct / 100) : startRect.width;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let moved = false;
+    let nextPct = null;
+    let nextMinH = null;
+
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.abs(dx) + Math.abs(dy) > 2) moved = true;
+      if (dir.includes('e') && basisPx > 0) {
+        // 스크린 px 끼리의 비율이라 줌이 약분된다(스케일 보정 불필요).
+        nextPct = Math.min(WIDTH_PCT_MAX, Math.max(WIDTH_PCT_MIN, ((startRect.width + dx) / basisPx) * 100));
+        objEl.style.width = `${nextPct}%`;
+      }
+      if (dir.includes('s')) {
+        // mm 는 절대 단위 — 스크린 px 를 레이아웃 px 로 되돌린 뒤 환산한다.
+        nextMinH = Math.max(1, (startRect.height + dy) / scale / MM_TO_PX);
+        objEl.style.minHeight = `${nextMinH}mm`;
+      }
+    };
+    const onUp = (ev) => {
+      try { handle.releasePointerCapture(ev.pointerId); } catch { /* 이미 해제됨 */ }
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.removeEventListener('lostpointercapture', onUp);
+      if (!moved) return;
+      const patch = {};
+      if (nextPct !== null) patch.widthPct = nextPct;
+      if (nextMinH !== null) patch.minHeightMm = nextMinH;
+      // 클램프·반올림은 resizeFlow(순수)가 소유한다 — 여기서 미리 다듬지 않는다(단일 관문).
+      deps.onResize?.(id, patch);
+      deps.onDragEnd?.();
+    };
+    try { handle.setPointerCapture(e.pointerId); } catch { /* 캡처 불가 환경 */ }
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+    handle.addEventListener('lostpointercapture', onUp);
   }
 
   // 연속 재정렬·페이지 넘나들기(#1·#2 2차): 드래그 중 포인터 y 위치에 맞춰 objEl 을 모든 .sheet 의
@@ -391,6 +501,8 @@ export function createCanvasInline(deps) {
     };
 
     doc.addEventListener('pointerdown', (e) => {
+      const sizeHandle = e.target.closest('.wg-size-handle');
+      if (sizeHandle) { startSizeDrag(e, sizeHandle); return; }
       const handle = e.target.closest('.wg-flow-handle');
       if (handle) { startFlowDrag(e, { id: handle.dataset.forOid, captureEl: handle }); return; }
       const objEl = e.target.closest('.wg-obj[data-oid]');

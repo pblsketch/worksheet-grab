@@ -163,6 +163,28 @@ export async function openCdpSession(url, {
       await sleep(settleMs);
     }
 
+    /**
+     * 실 마우스 드래그(누르기 → 여러 번 이동 → 놓기). 합성 이벤트로는 잡히지 않는 결함 —
+     * hit-test, `pointer-events`, 포인터 캡처, iframe 경계 — 이 전부 이 경로에서만 드러난다.
+     *
+     * **중간 이동을 여러 스텝으로 쪼개는 것이 중요하다.** 한 번에 목적지로 점프하면 임계 기반
+     * 승격(5px)이나 스텝마다의 실시간 반영이 검증되지 않고, 실제 사용자의 움직임과도 다르다.
+     * `buttons:1` 을 이동 중에도 유지해야 드래그로 인식된다(빠뜨리면 hover 로 처리된다).
+     */
+    async function drag(fromX, fromY, toX, toY, { steps = 12, settle = settleMs } = {}) {
+      await cdp('Input.dispatchMouseEvent', { type: 'mousePressed', x: fromX, y: fromY, button: 'left', clickCount: 1, buttons: 1 });
+      for (let i = 1; i <= steps; i++) {
+        await cdp('Input.dispatchMouseEvent', {
+          type: 'mouseMoved', button: 'left', buttons: 1,
+          x: fromX + ((toX - fromX) * i) / steps,
+          y: fromY + ((toY - fromY) * i) / steps,
+        });
+        await sleep(8);
+      }
+      await cdp('Input.dispatchMouseEvent', { type: 'mouseReleased', x: toX, y: toY, button: 'left', clickCount: 1, buttons: 0 });
+      await sleep(settle);
+    }
+
     /** 실 키 입력. type:'keyDown' 고정 — 파일 상단 함정 주석 참조(rawKeyDown 은 Ctrl+C/V 를 삼킨다). */
     async function press(name, { ctrl = false, shift = false, alt = false, meta = false } = {}) {
       const { key, code, keyCode } = resolveKey(name);
@@ -179,7 +201,7 @@ export async function openCdpSession(url, {
       await sleep(settleMs);
     }
 
-    return { evaluate, waitFor, click, press, insertText, consoleErrors, close };
+    return { evaluate, waitFor, click, drag, press, insertText, consoleErrors, close };
   } catch (e) {
     await close();
     throw e;
