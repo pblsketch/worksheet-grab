@@ -739,7 +739,9 @@ async function saveObjectAsPreset(id) {
 }
 
 async function changePaper(paper) {
-  if (isDirty()) await save();
+  // 저장 실패 시 진행 금지 — 서버는 **저장본**의 용지를 바꾸고 셸을 재조립하므로, 최신 편집이
+  // 서버에 없으면 그 편집이 통째로 사라진다(:397 학생 모드 전환과 같은 형태).
+  if (isDirty() && !(await save())) return;
   let res;
   try {
     res = await fetch('/paper', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paper }) });
@@ -761,7 +763,8 @@ async function changePaper(paper) {
 /** 교과 테마(색상) 변경 — /theme 로 themeName 만 치환 재저장 후 reload(새 테마 CSS 로 셸 재조립).
  *  색상만 바꾸므로 용지 변경과 달리 리플로우 플래그가 필요 없다. dirty 면 먼저 저장해 편집 손실 방지. */
 async function changeTheme(themeName) {
-  if (isDirty()) await save();
+  if (isDirty() && !(await save())) return; // 용지 변경과 같은 이유(저장본 기준 재조립)
+
   let res;
   try {
     res = await fetch('/theme', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ themeName }) });
