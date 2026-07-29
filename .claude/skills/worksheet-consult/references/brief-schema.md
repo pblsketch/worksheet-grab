@@ -5,11 +5,13 @@
 
 # `_workspace/00_brief.json` 스키마 (SSOT)
 
+> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
+
 worksheet-consult 협의 단계의 산출물. **전 필드 optional** — 파일 자체가 없으면 파이프라인은
 오늘과 동일하게 동작한다(빠른 경로). planner 가 소비하고, reviewer 가 brief-fidelity advisory 로
 반영도를 계측한다(verdict 에는 영향 없음).
 
-## 기록 원칙 (F3 — 거짓 정밀 금지)
+## 기록 원칙 (거짓 정밀 금지)
 
 - **합성 ambiguity 소수를 기록하지 않는다.** upstream 의 십진 가중식은 provenance 전용이며
   계산·emit 하지 않는다. 기록은 `anchors`(4버킷 라벨) + `hardGates`(불리언) + `profile` + `rounds` 로 한정.
@@ -68,7 +70,7 @@ worksheet-consult 협의 단계의 산출물. **전 필드 optional** — 파일
   정답성 콘텐츠는 반드시 planner 의 `teacherAnswerPlan` 에 실어 designer 가
   `<span class="answer">…</span>` 로 래핑하게 한다 — 학생용 물리 제거의 유일 기준.
   (grep 은 "마킹된 것의 누출"만 잡으므로, "정답성인데 미마킹" false-negative 는 이 규약이 1차 방어.)
-- **groundedStandards 소유권 (F5)**: 이 배열은 consult 가 기록하는 **참고(seed)** 다.
+- **groundedStandards 소유권**: 이 배열은 consult 가 기록하는 **참고(seed)** 다.
   curriculum-mapper 는 Phase 2 에서 이를 대조하되 **자기 해결이 권위**이며, 재조정 결과는
   brief 가 아니라 자기 산출물 `01_curriculum_standards.json` 에 기록한다(**brief 는 consult
   write-once — 파이프라인의 어떤 에이전트도 brief 를 수정하지 않는다**). 불일치 시 brief 의

@@ -5,13 +5,15 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 
 # worksheet-grab (활동지 파이프라인 오케스트레이터)
 
+> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
+
 **실행 모드: 에이전트 팀** (5명). 패턴: **Pipeline + Producer-Reviewer**.
 `curriculum-mapper → worksheet-planner → worksheet-designer → worksheet-reviewer(게이트) → worksheet-exporter`
 
 목표: 교사의 한 문장 요청("중2 과학 옴의 법칙 활동지")을 학생용/교사용 A4 PDF 2벌로. 사용자 구독 AI가 엔진(무API). 성취기준 원문은 gepai에서만, 저작권 지문은 슬롯.
 
-## 엔진 배선 (worksheet-grab CLI — M1~M6 코어 + 동적 조립)
-결정적 조립·검증·렌더는 코어 엔진 CLI가 담당한다. 루트: `E:/github/worksheet-grab`. 세 경로:
+## 엔진 배선 (worksheet-grab CLI — 코어 + 동적 조립)
+결정적 조립·검증·렌더는 코어 엔진 CLI가 담당한다. 루트: 프로젝트 저장소 최상위(현재 작업 디렉터리 기준). 세 경로:
 - **빠른 경로(fast/preset path)**: `node bin/worksheet-grab.js pipeline <학년교과> <주제> --out out/`
   — 한 명령이 성취기준 조회→조립→2벌→검수 게이트(fail-closed)→렌더를 종단 수행. **표준 주제·1차시**에 적합.
   구조는 교과 **프리셋 템플릿**(`templates/*.json`, few-shot 시드로 강등)에서 온다.
@@ -23,10 +25,10 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
   **designer 가 인라인 html 을 저작**(무API). 저작 후 `assemble`/`pipeline` 로 렌더(검수 게이트).
   같은 교과라도 주제에 따라 구조가 달라진다(예: 실험 주제=변인표+그래프, 비실험=비교표+구조표 — 강제 없음).
   참고 명령: `list-archetypes [--subject]`(구조 패턴 6종) · `list-vocab [--subject]`(타입 어휘+계약). **맞춤 구조가 필요한 비표준 주제**에 1차.
-- **편집 경로(M4)**: `node bin/worksheet-grab.js edit <base>.manifest.json "3번 문항 빼고 성찰 추가" --out out/`
+- **편집 경로**: `node bin/worksheet-grab.js edit <base>.manifest.json "3번 문항 빼고 성찰 추가" --out out/`
   — 매니페스트에 편집을 왕복 반영(문항 제거·성찰 추가)한 뒤 2벌 재조립·재렌더. `--remove <N>`/`--add reflection` 플래그도 가능.
   부분 수정 요청("3번 문항 빼줘")은 이 경로가 1차. 5-에이전트 재실행은 맞춤 저작이 필요할 때만.
-- **교과 범위(M5)**: 국어(korean)·과학(science)·사회(social: 지도·연표)·영어(english: 어휘·대화문). 교과색은 `themes/*.css` 토큰만.
+- **교과 범위**: 국어(korean)·과학(science)·사회(social: 지도·연표)·영어(english: 어휘·대화문). 교과색은 `themes/*.css` 토큰만.
 - **풍부한 경로(rich path)**: 아래 5-에이전트 팀 — 맞춤 콘텐츠 저작·부분 재실행·다회 검수 루프가 필요할 때.
   각 에이전트는 자기 산출물을 위 엔진 명령으로 실행/검증한다(curriculum→search, **designer→compose 스캐폴드 저작 후 assemble**, review→validate, export→build-variants/render).
   designer 는 `compose` 가 낸 아키타입 스캐폴드 + 저작 브리프를 받아 인라인 html 을 주제에 맞게 저작한다(엔진 무API 준수).
@@ -58,7 +60,7 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 | 2 | worksheet-planner | worksheet-plan | `02_outline.json`(블록 `type`은 닫힌 카탈로그 10종·`questionType`은 qtype 7종 어휘) |
 | 3 | worksheet-designer | worksheet-design | `03_worksheet.json`(개체 트리, `pagination:'scaffold'`) + `03_manifest.json` |
 | 4 | worksheet-reviewer | worksheet-review | `04_review.json`(1층 구조 검증 + 2층 렌더 실측 findings, PASS/FAIL) |
-| — | *(페이지네이션 패스 — S3.5/US-14 예정, 아직 팀 에이전트 미배선)* | — | `03_worksheet.json`의 `pagination`을 `scaffold→paginated`로 승격(Chrome 측정 경계 산출). 이 단계가 서기 전까지 `worksheet-exporter`는 `paginated` 문서만 받는다(`scaffold` 는 exporter 가 거부). |
+| — | *(페이지네이션 패스 — 아직 팀 에이전트 미배선)* | — | `03_worksheet.json`의 `pagination`을 `scaffold→paginated`로 승격(Chrome 측정 경계 산출). 이 단계가 서기 전까지 `worksheet-exporter`는 `paginated` 문서만 받는다(`scaffold` 는 exporter 가 거부). |
 | 5 | worksheet-exporter | worksheet-export | `{제목}_{subject}_student.pdf` / `_teacher.pdf`(입력 문서는 `pagination:'paginated'` 필수) |
 
 > **`00_brief.json` 연동(Phase 1.5 산출물이 있을 때만):** planner 가 optional 입력으로 소비하고, reviewer 가 brief-fidelity advisory 로 반영도를 계측한다(verdict 불변). curriculum-mapper 는 `brief.meta.groundedStandards` 를 seed 로 대조하되 **자기 해결이 권위** — 재조정 결과는 brief 가 아니라 자기 산출물 `01_curriculum_standards.json` 에 기록하고(brief 는 consult write-once, 팀은 읽기 전용), 불일치 시 brief 종속 필드(inquiryLadder·assessmentEvidence 등)를 unresolved 취급으로 planner 에 통지한다. consult 는 대화형 독립 단계이지 팀 에이전트가 아니다.
@@ -87,7 +89,7 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 ## 후속/재실행
 - "성찰 문항만 다시" → planner+designer만 부분 재실행. "다른 교과로" → 새 실행. "색 바꿔" → designer만(theme 교체).
 
-## 삽화(생성 이미지) 필요 시 (F5)
+## 삽화(생성 이미지) 필요 시
 designer가 사진/일러스트가 필요하다고 판단하면:
 1. 사용자 로컬 `codex-image` 스킬로 생성한다(gpt-image-2·OAuth, 무API 원칙 유지 — 장당 약 2~6분 소요하니
    여러 장이면 미리 안내하고 순차 진행).
@@ -133,7 +135,7 @@ designer가 사진/일러스트가 필요하다고 판단하면:
    시작쪽). unsafe(정답 누출) 멤버가 하나라도 남아 있으면 **student 합본 전체가 차단**되고 멤버가
    지목된다(teacher 는 항상 산출) — `workbook status` 로 원인 문서를 찾아 재저작(4단계부터) 후 재-export.
 
-## AI 액션 브리지 (E5 — 에디터의 "AI 재작성/예시 채우기")
+## AI 액션 브리지 (에디터의 "AI 재작성/예시 채우기")
 교사가 브라우저 에디터(`edit-ui <문서명>`)에서 🤖/✨ 버튼을 누르면 요청이
 `<워크스페이스>/.ai-bridge/` 파일 큐에 쌓인다. **구독 AI(이 세션)가 그 요청의 처리자다** — 무API.
 

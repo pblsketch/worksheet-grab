@@ -5,6 +5,8 @@ description: 검수 통과한 활동지(개체 트리 또는 레거시 HTML)를 
 
 # worksheet-export (활동지 내보내기)
 
+> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
+
 검수 통과(`04_review.json`의 `verdict:PASS`)를 먼저 확인한다. PASS가 아니면 내보내지 않는다.
 
 ## pagination 게이트(개체 트리 문서 필수 선결 조건)
@@ -15,9 +17,9 @@ description: 검수 통과한 활동지(개체 트리 또는 레거시 HTML)를 
 패스 미통과"로 반려하고, sed나 임의 재조립으로 우회하지 않는다.
 
 ## 엔진 배선 — 개체 트리 경로(권장, sed 폐지)
-M2 코어 엔진이 개체 필터→렌더를 결정적으로 처리한다. 문자열 치환(`MODE_TOKEN` sed)이 아니라
+코어 엔진이 개체 필터→렌더를 결정적으로 처리한다. 문자열 치환(`MODE_TOKEN` sed)이 아니라
 **개체 트리 수준에서 `answer:true` 개체를 물리 제거(student)/보존(teacher)**한 뒤 각각 렌더한다.
-루트: `E:/github/worksheet-grab`.
+루트: 프로젝트 저장소 최상위(현재 작업 디렉터리 기준).
 
 ```js
 // 1) 2벌 HTML 산출 — BuildVariants.executeObjectTree(document, assets, meta)
@@ -49,7 +51,7 @@ node bin/worksheet-grab.js render out/03_worksheet-student.html --out out/{제�
 node bin/worksheet-grab.js render out/03_worksheet-teacher.html --out out/{제목}_{subject}_teacher.pdf
 ```
 
-## Canva 반입 (선택 — `doc export --canva`, F3)
+## Canva 반입 (선택 — `doc export --canva`)
 문서 워크스페이스(`doc`)로 산출한 활동지를 Canva에서 다시 편집하고 싶을 때:
 ```bash
 node bin/worksheet-grab.js doc export <문서명> --canva

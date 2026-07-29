@@ -1,8 +1,10 @@
 # 옛 블록 패턴 → 닫힌 카탈로그 매핑 (references/block-library.md)
 
+> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
+
 PoC(`poc/worksheet.html` 국어, `poc/science.html` 과학)와 구 매니페스트(`manifests/ko.json` 등)에서
-쓰이던 블록 패턴을, editor-v4 닫힌 카탈로그 10종 중 어느 타입으로 착지시킬지 정리한 매핑표다.
-`src/usecases/MigrateManifestToObjectTree.js`(S1.3 마이그레이션)가 실제로 이 매핑을 구현하므로,
+쓰이던 블록 패턴을, 닫힌 카탈로그 10종 중 어느 타입으로 착지시킬지 정리한 매핑표다.
+`src/usecases/MigrateManifestToObjectTree.js`(마이그레이션)가 실제로 이 매핑을 구현하므로,
 디자이너가 새로 저작할 때도 같은 규칙을 따르면 마이그레이션 산출물과 일관된 개체 트리가 된다.
 
 **신규 타입 창설 금지** — 아래 표에 없는 새로운 표현이 필요해도 카탈로그를 늘리지 말고 `richtext`로

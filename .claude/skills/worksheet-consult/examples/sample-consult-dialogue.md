@@ -1,5 +1,7 @@
 # worksheet-consult 대화 예시 (4 시나리오)
 
+> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
+
 발동·스킵 판정과 프로파일별 흐름의 기준 예시. 실제 문구는 상황에 맞게 조정하되
 판정 로직(이진 트리거·1-메타확인·hard-gate)은 그대로 따른다.
 
@@ -56,5 +58,5 @@ hard-gate 5종 충족 + closure audit 통과 → 공유된 이해 요약 확인 
 (충실 샘플: `references/brief-schema.md` 샘플 2) → **종료.** 파이프라인이 brief 를 새로 읽는다.
 
 max rounds(12) 도달인데 비목표·결정경계가 아직 비면: 질문을 늘리지 않고 해당
-hardGates=false + unresolved 기록 후 산출 진행(F1 마감 정책). 개인정보 게이트만은 예외 없이
+hardGates=false + unresolved 기록 후 산출 진행(마감 정책). 개인정보 게이트만은 예외 없이
 차단 유지.
