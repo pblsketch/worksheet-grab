@@ -9,14 +9,15 @@
 
 | 항목 | 값 |
 |---|---|
-| main | `3a8cf6d` (0단계 병합 완료) |
-| 작업 브랜치 | `feat/editor-ux-qa` — `1079e20`(1단계 ⑥) **병합 대기** |
+| main | 0단계·1단계 ⑥ **모두 병합 완료** (병합 대기 없음) |
+| 작업 브랜치 | `feat/editor-ux-qa` — main 과 동기 |
 | 워크트리 | `E:/github/worksheet-grab-editorqa` (같은 저장소, 다른 폴더) |
 | 단위 | 749 (pass 740 · skip 9 · **fail 0**) |
-| 렌더 | 138 (pass 137 · skip 1 · **fail 0**) — `1079e20` 반영분은 실행 중이었음, **병합 전 재확인 필요** |
+| 렌더 | **139** (pass 138 · skip 1 · **fail 0**) — 1단계 ⑥ 반영 후 전량 재실행 확인 |
 | 병행 세션 | **없음**(옆 세션 종료 확인). 착수 전 `git status --porcelain` 는 여전히 확인할 것 |
 
-**첫 할 일**: 렌더 전량 초록 확인 → `git -C E:/github/worksheet-grab merge --no-ff feat/editor-ux-qa`
+**첫 할 일**: 계획 문서의 **1단계 나머지**(검수 칩 rAF 가드 → 세대 번호)부터 착수.
+대기 중인 병합은 없다.
 
 ---
 
