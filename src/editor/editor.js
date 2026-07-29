@@ -118,6 +118,7 @@ function onHistoryRestore({ pageStructureChanged = false } = {}) {
   markDirty();
   runReview({ measure: true }); // history.restore 가 body.innerHTML 을 교체했다 = 재렌더 뒤
   updateAll();
+  syncDocTitle(); // undo/redo 가 제목을 되돌렸으면 앱바도 따라가야 한다
   renderPageThumbs();
   scrollToPage(activePageId);
   if (!pageStructureChanged) scheduleReflow();
@@ -554,6 +555,7 @@ async function applyDocOp(next, {
   // 선택 복원(위 selection.select/refreshVisual) **뒤**라야 측정 규칙이 .wg-selected 를 볼 수 있다.
   runReview({ measure: true });
   updateAll();
+  syncDocTitle(); // 제목도 문서에서 파생되는 뷰다 — 빠뜨리면 undo 뒤 앱바가 모델과 어긋난다
   if (reflow) scheduleReflow();
   return true;
 }
@@ -836,11 +838,21 @@ function commitTitle() {
   docTitleEl.removeAttribute('contenteditable');
   const text = docTitleEl.textContent.trim();
   docTitleEl.textContent = text || '(제목 없음)';
-  const next = { ...core.getDocument(), docTitle: text };
-  core.setDocument(next);
-  history.commit();
-  markDirty();
-  runReview();
+  const current = core.getDocument();
+  // 값이 그대로면 아무것도 하지 않는다 — 제목을 눌렀다 그냥 빠져나오는 것만으로 빈 undo 단계가
+  // 쌓이면 되돌리기가 한 번 헛돈다.
+  if ((current.docTitle || '') === text) return;
+  // 문서 변경의 단일 관문으로 보낸다(R5). 종전엔 core.setDocument 를 직접 불러 관문이 하는 일을
+  // 전부 놓쳤다 — 그중 `flushTyping()` 누락은 **D10 과 같은 결함**이라, 제목을 확정하기 직전
+  // 500ms 안에 친 글자가 Ctrl+Z 한 번에 함께 사라졌다.
+  applyDocOp({ ...current, docTitle: text });
+}
+
+/** 앱바 제목을 모델에 맞춘다(파생 뷰). 편집 중에는 건드리지 않는다 — 교사가 치는 중인 글자를
+ *  덮어쓰게 된다. undo/redo·AI 적용 등 제목을 바꾸는 모든 경로가 이 함수 하나로 반영된다. */
+function syncDocTitle() {
+  if (docTitleEl.getAttribute('contenteditable') === 'true') return;
+  docTitleEl.textContent = core.getDocument().docTitle || '(제목 없음)';
 }
 docTitleEl.addEventListener('blur', commitTitle);
 docTitleEl.addEventListener('keydown', (e) => {

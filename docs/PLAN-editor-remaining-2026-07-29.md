@@ -141,6 +141,19 @@ D8 논거 과잉 적용(정규화 **규칙**은 이미 `pasteNormalize.js` 단�
 > 재현되고(정규화 경로가 이미 이 API 를 쓴다 — `selection.js:679`), 남는 미검증분은 `defaultPrevented` 로 본다.
 
 ## 3단계 — 파생 뷰 단일화 (⑦ ⑧ +미보고 1건) · ⑨(R5) 분리
+
+> **3a 완료(2026-07-29, 대장 D16)** — ⑨(`commitTitle` → `applyDocOp` 경유)와 ⑧(앱바 제목 미동기화)을
+> 함께 닫았다. `syncDocTitle()` 을 파생 뷰로 만들어 `applyDocOp`·`onHistoryRestore` 둘 다에서 부른다
+> (편집 중에는 무개입). 아래 표의 **`docTitle` 열이 전부 채워졌다.**
+> 변이 2종이 각각 대응 테스트를 잡는다(D: `syncDocTitle` 제거 → ⑧ / E: 관문 우회 복귀 → C17만).
+>
+> **재현 창 함정(D12 승급 단서)**: 제목 커밋을 실마우스 4~5왕복으로 하면 `settleMs`(160ms)가 타이핑
+> 코얼레싱 창 500ms 를 넘겨 **경합이 재현되지 않는다**(그 형태로는 변이 E 가 초록이었다). 커밋만
+> `evaluate` 한 번으로 압축해 창 안에 넣었다. **⑥(D12)도 같은 원인일 수 있으니 서버 지연 훅을
+> 만들기 전에 이 압축 기법부터 시도할 것.**
+>
+> **남은 것(3b)**: `refreshDerived({level})` 수렴 · ⑦(타이핑 뒤 칩·썸네일) · C16(`runReflow` 의
+> `updateAll`/`refreshLayers` 누락) · 검수 디바운스 중 칩 중립 표시.
 5경로를 `refreshDerived({level})` 하나로 수렴. 현재 누락:
 
 | 경로 | updateAll | thumbs | review | layers | docTitle |
