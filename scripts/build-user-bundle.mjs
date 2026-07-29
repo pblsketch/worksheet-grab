@@ -7,7 +7,7 @@
 //
 // 의존성 0 — Node 표준 라이브러리만 사용(개발 불변식 §2).
 
-import { cpSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, rmSync, mkdirSync, existsSync, readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { join, dirname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -15,18 +15,22 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = process.argv[2] || join(ROOT, 'dist', 'worksheet-grab-user');
 
 // 안전장치(QA Critical) — 임의 경로 재귀 삭제 방지. 저장소 루트/조상/소스로는 출력 불가.
+// Windows 대소문자 비구분·symlink/junction 우회 방지: 소문자 정규화 + 존재 시 realpath canonicalize.
 {
-  const outAbs = resolve(OUT);
-  const rootAbs = resolve(ROOT);
-  const distAbs = resolve(ROOT, 'dist');
+  const norm = (p) => (process.platform === 'win32' ? p.toLowerCase() : p);
+  const canon = (p) => { const a = resolve(p); try { return norm(existsSync(a) ? realpathSync(a) : a); } catch { return norm(a); } };
+  const outAbs = canon(OUT);
+  const rootAbs = canon(ROOT);
+  const distAbs = canon(join(ROOT, 'dist'));
   if (outAbs === rootAbs || rootAbs.startsWith(outAbs + sep)) {
-    throw new Error(`출력 경로가 저장소 루트/조상이라 거부합니다(재귀 삭제 위험): ${outAbs}`);
+    throw new Error(`출력 경로가 저장소 루트/조상이라 거부합니다(재귀 삭제 위험): ${OUT}`);
   }
   if (outAbs.startsWith(rootAbs + sep) && !(outAbs === distAbs || outAbs.startsWith(distAbs + sep))) {
-    throw new Error(`저장소 내부 출력은 dist/ 아래만 허용됩니다: ${outAbs}`);
+    throw new Error(`저장소 내부 출력은 dist/ 아래만 허용됩니다: ${OUT}`);
   }
-  if (existsSync(outAbs) && !existsSync(join(outAbs, '.wsg-user-bundle'))) {
-    throw new Error(`출력 경로가 이미 존재하며 이 도구가 만든 번들이 아니라 덮어쓰기를 거부합니다: ${outAbs}`);
+  const outReal = resolve(OUT);
+  if (existsSync(outReal) && !existsSync(join(outReal, '.wsg-user-bundle'))) {
+    throw new Error(`출력 경로가 이미 존재하며 이 도구가 만든 번들이 아니라 덮어쓰기를 거부합니다: ${OUT}`);
   }
 }
 
@@ -79,6 +83,13 @@ function assertNoDevLayer() {
 }
 
 console.log(`[build-user-bundle] 출력: ${OUT}`);
+// 삭제 전 preflight(비원자 파괴 방지) — 필수 자산이 없으면 기존 번들을 지우기 전에 멈춘다.
+for (const rel of ESSENTIAL) {
+  if (!existsSync(join(ROOT, rel))) throw new Error(`필수 자산 누락(preflight, fail-closed): ${rel}`);
+}
+if (!existsSync(join(ROOT, '.claude', 'PRODUCT-CLAUDE.md'))) {
+  throw new Error('필수 자산 누락(preflight, fail-closed): .claude/PRODUCT-CLAUDE.md');
+}
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, '.wsg-user-bundle'), '이 폴더는 build-user-bundle.mjs 가 생성·관리합니다. 직접 편집 금지.\n');
@@ -90,7 +101,7 @@ for (const rel of INCLUDE_OPTIONAL) copy(rel);
 // 교사용 package.json 생성 — 개발 scripts/files 제거(번들에 없는 test/tools 참조로 깨지는 것 방지, QA High)
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 writeFileSync(join(OUT, 'package.json'), JSON.stringify({
-  name: pkg.name, version: pkg.version, description: pkg.description,
+  name: pkg.name, version: pkg.version,
   type: pkg.type, bin: pkg.bin, engines: pkg.engines, license: pkg.license,
 }, null, 2) + '\n');
 console.log('  [+] package.json  (교사용 — 개발 scripts/files 제거)');

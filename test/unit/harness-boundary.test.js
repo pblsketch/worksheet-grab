@@ -3,7 +3,7 @@
 //
 // 경계 대상 = 제품 하네스의 "행동 규칙 산문"(SKILL.md·에이전트·PRODUCT-CLAUDE).
 // 제외 = worksheet-consult/{references,examples} 는 upstream verbatim 코퍼스(원문 편집 금지)라 스캔 예외.
-//        엔진 인터페이스명(ValidateObjectTree·BuildVariants 등)·엔진 모듈 import 예시는 1↔2 계약이라 누출 아님.
+// 허용 = 엔진 인터페이스명(ValidateObjectTree 등)과 `import ... from './src/...'` 예시는 1↔2 계약이라 누출 아님.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,19 +15,21 @@ import { execSync } from 'node:child_process';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-// 개발(3층) 어휘 탐지기 (HARNESS-MAP §5-1)
+// 전체 텍스트에 적용하는 개발(3층) 어휘 탐지기 (HARNESS-MAP §5-1)
 const DEV_PATTERNS = [
-  { name: '개발자 PC 절대경로', re: /\b[A-Za-z]:[\\/](github|Users|home)\b/i },
+  { name: '개발자 PC 절대경로', re: /\b[A-Za-z]:[\\/]/ },
   { name: '마일스톤/이슈/규칙 코드', re: /\b(M[1-6]|S[0-9]\.[0-9]|US-1[0-9]|S4\.0|F[1-6]|editor-v[0-9]|R[0-9]|R2-[0-9]|D-A)\b/ },
-  { name: '개발 연혁 날짜', re: /\b20\d\d-\d{2}-\d{2}[^)\n]*(전환|델타|신설|개정)/ },
+  { name: 'ISO 개발 날짜', re: /\b20\d\d-\d{2}-\d{2}\b/ },
   { name: '개발문서 참조', re: /HANDOFF|DEFECTS|docs\/PRD|docs\/DECISION/ },
   { name: '개발 프로세스 어휘', re: /병행\s?세션|변이\s?실험|worktree|git add/ },
   { name: '리팩토링 배너', re: /제품 하네스 자산 — 교사 배포용/ },
-  { name: '개발 로드맵', re: /서버 구현.{0,10}별도 예정|서버 계약 이관/ },
+  { name: '개발 로드맵/미배선', re: /서버 구현.{0,10}별도 예정|서버 계약 이관|미배선|배선 단계|서기 전까지|아직 반영되지 않/ },
 ];
 
 // verbatim 코퍼스(원문 편집 금지 — 각색은 SKILL 오버레이에만)는 경계 스캔 예외
 const CORPUS = /[\\/]worksheet-consult[\\/](references|examples)[\\/]/;
+// 허용되는 엔진 import 예시 라인
+const ALLOWED_IMPORT = /^\s*import\b.*from\s+'\.\/src\//;
 
 function walkMd(dir) {
   if (!existsSync(dir)) return [];
@@ -44,20 +46,31 @@ function scanLeaks(files, stripBase) {
   const leaks = [];
   for (const f of files) {
     const text = readFileSync(f, 'utf8');
+    const rel = f.replace(stripBase, '.');
     for (const { name, re } of DEV_PATTERNS) {
       const m = text.match(re);
-      if (m) leaks.push(`${f.replace(stripBase, '.')}  [${name}] "${m[0]}"`);
+      if (m) leaks.push(`${rel}  [${name}] "${m[0]}"`);
     }
+    // 내부 소스 경로 노출(poc/, src/) — 단, 엔진 import 예시 라인은 허용(1↔2 계약)
+    text.split('\n').forEach((ln, i) => {
+      if (/\b(poc|src)\//.test(ln) && !ALLOWED_IMPORT.test(ln)) {
+        leaks.push(`${rel}:${i + 1}  [내부 소스 경로] "${ln.trim().slice(0, 60)}"`);
+      }
+    });
   }
   return leaks;
 }
 
+function productFiles(base) {
+  return [
+    ...walkMd(join(base, '.claude', 'skills')),
+    ...walkMd(join(base, '.claude', 'agents')),
+  ].filter((f) => !CORPUS.test(f));
+}
+
 // 1) 소스트리의 제품 하네스에 개발어휘가 없다
 test('2층 제품 하네스(소스)에 개발(3층) 어휘가 없다', () => {
-  const files = [
-    ...walkMd(join(ROOT, '.claude', 'skills')),
-    ...walkMd(join(ROOT, '.claude', 'agents')),
-  ].filter((f) => !CORPUS.test(f));
+  const files = productFiles(ROOT);
   const pc = join(ROOT, '.claude', 'PRODUCT-CLAUDE.md');
   if (existsSync(pc)) files.push(pc);
 
@@ -89,15 +102,13 @@ test('빌드된 사용자 번들에 개발(3층)이 없고 교사용으로 구�
     const cl = readFileSync(join(out, 'CLAUDE.md'), 'utf8');
     assert.ok(cl.includes('교사용 활동지 제작') && !cl.includes('개발 불변식 헌장'),
       '번들 CLAUDE.md 가 교사용이 아님');
-    // package.json 정제(개발 scripts 없음)
+    // package.json 계약: 허용 필드만(scripts/files/description/private 없음)
     const pkg = JSON.parse(readFileSync(join(out, 'package.json'), 'utf8'));
-    assert.ok(!pkg.scripts, '번들 package.json 에 개발 scripts 잔존');
-    // 번들 제품 하네스 .md 개발어휘 0 (코퍼스 제외)
-    const md = [
-      ...walkMd(join(out, '.claude', 'skills')),
-      ...walkMd(join(out, '.claude', 'agents')),
-    ].filter((f) => !CORPUS.test(f));
-    const leaks = scanLeaks(md, out);
+    const allowed = new Set(['name', 'version', 'type', 'bin', 'engines', 'license']);
+    const extra = Object.keys(pkg).filter((k) => !allowed.has(k));
+    assert.equal(extra.length, 0, `번들 package.json 에 허용외 필드: ${extra.join(', ')}`);
+    // 번들 제품 하네스 개발어휘 0 (코퍼스 제외)
+    const leaks = scanLeaks(productFiles(out), out);
     assert.equal(leaks.length, 0, `번들 제품 하네스에 개발어휘 누출:\n  ${leaks.join('\n  ')}`);
   } finally {
     rmSync(tmp, { recursive: true, force: true });

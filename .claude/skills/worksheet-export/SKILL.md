@@ -33,7 +33,7 @@ node bin/worksheet-grab.js render out/worksheet-student.html --out out/{제목}_
 node bin/worksheet-grab.js render out/worksheet-teacher.html --out out/{제목}_{subject}_teacher.pdf
 ```
 - CLI `build-variants` 명령은 현재 레거시 HTML(`MODE_TOKEN` 문자열) 경로만 배선되어 있다(개체 트리
-  경로의 CLI 직접 배선은 오케스트레이터 배선 단계 소관 — 그 전까지는 위처럼 엔진 API를 직접 호출한다).
+  경로는 위처럼 엔진 API를 직접 호출한다).
 - 한 문장에서 종단으로 뽑을 때: `node bin/worksheet-grab.js pipeline <학년교과> <주제> --out out/`
   (조회→조립→2벌→검수 게이트→렌더. 게이트 실패 시 렌더 중단=fail-closed. 레거시 HTML 경로 기준.)
 
