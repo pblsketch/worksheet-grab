@@ -662,9 +662,19 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
     // 테마 CSS 를 덮어써 활동지 서식이 깨진다(pasteNormalize.js 정책 주석 참조).
     // 편집 중이 아닐 때는 개입하지 않는다(브라우저 기본 동작 우선 — 폼 필드·인스펙터 입력 등).
     doc.addEventListener('paste', (e) => {
-      if (!state.editingId) return;
-      const el = e.target.closest('[data-oid]');
-      if (!el || el.dataset.oid !== state.editingId) return;
+      // 편집 세션 소유자가 셋이다 — selection(`state.editingId`) · tableEdit(`editingCell`) ·
+      // partEdit(`editingEl`). `editingId` 만 보면 **표 셀·조각을 편집하는 동안의 붙여넣기가
+      // 정규화를 통째로 건너뛴다**(그 둘은 지역 상태만 세운다) → 브라우저 기본 삽입으로 Word/HWP
+      // 마크업이 화면 DOM 에 들어가고, 리플로우는 그 DOM 을 재서 페이지를 배정한다.
+      // D1(단축키 가드)과 같은 규약으로 판정을 **이벤트 대상**으로 넓힌다 — 세 소유자를 다 알
+      // 필요 없이 "지금 이 노드가 편집 중인가"만 보면 된다.
+      // ⚠ `instanceof Element` 를 쓰면 안 된다 — 이 모듈은 부모 문서 realm 에서 로드되고 캔버스
+      //    요소는 **iframe realm** 의 Element 라 크로스 realm instanceof 가 언제나 false 다
+      //    (그렇게 썼다가 정규화가 전 경로에서 죽었고 대조군 테스트가 잡았다). 능력으로 판정한다.
+      const target = typeof e.target?.closest === 'function' ? e.target : e.target?.parentElement ?? null;
+      const host = target?.closest?.('[contenteditable="true"]');
+      const el = host?.closest('[data-oid]');
+      if (!host || !el) return;
       const data = e.clipboardData;
       if (!data) return;
       const html = data.getData('text/html');
@@ -677,8 +687,13 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
       // insertHTML 은 현재 선택 범위를 대체하고 캐럿을 삽입 끝으로 옮긴다(브라우저 기본 undo 스택
       // 과도 정합 — beforeinput historyUndo 훅이 이 편집기의 history 로 되돌린다).
       currentDoc.execCommand('insertHTML', false, clean);
-      syncEditingField();
-      onDirty('text');
+      // 되읽기는 **이 개체를 selection 이 편집 중일 때만** 여기서 한다. 표 셀·조각은 각 모듈의
+      // input 리스너가 이미 듣고 있고(`tableEdit.js`·`partEdit.js`), `insertHTML` 은 input 을
+      // 정확히 1회 발화한다(0.5단계 프로브 실측) — 여기서 또 부르면 이중 동기화가 된다.
+      if (state.editingId && el.dataset.oid === state.editingId) {
+        syncEditingField();
+        onDirty('text');
+      }
     });
 
     // 조합 확정 시 한 번만 동기화한다 — 조합 한 번 = undo 1스텝(자모 단위로 쪼개지지 않는다).
