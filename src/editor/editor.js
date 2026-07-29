@@ -116,10 +116,8 @@ function onHistoryRestore({ pageStructureChanged = false } = {}) {
   aiPanel.refreshFreshBadges(frames.teacher?.contentDocument ?? null);
   fitFrame(frames.teacher);
   markDirty();
-  runReview({ measure: true }); // history.restore 가 body.innerHTML 을 교체했다 = 재렌더 뒤
-  updateAll();
-  syncDocTitle(); // undo/redo 가 제목을 되돌렸으면 앱바도 따라가야 한다
-  renderPageThumbs();
+  // history.restore 가 body.innerHTML 을 교체했다 = 재렌더 뒤(측정 가능).
+  refreshDerived({ level: 'render' });
   scrollToPage(activePageId);
   if (!pageStructureChanged) scheduleReflow();
 }
@@ -138,7 +136,9 @@ function onSelectionDirty(kind) {
   if (selection.state.editingId) aiPanel.clearFresh(selection.state.editingId);
   if (kind === 'text') { history.noteInput(); scheduleReflow(); } else { history.commit(); }
   markDirty();
-  updateAll();
+  // 툴바·인스펙터·레이어는 즉시(입력 반응성), 무거운 파생 뷰(썸네일 직렬화·검수)는 유휴에 몰아서.
+  refreshDerived({ level: 'selection' });
+  scheduleDerived();
 }
 function onSelectionChange() {
   updateAll();
@@ -207,9 +207,10 @@ function runReflow() {
       fitFrame(frames.teacher);
       selection.restoreCaret(caret);
       activePageId = resolveActivePageId(nextDoc, activePageId, activeIndexBefore);
-      renderPageThumbs(activeIndexBefore);
       // 선택 복원(:203 refreshVisual) 뒤라야 측정 규칙이 .wg-selected 를 본다(결정 A-1).
-      runReview({ measure: true });
+      // 종전엔 썸네일·검수만 갱신하고 updateAll·레이어 목록을 빠뜨려, 리플로우가 개체를 페이지 간
+      // 이동시키면 좌측 목록이 낡은 구성을 유지했다(C16).
+      refreshDerived({ level: 'render', thumbIndex: activeIndexBefore });
       // 리플로우는 사용자 조작이 아니라 파생 재계산이라 자기 되돌리기 단계를 갖지 않는다 —
       // commit() 이면 undo 가 이 단계에 갇혀 삭제를 영영 되돌릴 수 없다(history.amend 주석 참조).
       history.amend();
@@ -473,6 +474,38 @@ function refreshLayers() {
   leftPanel.renderLayers(buildLayerItems(), selection.state.selectedIds);
 }
 
+// ── 파생 뷰 갱신의 단일 관문(계획 3단계) ────────────────────────────────────────
+// 문서에서 파생되는 화면은 다섯이다: 툴바/인스펙터·레이어 목록(updateAll) · 썸네일 · 검수 칩 ·
+// 앱바 제목. 종전엔 갱신 조합이 경로마다 달라 구멍이 났다 — 타이핑 경로는 썸네일·검수를 아예 안
+// 불렀고(⑦), 리플로우는 updateAll·레이어를 안 불렀다(C16).
+//
+// **읽기 전용 계약**: 여기서는 문서를 바꾸지 않는다(history 단계도 쌓지 않는다). 그래야 리플로우·
+// 검수가 서로를 다시 부르는 고리가 생기지 않는다.
+//
+// level:
+//   'selection' — 선택/툴바만. 키 입력마다 불러도 싼 것들.
+//   'content'   — + 썸네일·검수·제목. 모델이 바뀌었을 때.
+//   'render'    — 'content' + 검수 측정(measure). **재렌더 직후에만** 쓴다(측정 규칙은 DOM 이
+//                 문서와 맞아떨어지는 순간에만 유효하다 — reviewChip 머리말).
+const DERIVED_DEBOUNCE_MS = 400; // 리플로우 디바운스(300ms)보다 뒤 — 리플로우가 갱신했으면 여기선 캐시가 걸러낸다
+let derivedTimer = null;
+
+function refreshDerived({ level = 'content', thumbIndex = 0 } = {}) {
+  if (level !== 'selection') {
+    // 썸네일 → 검수 → 툴바 순서는 종전 applyDocOp 의 순서를 그대로 지킨다.
+    renderPageThumbs(thumbIndex);
+    runReview({ measure: level === 'render' });
+  }
+  updateAll();
+  if (level !== 'selection') syncDocTitle();
+}
+
+/** 타이핑처럼 연달아 오는 변경은 유휴에 한 번만 파생 뷰를 갱신한다(썸네일 직렬화가 비싸다). */
+function scheduleDerived() {
+  clearTimeout(derivedTimer);
+  derivedTimer = setTimeout(() => refreshDerived({ level: 'content' }), DERIVED_DEBOUNCE_MS);
+}
+
 function updateAll() {
   const sel = computeSelectionState();
   aiPanel.refreshEntryState([...selection.state.selectedIds]);
@@ -550,12 +583,9 @@ async function applyDocOp(next, {
   else if (selectId) selection.select(selectId);
   else selection.refreshVisual();
   activePageId = resolveActivePageId(next, requestedActivePageId ?? activePageId, activeIndexBefore);
-  renderPageThumbs(activeIndexBefore);
   history.commit();
   // 선택 복원(위 selection.select/refreshVisual) **뒤**라야 측정 규칙이 .wg-selected 를 볼 수 있다.
-  runReview({ measure: true });
-  updateAll();
-  syncDocTitle(); // 제목도 문서에서 파생되는 뷰다 — 빠뜨리면 undo 뒤 앱바가 모델과 어긋난다
+  refreshDerived({ level: 'render', thumbIndex: activeIndexBefore });
   if (reflow) scheduleReflow();
   return true;
 }
