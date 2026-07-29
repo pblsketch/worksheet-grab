@@ -128,6 +128,10 @@
   "변이를 못 잡았다"로 오독하기 쉽다. `scratchpad/mutate.mjs` 참고.
 - **플레이크 판정은 A/B 숫자로.** 인상으로 "플레이크겠지" 하지 말고, 변경 전/후 각 5회를 돌려
   실패 횟수를 비교한다(`scratchpad/ab-editor-ai.sh` 형태).
+- **전량 렌더는 다른 렌더 작업과 겹치지 말 것.** 배경 실행 여러 개가 겹친 뒤 전량에서
+  `paginate.render.test.js` 가 **1초 만에 파일 단위로 죽었다**(개별 테스트 ✖ 없이). 단독 재실행은
+  11/11 초록(72초). 자원 경합 징후이지 코드 결함이 아니다 — 착수 전 `Get-Process chrome` 개수와
+  `wsg-*` 임시 개수를 먼저 확인한다(MEMORY: render-temp-disk-exhaustion).
 
 ## 6. 환경
 
