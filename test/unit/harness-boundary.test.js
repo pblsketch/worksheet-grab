@@ -47,8 +47,9 @@ function scanLeaks(files, stripBase) {
   for (const f of files) {
     const text = readFileSync(f, 'utf8');
     const rel = f.replace(stripBase, '.');
+    const flat = text.replace(/\s+/g, ' ');  // 줄바꿈으로 쪼갠 로드맵/문구도 잡도록 공백 평탄화
     for (const { name, re } of DEV_PATTERNS) {
-      const m = text.match(re);
+      const m = flat.match(re);
       if (m) leaks.push(`${rel}  [${name}] "${m[0]}"`);
     }
     // 내부 소스 경로 노출(poc/, src/) — 단, 엔진 import 예시 라인은 허용(1↔2 계약)
