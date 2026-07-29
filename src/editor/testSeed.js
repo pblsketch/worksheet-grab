@@ -572,7 +572,11 @@ export async function runEditorTestSeed(seed, {
       !!document.querySelector('.ai-preview-before .ai-preview-render')?.textContent.includes(origPrompt),
     );
     document.getElementById('ai-cancel-preview').click();
-    await wait(30);
+    // 고정 대기(30ms)는 부하에서 짧다 — `closePanel` 은 취소 POST 를 **await 한 뒤에야** 패널을
+    // 지운다(ai.js). 서버 왕복이 30ms 를 넘으면 아직 열려 있는 패널을 재서 "취소해도 안 닫힘"이라는
+    // 거짓 실패가 났다(전량 실행에서 실측, 유휴 단독 A/B 10회로는 재현되지 않음).
+    // 같은 목적의 폴링이 아래 'ai-apply-cancel-others' 시드에 이미 있다 — 그 관례로 맞춘다.
+    await pollUntil(() => !document.getElementById('ai-panel'), { timeoutMs: 15000 });
     document.body.dataset.aiPanelClosedAfterCancel = String(!document.getElementById('ai-panel'));
   } else if (seed === 'ai-version-apply-undo') {
     // US-19: 재생성(버전 ◀▶ 화살표 왕복) + 적용(교체, history 1 op) + undo 1스텝 복원.
