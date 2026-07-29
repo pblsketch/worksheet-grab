@@ -32,7 +32,7 @@ const FORBID_TOP = [
   'docs', 'test', 'scripts',
   '.omc', '.omo', '.omx', '.fablize', '.codegraph', '.git',
 ];
-const FORBID_UNDER_CLAUDE = ['hooks', 'commands', 'settings.local.json', 'PRODUCT-CLAUDE.md'];
+const FORBID_UNDER_CLAUDE = ['hooks', 'commands', 'settings.json', 'settings.local.json', 'PRODUCT-CLAUDE.md'];
 
 function copy(rel) {
   const src = join(ROOT, rel);
