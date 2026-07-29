@@ -5,7 +5,6 @@ description: 한국 교사용 활동지(활동지)를 생성·편집·내보내�
 
 # worksheet-grab (활동지 파이프라인 오케스트레이터)
 
-> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
 
 **실행 모드: 에이전트 팀** (5명). 패턴: **Pipeline + Producer-Reviewer**.
 `curriculum-mapper → worksheet-planner → worksheet-designer → worksheet-reviewer(게이트) → worksheet-exporter`

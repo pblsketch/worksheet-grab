@@ -6,7 +6,6 @@ model: opus
 
 # worksheet-exporter (내보내기)
 
-> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
 
 ## 핵심 역할
 검수 통과한 문서를 최종 산출물로 만든다. **개체 트리 문서는 `BuildVariants.executeObjectTree`로 student/teacher 2벌 HTML을 산출**하고(트리 수준 `answer:true` 필터 — sed 치환이 아니다), Chrome 헤드리스로 A4 PDF를 렌더한다. 필요 시 PNG도.

@@ -32,12 +32,14 @@ const OUT = process.argv[2] || join(ROOT, 'dist', 'worksheet-grab-user');
 
 // 1층 엔진 + 2층 제품 하네스 (있을 때만 복사)
 const INCLUDE = [
-  // 1층 엔진
-  'bin', 'src', 'assets', 'themes', 'templates', 'data', 'blocks', 'manifests', 'tools',
-  'package.json', 'README.md',
+  // 1층 엔진 (package.json 은 아래서 교사용으로 정제 생성; README/tools 는 개발 자산이라 제외)
+  'bin', 'src', 'assets', 'themes', 'templates', 'data', 'blocks', 'manifests', 'schema',
   // 2층 제품 하네스
   '.claude/skills', '.claude/agents',
 ];
+
+// 필수 자산 — 없으면 fail-closed(완성 위장 금지, QA High)
+const ESSENTIAL = new Set(['bin', 'src', 'schema', '.claude/skills', '.claude/agents']);
 
 // 선택 포함 — 있으면 담되 없어도 정상(예: gepai MCP 설정, CSV 폴백이 있어 optional)
 const INCLUDE_OPTIONAL = ['.mcp.json'];
@@ -45,14 +47,18 @@ const INCLUDE_OPTIONAL = ['.mcp.json'];
 // 3층(개발) — 절대 번들에 들어가면 안 되는 것들. 화이트리스트 밖이라 애초에 안 들어오지만,
 // 빌드 후 자기점검(assertNoDevLayer)으로 이중 방어한다.
 const FORBID_TOP = [
-  'docs', 'test', 'scripts',
+  'docs', 'test', 'scripts', 'README.md', 'tools', 'poc', 'node_modules',
   '.omc', '.omo', '.omx', '.fablize', '.codegraph', '.git',
 ];
 const FORBID_UNDER_CLAUDE = ['hooks', 'commands', 'settings.json', 'settings.local.json', 'PRODUCT-CLAUDE.md'];
 
 function copy(rel) {
   const src = join(ROOT, rel);
-  if (!existsSync(src)) { console.warn(`  [skip] 없음: ${rel}`); return false; }
+  if (!existsSync(src)) {
+    if (ESSENTIAL.has(rel)) throw new Error(`필수 자산 누락(fail-closed): ${rel}`);
+    console.warn(`  [skip] 없음: ${rel}`);
+    return false;
+  }
   cpSync(src, join(OUT, rel), { recursive: true });
   console.log(`  [+] ${rel}`);
   return true;
@@ -81,14 +87,19 @@ console.log('[1층 엔진 + 2층 제품 하네스]');
 for (const rel of INCLUDE) copy(rel);
 for (const rel of INCLUDE_OPTIONAL) copy(rel);
 
-// 제품 루트 CLAUDE.md = 교사용 조각(개발 CLAUDE.md 대신)
+// 교사용 package.json 생성 — 개발 scripts/files 제거(번들에 없는 test/tools 참조로 깨지는 것 방지, QA High)
+const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+writeFileSync(join(OUT, 'package.json'), JSON.stringify({
+  name: pkg.name, version: pkg.version, description: pkg.description,
+  type: pkg.type, bin: pkg.bin, engines: pkg.engines, license: pkg.license,
+}, null, 2) + '\n');
+console.log('  [+] package.json  (교사용 — 개발 scripts/files 제거)');
+
+// 제품 루트 CLAUDE.md = 교사용 조각(개발 CLAUDE.md 대신) — 필수(fail-closed)
 const productClaude = join(ROOT, '.claude', 'PRODUCT-CLAUDE.md');
-if (existsSync(productClaude)) {
-  cpSync(productClaude, join(OUT, 'CLAUDE.md'));
-  console.log('  [+] CLAUDE.md  (<- .claude/PRODUCT-CLAUDE.md)');
-} else {
-  console.warn('  [warn] .claude/PRODUCT-CLAUDE.md 없음 — 번들에 교사용 CLAUDE.md 미포함');
-}
+if (!existsSync(productClaude)) throw new Error('필수 자산 누락(fail-closed): .claude/PRODUCT-CLAUDE.md');
+cpSync(productClaude, join(OUT, 'CLAUDE.md'));
+console.log('  [+] CLAUDE.md  (<- .claude/PRODUCT-CLAUDE.md)');
 
 assertNoDevLayer();
 console.log('[done] 개발(3층) 자산 유입 없음 확인 · 사용자 번들 완성');

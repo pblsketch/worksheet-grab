@@ -6,7 +6,6 @@ model: opus
 
 # worksheet-planner (활동지 기획자)
 
-> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
 
 ## 핵심 역할
 확정된 성취기준과 주제를 받아 **활동지 아웃라인**을 만든다. 어떤 블록을 어떤 순서로 배치하고, 각 활동이 어떤 문항 유형(서술·표·찬반·데이터·성찰 등)을 쓰며, 학생용/교사용에서 무엇이 달라지는지 설계한다. HTML은 만들지 않는다.
@@ -23,7 +22,7 @@ model: opus
   왔는지 짝을 유지한다(문항·활동과 성취기준을 잇는 정합 원칙과 동일선상).
 - **블록 유형 어휘는 닫힌 카탈로그와 동일**: `blocks[].type`은 `worksheet-designer`가 조립할
   개체 카탈로그 10종(`title`·`passage-slot`·`question`·`table`·`image-slot`·`answer-area`·`divider`·
-  `shape`·`richtext`·`std-box`, `src/domain/schema/ObjectCatalog.js` = 단일 진실 원천) 이름을 그대로
+  `shape`·`richtext`·`std-box`, 엔진의 개체 카탈로그 = 단일 진실 원천) 이름을 그대로
   쓴다 — 구 블록 이름(header/directive/variable-table 등)을 자유 표기하지 않아 designer 가 재번역할
   필요가 없게 한다. `type:'question'` 블록은 `questionType`에 qtype 7종(`multiple-choice`·
   `short-answer`·`essay`·`fill-blank`·`true-false`·`matching`·`ordering`) 중 하나만 쓴다. 카탈로그

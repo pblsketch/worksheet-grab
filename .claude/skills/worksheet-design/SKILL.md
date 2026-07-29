@@ -5,7 +5,6 @@ description: 활동지 아웃라인을 닫힌 카탈로그 10종의 **개체 트
 
 # worksheet-design (활동지 개체 트리 저작·편집)
 
-> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
 
 아웃라인(`02_outline.json`)을 개체 트리 스키마(엔진이 검증하는 계약)를 준수하는 **개체 트리 JSON**
 으로 만든다. **HTML 문자열을 직접 저작하지 않는다** — paper-css 조립·`.sheet` 페이지 골격·CSS 변수
@@ -14,9 +13,9 @@ description: 활동지 아웃라인을 닫힌 카탈로그 10종의 **개체 트
 
 ## 단일 진실 원천
 - **스키마 계약**: 개체 트리 스키마 문서(사람이 읽는 요약) +
-  `schema/worksheet-object.schema.json`(계약 문서) + `src/domain/schema/ObjectCatalog.js`(런타임 상수).
+  `schema/worksheet-object.schema.json`(계약 문서) + 엔진의 개체 카탈로그 상수(런타임).
   이 세 산출물이 갈라지면 무조건 코드(`ObjectCatalog.js`/`validateObjectShape.js`)가 맞다.
-- **검증**: `src/usecases/ValidateObjectTree.js` — 저작·편집 후 개체 트리가 이 검증을 PASS해야 한다.
+- **검증**: 엔진의 개체 트리 검증(`ValidateObjectTree`) — 저작·편집 후 개체 트리가 이 검증을 PASS해야 한다.
 
 ## 닫힌 카탈로그 — 저작 대상 10종 (신규 타입 창설 금지)
 

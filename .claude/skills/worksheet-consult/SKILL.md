@@ -5,14 +5,13 @@ description: 활동지 생성 전 교사와의 협의(공동 설계) 단계. 수
 
 # worksheet-consult (활동지 협의·공동 설계)
 
-> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
 
 교사와 AI가 활동지의 **왜(의도)·누구(학생 맥락)·무엇으로 확인(평가 증거)·어디서 헷갈릴지(오개념)**에
 대한 공유된 이해를 만든 뒤에 초안으로 넘어가게 하는 조건부 단계다.
 k-teacher-skills 의 grill-me-for-k-teacher + grill-with-curriculum + to-lesson-brief 를
 worksheet-grab 도메인에 맞게 통합 재저작했다(adapted from k-teacher-skills v2.5.1+).
 
-**독립 단계 규약(R8):** 이 스킬은 인터뷰를 수행하고 `_workspace/00_brief.json` 을 **쓰고 종료**한다.
+**독립 단계 규약:** 이 스킬은 인터뷰를 수행하고 `_workspace/00_brief.json` 을 **쓰고 종료**한다.
 파이프라인(오케스트레이터 Phase 2)은 이 파일을 **새로 읽어** 시작한다. 이 스킬은 팀 에이전트가
 아니며, 파이프라인 조율과 한 컨텍스트에 섞지 않는다.
 

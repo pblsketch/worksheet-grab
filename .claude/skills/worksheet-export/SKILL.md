@@ -5,15 +5,13 @@ description: 검수 통과한 활동지(개체 트리 또는 레거시 HTML)를 
 
 # worksheet-export (활동지 내보내기)
 
-> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
 
 검수 통과(`04_review.json`의 `verdict:PASS`)를 먼저 확인한다. PASS가 아니면 내보내지 않는다.
 
 ## pagination 게이트(개체 트리 문서 필수 선결 조건)
 개체 트리 문서는 `pagination` 필드가 `'scaffold'` 또는 `'paginated'` 중 하나다. **`'scaffold'`는 경계
 미계산 상태(compose 산출물)이므로 export를 거부한다.** export 전 반드시 Chrome 측정 페이지네이션
-패스를 통과해 `'paginated'`로 승격된 문서만 내보낸다(D-A/R2-4, `checkExportGate` 계약 —
-`src/domain/schema/exportGate.js`). `scaffold` 상태를 발견하면 designer/오케스트레이터에 "페이지네이션
+패스를 통과해 `'paginated'`로 승격된 문서만 내보낸다(엔진의 `checkExportGate` 내보내기 게이트 계약). `scaffold` 상태를 발견하면 designer/오케스트레이터에 "페이지네이션
 패스 미통과"로 반려하고, sed나 임의 재조립으로 우회하지 않는다.
 
 ## 엔진 배선 — 개체 트리 경로(권장, sed 폐지)

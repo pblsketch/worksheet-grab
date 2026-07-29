@@ -1,6 +1,5 @@
 # 옛 블록 패턴 → 닫힌 카탈로그 매핑 (references/block-library.md)
 
-> 제품 하네스 자산 — 교사 배포용. 개발 문서·이슈코드·연혁 날짜를 담지 않는다.
 
 PoC(`poc/worksheet.html` 국어, `poc/science.html` 과학)와 구 매니페스트(`manifests/ko.json` 등)에서
 쓰이던 블록 패턴을, 닫힌 카탈로그 10종 중 어느 타입으로 착지시킬지 정리한 매핑표다.
