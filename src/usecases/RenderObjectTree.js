@@ -2,7 +2,7 @@ import { escapeHtml, wrapSheetBody, buildSheetSection, buildDocumentHtml } from 
 import { resolvePaper, paperCss as paperCssOverride } from './paper.js';
 // 크기 필드 범위(2026-07-28) — 렌더가 방어적으로 재확인한다(아래 flowBoxStyle 주석). ObjectCatalog 는
 // browserGraph 화이트리스트에 이미 있으므로 편집기 ESM 그래프에서도 404 나지 않는다(실측 확인).
-import { WIDTH_PCT_MIN, WIDTH_PCT_MAX } from '../domain/schema/ObjectCatalog.js';
+import { WIDTH_PCT_MIN, WIDTH_PCT_MAX, CALLOUT_VARIANTS } from '../domain/schema/ObjectCatalog.js';
 
 // RenderObjectTree — S2.1(M2) 순수 render-core(06_plan_final.md 150~152행, C-5/GAP-2).
 //
@@ -638,7 +638,9 @@ ${lis}
 const CALLOUT_LABELS = { tip: '도움말', warning: '주의', note: '참고', summary: '핵심 정리' };
 
 function renderCallout(obj) {
-  const variant = typeof obj.variant === 'string' ? obj.variant : 'note';
+  // variant 를 닫힌 집합으로 접는다(알 수 없는 값이 callout-<임의> 같은 존재하지 않는 클래스로 새어
+  // 스타일 없는 박스가 되는 것을 막는다 — blocks.css 는 4종 variant 클래스만 안다).
+  const variant = CALLOUT_VARIANTS.includes(obj.variant) ? obj.variant : 'note';
   // 헤더밴드 라벨 = titleHtml(살균) > title(평문 이스케이프) > variant 기본 라벨. 상단 색 밴드는
   // .std-box/.strip 과 동형(이 활동지의 고유 디자인 — 왼쪽 세로띠 같은 제네릭 룩을 쓰지 않는다).
   const head = (typeof obj.titleHtml === 'string' && obj.titleHtml)

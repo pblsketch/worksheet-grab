@@ -442,6 +442,7 @@ function currentSingleSelectedId() {
 const LAYER_TYPE_LABELS = Object.freeze({
   title: '제목', question: '문항', table: '표', 'image-slot': '이미지', 'answer-area': '답란',
   richtext: '자유 텍스트', shape: '도형', divider: '구분선', 'passage-slot': '지문 슬롯', 'std-box': '학습목표',
+  callout: '강조상자',
 });
 function stripHtmlToText(html) {
   return new DOMParser().parseFromString(String(html || ''), 'text/html').body.textContent || '';
@@ -456,6 +457,7 @@ function layerLabelFor(obj) {
   else if (obj.type === 'passage-slot') text = obj.title || obj.slotLabel || '';
   else if (obj.type === 'shape') text = { rect: '사각형', circle: '원', line: '선' }[obj.shapeKind] || '';
   else if (obj.type === 'std-box') text = obj.objectives?.[0] || (obj.codes || []).join(', ');
+  else if (obj.type === 'callout') text = obj.title || stripHtmlToText(obj.titleHtml) || stripHtmlToText(obj.body);
   else if (obj.type === 'table') text = `${(obj.rows || []).length}행`;
   text = text.trim().replace(/\s+/g, ' ');
   return text ? `${base} · ${text.slice(0, 24)}` : base;

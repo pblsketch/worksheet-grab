@@ -72,6 +72,12 @@ float 에 실으면 `size-forbidden-in-float` 위반이다(float 은 `rect` 가 
    원본 명칭)는 신규 타입이 아니라 **구조 분기**로 흡수한다: 내용이 비어 있으면 `answer-area`(학생이
    채울 빈 여백), 내용이 있으면 `richtext`(정적 강조 텍스트). 스파이크 실측(SS2)에서 이 구조 분기가
    정확히 동작함을 확인했다(내용 유무만으로 두 용도가 명확히 갈림 — 별도 타입이 주는 이득이 낮음).
+   > **[2026-07-30 M4 로 번복]** 이 기각은 M4(강조상자)에서 뒤집혔다 — `callout` 은 이제 정식 flow 타입이다
+   > (팁/주의/참고/핵심정리 4 variant 의 **머리띠 박스**). 번복 근거: richtext 흡수는 (a) variant 별 시각
+   > 구분(교사 실사용에서 "주의"·"팁"의 색 구분 요구)과 (b) AI 가 "여기 강조상자 넣어줘"를 **저작 어휘로**
+   > 방출하는 것을 표현하지 못했다. answer-area 흡수(빈 여백)는 여전히 유효하다 — callout 은 **내용을 담는
+   > 중립 박스**(answer 없음)라 answer-area 와 용도가 다르다. SSOT: `ObjectCatalog.js`(13종)·`calloutObject`
+   > 스키마·`RenderObjectTree.renderCallout`. 아래 §7 emphasis-box 구조 분기는 answer-area 용도에 한해 유효.
 3. **`title.meta` 닫힌 형태로 축소** — 스파이크 원본은 `meta: {type:'object', additionalProperties:true}`
    로 자유 확장을 허용했는데, 이는 사실상 두 번째 탈출구였다(`richtext`가 이미 탈출구 역할을 하므로
    중복). 스파이크 실측에서 관찰된 header 부가정보만 명시 필드로 승격해 **닫힌 스키마**

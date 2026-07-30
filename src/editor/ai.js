@@ -148,6 +148,8 @@ export function objectDisplayText(obj) {
     case 'answer-area': return obj.label || '';
     case 'image-slot': return [obj.caption, obj.alt].filter(Boolean).join(' — ');
     case 'passage-slot': return [obj.title, stripToText(obj.bodyHtml), obj.source].filter(Boolean).join('\n');
+    // callout(M4): 머리(title 평문 > titleHtml 정제) + 본문(body 정제). 없으면 AI diff 가 빈칸이 된다.
+    case 'callout': return [obj.title || stripToText(obj.titleHtml), stripToText(obj.body)].filter(Boolean).join('\n');
     default: return '';
   }
 }
