@@ -1,0 +1,504 @@
+{
+  "generatedAt": "2026-07-30T23:09:12.219Z",
+  "corpusSize": 42,
+  "thresholds": {
+    "structural_validity_rate": 1,
+    "attack_rejection_rate": 1,
+    "critical_class_rejection": 1,
+    "order_accuracy": 1,
+    "preview_apply_consistency": 1,
+    "compiled_v4_valid": 1,
+    "compiled_shape_valid": 1,
+    "policy_correctness": 1
+  },
+  "results": {
+    "structural_validity_rate": 1,
+    "attack_rejection_rate": 1,
+    "critical_class_rejection": {
+      "coordinate": 1,
+      "html": 1,
+      "answer": 1
+    },
+    "attack_rejection_by_class": {
+      "coordinate": 1,
+      "layout": 1,
+      "page": 1,
+      "identity": 1,
+      "answer": 1,
+      "html": 1,
+      "type": 1,
+      "presentation": 1,
+      "image": 1,
+      "enum": 1,
+      "nested": 1
+    },
+    "order_accuracy": 1,
+    "preview_apply_consistency": 1,
+    "compiled_v4_valid": 1,
+    "compiled_shape_valid": 1,
+    "policy_allow_rate": 1,
+    "policy_reject_rate": 1,
+    "stale_detection": {
+      "sameVersion_notStale": true,
+      "changedVersion_stale": true,
+      "missingPage_stale": true
+    }
+  },
+  "counts": {
+    "valid": {
+      "total": 5,
+      "structuralPass": 5,
+      "orderOk": 5,
+      "driftFree": 5,
+      "v4Ok": 5,
+      "shapeOk": 5
+    },
+    "attack": {
+      "total": 34,
+      "rejected": 34,
+      "byClass": {
+        "coordinate": {
+          "total": 3,
+          "rejected": 3
+        },
+        "layout": {
+          "total": 2,
+          "rejected": 2
+        },
+        "page": {
+          "total": 2,
+          "rejected": 2
+        },
+        "identity": {
+          "total": 1,
+          "rejected": 1
+        },
+        "answer": {
+          "total": 3,
+          "rejected": 3
+        },
+        "html": {
+          "total": 10,
+          "rejected": 10
+        },
+        "type": {
+          "total": 5,
+          "rejected": 5
+        },
+        "presentation": {
+          "total": 1,
+          "rejected": 1
+        },
+        "image": {
+          "total": 1,
+          "rejected": 1
+        },
+        "enum": {
+          "total": 3,
+          "rejected": 3
+        },
+        "nested": {
+          "total": 3,
+          "rejected": 3
+        }
+      }
+    },
+    "policyAllow": {
+      "total": 1,
+      "allowed": 1
+    },
+    "policyReject": {
+      "total": 2,
+      "rejected": 2
+    }
+  },
+  "details": [
+    {
+      "id": "valid-full-section",
+      "kind": "valid",
+      "label": "제목+학습박스 대체(callout)+객관식+서술 답란 — 한 섹션",
+      "ok": true,
+      "rules": [],
+      "compiled": {
+        "count": 5,
+        "orderOk": true
+      }
+    },
+    {
+      "id": "valid-matching-ordering",
+      "kind": "valid",
+      "label": "짝짓기+순서 문항(중첩 id 정상)",
+      "ok": true,
+      "rules": [],
+      "compiled": {
+        "count": 2,
+        "orderOk": true
+      }
+    },
+    {
+      "id": "valid-fill-blank-table",
+      "kind": "valid",
+      "label": "빈칸+표(셀 header/colspan 정상)",
+      "ok": true,
+      "rules": [],
+      "compiled": {
+        "count": 3,
+        "orderOk": true
+      }
+    },
+    {
+      "id": "valid-richtext-inline",
+      "kind": "valid",
+      "label": "richtext 블록 + 제목 인라인 서식(평문 정합)",
+      "ok": true,
+      "rules": [],
+      "compiled": {
+        "count": 2,
+        "orderOk": true
+      }
+    },
+    {
+      "id": "valid-image-scaffold",
+      "kind": "valid",
+      "label": "이미지 슬롯(자산 미주입 — alt/caption 만)",
+      "ok": true,
+      "rules": [],
+      "compiled": {
+        "count": 2,
+        "orderOk": true
+      }
+    },
+    {
+      "id": "atk-rect",
+      "kind": "attack",
+      "label": "rect 좌표 주입",
+      "ok": false,
+      "rules": [
+        "forbidden-coordinate"
+      ]
+    },
+    {
+      "id": "atk-xmm",
+      "kind": "attack",
+      "label": "개별 좌표 필드",
+      "ok": false,
+      "rules": [
+        "forbidden-coordinate"
+      ]
+    },
+    {
+      "id": "atk-placement-float",
+      "kind": "attack",
+      "label": "placement:float 저작",
+      "ok": false,
+      "rules": [
+        "forbidden-placement"
+      ]
+    },
+    {
+      "id": "atk-size",
+      "kind": "attack",
+      "label": "SIZE 필드(widthPct/align)",
+      "ok": false,
+      "rules": [
+        "forbidden-size"
+      ]
+    },
+    {
+      "id": "atk-transform",
+      "kind": "attack",
+      "label": "opacity/angle",
+      "ok": false,
+      "rules": [
+        "forbidden-transform"
+      ]
+    },
+    {
+      "id": "atk-page-authoring",
+      "kind": "attack",
+      "label": "pageId/pagination 저작",
+      "ok": false,
+      "rules": [
+        "forbidden-page-authoring"
+      ]
+    },
+    {
+      "id": "atk-page-keys",
+      "kind": "attack",
+      "label": "pages/flow/float/role",
+      "ok": false,
+      "rules": [
+        "forbidden-page-authoring"
+      ]
+    },
+    {
+      "id": "atk-topid",
+      "kind": "attack",
+      "label": "최상위 id 발급 시도",
+      "ok": false,
+      "rules": [
+        "forbidden-id"
+      ]
+    },
+    {
+      "id": "atk-answer-flag",
+      "kind": "attack",
+      "label": "answer:true 개체",
+      "ok": false,
+      "rules": [
+        "forbidden-answer"
+      ]
+    },
+    {
+      "id": "atk-answerkey",
+      "kind": "attack",
+      "label": "answerKey 주입",
+      "ok": false,
+      "rules": [
+        "forbidden-answer"
+      ]
+    },
+    {
+      "id": "atk-answerkey-html",
+      "kind": "attack",
+      "label": "answerKey.html 주입",
+      "ok": false,
+      "rules": [
+        "forbidden-answer"
+      ]
+    },
+    {
+      "id": "atk-html-script",
+      "kind": "attack",
+      "label": "script 태그",
+      "ok": false,
+      "rules": [
+        "html-disallowed-tag"
+      ]
+    },
+    {
+      "id": "atk-html-iframe",
+      "kind": "attack",
+      "label": "iframe",
+      "ok": false,
+      "rules": [
+        "html-disallowed-tag"
+      ]
+    },
+    {
+      "id": "atk-html-onload",
+      "kind": "attack",
+      "label": "on* 핸들러",
+      "ok": false,
+      "rules": [
+        "html-disallowed-attr"
+      ]
+    },
+    {
+      "id": "atk-html-style",
+      "kind": "attack",
+      "label": "style 속성(CSS url())",
+      "ok": false,
+      "rules": [
+        "html-disallowed-attr"
+      ]
+    },
+    {
+      "id": "atk-html-jsurl",
+      "kind": "attack",
+      "label": "javascript: 링크",
+      "ok": false,
+      "rules": [
+        "html-disallowed-url"
+      ]
+    },
+    {
+      "id": "atk-html-dataurl",
+      "kind": "attack",
+      "label": "data: URL 링크",
+      "ok": false,
+      "rules": [
+        "html-disallowed-url"
+      ]
+    },
+    {
+      "id": "atk-html-entity-js",
+      "kind": "attack",
+      "label": "엔티티 위장 javascript:",
+      "ok": false,
+      "rules": [
+        "html-disallowed-url"
+      ]
+    },
+    {
+      "id": "atk-html-classattr",
+      "kind": "attack",
+      "label": "class=\"answer\" 주입(정답 위장)",
+      "ok": false,
+      "rules": [
+        "html-disallowed-attr"
+      ]
+    },
+    {
+      "id": "atk-html-img",
+      "kind": "attack",
+      "label": "img 원격 이미지",
+      "ok": false,
+      "rules": [
+        "html-disallowed-tag"
+      ]
+    },
+    {
+      "id": "atk-html-callout-titleHtml",
+      "kind": "attack",
+      "label": "callout.titleHtml(허용 위치 밖)",
+      "ok": false,
+      "rules": [
+        "forbidden-html-position"
+      ]
+    },
+    {
+      "id": "atk-type-stdbox",
+      "kind": "attack",
+      "label": "std-box(성취기준 원문 불변) 저작",
+      "ok": false,
+      "rules": [
+        "forbidden-type"
+      ]
+    },
+    {
+      "id": "atk-type-shape",
+      "kind": "attack",
+      "label": "shape(float 전용) 저작",
+      "ok": false,
+      "rules": [
+        "forbidden-type"
+      ]
+    },
+    {
+      "id": "atk-type-spacer",
+      "kind": "attack",
+      "label": "spacer(조판 어휘) 저작",
+      "ok": false,
+      "rules": [
+        "forbidden-type"
+      ]
+    },
+    {
+      "id": "atk-type-pagebreak",
+      "kind": "attack",
+      "label": "page-break(조판 어휘) 저작",
+      "ok": false,
+      "rules": [
+        "forbidden-type"
+      ]
+    },
+    {
+      "id": "atk-type-unknown",
+      "kind": "attack",
+      "label": "카탈로그 밖 타입",
+      "ok": false,
+      "rules": [
+        "unknown-type"
+      ]
+    },
+    {
+      "id": "atk-presentation",
+      "kind": "attack",
+      "label": "표현필드(borderColor/bgColor)",
+      "ok": false,
+      "rules": [
+        "forbidden-presentation"
+      ]
+    },
+    {
+      "id": "atk-image-src",
+      "kind": "attack",
+      "label": "image-slot.src(구운 정답/원격/경로탈출)",
+      "ok": false,
+      "rules": [
+        "forbidden-image-src"
+      ]
+    },
+    {
+      "id": "atk-bad-variant",
+      "kind": "attack",
+      "label": "callout.variant enum 밖",
+      "ok": false,
+      "rules": [
+        "invalid-value"
+      ]
+    },
+    {
+      "id": "atk-bad-qtype",
+      "kind": "attack",
+      "label": "question.qtype enum 밖",
+      "ok": false,
+      "rules": [
+        "invalid-value"
+      ]
+    },
+    {
+      "id": "atk-splittable-true",
+      "kind": "attack",
+      "label": "table.splittable=true",
+      "ok": false,
+      "rules": [
+        "invalid-value"
+      ]
+    },
+    {
+      "id": "atk-nested-additional",
+      "kind": "attack",
+      "label": "중첩 추가필드(choices.score)",
+      "ok": false,
+      "rules": [
+        "nested-additional"
+      ]
+    },
+    {
+      "id": "atk-cell-additional",
+      "kind": "attack",
+      "label": "표 셀 추가필드(colspanX)",
+      "ok": false,
+      "rules": [
+        "nested-additional"
+      ]
+    },
+    {
+      "id": "atk-unknown-field",
+      "kind": "attack",
+      "label": "최상위 미상 필드",
+      "ok": false,
+      "rules": [
+        "unknown-field"
+      ]
+    },
+    {
+      "id": "pol-passage-noperm",
+      "kind": "policy-reject",
+      "label": "passage bodyHtml 무권한",
+      "ok": false,
+      "rules": [
+        "passage-content-denied"
+      ]
+    },
+    {
+      "id": "pol-passage-perm",
+      "kind": "policy-allow",
+      "label": "passage bodyHtml + allowPassageContent",
+      "ok": true,
+      "rules": []
+    },
+    {
+      "id": "pol-plaintext-mismatch",
+      "kind": "policy-reject",
+      "label": "평문 불일치(textHtml≠text)",
+      "ok": false,
+      "rules": [
+        "plaintext-mismatch"
+      ]
+    }
+  ],
+  "verdict": "ALL-GATES-PASS"
+}

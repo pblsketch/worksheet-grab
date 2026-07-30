@@ -16,6 +16,15 @@ export {
 } from './ObjectCatalog.js';
 export { validateObjectShape } from './validateObjectShape.js';
 export { checkExportGate } from './exportGate.js';
+// B′ 스파이크(결정 태스크) — AI 프래그먼트 결정 검증기 + HTML allowlist. ADR-bspike-ai-fragment.md 참조.
+export {
+  validateAiFragment,
+  compileFragmentToInsertSection,
+  isFragmentStale,
+  AI_AUTHORABLE_TYPES,
+  HTML_POSITIONS,
+} from './validateAiFragment.js';
+export { validateHtmlField, INLINE_TAGS, BLOCK_TAGS } from './htmlAllowlist.js';
 export {
   createPageId,
   createUniquePageId,
