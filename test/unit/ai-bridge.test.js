@@ -166,6 +166,18 @@ test('Phase 4 응답: 형태 위반 거부', () => {
   );
 });
 
+test('Phase 4 응답: insert-section(여러 개체 한 번에) 형태 검증(M3a)', () => {
+  // 수용: objects[] 가 유효 페이로드고, 위치는 0~1개.
+  assert.equal(validateResponse(v4res([{ op: 'insert-section', objects: [obj('a'), obj('b', 'richtext')], afterId: 'q1' }])), true, 'afterId + 여러 개체');
+  assert.equal(validateResponse(v4res([{ op: 'insert-section', objects: [obj('a')], beforeId: 'q1' }])), true, 'beforeId');
+  assert.equal(validateResponse(v4res([{ op: 'insert-section', objects: [obj('a')] }])), true, '위치 미지정 = 말미');
+  // 거부: 빈/누락 objects, 개체 type 부재, afterId·beforeId 동시.
+  assert.equal(validateResponse(v4res([{ op: 'insert-section', objects: [], afterId: 'q1' }])), false, '빈 objects 거부');
+  assert.equal(validateResponse(v4res([{ op: 'insert-section', afterId: 'q1' }])), false, 'objects[] 필수');
+  assert.equal(validateResponse(v4res([{ op: 'insert-section', objects: [{ id: 'x' }] }])), false, '개체에 type 필수');
+  assert.equal(validateResponse(v4res([{ op: 'insert-section', objects: [obj('a')], afterId: 'q1', beforeId: 'q2' }])), false, 'afterId·beforeId 동시 거부');
+});
+
 test('Phase 4 응답: 형태-버전 정합이 양방향으로 강제된다', () => {
   const v3shape = [{ id: 'o1', object: { id: 'o1', type: 'title' } }];
   assert.equal(validateResponse({ schemaVersion: 4, id: 'r', objects: v3shape }), false, 'v4 인데 v3 형태 → 거부');

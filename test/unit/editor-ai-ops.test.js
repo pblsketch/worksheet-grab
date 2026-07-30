@@ -149,3 +149,65 @@ test('여러 op 를 거쳐도 관계없는 개체와 페이지 ID 는 보존된�
   assert.ok(flowOf(after).includes('std'), '무관한 개체 보존');
   assert.equal(after.pagination, 'paginated', '문서 메타 보존');
 });
+
+// ── M3a: insert-section(여러 개체 한 번에 삽입, 순서 보존) ──────────────────────
+test('insert-section: afterId 뒤에 리스트 순서대로 한 번에 삽입 + 새 id', async () => {
+  const { document: after, resultIds } = await applyOps(doc(), [
+    { op: 'insert-section', afterId: 'q1', objects: [
+      { id: 'a', type: 'question', prompt: 'A' },
+      { id: 'b', type: 'richtext', html: '<p>B</p>' },
+      { id: 'c', type: 'question', prompt: 'C' },
+    ] },
+  ]);
+  assert.equal(after.pages[0].flow[0].id, 'q1');
+  assert.equal(after.pages[0].flow[1].prompt, 'A');
+  assert.equal(after.pages[0].flow[2].type, 'richtext');
+  assert.equal(after.pages[0].flow[3].prompt, 'C', 'q1 뒤에 A,B,C 순서 보존');
+  assert.equal(after.pages[0].flow[4].id, 'q2', '기존 q2 는 섹션 뒤로 밀린다');
+  assert.equal(resultIds.length, 3);
+  assert.ok(!flowOf(after).includes('a'), '신규 개체는 AI 가 준 id 가 아니라 새 id 를 받는다');
+});
+
+test('insert-section: beforeId 앞에 리스트 순서대로 삽입', async () => {
+  const { document: after } = await applyOps(doc(), [
+    { op: 'insert-section', beforeId: 'q2', objects: [
+      { id: 'x', type: 'richtext', html: '<p>X</p>' },
+      { id: 'y', type: 'richtext', html: '<p>Y</p>' },
+    ] },
+  ]);
+  assert.equal(after.pages[0].flow[0].id, 'q1');
+  assert.equal(after.pages[0].flow[1].type, 'richtext');
+  assert.equal(after.pages[0].flow[2].type, 'richtext');
+  assert.equal(after.pages[0].flow[3].id, 'q2', 'q2 앞에 X,Y 가 순서대로');
+});
+
+test('insert-section: 위치 미지정이면 말미에 순서대로 붙는다', async () => {
+  const { document: after } = await applyOps(doc(), [
+    { op: 'insert-section', objects: [
+      { id: 'm', type: 'richtext', html: '<p>M</p>' },
+      { id: 'n', type: 'divider' },
+    ] },
+  ]);
+  const tail = after.pages[0].flow.slice(-2);
+  assert.equal(tail[0].type, 'richtext');
+  assert.equal(tail[1].type, 'divider');
+});
+
+test('insert-section: float 기준·빈 목록·성취기준 생성은 던진다(조용한 오배치·원칙 3 방지)', async () => {
+  const withFloat = () => ({
+    pagination: 'paginated',
+    pages: [{ id: 'page-1', flow: [{ id: 'q1', type: 'question' }], float: [{ id: 'fl1', type: 'richtext', placement: 'float' }] }],
+  });
+  await assert.rejects(
+    () => applyOps(withFloat(), [{ op: 'insert-section', afterId: 'fl1', objects: [{ id: 'a', type: 'richtext' }] }]),
+    /본문 흐름 개체가 아닙니다: fl1/,
+  );
+  await assert.rejects(
+    () => applyOps(doc(), [{ op: 'insert-section', afterId: 'q1', objects: [] }]),
+    /개체가 없습니다/,
+  );
+  await assert.rejects(
+    () => applyOps(doc(), [{ op: 'insert-section', afterId: 'q1', objects: [{ id: 's', type: 'std-box', codes: [] }] }], { excludedTypes: EXCLUDED }),
+    /성취기준 원문은 보존/,
+  );
+});

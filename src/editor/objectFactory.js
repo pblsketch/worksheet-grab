@@ -245,6 +245,39 @@ export function applyAiOps(document, ops, { excludedTypes = [] } = {}) {
       const obj = { ...op.object, id: generateId(op.object?.type || 'o') };
       doc = op.beforeId ? insertFlowBefore(doc, obj, op.beforeId) : insertFlow(doc, obj, { afterId: op.afterId ?? null });
       resultIds.push(obj.id);
+    } else if (op.op === 'insert-section') {
+      // M3a: 여러 flow 개체를 한 번에 삽입한다. 기준(anchor)은 flow 여야 하고, 리스트 순서를 보존하며
+      // 각 개체는 새 id 를 받는다(insert 와 동일 규약의 묶음판). 여러 insert 를 같은 afterId 로 보내면
+      // 순서가 뒤집히는 문제를 이 원자 op 가 없애 준다(단일 undo 로도 이어진다 — applyDocOp 1회).
+      const anchorId = op.afterId ?? op.beforeId ?? null;
+      if (anchorId != null) {
+        const loc = locate(doc.pages || [], anchorId);
+        if (!loc) throw new Error(`AI 섹션 삽입 기준 개체를 찾을 수 없습니다: ${anchorId}`);
+        if (loc.bucket !== 'flow') throw new Error(`AI 섹션 삽입 기준 개체가 본문 흐름 개체가 아닙니다: ${anchorId} — 자유 배치 개체의 앞/뒤에는 삽입할 수 없습니다.`);
+      }
+      const list = Array.isArray(op.objects) ? op.objects : [];
+      if (list.length === 0) throw new Error('AI 섹션 삽입에 개체가 없습니다.');
+      // 새 개체가 성취기준(제외 타입)이면 거부 — AI 는 성취기준 원문을 창작하지 않는다(원칙 3).
+      for (const src of list) {
+        if (excluded.has(src?.type)) throw new Error(`"${src?.type}" 개체는 AI 가 생성할 수 없습니다 — 성취기준 원문은 보존됩니다(원칙 3).`);
+      }
+      if (op.beforeId) {
+        // beforeId 앞에 리스트 순서대로: 각 개체를 기준 바로 앞에 넣으면 먼저 넣은 것이 앞에 남는다.
+        for (const src of list) {
+          const obj = { ...src, id: generateId(src?.type || 'o') };
+          doc = insertFlowBefore(doc, obj, op.beforeId);
+          resultIds.push(obj.id);
+        }
+      } else {
+        // afterId(또는 말미) 뒤에 리스트 순서대로: 방금 넣은 개체를 다음의 기준으로 이어 붙인다.
+        let afterId = op.afterId ?? null;
+        for (const src of list) {
+          const obj = { ...src, id: generateId(src?.type || 'o') };
+          doc = insertFlow(doc, obj, { afterId });
+          resultIds.push(obj.id);
+          afterId = obj.id;
+        }
+      }
     } else {
       throw new Error(`알 수 없는 AI op: ${op.op}`);
     }
