@@ -32,6 +32,18 @@
 .std-box li { font-size: 9pt; margin: 2px 0; color: #333; }
 .std-box li b { color: var(--c); margin-right: 4px; }
 .std-box + .std-box { margin-top: 2mm; }
+
+/* 강조상자(callout, M4) — flow 개체. variant 별 좌측 강조선+연한 배경. note 는 교과색(var), 나머지는
+ * 고정 의미색(교과 팔레트와 무관한 무채색 계열 — hardcoded-subject-color 회피). 편집==인쇄 동일 선언. */
+.callout { border: 1px solid #dfe3dc; border-left: 4px solid var(--c); border-radius: 8px;
+  padding: 9px 14px; margin-top: 3mm; background: #fbfcfb; }
+.callout-title { font-weight: 700; font-size: 9.5pt; color: var(--cink); margin: 0 0 3px; }
+.callout-body { font-size: 9.5pt; line-height: 1.55; color: #333; }
+.callout-body p { margin: 4px 0; }
+.callout-note { border-left-color: var(--c); background: var(--clite); }
+.callout-tip { border-left-color: #2f8f4e; background: #eef7f0; }
+.callout-warning { border-left-color: #c9791f; background: #fdf4e8; }
+.callout-summary { border-left-color: #5b6bd6; background: #eef0fb; }
 /* 근거 성취기준(교사 전용, 학습목표 표기 전환 2026-07-23): 정답이 아니라 참조용 정보라 비밀이
    아니다 — .answer 처럼 학생용에서 물리 제거하지 않고 CSS 표시 제어(data-mode)만으로 숨긴다. */
 .std-ref { display: none; }
