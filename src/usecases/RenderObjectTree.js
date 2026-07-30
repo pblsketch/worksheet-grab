@@ -449,9 +449,15 @@ function renderTable(obj, ctx = {}) {
       const tag = cell?.header ? 'th' : 'td';
       const colspan = cell?.colspan > 1 ? ` colspan="${Number(cell.colspan)}"` : '';
       const rowspan = cell?.rowspan > 1 ? ` rowspan="${Number(cell.rowspan)}"` : '';
+      // 셀 높이(h, mm)·정렬(align) — 열 너비 w(colgroup)와 동형의 opt-in 셀 필드(스키마 미검증).
+      // 시각 조직자 삽입이 필기 공간·라벨 중앙정렬을 표현하는 데 쓴다. 없으면 선언 생략 = 기존 산출 불변.
+      const cstyleBits = [];
+      if (typeof cell?.h === 'number' && Number.isFinite(cell.h) && cell.h > 0) cstyleBits.push(`height:${cell.h}mm`);
+      if (cell?.align === 'center' || cell?.align === 'right') cstyleBits.push(`text-align:${cell.align}`);
+      const cstyle = cstyleBits.length > 0 ? ` style="${cstyleBits.join(';')}"` : '';
       // editMode 에서만 셀 좌표를 실어 편집기(tableEdit.js)가 DOM↔rows[] 를 정확히 매핑한다(#10).
       const coord = ctx.editMode ? ` data-r="${r}" data-c="${c}"` : '';
-      return `<${tag}${colspan}${rowspan}${coord}>${escapeHtml(cell?.text ?? '')}</${tag}>`;
+      return `<${tag}${colspan}${rowspan}${cstyle}${coord}>${escapeHtml(cell?.text ?? '')}</${tag}>`;
     }).join('');
     return `    <tr>${cells}</tr>`;
   }).join('\n');

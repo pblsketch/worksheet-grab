@@ -77,23 +77,69 @@ export const CATALOG_ITEMS = Object.freeze([
 ]);
 
 // 시각 조직자 삽입(#2) — 표형 조직자를 "새 개체 타입 없이" 미리 채운 `table` 개체로 삽입한다.
-// 스키마 무변경(닫힌 카탈로그의 table 재사용). 각 rows 는 blocks/core/<key>.html 의 <table> 을
-// parseTableRows(MigrateManifestToObjectTree)로 파생한 값과 동일해야 한다(단일 출처 — organizer-insert
-// 테스트가 블록↔서술자 parity 를 강제해 드리프트를 막는다). 그림형(SVG)·특수 레이아웃(신호등 색·쓰기줄)은
-// 여기 없다 — 잠금 richtext 삽입(후속 P2)으로 원본 HTML 을 그대로 보존한다.
-// 셀은 parseTableRows 규약과 정합: 헤더 셀은 {text, header:true}, 일반 셀은 {text}. 정답은 비운다
+// 스키마 무변경(닫힌 카탈로그의 table 재사용). 서술자는 blocks/core/<key>.html 의 디자인을 반영한다:
+//  - 헤더·라벨 텍스트(정의/특징·누가/언제…)는 블록과 동일(organizer-insert 테스트가 라벨 커버리지로 드리프트 감시)
+//  - 열 너비(w, %)는 첫 행 셀에 실어 colgroup 으로 등폭/의도폭을 만든다(RenderObjectTree 규약, #10)
+//  - 필기 높이(h, mm)·라벨 중앙정렬(header:true→th)로 원본 블록의 셀 높이·라벨 스타일을 재현
+//  - 프레이어의 중심 개념은 colspan:2 병합 헤더(중앙정렬)로 상단에 둔다(caption 대신)
+// 셀 내부 필드(w/h/colspan/header)는 스키마 미검증이라 개체 유효성에 영향 없다. 정답은 비운다
 // (빈 조직자 삽입 — 교사 예시는 삽입 후 개체 answer 토글/저작으로, #4 fail-closed 불변식과 독립).
+// 그림형(SVG)·특수 레이아웃(신호등 색·쓰기줄)은 여기 없다 — 잠금 richtext 삽입(후속 P2).
 export const ORGANIZER_INSERTS = Object.freeze([
-  { key: 'kwl', label: 'KWL (아는·알고싶은·배운 것)', rows: [[{ text: 'K 아는 것', header: true }, { text: 'W 알고 싶은 것', header: true }, { text: 'L 배운 것', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'frayer', label: '프레이어 모형 (정의·특징·예·비예)', caption: '개념:', rows: [[{ text: '정의', header: true }, { text: '특징', header: true }], [{ text: '' }, { text: '' }], [{ text: '예', header: true }, { text: '예가 아닌 것', header: true }], [{ text: '' }, { text: '' }]] },
-  { key: 'w5h1', label: '5W1H (누가·언제·어디서·무엇·어떻게·왜)', rows: [[{ text: '누가 (Who)' }, { text: '' }], [{ text: '언제 (When)' }, { text: '' }], [{ text: '어디서 (Where)' }, { text: '' }], [{ text: '무엇을 (What)' }, { text: '' }], [{ text: '어떻게 (How)' }, { text: '' }], [{ text: '왜 (Why)' }, { text: '' }]] },
-  { key: 'bme', label: '처음·중간·끝', rows: [[{ text: '처음', header: true }, { text: '중간', header: true }, { text: '끝', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'prediction', label: '예측하기 (예상·관찰·비교)', rows: [[{ text: '내 예상', header: true }, { text: '실제 관찰 · 결과', header: true }, { text: '비교 · 까닭', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'glowgrow', label: 'Glow & Grow (잘한 점·기를 점)', rows: [[{ text: '잘한 점 (Glow)', header: true }, { text: '더 기를 점 (Grow)', header: true }], [{ text: '' }, { text: '' }]] },
-  { key: 'perspectives', label: '관점 비교 (입장·근거·내 생각)', rows: [[{ text: '관점 · 입장', header: true }, { text: '근거 · 이유', header: true }, { text: '내 생각', header: true }], [{ text: '' }, { text: '' }, { text: '' }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'character', label: '인물 분석 (인물·특성·근거·변화)', rows: [[{ text: '인물' }, { text: '' }], [{ text: '성격 · 특성' }, { text: '' }], [{ text: '근거 (말 · 행동)' }, { text: '' }], [{ text: '변화 · 성장' }, { text: '' }]] },
-  { key: 'quotejournal', label: '인용 저널 (인용문·쪽·내 생각)', rows: [[{ text: '인용한 문장', header: true }, { text: '쪽', header: true }, { text: '왜 골랐나 · 내 생각', header: true }], [{ text: '' }, { text: '' }, { text: '' }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'bookreview', label: '북 리뷰 (제목·줄거리·평가)', rows: [[{ text: '책 제목 · 지은이' }, { text: '' }], [{ text: '줄거리 요약' }, { text: '' }], [{ text: '인상 깊은 부분' }, { text: '' }], [{ text: '느낀 점 · 평가' }, { text: '' }], [{ text: '별점 · 추천' }, { text: '' }]] },
+  { key: 'kwl', label: 'KWL (아는·알고싶은·배운 것)', rows: [
+    [{ text: 'K 아는 것', header: true, w: 33.34 }, { text: 'W 알고 싶은 것', header: true, w: 33.33 }, { text: 'L 배운 것', header: true, w: 33.33 }],
+    [{ text: '', h: 25 }, { text: '', h: 25 }, { text: '', h: 25 }],
+  ] },
+  { key: 'frayer', label: '프레이어 모형 (정의·특징·예·비예)', rows: [
+    [{ text: '개념:', header: true, colspan: 2, w: 100 }],
+    [{ text: '정의', header: true }, { text: '특징', header: true }],
+    [{ text: '', h: 19 }, { text: '', h: 19 }],
+    [{ text: '예', header: true }, { text: '예가 아닌 것', header: true }],
+    [{ text: '', h: 19 }, { text: '', h: 19 }],
+  ] },
+  { key: 'w5h1', label: '5W1H (누가·언제·어디서·무엇·어떻게·왜)', rows: [
+    [{ text: '누가 (Who)', header: true, w: 28 }, { text: '', w: 72, h: 10 }],
+    [{ text: '언제 (When)', header: true }, { text: '', h: 10 }],
+    [{ text: '어디서 (Where)', header: true }, { text: '', h: 10 }],
+    [{ text: '무엇을 (What)', header: true }, { text: '', h: 10 }],
+    [{ text: '어떻게 (How)', header: true }, { text: '', h: 10 }],
+    [{ text: '왜 (Why)', header: true }, { text: '', h: 10 }],
+  ] },
+  { key: 'bme', label: '처음·중간·끝', rows: [
+    [{ text: '처음', header: true, w: 33.34 }, { text: '중간', header: true, w: 33.33 }, { text: '끝', header: true, w: 33.33 }],
+    [{ text: '', h: 30 }, { text: '', h: 30 }, { text: '', h: 30 }],
+  ] },
+  { key: 'prediction', label: '예측하기 (예상·관찰·비교)', rows: [
+    [{ text: '내 예상', header: true, w: 33.34 }, { text: '실제 관찰 · 결과', header: true, w: 33.33 }, { text: '비교 · 까닭', header: true, w: 33.33 }],
+    [{ text: '', h: 18 }, { text: '', h: 18 }, { text: '', h: 18 }],
+  ] },
+  { key: 'glowgrow', label: 'Glow & Grow (잘한 점·기를 점)', rows: [
+    [{ text: '잘한 점 (Glow)', header: true, w: 50 }, { text: '더 기를 점 (Grow)', header: true, w: 50 }],
+    [{ text: '', h: 25 }, { text: '', h: 25 }],
+  ] },
+  { key: 'perspectives', label: '관점 비교 (입장·근거·내 생각)', rows: [
+    [{ text: '관점 · 입장', header: true, w: 24 }, { text: '근거 · 이유', header: true, w: 38 }, { text: '내 생각', header: true, w: 38 }],
+    [{ text: '', h: 16 }, { text: '', h: 16 }, { text: '', h: 16 }],
+    [{ text: '', h: 16 }, { text: '', h: 16 }, { text: '', h: 16 }],
+  ] },
+  { key: 'character', label: '인물 분석 (인물·특성·근거·변화)', rows: [
+    [{ text: '인물', header: true, w: 26 }, { text: '', w: 74, h: 12 }],
+    [{ text: '성격 · 특성', header: true }, { text: '', h: 12 }],
+    [{ text: '근거 (말 · 행동)', header: true }, { text: '', h: 12 }],
+    [{ text: '변화 · 성장', header: true }, { text: '', h: 12 }],
+  ] },
+  { key: 'quotejournal', label: '인용 저널 (인용문·쪽·내 생각)', rows: [
+    [{ text: '인용한 문장', header: true, w: 44 }, { text: '쪽', header: true, w: 12 }, { text: '왜 골랐나 · 내 생각', header: true, w: 44 }],
+    [{ text: '', h: 18 }, { text: '', h: 18 }, { text: '', h: 18 }],
+    [{ text: '', h: 18 }, { text: '', h: 18 }, { text: '', h: 18 }],
+  ] },
+  { key: 'bookreview', label: '북 리뷰 (제목·줄거리·평가)', rows: [
+    [{ text: '책 제목 · 지은이', header: true, w: 26 }, { text: '', w: 74, h: 10 }],
+    [{ text: '줄거리 요약', header: true }, { text: '', h: 16 }],
+    [{ text: '인상 깊은 부분', header: true }, { text: '', h: 10 }],
+    [{ text: '느낀 점 · 평가', header: true }, { text: '', h: 16 }],
+    [{ text: '별점 · 추천', header: true }, { text: '', h: 10 }],
+  ] },
 ]);
 
 export const QTYPE_LABELS = Object.freeze({

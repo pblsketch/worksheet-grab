@@ -1283,13 +1283,15 @@ export async function runEditorTestSeed(seed, {
     const ins = core.findObject(newId).obj;
     document.body.dataset.insType = ins.type;
     document.body.dataset.insPlacement = ins.placement;
-    document.body.dataset.insCaption = ins.caption || '';
+    document.body.dataset.insConceptColspan = String(ins.rows?.[0]?.[0]?.colspan ?? 0);
     document.body.dataset.insRows = String(Array.isArray(ins.rows) ? ins.rows.length : 0);
     document.body.dataset.insHasAnswer = String(ins.answer === true);
     const el = doc.querySelector(`[data-oid="${newId}"]`);
     const rendered = el ? el.innerHTML : '';
     document.body.dataset.insRendersTable = String(!!el && /<table/i.test(rendered));
     document.body.dataset.insHasHeaders = String(/정의/.test(rendered) && /예가 아닌 것/.test(rendered));
+    document.body.dataset.insHasColgroup = String(/<colgroup>/.test(rendered)); // 등폭/의도폭 열(colgroup)
+    document.body.dataset.insHasCellHeight = String(/height:\d+mm/.test(rendered)); // 필기 높이(h→mm)
     const saved = await save();
     document.body.dataset.organizerSaveOk = String(saved != null && saved.unsafe === false);
   } else if (seed === 'view-toggle') {
