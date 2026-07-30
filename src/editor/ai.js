@@ -31,6 +31,7 @@ import { RenderObjectTree } from '/src/usecases/RenderObjectTree.js';
 import { QUESTION_TYPES, computePageVersion } from '/src/domain/schema/index.js';
 import { QTYPE_LABELS } from './objectFactory.js';
 import { pageScopeTargets } from '/editor/pageScope.js';
+import { enforceAiLayout } from '/editor/aiLayoutGuard.js';
 
 const renderer = new RenderObjectTree();
 const WAIT_TIMEOUT_MS = 5 * 60 * 1000; // 대기 총 상한(무API 특성상 사람이 응답 — 옛 ai.js 관례와 동일)
@@ -188,6 +189,10 @@ export function sanitizeObject(obj) {
   const clone = structuredClone(obj);
   if (typeof clone.html === 'string') clone.html = sanitizeAiHtml(clone.html);
   if (typeof clone.bodyHtml === 'string') clone.bodyHtml = sanitizeAiHtml(clone.bodyHtml);
+  // callout(M4)의 body·titleHtml 도 살균 대상 — 렌더러가 이스케이프 없이 방출하므로(RenderObjectTree
+  // renderCallout: "입력에서 살균, 렌더는 raw") AI 가 여기 <script>/on* 을 실으면 캔버스에서 실행된다.
+  if (typeof clone.body === 'string') clone.body = sanitizeAiHtml(clone.body);
+  if (typeof clone.titleHtml === 'string') clone.titleHtml = sanitizeAiHtml(clone.titleHtml);
   // title.textHtml·question.promptHtml(인라인 서식 보존 HTML)도 정제 대상(richtext.html 과 동형).
   if (typeof clone.textHtml === 'string') clone.textHtml = sanitizeAiHtml(clone.textHtml);
   if (typeof clone.promptHtml === 'string') clone.promptHtml = sanitizeAiHtml(clone.promptHtml);
@@ -195,6 +200,16 @@ export function sanitizeObject(obj) {
     clone.answerKey = { ...clone.answerKey, html: sanitizeAiHtml(clone.answerKey.html) };
   }
   return clone;
+}
+
+/**
+ * AI 산출 개체 → 적용 안전 사본. **모든 AI 적용 경로의 단일 관문**(replace/insert/insert-section/echo).
+ * 두 방어를 겹친다: (1) sanitizeObject 로 HTML 필드 XSS 정제, (2) enforceAiLayout 로 레이아웃 필드
+ * 불변식 강제(AI 가 실은 크기·정렬·불투명도·회전은 버리고, 치환이면 교사 값 보존 — aiLayoutGuard.js).
+ * before 는 치환 대상 개체(신규 생성은 null).
+ */
+export function sanitizeAiObject(obj, before = null) {
+  return enforceAiLayout(sanitizeObject(obj), before);
 }
 
 // ══════════════════════════ AI 패널 ══════════════════════════
@@ -459,7 +474,7 @@ export function createAiPanel(deps) {
           continue;
         }
         if (!raw.object || typeof raw.object !== 'object') { problems.push(`수정 내용이 비어 있습니다: ${raw.id}`); continue; }
-        const after = sanitizeObject(raw.object);
+        const after = sanitizeAiObject(raw.object, found);
         items.push({ key: `rep-${raw.id}`, kind: 'replace', id: raw.id, before: found, after });
         ops.push({ op: 'replace', id: raw.id, object: after });
       } else if (raw.op === 'insert') {
@@ -480,7 +495,7 @@ export function createAiPanel(deps) {
           problems.push(`삽입 기준 개체가 요청 범위 밖입니다: ${anchorId}`);
           continue;
         }
-        const after = sanitizeObject(raw.object);
+        const after = sanitizeAiObject(raw.object, null);
         items.push({ key: `ins-${items.length}`, kind: 'insert', id: null, before: null, after });
         ops.push({
           op: 'insert',
@@ -500,7 +515,7 @@ export function createAiPanel(deps) {
         if (outOfScope(anchorId)) { problems.push(`섹션 삽입 기준 개체가 요청 범위 밖입니다: ${anchorId}`); continue; }
         const badType = list.find((o) => o && excludedSet.has(o.type));
         if (badType) { problems.push(`"${badType.type}" 개체는 AI 가 생성할 수 없습니다 — 성취기준 원문은 보존됩니다(원칙 3).`); continue; }
-        const cleaned = list.map((o) => sanitizeObject(o));
+        const cleaned = list.map((o) => sanitizeAiObject(o, null));
         for (const after of cleaned) items.push({ key: `sec-${items.length}`, kind: 'insert', id: null, before: null, after });
         ops.push({
           op: 'insert-section',
@@ -526,7 +541,7 @@ export function createAiPanel(deps) {
     const items = state.targets.map((t) => {
       const raw = byId.get(t.id);
       const valid = raw && typeof raw === 'object' && raw.id === t.id && raw.type === t.obj.type;
-      return { key: t.id, kind: 'replace', id: t.id, before: t.obj, after: valid ? sanitizeObject(raw) : null };
+      return { key: t.id, kind: 'replace', id: t.id, before: t.obj, after: valid ? sanitizeAiObject(raw, t.obj) : null };
     });
     const applicable = items.some((it) => it.after);
     return {
