@@ -63,7 +63,7 @@
       }
     }
   },
-  "count": 6,
+  "count": 13,
   "archetypes": {
     "experimental-inquiry": {
       "name": "실험탐구",
@@ -590,6 +590,166 @@
             "role": "성찰",
             "type": "reflection"
           }
+        ]
+      ]
+    },
+    "vocabulary-concept": {
+      "name": "어휘·개념 정리",
+      "pill": "어휘·개념",
+      "desc": "개념 확인 → 프레이어(정의·특징·예·비예) → 5W1H 분석 → 핵심 아이디어 정리 → 성찰. 시각 조직자 중심의 어휘·개념 학습(범교과).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "개념확인", "type": "subq" },
+          { "role": "프레이어", "type": "frayer" },
+          { "role": "정보분석", "type": "subq" },
+          { "role": "5W1H정리", "type": "w5h1" }
+        ],
+        [
+          { "role": "핵심정리", "type": "subq" },
+          { "role": "핵심아이디어", "type": "mainidea" },
+          { "role": "정리", "type": "section-heading" },
+          { "role": "성찰", "type": "exit321" }
+        ]
+      ]
+    },
+    "kwl-inquiry": {
+      "name": "KWL 탐구",
+      "pill": "KWL 탐구",
+      "desc": "배경지식 활성화(KWL) → 자료 제시 → 탐구 문항 → 처음·중간·끝 정리 → 점검·성찰. 단원 도입/탐구에 쓰는 시각 조직자 중심(범교과).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "배경지식", "type": "subq" },
+          { "role": "KWL", "type": "kwl" },
+          { "role": "자료", "type": "resource-box" }
+        ],
+        [
+          { "role": "탐구", "type": "subq" },
+          { "role": "탐구문항", "type": "question" },
+          { "role": "답줄", "type": "answer-line" },
+          { "role": "서사정리", "type": "bme" },
+          { "role": "점검", "type": "rubric" },
+          { "role": "성찰", "type": "exit321" }
+        ]
+      ]
+    },
+    "writing-plan": {
+      "name": "글쓰기·성찰",
+      "pill": "글쓰기 계획",
+      "desc": "자료·생각 정리(노트) → 관점 비교 → 문단 쓰기 계획(햄버거) → 성찰(Glow & Grow). 쓰기 전 계획과 성찰을 돕는 시각 조직자 중심(범교과).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "자료정리", "type": "subq" },
+          { "role": "노트", "type": "notetaking" },
+          { "role": "관점정리", "type": "subq" },
+          { "role": "관점비교", "type": "perspectives" }
+        ],
+        [
+          { "role": "글계획", "type": "subq" },
+          { "role": "문단계획", "type": "hamburger" },
+          { "role": "정리", "type": "section-heading" },
+          { "role": "성찰", "type": "glowgrow" }
+        ]
+      ]
+    },
+    "concept-visual": {
+      "name": "개념 시각화",
+      "pill": "개념 시각화",
+      "desc": "개념 비교(벤다이어그램) → 개념 관계(개념 지도) → 원인·결과 분석(피시본) → 성찰. 그림형 시각 조직자 중심(범교과, SVG).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "개념비교", "type": "subq" },
+          { "role": "벤다이어그램", "type": "venn" },
+          { "role": "개념관계", "type": "subq" },
+          { "role": "개념지도", "type": "conceptmap" }
+        ],
+        [
+          { "role": "원인분석", "type": "subq" },
+          { "role": "피시본", "type": "fishbone" },
+          { "role": "정리", "type": "section-heading" },
+          { "role": "성찰", "type": "exit321" }
+        ]
+      ]
+    },
+    "process-structure": {
+      "name": "과정·구조",
+      "pill": "과정·구조",
+      "desc": "과정 정리(순서 흐름도) → 구조 정리(위계 트리) → 적용 문항 → 성찰. 절차와 분류 체계를 시각화하는 조직자 중심(범교과, SVG).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "과정정리", "type": "subq" },
+          { "role": "흐름도", "type": "flowchart" },
+          { "role": "구조정리", "type": "subq" },
+          { "role": "위계트리", "type": "hierarchy" }
+        ],
+        [
+          { "role": "적용", "type": "subq" },
+          { "role": "적용문항", "type": "question" },
+          { "role": "답줄", "type": "answer-line" },
+          { "role": "정리", "type": "section-heading" },
+          { "role": "성찰", "type": "exit321" }
+        ]
+      ]
+    },
+    "literary-response": {
+      "name": "독서·문학 반응",
+      "pill": "독서·문학",
+      "desc": "책 정리(북 리뷰) → 인물 분석 → 인용 저널 → 내 글 계획(5문단 에세이). 독서 반응과 문학 감상을 돕는 시각 조직자 중심(범교과).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "책정리", "type": "subq" },
+          { "role": "북리뷰", "type": "bookreview" }
+        ],
+        [
+          { "role": "인물분석안내", "type": "subq" },
+          { "role": "인물분석", "type": "character" },
+          { "role": "인용안내", "type": "subq" },
+          { "role": "인용저널", "type": "quotejournal" }
+        ],
+        [
+          { "role": "글계획안내", "type": "subq" },
+          { "role": "에세이설계", "type": "essayplan" }
+        ]
+      ]
+    },
+    "landscape-organizer": {
+      "name": "가로 한 장 조직자",
+      "pill": "가로 조직자",
+      "desc": "가로 용지 한 페이지에 시각 조직자 하나가 크게(자동 맞춤) 들어가는 활동지 — 벤다이어그램·개념지도·피시본을 페이지마다.",
+      "subjects": ["*"],
+      "paper": { "size": "A4", "orientation": "landscape" },
+      "pages": [
+        [
+          { "role": "벤다이어그램", "type": "venn", "fit": true }
+        ],
+        [
+          { "role": "개념지도", "type": "conceptmap", "fit": true }
+        ],
+        [
+          { "role": "피시본", "type": "fishbone", "fit": true }
         ]
       ]
     }

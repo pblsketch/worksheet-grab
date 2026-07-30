@@ -1,0 +1,183 @@
+// OrganizerGen — 파라메트릭 시각 조직자 생성기.
+//
+// 엔진이 개수(params)로부터 SVG 를 **결정적으로** 그린다. 좌표·도형은 엔진이 계산하고,
+// AI/교사는 개수만 지정한다 → '닫힌 카탈로그 · AI 좌표 생성 금지' 불변식을 지키면서도
+// "원 3개 벤다이어그램", "개념 5칸 지도" 같은 요청에 맞춰 레이아웃을 바꿀 수 있다.
+//
+// 산출 HTML 은 정적 블록(blocks/core/venn.html 등)과 **같은 cssClass** 를 써서 blocks.css
+// 스타일(색·인쇄안전 .keep)이 그대로 적용된다. params 없는 기본 개수는 정적 블록과 동일하다.
+
+const NS = 'xmlns="http://www.w3.org/2000/svg"';
+const cap = (t) => `<div class="org-cap">${escText(t)}</div>`;
+
+function escText(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** 벤다이어그램 — circles: 2(기본) 또는 3. */
+export function vennSvg({ circles = 2 } = {}) {
+  const n = Number(circles) === 3 ? 3 : 2;
+  if (n === 2) {
+    return `<div class="venn keep">
+    <svg width="440" height="240" viewBox="0 0 440 240" ${NS} role="img" aria-label="벤다이어그램(2원)">
+      <circle cx="165" cy="125" r="100" stroke-width="1.6"/>
+      <circle cx="275" cy="125" r="100" stroke-width="1.6"/>
+      <text x="95" y="130" font-size="13" text-anchor="middle">A</text>
+      <text x="345" y="130" font-size="13" text-anchor="middle">B</text>
+      <text x="220" y="28" font-size="11" text-anchor="middle" class="v-mid">공통점</text>
+    </svg>
+    ${cap('양쪽 바깥에는 차이점, 가운데 겹치는 곳에는 공통점을 쓰자.')}
+  </div>`;
+  }
+  // 3원 — 삼각 배치(고전 3-집합 벤다이어그램).
+  return `<div class="venn keep">
+    <svg width="460" height="330" viewBox="0 0 460 330" ${NS} role="img" aria-label="벤다이어그램(3원)">
+      <circle cx="185" cy="132" r="105" stroke-width="1.6"/>
+      <circle cx="275" cy="132" r="105" stroke-width="1.6"/>
+      <circle cx="230" cy="212" r="105" stroke-width="1.6"/>
+      <text x="118" y="92" font-size="13" text-anchor="middle">A</text>
+      <text x="342" y="92" font-size="13" text-anchor="middle">B</text>
+      <text x="230" y="300" font-size="13" text-anchor="middle">C</text>
+      <text x="230" y="150" font-size="10" text-anchor="middle" class="v-mid">공통</text>
+    </svg>
+    ${cap('세 원이 겹치는 부분에는 공통점, 바깥에는 각 대상의 특징을 쓰자.')}
+  </div>`;
+}
+
+/** 개념 지도 — nodes: 3~6칸(기본 4). 중심 개념에서 N개 노드가 방사형으로 뻗는다. */
+export function conceptMapSvg({ nodes = 4 } = {}) {
+  const n = Math.max(3, Math.min(6, Number(nodes) | 0 || 4));
+  const W = 490, H = 350, cx = W / 2, cy = H / 2;
+  const rx = 64, ry = 34;        // 중심 타원(연결선이 드러나도록 약간 축소)
+  const R = 140;                 // 노드 배치 반경 — 상자가 타원과 충분히 떨어져 연결선이 보이게
+  const bw = 104, bh = 42;       // 노드 상자
+  let lines = '', boxes = '';
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + (i * 2 * Math.PI / n); // 위에서 시작, 시계방향
+    const bx = cx + R * Math.cos(ang);
+    const by = cy + R * Math.sin(ang);
+    lines += `<line x1="${cx}" y1="${cy}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>\n      `;
+    boxes += `<rect x="${(bx - bw / 2).toFixed(1)}" y="${(by - bh / 2).toFixed(1)}" width="${bw}" height="${bh}" rx="6" class="cm-node" stroke-width="1.2"/>\n      `;
+  }
+  return `<div class="conceptmap keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="개념 지도(${n}칸)">
+      ${lines}<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" class="cm-core" stroke-width="1.6"/>
+      <text x="${cx}" y="${cy + 4}" font-size="12" text-anchor="middle">핵심 개념</text>
+      ${boxes}</svg>
+    ${cap(`가운데 핵심 개념에서 뻗어 나가는 생각·낱말을 ${n}칸에 적자.`)}
+  </div>`;
+}
+
+// 파라메트릭 생성이 가능한 조직자 타입 → 생성기. AssembleWorksheet 가 entry.params 있을 때 사용.
+/** 피시본 — branches: 2~6개 원인 가지(기본 4). 중심선 + 결과 박스 + N개 가지. */
+export function fishboneSvg({ branches = 4 } = {}) {
+  const n = Math.max(2, Math.min(6, Number(branches) | 0 || 4));
+  const W = 490, H = 240, y = 120;
+  let g = '';
+  for (let i = 0; i < n; i++) {
+    const sx = n === 1 ? 220 : 100 + i * (240 / (n - 1));
+    const up = i % 2 === 0;
+    const ex = sx - 46, ey = up ? 34 : 206;
+    g += `<line x1="${sx.toFixed(1)}" y1="${y}" x2="${ex.toFixed(1)}" y2="${ey}" class="fb-branch" stroke-width="1.2"/>\n      `;
+    g += `<text x="${(ex - 4).toFixed(1)}" y="${up ? 28 : 218}" font-size="9.5" text-anchor="middle" class="fb-lab">원인</text>\n      `;
+  }
+  return `<div class="fishbone keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="피시본(원인 ${n}개)">
+      <line x1="24" y1="${y}" x2="406" y2="${y}" class="fb-spine" stroke-width="1.8"/>
+      <polygon points="412,${y} 398,${y - 7} 398,${y + 7}" class="fb-arrow"/>
+      <rect x="414" y="95" width="66" height="50" rx="6" class="fb-result" stroke-width="1.4"/>
+      <text x="447" y="${y + 4}" font-size="10" text-anchor="middle">결과</text>
+      ${g}</svg>
+    ${cap('오른쪽 결과가 왜 생겼는지 가지마다 원인을 적자.')}
+  </div>`;
+}
+
+/** 순서 흐름도 — steps: 2~6단계(기본 4). N개 박스 + 화살표. */
+export function flowchartSvg({ steps = 4 } = {}) {
+  const n = Math.max(2, Math.min(6, Number(steps) | 0 || 4));
+  const bw = 88, bh = 46, gap = 42, mx = 12, y = 32;
+  const W = mx * 2 + n * bw + (n - 1) * gap, H = 110;
+  let boxes = '', arrows = '', labels = '';
+  for (let i = 0; i < n; i++) {
+    const x = mx + i * (bw + gap);
+    boxes += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="6" class="fc-box"/>\n      `;
+    labels += `<text x="${x + bw / 2}" y="${y + 29}" font-size="11" text-anchor="middle">${i + 1}</text>\n      `;
+    if (i < n - 1) {
+      const ax = x + bw, nx = x + bw + gap;
+      arrows += `<line x1="${ax + 2}" y1="${y + 23}" x2="${nx - 6}" y2="${y + 23}" class="fc-link"/>`;
+      arrows += `<polygon points="${nx},${y + 23} ${nx - 10},${y + 18} ${nx - 10},${y + 28}" class="fc-arrow"/>\n      `;
+    }
+  }
+  return `<div class="flowchart keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="순서 흐름도(${n}단계)">
+      ${arrows}${boxes}${labels}</svg>
+    ${cap('왼쪽부터 순서대로 각 단계에 할 일이나 과정을 적자.')}
+  </div>`;
+}
+
+/** 위계 트리 — children: 2~5개 하위(기본 3). 상위 박스 + N개 하위 박스. */
+export function hierarchySvg({ children = 3 } = {}) {
+  const n = Math.max(2, Math.min(5, Number(children) | 0 || 3));
+  const cw = 120, ch = 52, gap = 18, cy = 150;
+  const totalW = n * cw + (n - 1) * gap;
+  const W = Math.max(300, totalW + 40), H = 216, cx = W / 2;
+  const startX = (W - totalW) / 2;
+  let boxes = '', lines = '';
+  for (let i = 0; i < n; i++) {
+    const x = startX + i * (cw + gap);
+    lines += `<line x1="${cx}" y1="60" x2="${(x + cw / 2).toFixed(1)}" y2="${cy}" class="h-link"/>\n      `;
+    boxes += `<rect x="${x.toFixed(1)}" y="${cy}" width="${cw}" height="${ch}" rx="6" class="h-node"/>\n      `;
+  }
+  return `<div class="hierarchy keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="위계 트리(하위 ${n}개)">
+      ${lines}<rect x="${(cx - 62).toFixed(1)}" y="14" width="124" height="46" rx="6" class="h-top"/>
+      <text x="${cx}" y="42" font-size="12" text-anchor="middle">상위 개념</text>
+      ${boxes}</svg>
+    ${cap('위쪽에 큰 개념, 아래에 그에 속하는 하위 개념을 적자.')}
+  </div>`;
+}
+
+/** 헥사고날 싱킹 — count: 3~7개(기본 5). 벌집형 2줄 배치. */
+export function hexagonSvg({ count = 5 } = {}) {
+  const n = Math.max(3, Math.min(7, Number(count) | 0 || 5));
+  const R = 44, h = 38, sp = 100;
+  const top = Math.ceil(n / 2), bot = n - top;
+  const topW = top * sp, botW = bot * sp;
+  const W = Math.max(topW, botW + sp / 2) + 40, H = bot > 0 ? 210 : 130;
+  const hex = (cx, cy) => `<polygon points="${cx - R},${cy} ${cx - R / 2},${cy - h} ${cx + R / 2},${cy - h} ${cx + R},${cy} ${cx + R / 2},${cy + h} ${cx - R / 2},${cy + h}" class="hx"/>`;
+  let g = '';
+  const topStart = (W - topW) / 2 + sp / 2;
+  for (let i = 0; i < top; i++) g += hex(topStart + i * sp, 75) + '\n      ';
+  const botStart = (W - botW) / 2 + sp / 2;
+  for (let i = 0; i < bot; i++) g += hex(botStart + i * sp, 165) + '\n      ';
+  return `<div class="hexagon keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="헥사고날 싱킹(${n}개)">
+      ${g}</svg>
+    ${cap('각 육각형에 핵심 낱말을 하나씩 쓰고, 관련 있는 것끼리 변을 맞대어 연결하자.')}
+  </div>`;
+}
+
+export const ORGANIZER_GENERATORS = {
+  venn: vennSvg,
+  conceptmap: conceptMapSvg,
+  fishbone: fishboneSvg,
+  flowchart: flowchartSvg,
+  hierarchy: hierarchySvg,
+  hexagon: hexagonSvg,
+};
+
+/**
+ * SVG 조직자를 박스(px) 안에 꽉 맞게 스케일한다(가로/세로 중 꽉 차는 쪽 기준, 비율 유지 → 잘림 0).
+ * viewBox 가 있는 SVG 만 대상. 표 등 viewBox 없는 HTML 은 그대로 반환(폭은 이미 width:100%).
+ * @param {string} html 조직자 HTML
+ * @param {number} boxW 박스 폭(px)
+ * @param {number} boxH 박스 높이(px)
+ */
+export function fitSvgToBox(html, boxW, boxH) {
+  const vb = html.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
+  if (!vb || !(boxW > 0) || !(boxH > 0)) return html;
+  const vbW = parseFloat(vb[1]), vbH = parseFloat(vb[2]);
+  const s = Math.min(boxW / vbW, boxH / vbH);
+  const w = Math.round(vbW * s), h = Math.round(vbH * s);
+  return html.replace(/<svg width="\d+(?:\.\d+)?" height="\d+(?:\.\d+)?"/, `<svg width="${w}" height="${h}"`);
+}

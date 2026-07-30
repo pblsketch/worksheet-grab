@@ -2,8 +2,8 @@
   "version": 1,
   "note": "블록 타입 어휘 + 계약. 코어=≥2교과 사용·var(--*)만 참조(인쇄안전). 교과팩=해당 교과 전용. gen 타입(standard-label)은 파일 없이 엔진이 성취기준 원문으로 렌더. 콘텐츠는 요청마다 manifest 에 인라인 저작(동적 조립), exemplar 는 재사용 시드/폴백.",
   "counts": {
-    "total": 28,
-    "core": 17,
+    "total": 51,
+    "core": 40,
     "pack": 11
   },
   "types": {
@@ -411,6 +411,305 @@
       "desc": "대화문(빈칸 채우기)",
       "cssClass": "dialogue",
       "file": "pack-english/dialogue.html"
+    },
+    "kwl": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "KWL 조직자(아는 것·알고 싶은 것·배운 것) — 단원 도입·정리",
+      "studentFill": true,
+      "cssClass": "kwl",
+      "file": "core/kwl.html"
+    },
+    "frayer": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "프레이어 모형(정의·특징·예·비예) — 어휘·개념 학습",
+      "studentFill": true,
+      "cssClass": "frayer",
+      "file": "core/frayer.html"
+    },
+    "w5h1": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "5W1H(누가·언제·어디서·무엇을·어떻게·왜) — 사건·자료 분석",
+      "studentFill": true,
+      "cssClass": "w5h1",
+      "file": "core/w5h1.html"
+    },
+    "bme": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "처음·중간·끝 — 서사 구조 정리",
+      "studentFill": true,
+      "cssClass": "bme",
+      "file": "core/bme.html"
+    },
+    "exit321": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "3-2-1 성찰(엑시트 티켓) — 배운 것 3·연결 2·질문 1",
+      "studentFill": true,
+      "cssClass": "exit321",
+      "file": "core/exit321.html"
+    },
+    "mainidea": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "핵심 아이디어 + 뒷받침 근거 — 요지·근거 구조화",
+      "studentFill": true,
+      "cssClass": "mainidea",
+      "file": "core/mainidea.html"
+    },
+    "notetaking": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "노트 정리 틀(코넬식 — 핵심어·내용·요약)",
+      "cssClass": "notetaking",
+      "file": "core/notetaking.html"
+    },
+    "hamburger": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "문단 쓰기 계획(햄버거 — 주제문·뒷받침·맺음)",
+      "cssClass": "hamburger",
+      "file": "core/hamburger.html"
+    },
+    "perspectives": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "관점 비교(입장·근거·내 생각) — 토론·쟁점",
+      "cssClass": "perspectives",
+      "file": "core/perspectives.html"
+    },
+    "prediction": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "예측하기(예상·관찰·비교) — 탐구 전후 비교",
+      "cssClass": "prediction",
+      "file": "core/prediction.html"
+    },
+    "glowgrow": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "Glow & Grow 성찰(잘한 점·기를 점)",
+      "cssClass": "glowgrow",
+      "file": "core/glowgrow.html"
+    },
+    "stoplight": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "신호등 자기점검(빨강·노랑·초록)",
+      "cssClass": "stoplight",
+      "file": "core/stoplight.html"
+    },
+    "venn": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "벤다이어그램(2원 — 공통점·차이점) — 비교 (SVG)",
+      "cssClass": "venn",
+      "file": "core/venn.html"
+    },
+    "conceptmap": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "개념 지도(중심 개념 + 방사 노드) — 브레인스토밍·구조화 (SVG)",
+      "cssClass": "conceptmap",
+      "file": "core/conceptmap.html"
+    },
+    "fishbone": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "피시본 다이어그램(중심선 + 원인 가지) — 원인·결과 분석 (SVG)",
+      "cssClass": "fishbone",
+      "file": "core/fishbone.html"
+    },
+    "plotdiagram": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "플롯 다이어그램(이야기 산 — 발단·전개·절정·하강·결말) — 서사 분석 (SVG)",
+      "cssClass": "plotdiagram",
+      "file": "core/plotdiagram.html"
+    },
+    "hierarchy": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "위계 트리(상위 개념 + 하위 노드) — 분류·체계화 (SVG)",
+      "cssClass": "hierarchy",
+      "file": "core/hierarchy.html"
+    },
+    "flowchart": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "순서 흐름도(단계 박스 + 화살표) — 절차·과정 (SVG)",
+      "cssClass": "flowchart",
+      "file": "core/flowchart.html"
+    },
+    "hexagon": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "헥사고날 싱킹(연결 사고) — 개념 연결·통합 (SVG)",
+      "cssClass": "hexagon",
+      "file": "core/hexagon.html"
+    },
+    "essayplan": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": false,
+      "studentFill": true,
+      "desc": "5문단 에세이 설계(서론·본론3·결론 섹션 스택) — 글쓰기 계획",
+      "cssClass": "essayplan",
+      "file": "core/essayplan.html"
+    },
+    "character": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "인물 분석(인물·특성·근거·변화) — 문학·역사 인물",
+      "cssClass": "character",
+      "file": "core/character.html"
+    },
+    "bookreview": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "북 리뷰(제목·줄거리·인상·평가·추천) — 독서 반응",
+      "cssClass": "bookreview",
+      "file": "core/bookreview.html"
+    },
+    "quotejournal": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "인용 저널(인용문·쪽·내 생각) — 텍스트 근거 분석",
+      "cssClass": "quotejournal",
+      "file": "core/quotejournal.html"
     }
   }
 }

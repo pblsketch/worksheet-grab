@@ -54,6 +54,18 @@ export function paperDims(resolved) {
   return resolved.orientation === 'landscape' ? { w: h, h: w } : { w, h };
 }
 
+const PX_PER_MM = 96 / 25.4; // CSS px @96dpi
+
+/** 콘텐츠 박스(여백 안쪽) 크기를 px 로. 조직자 자동 맞춤(fit)의 박스 계산에 쓴다. */
+export function paperContentPx(resolved) {
+  const { w, h } = paperDims(resolved);
+  const m = paperMargins(resolved);
+  return {
+    w: Math.round((w - m.left - m.right) * PX_PER_MM),
+    h: Math.round((h - m.top - m.bottom) * PX_PER_MM),
+  };
+}
+
 /** CSS 여백 shorthand(mm) → {top,right,bottom,left} (mm 숫자). 1·2·3·4값 지원. */
 /** 다단 열 사이 간격(mm). paperCss 가 방출하는 `--sheet-colgap` 의 값이자, 페이지네이션이 열 폭을
  *  계산할 때 쓰는 값이다 — 두 곳에 따로 적으면 조용히 어긋나므로 여기 하나만 둔다. */

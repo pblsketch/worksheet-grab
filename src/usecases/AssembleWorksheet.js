@@ -1,5 +1,6 @@
 import { Worksheet, Block, Standard } from '../domain/index.js';
-import { resolvePaper, paperCss } from './paper.js';
+import { resolvePaper, paperCss, paperContentPx } from './paper.js';
+import { ORGANIZER_GENERATORS, fitSvgToBox } from './OrganizerGen.js';
 
 // AssembleWorksheet — 매니페스트 + 블록 라이브러리 + 테마 + 성취기준(CSV) → 활동지 HTML.
 // 겸 Presenter: 도메인 Worksheet 를 HTML(MODE_TOKEN 포함) 로 직렬화한다.
@@ -100,9 +101,25 @@ export class AssembleWorksheet {
     if (entry.gen === 'standard-label' || entry.type === 'standard-label') {
       return this.#renderStandardLabel(standards, manifest);
     }
-    if (typeof entry.html === 'string') return entry.html; // 인라인 블록(템플릿 슬롯 치환 결과)
-    if (!entry.file) throw new Error(`블록 엔트리에 file/html/gen 이 없습니다: ${JSON.stringify(entry)}`);
-    return this.repo.loadBlockHtml(entry.file);
+    let html;
+    // 파라메트릭 조직자: entry.params 가 있으면 엔진이 개수대로 SVG 를 생성한다(좌표는 엔진 계산).
+    // params 없으면 정적 블록(entry.file)을 쓴다 = 기존 산출 그대로(하위호환).
+    if (entry.params && ORGANIZER_GENERATORS[entry.type]) html = ORGANIZER_GENERATORS[entry.type](entry.params);
+    else if (typeof entry.html === 'string') html = entry.html; // 인라인 블록(템플릿 슬롯 치환 결과)
+    else if (entry.file) html = await this.repo.loadBlockHtml(entry.file);
+    else throw new Error(`블록 엔트리에 file/html/gen 이 없습니다: ${JSON.stringify(entry)}`);
+    // 자동 맞춤(fit): SVG 조직자를 용지 여백 박스에 꽉 맞게 스케일(잘림 방지). viewBox 없는 표 등은 그대로.
+    if (entry.fit) html = fitSvgToBox(html, ...this.#fitBox(entry.fit, manifest));
+    return html;
+  }
+
+  /** entry.fit 의 박스(px). 객체 {w,h} 면 그대로, true 면 manifest.paper 콘텐츠에서 헤더 여유를 뺀 값. */
+  #fitBox(fit, manifest) {
+    if (fit && typeof fit === 'object' && fit.w > 0 && fit.h > 0) return [fit.w, fit.h];
+    const resolved = resolvePaper(manifest?.paper) || resolvePaper({ size: 'A4', orientation: 'portrait' });
+    const c = paperContentPx(resolved);
+    const HEADER_RESERVE = 150; // 헤더·제목 여유(px) — 보수적으로 잡아 넘침을 막는다.
+    return [Math.round(c.w * 0.96), Math.max(120, c.h - HEADER_RESERVE)];
   }
 
   /**

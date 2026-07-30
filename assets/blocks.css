@@ -294,3 +294,152 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .dialogue .turn { display: flex; gap: 8px; margin: 5px 0; font-size: 9.5pt; }
 .dialogue .spk { font-weight: 700; color: var(--cink); min-width: 34px; }
 .dialogue .blank { border-bottom: 1px solid #bbb; flex: 1; min-height: 16px; }
+
+/* ===== 시각 조직자(graphic organizers) — Track A 표형 (범교과 코어) ===== */
+/* 인쇄안전은 .keep(page-break-inside:avoid, paper.css)로 보장. 색은 테마 토큰(var(--*))만. */
+.kwl, .frayer, .w5h1, .bme, .exit321, .mainidea {
+  margin-top: 3mm; width: 100%; border-collapse: collapse; }
+.kwl th, .frayer th, .bme th, .mainidea th {
+  background: var(--clabel); color: var(--cink); font-weight: 700;
+  padding: 6px; font-size: 9.5pt; border: 1px solid #cbd5c0; text-align: center; }
+.kwl td, .frayer td, .bme td, .w5h1 td, .exit321 td, .mainidea td {
+  border: 1px solid #cbd5c0; padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+
+/* KWL — 아는 것 / 알고 싶은 것 / 배운 것 (3열) */
+.kwl th span { display: block; font-weight: 400; font-size: 8pt; color: #555; margin-top: 2px; }
+.kwl td { height: 96px; width: 33.33%; }
+
+/* 프레이어 모형 — 정의·특징·예·비예 (2×2) + 중심 개념 */
+.frayer { caption-side: top; }
+.frayer caption { font-weight: 700; color: var(--cink); font-size: 9.5pt;
+  margin-bottom: 3px; text-align: center; }
+.frayer th { width: 50%; }
+.frayer td.fq { height: 72px; width: 50%; }
+
+/* 5W1H (Big 6) — 라벨-값 6행 */
+.w5h1 td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 28%; }
+.w5h1 td { height: 34px; }
+
+/* 처음·중간·끝 — 3열 서사 구조 */
+.bme td { height: 112px; width: 33.33%; }
+
+/* 3-2-1 성찰(엑시트 티켓) */
+.exit321 td.num { background: var(--clabel); color: var(--cink); font-weight: 700;
+  text-align: center; width: 12%; font-size: 12pt; }
+.exit321 .wr { border-bottom: 1px solid #bbb; margin: 8px 0 2px; min-height: 15px; }
+
+/* 핵심 아이디어 + 뒷받침 근거 */
+.mainidea td.mi-main { height: 46px; }
+.mainidea td.mi-sup { height: 20px; }
+.mainidea .wr { border-bottom: 1px solid #bbb; margin: 6px 0 10px; min-height: 15px; }
+
+/* ===== 시각 조직자 배치2 (범교과 코어) ===== */
+.notetaking, .hamburger, .perspectives, .prediction, .glowgrow, .stoplight {
+  margin-top: 3mm; width: 100%; border-collapse: collapse; }
+.notetaking th, .hamburger th, .perspectives th, .prediction th, .glowgrow th {
+  background: var(--clabel); color: var(--cink); font-weight: 700; padding: 6px;
+  font-size: 9.5pt; border: 1px solid #cbd5c0; text-align: center; }
+.notetaking td, .hamburger td, .perspectives td, .prediction td, .glowgrow td, .stoplight td {
+  border: 1px solid #cbd5c0; padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+.notetaking .wr, .hamburger .wr, .stoplight .wr {
+  border-bottom: 1px solid #bbb; margin: 6px 0 8px; min-height: 15px; }
+
+/* 노트 정리(코넬식) — 핵심어 / 내용 / 요약 */
+.notetaking th.nt-cue, .notetaking td.nt-cue { width: 30%; }
+.notetaking td.nt-cue { background: #f6f6f6; }
+.notetaking td.nt-note { height: 118px; }
+
+/* 문단 쓰기 계획(햄버거) — 주제문 / 뒷받침 / 맺음 */
+.hamburger td.hb { height: 20px; }
+
+/* 관점 비교 — 입장 / 근거 / 내 생각 */
+.perspectives td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 24%; }
+.perspectives td { height: 60px; }
+
+/* 예측하기 — 예상 / 관찰 / 비교 */
+.prediction td { height: 96px; width: 33.33%; }
+
+/* Glow & Grow 성찰 */
+.glowgrow td { height: 90px; width: 50%; }
+
+/* 신호등 자기점검 */
+.stoplight td.sl { width: 12%; text-align: center; font-size: 18pt; line-height: 1; }
+.stoplight td.sl-r { color: #d32f2f; }
+.stoplight td.sl-y { color: #f9a825; }
+.stoplight td.sl-g { color: #388e3c; }
+
+/* ===== 시각 조직자 Track B — 그림형(SVG, 범교과 코어) ===== */
+/* 색은 전부 CSS(HTML SVG 엔 hex 0 — 범교과 게이트 통과). 인쇄안전 = .keep + 고정비율 SVG. */
+.venn, .conceptmap, .fishbone, .plotdiagram { margin-top: 3mm; text-align: center; }
+.venn svg, .conceptmap svg, .fishbone svg, .plotdiagram svg {
+  max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.venn text, .conceptmap text, .fishbone text, .plotdiagram text {
+  fill: #333; font-family: Pretendard, "Malgun Gothic", sans-serif; font-weight: 700; }
+.org-cap { font-size: 8.7pt; color: #666; margin-top: 4px; text-align: center; }
+
+/* 벤다이어그램 — 두 원 + 겹침(공통점) */
+.venn svg circle { fill: none; stroke: #7a7a7a; }
+.venn .v-mid { fill: #777; font-weight: 400; }
+
+/* 개념 지도 — 중심 + 방사 노드 */
+.conceptmap svg line { stroke: #aaa; }
+.conceptmap svg .cm-core { fill: #eef1f4; stroke: #666; }
+/* 노드 상자는 흰색 채움 — 뒤에서 오는 연결선이 상자 위로 비쳐 보이지 않게 가린다(z-order 디테일). */
+.conceptmap svg .cm-node { fill: #fff; stroke: #999; }
+
+/* 피시본(원인·결과) — 중심선 + 가지 */
+.fishbone svg .fb-spine { stroke: #777; }
+.fishbone svg .fb-branch { stroke: #aaa; }
+.fishbone svg .fb-arrow { fill: #777; }
+.fishbone svg .fb-result { fill: #eef1f4; stroke: #666; }
+.fishbone .fb-lab { fill: #888; font-weight: 400; }
+
+/* 플롯 다이어그램(이야기 산) — 발단·전개·절정·하강·결말 */
+.plotdiagram svg .pd-line { fill: none; stroke: #777; }
+.plotdiagram svg .pd-dot { fill: #666; }
+.plotdiagram .pd-lab { fill: #777; font-weight: 400; }
+
+/* ===== 시각 조직자 Track B 배치2 (SVG, 범교과 코어) ===== */
+.hierarchy, .flowchart, .hexagon { margin-top: 3mm; text-align: center; }
+.hierarchy svg, .flowchart svg, .hexagon svg {
+  max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.hierarchy text, .flowchart text {
+  fill: #333; font-family: Pretendard, "Malgun Gothic", sans-serif; font-weight: 700; }
+
+/* 위계 트리 — 상위 개념 + 하위 노드 */
+.hierarchy svg .h-top { fill: #eef1f4; stroke: #666; stroke-width: 1.4; }
+/* 하위 노드도 흰색 채움 — 연결선이 상자 위로 비치지 않게(z-order 디테일). */
+.hierarchy svg .h-node { fill: #fff; stroke: #999; stroke-width: 1.2; }
+.hierarchy svg .h-link { stroke: #aaa; stroke-width: 1.2; }
+
+/* 순서 흐름도 — 단계 박스 + 화살표 */
+.flowchart svg .fc-box { fill: none; stroke: #888; stroke-width: 1.3; }
+.flowchart svg .fc-link { stroke: #888; stroke-width: 1.3; }
+.flowchart svg .fc-arrow { fill: #888; }
+
+/* 헥사고날 싱킹 — 연결 사고 */
+.hexagon svg .hx { fill: none; stroke: #888; stroke-width: 1.3; }
+
+/* ===== 시각 조직자 배치3 — 독서·문학·글쓰기 (범교과 코어) ===== */
+.character, .bookreview, .quotejournal { margin-top: 3mm; width: 100%; border-collapse: collapse; }
+.character td, .bookreview td, .quotejournal td, .quotejournal th {
+  border: 1px solid #cbd5c0; padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+.character td.lab, .bookreview td.lab {
+  background: #f6f6f6; font-weight: 700; text-align: center; width: 26%; }
+.character td { height: 40px; }
+.bookreview td { height: 38px; }
+.bookreview td.tall { height: 62px; }
+
+/* 인용 저널 */
+.quotejournal th { background: var(--clabel); color: var(--cink); font-weight: 700;
+  padding: 6px; text-align: center; font-size: 9.5pt; }
+.quotejournal .q-p { width: 12%; text-align: center; }
+.quotejournal td.q-quote { height: 58px; width: 44%; }
+.quotejournal td.q-think { height: 58px; }
+
+/* 5문단 에세이 설계 — 섹션 스택(각 섹션 keep, 섹션 사이 페이지 넘김 허용) */
+.essayplan { margin-top: 3mm; }
+.essayplan .ep-sec { border: 1px solid #cbd5c0; border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+.essayplan .ep-h { background: var(--clabel); color: var(--cink); font-weight: 700;
+  padding: 5px 10px; font-size: 9.5pt; }
+.essayplan .ep-b { min-height: 44px; padding: 8px 10px; }
