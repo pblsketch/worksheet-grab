@@ -2,8 +2,8 @@
   "version": 1,
   "note": "블록 타입 어휘 + 계약. 코어=≥2교과 사용·var(--*)만 참조(인쇄안전). 교과팩=해당 교과 전용. gen 타입(standard-label)은 파일 없이 엔진이 성취기준 원문으로 렌더. 콘텐츠는 요청마다 manifest 에 인라인 저작(동적 조립), exemplar 는 재사용 시드/폴백.",
   "counts": {
-    "total": 47,
-    "core": 36,
+    "total": 51,
+    "core": 40,
     "pack": 11
   },
   "types": {
@@ -658,6 +658,58 @@
       "desc": "헥사고날 싱킹(연결 사고) — 개념 연결·통합 (SVG)",
       "cssClass": "hexagon",
       "file": "core/hexagon.html"
+    },
+    "essayplan": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": false,
+      "studentFill": true,
+      "desc": "5문단 에세이 설계(서론·본론3·결론 섹션 스택) — 글쓰기 계획",
+      "cssClass": "essayplan",
+      "file": "core/essayplan.html"
+    },
+    "character": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "인물 분석(인물·특성·근거·변화) — 문학·역사 인물",
+      "cssClass": "character",
+      "file": "core/character.html"
+    },
+    "bookreview": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "북 리뷰(제목·줄거리·인상·평가·추천) — 독서 반응",
+      "cssClass": "bookreview",
+      "file": "core/bookreview.html"
+    },
+    "quotejournal": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "인용 저널(인용문·쪽·내 생각) — 텍스트 근거 분석",
+      "cssClass": "quotejournal",
+      "file": "core/quotejournal.html"
     }
   }
 }

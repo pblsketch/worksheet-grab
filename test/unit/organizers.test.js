@@ -18,19 +18,21 @@ const ORGANIZERS = [
   'kwl', 'frayer', 'w5h1', 'bme', 'exit321', 'mainidea',
   'notetaking', 'hamburger', 'perspectives', 'prediction', 'glowgrow', 'stoplight',
   'venn', 'conceptmap', 'fishbone', 'plotdiagram', 'hierarchy', 'flowchart', 'hexagon',
+  'essayplan', 'character', 'bookreview', 'quotejournal',
 ];
 // Track B — 그림형(SVG) 조직자(색은 CSS, HTML 엔 hex 0).
 const DIAGRAM_ORGANIZERS = ['venn', 'conceptmap', 'fishbone', 'plotdiagram', 'hierarchy', 'flowchart', 'hexagon'];
 
-test('시각 조직자: 6종이 vocabulary 에 코어(*)·keepTogether·core/<type>.html 로 등록', async () => {
+test('시각 조직자: 전 종이 vocabulary 에 코어(*)·printSafe·studentFill·core/<type>.html 로 등록', async () => {
   const v = await repo().readVocabulary();
   for (const t of ORGANIZERS) {
     const def = v.types[t];
     assert.ok(def, `${t}: vocabulary 에 등록됨`);
     assert.equal(def.category, 'core', `${t}: 코어(범교과)`);
     assert.deepEqual(def.subjects, ['*'], `${t}: subjects=["*"]`);
-    assert.equal(def.keepTogether, true, `${t}: keepTogether=true(인쇄안전 의도)`);
     assert.equal(def.printSafe, true, `${t}: printSafe=true`);
+    assert.equal(def.studentFill, true, `${t}: studentFill=true(빈 구조·정답 오염 방지)`);
+    assert.equal(typeof def.keepTogether, 'boolean', `${t}: keepTogether 플래그(불리언 — 표형=true, 스택=false)`);
     assert.equal(def.file, `core/${t}.html`, `${t}: 파일 경로 일치`);
   }
 });
@@ -157,4 +159,22 @@ test('시각 조직자 surfacing: compose --archetype process-structure 가 흐�
   const { html } = await asm.execute(manifest);
   assert.match(html, /class="[^"]*\bflowchart\b/, '흐름도 렌더');
   assert.match(html, /<svg/, 'SVG 방출');
+});
+
+test('시각 조직자 surfacing: compose --archetype literary-response 가 북리뷰·인물·인용·에세이를 주제로 채운다', async () => {
+  const compose = new ComposeWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { manifest, archetype } = await compose.execute({
+    grade: '중2', subject: '국어', topic: '소나기', archetype: 'literary-response', codes: ['[9국05-01]'],
+  });
+  assert.equal(archetype, 'literary-response');
+  const types = new Set(manifest.pages.flat().map((e) => e.type));
+  for (const t of ['bookreview', 'character', 'quotejournal', 'essayplan']) {
+    assert.ok(types.has(t), `스캐폴드에 ${t} 포함`);
+  }
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { html, worksheet } = await asm.execute(manifest);
+  assert.equal(worksheet.pageCount(), manifest.pages.length, '스캐폴드 쪽수대로 조립');
+  assert.match(html, /class="[^"]*\bessayplan\b/, '에세이 설계 렌더');
+  // 에세이 설계는 섹션 스택 — 각 섹션에 keep(섹션 사이 넘김 허용).
+  assert.match(html, /class="ep-sec keep"/, '에세이 섹션별 keep');
 });

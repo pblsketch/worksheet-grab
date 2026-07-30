@@ -116,3 +116,32 @@ test('P1 Track B: 그림형(SVG) 조직자 7종이 실물 Chrome 으로 SVG 렌�
     const pages = await countPdfPages(outPath);
     assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — SVG 넘침 없음`);
   });
+
+test('P1 배치3: 독서·문학 조직자 4종(에세이 섹션 스택 포함) 실물 Chrome 렌더 + 편집=인쇄 쪽수',
+  { skip: !READY, timeout: 120000 }, async () => {
+    const repo = new FsBlockRepository({ root: ROOT });
+    const v = await repo.readVocabulary();
+    const entry = (t) => ({ type: t, file: v.types[t].file });
+    const manifest = {
+      subject: 'x', theme: 'ko', docTitle: '독서·문학 조직자 렌더 점검', standards: [],
+      pages: [
+        [{ type: 'header', file: v.types['header'].file }, entry('bookreview')],
+        [entry('character'), entry('quotejournal')],
+        [entry('essayplan')],
+      ],
+    };
+    const asm = new AssembleWorksheet({ blockRepository: repo, curriculum: { async resolve(c) { return { code: c, text: `원문(${c})` }; } } });
+    const { html, worksheet } = await asm.execute(manifest);
+    for (const t of ['bookreview', 'character', 'quotejournal', 'essayplan']) {
+      assert.match(html, new RegExp(`class="[^"]*\\b${v.types[t].cssClass}\\b`), `${t} HTML 존재`);
+    }
+    assert.match(html, /class="ep-sec keep"/, '에세이 섹션별 keep');
+    const dir = await autoTmpDir('wsg-lit-');
+    const rp = new RenderPdf({ renderer: new ChromeRenderer({}) });
+    const inPath = join(dir, 'lit.html');
+    const outPath = join(dir, 'lit.pdf');
+    await writeFile(inPath, html.replace(/MODE_TOKEN/g, 'teacher'), 'utf8');
+    await rp.execute({ inputPath: inPath, outputPath: outPath, virtualTimeBudget: 15000 });
+    const pages = await countPdfPages(outPath);
+    assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — 에세이 스택 넘침 없음`);
+  });

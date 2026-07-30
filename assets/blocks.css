@@ -417,3 +417,27 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 
 /* 헥사고날 싱킹 — 연결 사고 */
 .hexagon svg .hx { fill: none; stroke: #888; stroke-width: 1.3; }
+
+/* ===== 시각 조직자 배치3 — 독서·문학·글쓰기 (범교과 코어) ===== */
+.character, .bookreview, .quotejournal { margin-top: 3mm; width: 100%; border-collapse: collapse; }
+.character td, .bookreview td, .quotejournal td, .quotejournal th {
+  border: 1px solid #cbd5c0; padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+.character td.lab, .bookreview td.lab {
+  background: #f6f6f6; font-weight: 700; text-align: center; width: 26%; }
+.character td { height: 40px; }
+.bookreview td { height: 38px; }
+.bookreview td.tall { height: 62px; }
+
+/* 인용 저널 */
+.quotejournal th { background: var(--clabel); color: var(--cink); font-weight: 700;
+  padding: 6px; text-align: center; font-size: 9.5pt; }
+.quotejournal .q-p { width: 12%; text-align: center; }
+.quotejournal td.q-quote { height: 58px; width: 44%; }
+.quotejournal td.q-think { height: 58px; }
+
+/* 5문단 에세이 설계 — 섹션 스택(각 섹션 keep, 섹션 사이 페이지 넘김 허용) */
+.essayplan { margin-top: 3mm; }
+.essayplan .ep-sec { border: 1px solid #cbd5c0; border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+.essayplan .ep-h { background: var(--clabel); color: var(--cink); font-weight: 700;
+  padding: 5px 10px; font-size: 9.5pt; }
+.essayplan .ep-b { min-height: 44px; padding: 8px 10px; }

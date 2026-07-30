@@ -63,7 +63,7 @@
       }
     }
   },
-  "count": 11,
+  "count": 12,
   "archetypes": {
     "experimental-inquiry": {
       "name": "실험탐구",
@@ -707,6 +707,31 @@
           { "role": "답줄", "type": "answer-line" },
           { "role": "정리", "type": "section-heading" },
           { "role": "성찰", "type": "exit321" }
+        ]
+      ]
+    },
+    "literary-response": {
+      "name": "독서·문학 반응",
+      "pill": "독서·문학",
+      "desc": "책 정리(북 리뷰) → 인물 분석 → 인용 저널 → 내 글 계획(5문단 에세이). 독서 반응과 문학 감상을 돕는 시각 조직자 중심(범교과).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "책정리", "type": "subq" },
+          { "role": "북리뷰", "type": "bookreview" }
+        ],
+        [
+          { "role": "인물분석안내", "type": "subq" },
+          { "role": "인물분석", "type": "character" },
+          { "role": "인용안내", "type": "subq" },
+          { "role": "인용저널", "type": "quotejournal" }
+        ],
+        [
+          { "role": "글계획안내", "type": "subq" },
+          { "role": "에세이설계", "type": "essayplan" }
         ]
       ]
     }
