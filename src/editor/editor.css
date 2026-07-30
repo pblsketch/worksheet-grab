@@ -142,6 +142,14 @@ button { font: inherit; }
 .thumb-frame { border: 1px solid #d0d7de; background: #fff; overflow: hidden; border-radius: 4px; }
 .thumb-frame iframe { border: 0; transform-origin: top left; pointer-events: none; }
 .thumb.active .thumb-frame { border-color: #2563eb; box-shadow: 0 0 0 2px #93c5fd; }
+/* M2: 여러 페이지 다중선택(Ctrl/Cmd-클릭) — 활성(파랑)과 구분되는 보라 링 + ✓ 배지. */
+.thumb.multi-selected .thumb-frame { border-color: #7c3aed; box-shadow: 0 0 0 2px #ddd6fe, 0 0 0 3px #7c3aed; }
+.thumb.multi-selected { position: relative; }
+.thumb.multi-selected::after {
+  content: '✓'; position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; line-height: 18px;
+  border-radius: 50%; background: #7c3aed; color: #fff; font-size: 12px; font-weight: 700; text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
 .thumb.dragging { opacity: .55; cursor: grabbing; }
 .thumb.drop-target { box-shadow: 0 -3px 0 #2563eb; }
 .thumb-meta { display: grid; grid-template-columns: 20px minmax(0, 1fr) 24px; gap: 4px; align-items: center; margin-top: 5px; }
