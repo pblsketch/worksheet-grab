@@ -169,3 +169,24 @@ test('여백선·눈금자·격자 보기 토글 + 여백선을 꺼도 float 선
       ws.cleanup();
     }
   });
+
+test('시각 조직자 삽입(#2 P1a): "시각 조직자" 그리드 버튼 → 미리 채운 table 개체 삽입·렌더·저장 왕복',
+  { skip: !HAS_CHROME, timeout: 60000 }, async () => {
+    const { server, url, ws } = await startEditServer();
+    try {
+      const dom = await dumpDom(`${url}/?seed=organizer-insert`);
+      assert.equal(ds(dom, 'seed-done'), 'organizer-insert');
+      assert.ok(Number(ds(dom, 'organizer-btn-count')) >= 10, `시각 조직자 버튼 ≥10 렌더(실제 ${ds(dom, 'organizer-btn-count')})`);
+      assert.equal(ds(dom, 'ins-type'), 'table', '삽입 개체는 table(새 타입 아님 — 스키마 무변경)');
+      assert.equal(ds(dom, 'ins-placement'), 'flow', 'flow 전용 삽입(좌표 없음)');
+      assert.equal(ds(dom, 'ins-caption'), '개념:', '프레이어 개념 caption 채움');
+      assert.equal(ds(dom, 'ins-rows'), '4', '프레이어 4행(정의·특징 / 예·비예)');
+      assert.equal(ds(dom, 'ins-has-answer'), 'false', '빈 조직자 — 정답 플래그 없음(누출 원천 차단)');
+      assert.equal(ds(dom, 'ins-renders-table'), 'true', '삽입 즉시 표로 렌더');
+      assert.equal(ds(dom, 'ins-has-headers'), 'true', '프레이어 헤더(정의·예가 아닌 것) 렌더');
+      assert.equal(ds(dom, 'organizer-save-ok'), 'true', '저장 왕복 안전(정답 누출 0)');
+    } finally {
+      await new Promise((r) => server.close(r));
+      ws.cleanup();
+    }
+  });
