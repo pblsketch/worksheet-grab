@@ -30,6 +30,7 @@ const FIXTURES = {
   'std-box': { type: 'std-box', placement: 'flow', codes: ['[9과14-02]'], objectives: ['설명할 수 있다.'], heading: '오늘의 목표', showStandards: true },
   'spacer': { type: 'spacer', placement: 'flow', heightMm: 12, label: '여백' },
   'page-break': { type: 'page-break', placement: 'flow' },
+  'callout': { type: 'callout', placement: 'flow', variant: 'tip', title: '핵심 정리', body: '<p>옴의 법칙 V=IR</p>' },
 };
 
 const withId = (type, extra = {}) => ({ id: `o-${type}`, ...FIXTURES[type], ...extra });

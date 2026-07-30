@@ -21,6 +21,7 @@ const MIN_FIXTURES = {
   'std-box': { id: 'sb1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] },
   'spacer': { id: 'sp1', type: 'spacer', placement: 'flow', heightMm: 20 },
   'page-break': { id: 'pb1', type: 'page-break', placement: 'flow' },
+  'callout': { id: 'c1', type: 'callout', placement: 'flow', variant: 'tip', body: '<p>핵심 정리</p>' },
 };
 
 function docWith(flow = [], float = []) {
@@ -180,7 +181,7 @@ test('editMode 기본값(false)은 data-oid 래퍼를 방출하지 않는다', (
 });
 
 test('닫힌 카탈로그 밖 타입은 명시적으로 던진다(스스로 창작하지 않음)', () => {
-  const document = docWith([{ id: 'x1', type: 'callout', placement: 'flow' }]);
+  const document = docWith([{ id: 'x1', type: 'sidebar', placement: 'flow' }]);
   assert.throws(() => new RenderObjectTree().execute(document, ASSETS), /카탈로그/);
 });
 

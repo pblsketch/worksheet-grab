@@ -29,6 +29,7 @@ const MIN = {
   'std-box': { id: 'sb1', type: 'std-box', placement: 'flow', codes: ['[9과14-02]'] },
   'spacer': { id: 'sp1', type: 'spacer', placement: 'flow', heightMm: 20 },
   'page-break': { id: 'pb1', type: 'page-break', placement: 'flow' },
+  'callout': { id: 'c1', type: 'callout', placement: 'flow', variant: 'tip', body: '<p>핵심</p>' },
 };
 
 const rulesOf = (obj) => validateObjectShape(obj).findings.map((f) => f.rule);
@@ -37,11 +38,11 @@ test('SIZE_FIELDS 는 widthPct/minHeightMm/align 3종', () => {
   assert.deepEqual([...SIZE_FIELDS], ['widthPct', 'minHeightMm', 'align']);
 });
 
-test('크기를 실을 수 있는 타입 9종 — shape·spacer·page-break 만 제외', () => {
+test('크기를 실을 수 있는 타입 10종 — shape·spacer·page-break 만 제외', () => {
   // shape: float 전용이라 flow 전용인 크기 필드가 애초에 성립하지 않는다.
   // spacer: 이미 heightMm 를 갖는다(중복 어휘). page-break: 높이 0 표식이라 박스가 없다.
   assert.deepEqual([...SIZEABLE_TYPES], [
-    'title', 'passage-slot', 'question', 'table', 'image-slot', 'answer-area', 'divider', 'richtext', 'std-box',
+    'title', 'passage-slot', 'question', 'table', 'image-slot', 'answer-area', 'divider', 'richtext', 'std-box', 'callout',
   ]);
   for (const t of ['shape', 'spacer', 'page-break']) {
     assert.ok(!SIZEABLE_TYPES.includes(t), `${t} 는 크기 필드를 갖지 않아야 함`);
@@ -115,7 +116,7 @@ test('JSON 스키마가 런타임 카탈로그와 1:1 — 크기 필드 보유 �
     'title': 'titleObject', 'passage-slot': 'passageSlotObject', 'question': 'questionObject',
     'table': 'tableObject', 'image-slot': 'imageSlotObject', 'answer-area': 'answerAreaObject',
     'divider': 'dividerObject', 'shape': 'shapeObject', 'richtext': 'richtextObject',
-    'std-box': 'stdBoxObject', 'spacer': 'spacerObject', 'page-break': 'pageBreakObject',
+    'std-box': 'stdBoxObject', 'callout': 'calloutObject', 'spacer': 'spacerObject', 'page-break': 'pageBreakObject',
   };
   for (const type of OBJECT_TYPES) {
     const props = schema.$defs[defOf[type]].properties;

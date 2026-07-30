@@ -118,7 +118,7 @@ test('개체 트리 경로: 정상 문서는 PASS(구조 검증만, renderedHtml
 
 test('개체 트리 경로: 구조 위반은 FAIL 이며 ValidateObjectTree 규칙이 그대로 위임된다', () => {
   const doc = baseDocument();
-  doc.pages[0].flow.push({ id: 'bad1', type: 'callout', placement: 'flow', text: '강조박스' });
+  doc.pages[0].flow.push({ id: 'bad1', type: 'sidebar', placement: 'flow', text: '강조박스' });
   const { ok, findings } = new ValidateWorksheet().execute(doc);
   assert.equal(ok, false, '닫힌 카탈로그 밖 타입은 구조 위반으로 FAIL 이어야 함');
   const f = findings.find((x) => x.rule === 'unknown-type');

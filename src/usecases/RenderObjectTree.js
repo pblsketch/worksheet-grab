@@ -259,6 +259,7 @@ function renderByType(obj, ctx) {
     case 'shape': return renderShape(obj);
     case 'richtext': return renderRichtext(obj);
     case 'std-box': return renderStdBox(obj, ctx);
+    case 'callout': return renderCallout(obj);
     case 'spacer': return renderSpacer(obj);
     case 'page-break': return renderPageBreak();
     default:
@@ -624,5 +625,23 @@ ${refLis}
     <ul>
 ${lis}
     </ul>
+  </div>`;
+}
+
+/**
+ * 강조상자(callout, M4) — 팁·주의·핵심정리 박스. body/titleHtml 은 richtext.html 과 동형(입력에서
+ * 살균, 렌더는 이스케이프 없이 방출). title 평문은 escapeHtml. variant 는 클래스로 방출해
+ * blocks.css `.callout-<variant>` 가 색/아이콘을 받는다(편집==인쇄 동일 선언). 폭·정렬(SIZE_FIELDS)은
+ * flow 래퍼(renderFlowObject)가 처리하므로 여기서 만지지 않는다.
+ */
+function renderCallout(obj) {
+  const variant = typeof obj.variant === 'string' ? obj.variant : 'note';
+  const titleHtml = typeof obj.titleHtml === 'string' && obj.titleHtml
+    ? obj.titleHtml
+    : (typeof obj.title === 'string' && obj.title ? escapeHtml(obj.title) : '');
+  const body = typeof obj.body === 'string' ? obj.body : '';
+  const titleBlock = titleHtml ? `\n    <div class="callout-title">${titleHtml}</div>` : '';
+  return `<div class="callout callout-${escapeHtml(variant)}">${titleBlock}
+    <div class="callout-body">${body}</div>
   </div>`;
 }
