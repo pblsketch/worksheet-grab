@@ -181,3 +181,33 @@ export function fitSvgToBox(html, boxW, boxH) {
   const w = Math.round(vbW * s), h = Math.round(vbH * s);
   return html.replace(/<svg width="\d+(?:\.\d+)?" height="\d+(?:\.\d+)?"/, `<svg width="${w}" height="${h}"`);
 }
+
+// 자연어 요청 → 파라메트릭 조직자 {type, params}. 교사의 "벤다이어그램 3원", "개념 5칸" 같은
+// 문구에서 조직자 종류와 개수를 뽑는다. 무API 원칙상 자연어 이해의 주체는 AI 오케스트레이터이며,
+// 이 헬퍼는 흔한 개수 표현을 결정적으로 파싱하는 편의·폴백이다(범위 밖 개수는 클램프).
+const ORG_NL_SPECS = [
+  { type: 'venn', kw: ['벤다이어그램', '벤 다이어그램'], param: 'circles', units: ['원'], min: 2, max: 3 },
+  { type: 'conceptmap', kw: ['개념지도', '개념 지도', '마인드맵', '생각그물'], param: 'nodes', units: ['칸', '개념', '가지'], min: 3, max: 6 },
+  { type: 'fishbone', kw: ['피시본', '생선뼈', '물고기뼈'], param: 'branches', units: ['가지', '원인'], min: 2, max: 6 },
+  { type: 'flowchart', kw: ['흐름도', '순서도', '플로차트'], param: 'steps', units: ['단계', '칸'], min: 2, max: 6 },
+  { type: 'hierarchy', kw: ['위계', '계층 구조', '분류 체계'], param: 'children', units: ['하위', '자식', '갈래'], min: 2, max: 5 },
+  { type: 'hexagon', kw: ['헥사고날', '헥사곤', '육각형'], param: 'count', units: ['개', '칸'], min: 3, max: 7 },
+];
+
+/** 자연어 문구에서 파라메트릭 조직자 요청을 파싱. 없으면 null. */
+export function parseOrganizerSpec(text) {
+  const t = String(text || '');
+  for (const o of ORG_NL_SPECS) {
+    if (!o.kw.some((k) => t.includes(k))) continue;
+    let num = null;
+    for (const u of o.units) {
+      const m = t.match(new RegExp(`(\\d+)\\s*${u}`)) || t.match(new RegExp(`${u}\\s*(\\d+)`));
+      if (m) { num = Number(m[1]); break; }
+    }
+    if (num == null) { const m = t.match(/(\d+)\s*(개|원|칸|가지|단계|하위)/); if (m) num = Number(m[1]); }
+    const params = {};
+    if (num != null) params[o.param] = Math.max(o.min, Math.min(o.max, num));
+    return { type: o.type, params };
+  }
+  return null;
+}
