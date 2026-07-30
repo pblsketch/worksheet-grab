@@ -2,8 +2,8 @@
   "version": 1,
   "note": "블록 타입 어휘 + 계약. 코어=≥2교과 사용·var(--*)만 참조(인쇄안전). 교과팩=해당 교과 전용. gen 타입(standard-label)은 파일 없이 엔진이 성취기준 원문으로 렌더. 콘텐츠는 요청마다 manifest 에 인라인 저작(동적 조립), exemplar 는 재사용 시드/폴백.",
   "counts": {
-    "total": 40,
-    "core": 29,
+    "total": 44,
+    "core": 33,
     "pack": 11
   },
   "types": {
@@ -567,6 +567,58 @@
       "desc": "신호등 자기점검(빨강·노랑·초록)",
       "cssClass": "stoplight",
       "file": "core/stoplight.html"
+    },
+    "venn": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "벤다이어그램(2원 — 공통점·차이점) — 비교 (SVG)",
+      "cssClass": "venn",
+      "file": "core/venn.html"
+    },
+    "conceptmap": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "개념 지도(중심 개념 + 방사 노드) — 브레인스토밍·구조화 (SVG)",
+      "cssClass": "conceptmap",
+      "file": "core/conceptmap.html"
+    },
+    "fishbone": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "피시본 다이어그램(중심선 + 원인 가지) — 원인·결과 분석 (SVG)",
+      "cssClass": "fishbone",
+      "file": "core/fishbone.html"
+    },
+    "plotdiagram": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "플롯 다이어그램(이야기 산 — 발단·전개·절정·하강·결말) — 서사 분석 (SVG)",
+      "cssClass": "plotdiagram",
+      "file": "core/plotdiagram.html"
     }
   }
 }

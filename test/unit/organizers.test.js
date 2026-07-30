@@ -13,11 +13,14 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const repo = () => new FsBlockRepository({ root: ROOT });
 const mockCurriculum = { async resolve(code) { return { code, text: `원문(${code})`, subject: 'test' }; } };
 
-// 추가한 표형 조직자(배치1 + 배치2).
+// 추가한 조직자 — Track A 표형(배치1·2) + Track B 그림형(SVG).
 const ORGANIZERS = [
   'kwl', 'frayer', 'w5h1', 'bme', 'exit321', 'mainidea',
   'notetaking', 'hamburger', 'perspectives', 'prediction', 'glowgrow', 'stoplight',
+  'venn', 'conceptmap', 'fishbone', 'plotdiagram',
 ];
+// Track B — 그림형(SVG) 조직자(색은 CSS, HTML 엔 hex 0).
+const DIAGRAM_ORGANIZERS = ['venn', 'conceptmap', 'fishbone', 'plotdiagram'];
 
 test('시각 조직자: 6종이 vocabulary 에 코어(*)·keepTogether·core/<type>.html 로 등록', async () => {
   const v = await repo().readVocabulary();
@@ -104,4 +107,38 @@ test('시각 조직자 surfacing: compose 스캐폴드가 렌더 가능한 A4 �
   assert.match(html, /class="[^"]*\bkwl\b/, 'KWL 조직자 렌더');
   assert.match(html, /class="[^"]*\bkeep\b/, '인쇄안전 keep 방출');
   assert.match(html, /data-mode="MODE_TOKEN"/, '2벌 분기 전 토큰 유지');
+});
+
+test('시각 조직자(그림형): 각 SVG 조직자가 <svg> 방출 + HTML hex 0(색은 CSS) + assemble keep', async () => {
+  const r = repo();
+  const v = await r.readVocabulary();
+  for (const t of DIAGRAM_ORGANIZERS) {
+    const def = v.types[t];
+    const raw = await r.loadBlockHtml(def.file);
+    assert.match(raw, /<svg/, `${t}: SVG 뼈대 포함`);
+    // 색은 blocks.css 로 뺐다 — HTML 엔 hex 색 리터럴이 없어야 범교과 게이트(6자리 hex)를 통과.
+    assert.equal(raw.match(/#[0-9a-fA-F]{3,6}\b/g), null, `${t}: HTML 에 hex 색 없음(색은 CSS)`);
+    const manifest = { subject: 'x', theme: 'sci', docTitle: 't', standards: [], pages: [[{ type: t, file: def.file }]] };
+    const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculum });
+    const { html } = await asm.execute(manifest);
+    assert.match(html, /<svg/, `${t}: assemble 산출에 SVG`);
+    assert.match(html, new RegExp(`class="[^"]*\\b${def.cssClass}\\b`), `${t}: cssClass .${def.cssClass}`);
+    assert.match(html, /class="[^"]*\bkeep\b/, `${t}: keep(인쇄안전)`);
+  }
+});
+
+test('시각 조직자 surfacing: compose --archetype concept-visual 가 그림형 조직자를 주제로 채운다', async () => {
+  const compose = new ComposeWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { manifest, archetype } = await compose.execute({
+    grade: '중2', subject: '과학', topic: '광합성', archetype: 'concept-visual', codes: ['[9과12-01]'],
+  });
+  assert.equal(archetype, 'concept-visual');
+  const types = new Set(manifest.pages.flat().map((e) => e.type));
+  for (const t of ['venn', 'conceptmap', 'fishbone']) {
+    assert.ok(types.has(t), `스캐폴드에 그림형 조직자 ${t} 포함`);
+  }
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { html } = await asm.execute(manifest);
+  assert.match(html, /class="[^"]*\bvenn\b/, '벤다이어그램 렌더');
+  assert.match(html, /<svg/, 'SVG 방출');
 });

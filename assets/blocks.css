@@ -367,3 +367,33 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .stoplight td.sl-r { color: #d32f2f; }
 .stoplight td.sl-y { color: #f9a825; }
 .stoplight td.sl-g { color: #388e3c; }
+
+/* ===== 시각 조직자 Track B — 그림형(SVG, 범교과 코어) ===== */
+/* 색은 전부 CSS(HTML SVG 엔 hex 0 — 범교과 게이트 통과). 인쇄안전 = .keep + 고정비율 SVG. */
+.venn, .conceptmap, .fishbone, .plotdiagram { margin-top: 3mm; text-align: center; }
+.venn svg, .conceptmap svg, .fishbone svg, .plotdiagram svg {
+  max-width: 100%; height: auto; display: block; margin: 0 auto; }
+.venn text, .conceptmap text, .fishbone text, .plotdiagram text {
+  fill: #333; font-family: Pretendard, "Malgun Gothic", sans-serif; font-weight: 700; }
+.org-cap { font-size: 8.7pt; color: #666; margin-top: 4px; text-align: center; }
+
+/* 벤다이어그램 — 두 원 + 겹침(공통점) */
+.venn svg circle { fill: none; stroke: #7a7a7a; }
+.venn .v-mid { fill: #777; font-weight: 400; }
+
+/* 개념 지도 — 중심 + 방사 노드 */
+.conceptmap svg line { stroke: #aaa; }
+.conceptmap svg .cm-core { fill: #eef1f4; stroke: #666; }
+.conceptmap svg .cm-node { fill: none; stroke: #999; }
+
+/* 피시본(원인·결과) — 중심선 + 가지 */
+.fishbone svg .fb-spine { stroke: #777; }
+.fishbone svg .fb-branch { stroke: #aaa; }
+.fishbone svg .fb-arrow { fill: #777; }
+.fishbone svg .fb-result { fill: #eef1f4; stroke: #666; }
+.fishbone .fb-lab { fill: #888; font-weight: 400; }
+
+/* 플롯 다이어그램(이야기 산) — 발단·전개·절정·하강·결말 */
+.plotdiagram svg .pd-line { fill: none; stroke: #777; }
+.plotdiagram svg .pd-dot { fill: #666; }
+.plotdiagram .pd-lab { fill: #777; font-weight: 400; }

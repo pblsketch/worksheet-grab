@@ -63,7 +63,7 @@
       }
     }
   },
-  "count": 9,
+  "count": 10,
   "archetypes": {
     "experimental-inquiry": {
       "name": "실험탐구",
@@ -660,6 +660,29 @@
           { "role": "문단계획", "type": "hamburger" },
           { "role": "정리", "type": "section-heading" },
           { "role": "성찰", "type": "glowgrow" }
+        ]
+      ]
+    },
+    "concept-visual": {
+      "name": "개념 시각화",
+      "pill": "개념 시각화",
+      "desc": "개념 비교(벤다이어그램) → 개념 관계(개념 지도) → 원인·결과 분석(피시본) → 성찰. 그림형 시각 조직자 중심(범교과, SVG).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "개념비교", "type": "subq" },
+          { "role": "벤다이어그램", "type": "venn" },
+          { "role": "개념관계", "type": "subq" },
+          { "role": "개념지도", "type": "conceptmap" }
+        ],
+        [
+          { "role": "원인분석", "type": "subq" },
+          { "role": "피시본", "type": "fishbone" },
+          { "role": "정리", "type": "section-heading" },
+          { "role": "성찰", "type": "exit321" }
         ]
       ]
     }
