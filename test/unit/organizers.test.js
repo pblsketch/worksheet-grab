@@ -17,10 +17,10 @@ const mockCurriculum = { async resolve(code) { return { code, text: `원문(${co
 const ORGANIZERS = [
   'kwl', 'frayer', 'w5h1', 'bme', 'exit321', 'mainidea',
   'notetaking', 'hamburger', 'perspectives', 'prediction', 'glowgrow', 'stoplight',
-  'venn', 'conceptmap', 'fishbone', 'plotdiagram',
+  'venn', 'conceptmap', 'fishbone', 'plotdiagram', 'hierarchy', 'flowchart', 'hexagon',
 ];
 // Track B — 그림형(SVG) 조직자(색은 CSS, HTML 엔 hex 0).
-const DIAGRAM_ORGANIZERS = ['venn', 'conceptmap', 'fishbone', 'plotdiagram'];
+const DIAGRAM_ORGANIZERS = ['venn', 'conceptmap', 'fishbone', 'plotdiagram', 'hierarchy', 'flowchart', 'hexagon'];
 
 test('시각 조직자: 6종이 vocabulary 에 코어(*)·keepTogether·core/<type>.html 로 등록', async () => {
   const v = await repo().readVocabulary();
@@ -140,5 +140,21 @@ test('시각 조직자 surfacing: compose --archetype concept-visual 가 그림�
   const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
   const { html } = await asm.execute(manifest);
   assert.match(html, /class="[^"]*\bvenn\b/, '벤다이어그램 렌더');
+  assert.match(html, /<svg/, 'SVG 방출');
+});
+
+test('시각 조직자 surfacing: compose --archetype process-structure 가 흐름도·위계트리를 주제로 채운다', async () => {
+  const compose = new ComposeWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { manifest, archetype } = await compose.execute({
+    grade: '중2', subject: '과학', topic: '소화 과정', archetype: 'process-structure', codes: ['[9과12-01]'],
+  });
+  assert.equal(archetype, 'process-structure');
+  const types = new Set(manifest.pages.flat().map((e) => e.type));
+  for (const t of ['flowchart', 'hierarchy']) {
+    assert.ok(types.has(t), `스캐폴드에 ${t} 포함`);
+  }
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { html } = await asm.execute(manifest);
+  assert.match(html, /class="[^"]*\bflowchart\b/, '흐름도 렌더');
   assert.match(html, /<svg/, 'SVG 방출');
 });

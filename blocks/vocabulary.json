@@ -2,8 +2,8 @@
   "version": 1,
   "note": "블록 타입 어휘 + 계약. 코어=≥2교과 사용·var(--*)만 참조(인쇄안전). 교과팩=해당 교과 전용. gen 타입(standard-label)은 파일 없이 엔진이 성취기준 원문으로 렌더. 콘텐츠는 요청마다 manifest 에 인라인 저작(동적 조립), exemplar 는 재사용 시드/폴백.",
   "counts": {
-    "total": 44,
-    "core": 33,
+    "total": 47,
+    "core": 36,
     "pack": 11
   },
   "types": {
@@ -619,6 +619,45 @@
       "desc": "플롯 다이어그램(이야기 산 — 발단·전개·절정·하강·결말) — 서사 분석 (SVG)",
       "cssClass": "plotdiagram",
       "file": "core/plotdiagram.html"
+    },
+    "hierarchy": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "위계 트리(상위 개념 + 하위 노드) — 분류·체계화 (SVG)",
+      "cssClass": "hierarchy",
+      "file": "core/hierarchy.html"
+    },
+    "flowchart": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "순서 흐름도(단계 박스 + 화살표) — 절차·과정 (SVG)",
+      "cssClass": "flowchart",
+      "file": "core/flowchart.html"
+    },
+    "hexagon": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "헥사고날 싱킹(연결 사고) — 개념 연결·통합 (SVG)",
+      "cssClass": "hexagon",
+      "file": "core/hexagon.html"
     }
   }
 }

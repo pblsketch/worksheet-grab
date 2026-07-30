@@ -63,7 +63,7 @@
       }
     }
   },
-  "count": 10,
+  "count": 11,
   "archetypes": {
     "experimental-inquiry": {
       "name": "실험탐구",
@@ -681,6 +681,30 @@
         [
           { "role": "원인분석", "type": "subq" },
           { "role": "피시본", "type": "fishbone" },
+          { "role": "정리", "type": "section-heading" },
+          { "role": "성찰", "type": "exit321" }
+        ]
+      ]
+    },
+    "process-structure": {
+      "name": "과정·구조",
+      "pill": "과정·구조",
+      "desc": "과정 정리(순서 흐름도) → 구조 정리(위계 트리) → 적용 문항 → 성찰. 절차와 분류 체계를 시각화하는 조직자 중심(범교과, SVG).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "과정정리", "type": "subq" },
+          { "role": "흐름도", "type": "flowchart" },
+          { "role": "구조정리", "type": "subq" },
+          { "role": "위계트리", "type": "hierarchy" }
+        ],
+        [
+          { "role": "적용", "type": "subq" },
+          { "role": "적용문항", "type": "question" },
+          { "role": "답줄", "type": "answer-line" },
           { "role": "정리", "type": "section-heading" },
           { "role": "성찰", "type": "exit321" }
         ]

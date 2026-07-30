@@ -86,17 +86,19 @@ test('P1 수용: 12종 조직자를 다중페이지 매니페스트로 렌더 �
     assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()})`);
   });
 
-test('P1 Track B: 그림형(SVG) 조직자 4종이 실물 Chrome 으로 SVG 렌더 + 편집=인쇄 쪽수',
+test('P1 Track B: 그림형(SVG) 조직자 7종이 실물 Chrome 으로 SVG 렌더 + 편집=인쇄 쪽수',
   { skip: !READY, timeout: 120000 }, async () => {
     const repo = new FsBlockRepository({ root: ROOT });
     const v = await repo.readVocabulary();
-    const diagrams = ['venn', 'conceptmap', 'fishbone', 'plotdiagram'];
+    const diagrams = ['venn', 'conceptmap', 'fishbone', 'plotdiagram', 'hierarchy', 'flowchart', 'hexagon'];
     const entry = (t) => ({ type: t, file: v.types[t].file });
     const manifest = {
       subject: 'x', theme: 'sci', docTitle: '그림형 조직자 렌더 점검', standards: [],
       pages: [
         [{ type: 'header', file: v.types['header'].file }, entry('venn'), entry('conceptmap')],
         [entry('fishbone'), entry('plotdiagram')],
+        [entry('hierarchy'), entry('flowchart')],
+        [entry('hexagon')],
       ],
     };
     const asm = new AssembleWorksheet({ blockRepository: repo, curriculum: { async resolve(c) { return { code: c, text: `원문(${c})` }; } } });
