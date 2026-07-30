@@ -28,8 +28,8 @@ const DEV_PATTERNS = [
 
 // verbatim 코퍼스(원문 편집 금지 — 각색은 SKILL 오버레이에만)는 경계 스캔 예외
 const CORPUS = /[\\/]worksheet-consult[\\/](references|examples)[\\/]/;
-// 허용되는 엔진 import 예시 라인
-const ALLOWED_IMPORT = /^\s*import\b.*from\s+'\.\/src\//;
+// 허용되는 엔진 import 예시 라인 — 엔진 공개 계약(usecases 진입점)만. 그 밖의 src/ 참조는 누출로 본다.
+const ALLOWED_IMPORT = /^\s*import\b.*from\s+'\.\/src\/usecases\/[A-Za-z0-9]+\.js'/;
 
 function walkMd(dir) {
   if (!existsSync(dir)) return [];
@@ -111,6 +111,33 @@ test('빌드된 사용자 번들에 개발(3층)이 없고 교사용으로 구�
     // 번들 제품 하네스 개발어휘 0 (코퍼스 제외)
     const leaks = scanLeaks(productFiles(out), out);
     assert.equal(leaks.length, 0, `번들 제품 하네스에 개발어휘 누출:\n  ${leaks.join('\n  ')}`);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// 3) 빌드 안전장치가 위험/비관리 출력 경로를 삭제 전에 거부한다(음성 테스트)
+test('빌드 안전장치: 위험/비관리 출력 경로를 거부한다', () => {
+  const buildScript = join(ROOT, 'scripts', 'build-user-bundle.mjs');
+  const expectReject = (target, reMatch, label) => {
+    let err;
+    try {
+      execSync(`node ${JSON.stringify(buildScript)} ${JSON.stringify(target)}`, { cwd: ROOT, stdio: 'pipe' });
+    } catch (e) { err = e; }
+    assert.ok(err, `${label}: 거부(비정상 종료)해야 함`);
+    const out = `${err.stderr || ''}${err.stdout || ''}${err.message || ''}`;
+    assert.match(out, reMatch, `${label}: 거부 사유 불일치`);
+  };
+
+  // 저장소 루트·소스 디렉터리로의 출력 거부(재귀 삭제 방지)
+  expectReject(ROOT, /저장소 루트\/조상|dist\/ 아래만/, '저장소 루트');
+  expectReject(join(ROOT, 'src'), /dist\/ 아래만|저장소 루트\/조상/, 'src 디렉터리');
+
+  // 이 도구가 만들지 않은 기존 폴더(마커 없음) 거부 + 거부 시 그 폴더 보존
+  const tmp = mkdtempSync(join(tmpdir(), 'wsg-unmanaged-'));
+  try {
+    expectReject(tmp, /덮어쓰기를 거부/, '비관리 기존 폴더');
+    assert.ok(existsSync(tmp), '거부 시 기존 폴더가 보존돼야 함');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
