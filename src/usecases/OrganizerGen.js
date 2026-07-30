@@ -47,10 +47,10 @@ export function vennSvg({ circles = 2 } = {}) {
 /** 개념 지도 — nodes: 3~6칸(기본 4). 중심 개념에서 N개 노드가 방사형으로 뻗는다. */
 export function conceptMapSvg({ nodes = 4 } = {}) {
   const n = Math.max(3, Math.min(6, Number(nodes) | 0 || 4));
-  const W = 460, H = 300, cx = W / 2, cy = H / 2;
-  const rx = 70, ry = 36;        // 중심 타원
-  const R = 118;                 // 노드 배치 반경(중심→노드 중심)
-  const bw = 110, bh = 44;       // 노드 상자
+  const W = 490, H = 350, cx = W / 2, cy = H / 2;
+  const rx = 64, ry = 34;        // 중심 타원(연결선이 드러나도록 약간 축소)
+  const R = 140;                 // 노드 배치 반경 — 상자가 타원과 충분히 떨어져 연결선이 보이게
+  const bw = 104, bh = 42;       // 노드 상자
   let lines = '', boxes = '';
   for (let i = 0; i < n; i++) {
     const ang = -Math.PI / 2 + (i * 2 * Math.PI / n); // 위에서 시작, 시계방향
