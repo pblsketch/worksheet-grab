@@ -899,6 +899,9 @@ docTitleEl.addEventListener('keydown', (e) => {
 const excludedAiTypes = new Set(shell.excludedAiTypes || []);
 const availableThemes = shell.availableThemes || []; // 인스펙터 테마 드롭다운 옵션(themes/*.css)
 
+// M2(여러 페이지 grab): leftPanel 썸네일에서 Ctrl/Cmd-다중선택된 페이지 id 들. 앱바 AI 진입이 소비한다.
+let multiSelectedPageIds = [];
+
 const aiPanel = createAiPanel({
   entryHost: document.getElementById('ai-entry-slot'),
   getSelectionState: () => selection.state,
@@ -907,6 +910,7 @@ const aiPanel = createAiPanel({
   getRenderMeta: () => buildRenderMeta(core.getDocument()),
   getDoc: () => frames.teacher?.contentDocument ?? null,
   getActivePageId: () => activePageId,
+  getSelectedPageIds: () => multiSelectedPageIds,
   getPage: (pageId) => (core.getDocument().pages || []).find((page) => page.id === pageId) ?? null,
   getPageIdOf: (objectId) => {
     const index = ObjOps.pageIndexOf(core.getDocument(), objectId);
@@ -1026,6 +1030,7 @@ const inspector = createInspector({
 const leftPanel = createLeftPanel({
   root: document.getElementById('left-panel'),
   onThumbSelect: (pageId) => scrollToPage(pageId),
+  onPagesSelect: (pageIds) => { multiSelectedPageIds = pageIds; },
   onPageAction: (action, pageId) => handlePageAction(action, pageId),
   onPageRoleChange: (pageId, role) => handlePageAction('set-role', pageId, { role }),
   onPageReorder: (pageIds, movedPageId) => handlePageAction('reorder', movedPageId, { pageIds }),

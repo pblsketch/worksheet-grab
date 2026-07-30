@@ -31,7 +31,7 @@ import { AI_EXCLUDED_TYPES } from '../domain/schema/index.js';
 export const AI_SCHEMA_VERSION = 4;
 export const AI_SCHEMA_VERSIONS = new Set([1, 2, 3, 4]);
 /** v4 응답 계획의 연산 종류. */
-export const AI_OPS = ['replace', 'insert', 'delete'];
+export const AI_OPS = ['replace', 'insert', 'delete', 'insert-section'];
 export const AI_ACTIONS = ['rewrite', 'fill-example'];
 export const AI_STATUSES = ['pending', 'answered', 'cancelled', 'applied'];
 
@@ -124,6 +124,14 @@ function isValidOpItem(o) {
   if (!AI_OPS.includes(o.op)) return false;
   if (o.op === 'delete') return typeof o.id === 'string' && !!o.id;
   if (o.op === 'replace') return typeof o.id === 'string' && !!o.id && isValidObjectPayload(o.object);
+  if (o.op === 'insert-section') {
+    // 여러 개체를 한 번에 삽입(M3a — AI 섹션 생성). objects[] 각각이 유효 페이로드여야 하고, 위치는
+    // afterId/beforeId 중 하나만 허용(insert 와 동일 규약). 타입별 완전성·대상 존재는 적용 경로 소관.
+    if (!Array.isArray(o.objects) || o.objects.length === 0 || !o.objects.every(isValidObjectPayload)) return false;
+    const hasAfterSec = typeof o.afterId === 'string' && !!o.afterId;
+    const hasBeforeSec = typeof o.beforeId === 'string' && !!o.beforeId;
+    return !(hasAfterSec && hasBeforeSec);
+  }
   // insert: 개체 본문 필수. 위치는 afterId 나 beforeId 중 **하나만** 허용한다 — 둘 다 주면
   // 어느 쪽 기준인지 모호해 조용히 엉뚱한 자리에 꽂히므로 형태 단계에서 거부한다.
   if (!isValidObjectPayload(o.object)) return false;

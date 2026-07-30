@@ -48,6 +48,7 @@ export function createLeftPanel({
   onPresetDelete,
   onLayerSelect = () => {},
   onLayerReorder = () => {},
+  onPagesSelect = () => {},
 }) {
   const tabBtns = [...root.querySelectorAll('[data-tab]')];
   const panels = Object.fromEntries(TABS.map((t) => [t, root.querySelector(`[data-panel="${t}"]`)]));
@@ -71,6 +72,16 @@ export function createLeftPanel({
   let thumbCache = new Map();
   let dragState = null;
   let suppressClick = false;
+  // M2(여러 페이지 grab): Ctrl/Cmd-클릭으로 페이지를 다중선택한다. 이 집합이 비면 단일 활성 페이지
+  // 흐름(onThumbSelect)만 쓰이고, 2개 이상이면 AI 패널이 그 페이지들 전체를 대상으로 연다(editor.js).
+  const selectedPageIds = new Set();
+  function refreshMultiSelVisual() {
+    for (const li of thumbList.children) {
+      const on = selectedPageIds.has(li.dataset.pageId);
+      li.classList.toggle('multi-selected', on);
+      if (on) li.setAttribute('aria-selected', 'true'); else li.removeAttribute('aria-selected');
+    }
+  }
 
   function renderThumbs(doc, pages = []) {
     if (!doc) return 0;
@@ -81,6 +92,9 @@ export function createLeftPanel({
     const livePageIds = new Set(sheets.map((sheet) => sheet.dataset.pageId).filter(Boolean));
     for (const pageId of thumbCache.keys()) {
       if (!livePageIds.has(pageId)) thumbCache.delete(pageId);
+    }
+    for (const pid of [...selectedPageIds]) {
+      if (!livePageIds.has(pid)) selectedPageIds.delete(pid); // 삭제된 페이지는 다중선택에서도 빠진다(M2)
     }
 
     const view = doc.defaultView;
@@ -109,7 +123,18 @@ export function createLeftPanel({
           + '<select class="thumb-role"></select><button type="button" class="thumb-menu" aria-label="페이지 명령">⋯</button></div>';
         li.addEventListener('click', (event) => {
           if (suppressClick || event.target.closest('button,select')) return;
-          onThumbSelect(li.dataset.pageId);
+          const pageId = li.dataset.pageId;
+          if (event.metaKey || event.ctrlKey) {
+            // Ctrl/Cmd-클릭 = 다중선택 토글(M2). 단일 선택(onThumbSelect) 흐름은 건드리지 않는다.
+            if (selectedPageIds.has(pageId)) selectedPageIds.delete(pageId);
+            else selectedPageIds.add(pageId);
+            refreshMultiSelVisual();
+            onPagesSelect([...selectedPageIds]);
+            return;
+          }
+          // 평범한 클릭 = 다중선택을 풀고(있었다면) 기존 단일 선택으로 돌아간다.
+          if (selectedPageIds.size) { selectedPageIds.clear(); refreshMultiSelVisual(); onPagesSelect([]); }
+          onThumbSelect(pageId);
         });
         li.addEventListener('contextmenu', (e) => {
           e.preventDefault();
@@ -132,6 +157,7 @@ export function createLeftPanel({
       const pageId = sheet.dataset.pageId || pages[i]?.id || '';
       li.dataset.page = String(i);
       li.dataset.pageId = pageId;
+      li.classList.toggle('multi-selected', selectedPageIds.has(pageId)); // M2 다중선택 시각 상태 유지
       li.setAttribute('aria-label', `${i + 1}페이지`);
       li.querySelector('.thumb-no').textContent = String(i + 1);
       renderRoleOptions(li.querySelector('.thumb-role'), pageById.get(pageId)?.role);
