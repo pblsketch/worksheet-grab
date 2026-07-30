@@ -216,3 +216,40 @@ test('파라메트릭 확장: 피시본6·흐름도6·위계5·헥사곤7 실물
     const pages = await countPdfPages(outPath);
     assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — 확장 SVG 넘침 없음`);
   });
+
+test('교사 예시(#4): 저작된 프레이어(.answer) 학생·교사 2벌이 실물 Chrome 으로 1쪽 인쇄(편집=인쇄, 넘침 0)',
+  { skip: !READY, timeout: 120000 }, async () => {
+    // designer AI 가 브리프대로 정답 칸을 .answer 로 저작한 프레이어(엔진 구조 불변, 예시 내용만 저작).
+    const authoredFrayer = `<table class="frayer keep">
+    <caption>개념: 광합성</caption>
+    <tr><th>정의</th><th>특징</th></tr>
+    <tr><td class="fq"><span class="answer">빛에너지로 양분을 만드는 과정</span></td><td class="fq"><span class="answer">엽록체에서 일어난다</span></td></tr>
+    <tr><th>예</th><th>예가 아닌 것</th></tr>
+    <tr><td class="fq"><span class="answer">식물의 잎</span></td><td class="fq"><span class="answer">세포호흡</span></td></tr>
+  </table>`;
+    const repo = new FsBlockRepository({ root: ROOT });
+    const v = await repo.readVocabulary();
+    const manifest = {
+      subject: 'x', theme: 'sci', docTitle: '프레이어 교사 예시', standards: [],
+      pages: [[{ type: 'header', file: v.types['header'].file }, { type: 'frayer', html: authoredFrayer }]],
+    };
+    const asm = new AssembleWorksheet({ blockRepository: repo, curriculum: { async resolve(c) { return { code: c, text: `원문(${c})` }; } } });
+    const { html } = await asm.execute(manifest);
+
+    const { student, teacher } = new BuildVariants().execute(html);
+    // 교사용 HTML 엔 모범 예시가, 학생용 HTML 엔 정답이 물리 제거됐음을 렌더 직전에 재확인(누출 게이트).
+    assert.match(teacher, /빛에너지로 양분을 만드는 과정/, '교사용에 모범 예시 존재');
+    assert.ok(!student.includes('빛에너지로 양분을 만드는 과정'), '학생용 정답 물리 제거');
+
+    const dir = await autoTmpDir('wsg-frayans-');
+    const rp = new RenderPdf({ renderer: new ChromeRenderer({}) });
+    const declared = manifest.pages.length;
+    for (const [mode, doc] of [['student', student], ['teacher', teacher]]) {
+      const inPath = join(dir, `frayans-${mode}.html`);
+      const outPath = join(dir, `frayans-${mode}.pdf`);
+      await writeFile(inPath, doc, 'utf8');
+      await rp.execute({ inputPath: inPath, outputPath: outPath, virtualTimeBudget: 15000 });
+      const pages = await countPdfPages(outPath);
+      assert.equal(pages, declared, `${mode}: 인쇄 쪽수(${pages}) == 편집 쪽수(${declared}) — 교사 예시 프레이어 넘침·잘림 없음`);
+    }
+  });

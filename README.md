@@ -96,8 +96,9 @@ node bin/worksheet-grab.js doc export 광합성탐구 # 저장본 → 학생/교
 
 ## 시각 조직자 (graphic organizers)
 
-학생 사고를 돕는 **시각 조직자 23종**을 기본 제공한다(모두 범교과 코어 블록, `answer` 없는
-학생 기입형 = `studentFill`). 개체 스키마는 손대지 않고 기존 `table`·SVG 블록으로 구현했으며,
+학생 사고를 돕는 **시각 조직자 23종**을 기본 제공한다(모두 범교과 코어 블록·학생 기입형
+`studentFill`; 정답 있는 일부는 교사용 예시를 `.answer` 로 덧실을 수 있다 — 아래 "교사용 예시
+답안"). 개체 스키마는 손대지 않고 기존 `table`·SVG 블록으로 구현했으며,
 전 종이 실물 Chrome 렌더에서 **편집 페이지 = 인쇄 페이지**(잘림·넘침 0)로 검증된다.
 
 **표형 16종** — KWL · 프레이어 모형 · 5W1H · 처음·중간·끝 · 3-2-1 · 핵심아이디어+뒷받침 ·
@@ -153,6 +154,15 @@ node bin/worksheet-grab.js compose 중2과학 광합성 --archetype concept-visu
 node bin/worksheet-grab.js compose 중2국어 소나기 --archetype literary-response
 node bin/worksheet-grab.js compose 중2과학 광합성 --archetype landscape-organizer
 ```
+
+### 교사용 예시 답안(정답 있는 조직자)
+
+프레이어 · 인물분석 · 핵심아이디어 · 5W1H · 관점비교처럼 **모범 예시가 있는** 조직자는 정답 칸에
+교사용 예시를 채워 낼 수 있다. 무API 원칙대로 **구조는 엔진이, 예시 내용만 저작**한다 — 저작 브리프
+(`compose`)가 designer AI 에게 정답 칸을 `<span class="answer">…</span>` 로 저작하도록 안내하고,
+나머지 안내·빈 칸은 학생이 채운다. 교사용 2벌엔 예시가 실리고 **학생용에선 `.answer` 가 물리
+제거**된다(빈 틀만 남음 — 편집=인쇄·정답 누출 0 게이트로 검증). KWL·3-2-1·노트정리처럼 빈칸이
+맞는 조직자는 종전대로 표식 없이 빈 구조만 낸다.
 
 ## CLI 사용법
 
