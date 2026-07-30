@@ -30,6 +30,7 @@
 import { RenderObjectTree } from '/src/usecases/RenderObjectTree.js';
 import { QUESTION_TYPES, computePageVersion } from '/src/domain/schema/index.js';
 import { QTYPE_LABELS } from './objectFactory.js';
+import { pageScopeTargets } from '/editor/pageScope.js';
 
 const renderer = new RenderObjectTree();
 const WAIT_TIMEOUT_MS = 5 * 60 * 1000; // 대기 총 상한(무API 특성상 사람이 응답 — 옛 ai.js 관례와 동일)
@@ -202,6 +203,8 @@ export function sanitizeObject(obj) {
  * @param {{
  *   entryHost: HTMLElement,           // #ai-entry-slot — 앱 바 진입 버튼을 마운트
  *   getSelectionState: () => {selectedIds:Set<string>, editingId:string|null},
+ *   getSelectedPageIds?: () => string[],  // M2 다중 페이지 grab — 앱바 진입 시 대상 페이지들
+
  *   findObject: (id:string) => {obj:object}|null,
  *   excludedTypes: Iterable<string>,  // shell.excludedAiTypes(std-box·passage-slot)
  *   getRenderMeta: () => object,      // reflow.js#buildRenderMeta(core.getDocument()) 재사용
@@ -230,7 +233,10 @@ export function createAiPanel(deps) {
     type: 'button', id: 'btn-ai', class: 'appbar-btn ai-entry-btn', title: 'AI 로 편집(선택 없으면 현재 페이지 전체)', text: 'AI',
   });
   entryBtn.addEventListener('click', () => {
-    openFor([...(deps.getSelectionState().selectedIds || [])]);
+    // M2: 개체 선택이 없고 썸네일에서 여러 페이지를 다중선택했으면 그 페이지들 전체를 대상으로 연다.
+    const ids = [...(deps.getSelectionState().selectedIds || [])];
+    const pageIds = ids.length === 0 ? (deps.getSelectedPageIds?.() || []) : [];
+    openFor(ids, pageIds.length >= 2 ? { scope: 'page', pageIds } : {});
   });
   deps.entryHost.appendChild(entryBtn);
 
@@ -660,7 +666,7 @@ export function createAiPanel(deps) {
       'data-ai-target-count': String(state.targets.length),
       'data-ai-page-id': state.pageId || '',
       text: state.scope === 'page'
-        ? `대상: 현재 페이지 전체 — ${state.targets.map((t) => t.obj.type).join(', ')} (${state.targets.length}개)`
+        ? `대상: ${state.pageIds && state.pageIds.length > 1 ? `선택한 ${state.pageIds.length}개 페이지 전체` : '현재 페이지 전체'} — ${state.targets.map((t) => t.obj.type).join(', ')} (${state.targets.length}개)`
         : `대상: ${state.targets.map((t) => t.obj.type).join(', ')} (${state.targets.length}개)`,
     }));
 
@@ -910,22 +916,27 @@ export function createAiPanel(deps) {
   /** scope:'page' 의 대상 — 그 페이지의 flow+float 전부. std-box 는 여기서 **제외**한다: 페이지
    *  전체라는 이유로 성취기준 원문이 AI 대상이 되면 안 된다(원칙 3). 선택 경로처럼 차단하지 않고
    *  조용히 빼는 이유는, 페이지 전체 요청은 교사가 특정 개체를 지목한 게 아니기 때문이다. */
+  function collectPagesTargets(pageIds) {
+    const pages = [...new Set(pageIds || [])]
+      .map((pid) => (pid ? deps.getPage?.(pid) : null))
+      .filter(Boolean);
+    return pageScopeTargets(pages, excludedSet);
+  }
   function collectPageTargets(pageId) {
-    const page = pageId ? deps.getPage?.(pageId) : null;
-    if (!page) return [];
-    return [...(page.flow || []), ...(page.float || [])]
-      .filter((obj) => obj && obj.id && !excludedSet.has(obj.type))
-      .map((obj) => ({ id: obj.id, obj }));
+    return collectPagesTargets(pageId ? [pageId] : []);
   }
 
   function switchScope(next) {
     if (!state || state.scope === next) return;
     if (next === 'page') {
-      const pageId = state.pageId ?? deps.getActivePageId?.() ?? null;
-      const targets = collectPageTargets(pageId);
+      const pageIds = (state.pageIds && state.pageIds.length)
+        ? state.pageIds
+        : [state.pageId ?? deps.getActivePageId?.() ?? null].filter(Boolean);
+      const targets = collectPagesTargets(pageIds);
       if (targets.length === 0) { state.error = '이 페이지에는 AI 로 편집할 개체가 없습니다.'; render(); return; }
       state.scope = 'page';
-      state.pageId = pageId;
+      state.pageId = pageIds[0] ?? null;
+      state.pageIds = pageIds;
       state.targets = targets;
     } else {
       const targets = resolveObjectTargets(state.selectionIds);
@@ -938,7 +949,7 @@ export function createAiPanel(deps) {
     render();
   }
 
-  function openFor(ids, { scope = null } = {}) {
+  function openFor(ids, { scope = null, pageIds = null } = {}) {
     const selectionIds = [...new Set(ids || [])].filter((id) => !!deps.findObject(id)?.obj);
     const base = {
       selectionIds,
@@ -948,14 +959,18 @@ export function createAiPanel(deps) {
       blockedMessage: null,
     };
 
-    // 선택이 없거나 교사가 명시적으로 페이지 전체를 고르면 활성 페이지 전체가 대상이다(US-P4-4).
+    // 선택이 없거나 교사가 명시적으로 페이지 전체를 고르면 페이지 전체가 대상이다(US-P4-4).
+    // pageIds(다중 페이지 grab, M2)가 오면 그 여러 페이지 전체를, 아니면 활성 페이지 한 장을 대상으로.
     if (scope === 'page' || selectionIds.length === 0) {
-      const pageId = deps.getActivePageId?.() ?? null;
-      const targets = collectPageTargets(pageId);
+      const scopePageIds = (Array.isArray(pageIds) && pageIds.length)
+        ? [...new Set(pageIds)]
+        : [deps.getActivePageId?.() ?? null].filter(Boolean);
+      const targets = collectPagesTargets(scopePageIds);
       state = {
         ...base,
         scope: 'page',
-        pageId,
+        pageId: scopePageIds[0] ?? null,
+        pageIds: scopePageIds,
         targets,
         phase: targets.length ? 'compose' : 'blocked',
         blockedMessage: targets.length ? null : '이 페이지에는 AI 로 편집할 개체가 없습니다(성취기준 개체는 제외됩니다).',

@@ -9,6 +9,7 @@
 // 그대로 쓴다 — 클라이언트가 새로 마크업을 주입하지 않는다(개체↔DOM 동기화는 data-oid 매칭만).
 
 import { normalizePastedHtml, normalizePastedText } from '/editor/pasteNormalize.js';
+import { marqueeHitOids } from '/editor/marqueeHits.js';
 
 const MM_TO_PX = 96 / 25.4; // editor.js 구 관례와 동일(고정, zoom/DPR 무관)
 
@@ -705,9 +706,11 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
       onDirty('text');
     });
 
-    // 마퀴(드래그 박스) 다중선택 — 빈 캔버스에서 드래그해 사각형을 그리고, 교차하는 float 개체를
-    // 모은다(float 만 대상: 좌표·겹침이 있는 개체). float 위 pointerdown=드래그, 개체 위=클릭 선택,
-    // 편집 중=텍스트 선택으로 각각 양보하고, 순수 .sheet 배경에서만 시작한다.
+    // 마퀴(드래그 박스) 다중선택 — 빈 캔버스에서 드래그해 사각형을 그리고, 교차하는 개체를 모은다.
+    // flow(.wg-obj)·float(.wg-float) **둘 다** 대상이다(M1 — 활동지 본문 대부분이 flow 라, float 만
+    // 모으면 제목·문항·지문·표를 못 잡아 "영역으로 잡기"가 반쪽이 된다). 시작 규칙은 그대로 —
+    // float 위 pointerdown=드래그, 개체 위=클릭/본체드래그, 편집 중=텍스트 선택으로 양보하고,
+    // 순수 .sheet 배경에서만 시작한다(교차 판정·중복제거는 marqueeHitOids 순수함수에 위임).
     let marquee = null;
     const marqueeSheetAt = (x, y) => [...doc.querySelectorAll('.sheet')].find((s) => {
       const r = s.getBoundingClientRect();
@@ -738,11 +741,12 @@ export function createSelectionController({ core, onDirty = () => {}, onSelectio
         left: Math.min(m.x0, e.clientX), top: Math.min(m.y0, e.clientY),
         right: Math.max(m.x0, e.clientX), bottom: Math.max(m.y0, e.clientY),
       };
-      const hits = [];
-      for (const el of doc.querySelectorAll('.wg-float[data-oid]')) {
-        const r = el.getBoundingClientRect();
-        if (r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top) hits.push(el.dataset.oid);
+      // flow(.wg-obj)·float(.wg-float) 를 함께 모아 교차 판정에 넘긴다(M1). 판정·중복제거는 순수함수.
+      const objects = [];
+      for (const el of doc.querySelectorAll('.wg-obj[data-oid], .wg-float[data-oid]')) {
+        objects.push({ oid: el.dataset.oid, rect: el.getBoundingClientRect() });
       }
+      const hits = marqueeHitOids(objects, box);
       swallowNextClick = true; // 드래그 끝에 따라오는 click 이 방금 만든 선택을 지우지 않도록
       state.selectedIds = new Set(hits);
       state.editingId = null;
