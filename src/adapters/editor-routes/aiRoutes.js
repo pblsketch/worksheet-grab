@@ -77,7 +77,8 @@ export function createAiRoutes({ docName, aiBridge }) {
           const status = await aiBridge.getStatus(rest);
           if (!status) return sendJson(res, 404, { error: '요청 없음' });
           const payload = { status };
-          if (status === 'answered') payload.response = await aiBridge.readResponse(rest);
+          // unsupported(열화 반려)도 response 를 실어 보낸다 — reason 을 폴링이 즉시 표시한다.
+          if (status === 'answered' || status === 'unsupported') payload.response = await aiBridge.readResponse(rest);
           return sendJson(res, 200, payload);
         } catch (e) {
           return sendJson(res, 400, { error: e.message });

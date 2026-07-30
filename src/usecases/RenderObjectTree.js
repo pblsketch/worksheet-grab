@@ -2,7 +2,7 @@ import { escapeHtml, wrapSheetBody, buildSheetSection, buildDocumentHtml } from 
 import { resolvePaper, paperCss as paperCssOverride } from './paper.js';
 // 크기 필드 범위(2026-07-28) — 렌더가 방어적으로 재확인한다(아래 flowBoxStyle 주석). ObjectCatalog 는
 // browserGraph 화이트리스트에 이미 있으므로 편집기 ESM 그래프에서도 404 나지 않는다(실측 확인).
-import { WIDTH_PCT_MIN, WIDTH_PCT_MAX } from '../domain/schema/ObjectCatalog.js';
+import { WIDTH_PCT_MIN, WIDTH_PCT_MAX, CALLOUT_VARIANTS } from '../domain/schema/ObjectCatalog.js';
 
 // RenderObjectTree — S2.1(M2) 순수 render-core(06_plan_final.md 150~152행, C-5/GAP-2).
 //
@@ -259,6 +259,7 @@ function renderByType(obj, ctx) {
     case 'shape': return renderShape(obj);
     case 'richtext': return renderRichtext(obj);
     case 'std-box': return renderStdBox(obj, ctx);
+    case 'callout': return renderCallout(obj);
     case 'spacer': return renderSpacer(obj);
     case 'page-break': return renderPageBreak();
     default:
@@ -624,5 +625,32 @@ ${refLis}
     <ul>
 ${lis}
     </ul>
+  </div>`;
+}
+
+/**
+ * 강조상자(callout, M4) — 팁·주의·핵심정리 박스. body/titleHtml 은 richtext.html 과 동형(입력에서
+ * 살균, 렌더는 이스케이프 없이 방출). title 평문은 escapeHtml. variant 는 클래스로 방출해
+ * blocks.css `.callout-<variant>` 가 색/아이콘을 받는다(편집==인쇄 동일 선언). 폭·정렬(SIZE_FIELDS)은
+ * flow 래퍼(renderFlowObject)가 처리하므로 여기서 만지지 않는다.
+ */
+/** variant 기본 라벨(제목 미지정 시 헤더밴드에 표시). */
+const CALLOUT_LABELS = { tip: '도움말', warning: '주의', note: '참고', summary: '핵심 정리' };
+
+function renderCallout(obj) {
+  // variant 를 닫힌 집합으로 접는다(알 수 없는 값이 callout-<임의> 같은 존재하지 않는 클래스로 새어
+  // 스타일 없는 박스가 되는 것을 막는다 — blocks.css 는 4종 variant 클래스만 안다).
+  const variant = CALLOUT_VARIANTS.includes(obj.variant) ? obj.variant : 'note';
+  // 헤더밴드 라벨 = titleHtml(살균) > title(평문 이스케이프) > variant 기본 라벨. 상단 색 밴드는
+  // .std-box/.strip 과 동형(이 활동지의 고유 디자인 — 왼쪽 세로띠 같은 제네릭 룩을 쓰지 않는다).
+  const head = (typeof obj.titleHtml === 'string' && obj.titleHtml)
+    ? obj.titleHtml
+    : (typeof obj.title === 'string' && obj.title
+      ? escapeHtml(obj.title)
+      : escapeHtml(CALLOUT_LABELS[variant] || '참고'));
+  const body = typeof obj.body === 'string' ? obj.body : '';
+  return `<div class="callout callout-${escapeHtml(variant)}">
+    <div class="callout-head">${head}</div>
+    <div class="callout-body">${body}</div>
   </div>`;
 }

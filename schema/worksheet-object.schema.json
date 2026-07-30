@@ -35,7 +35,7 @@
       "type": { "type": "string", "enum": [
         "title", "passage-slot", "question", "table", "image-slot",
         "answer-area", "divider", "shape", "richtext", "std-box",
-        "spacer", "page-break"
+        "callout", "spacer", "page-break"
       ]},
       "answer": {
         "type": "boolean",
@@ -92,6 +92,7 @@
         { "$ref": "#/$defs/shapeObject" },
         { "$ref": "#/$defs/richtextObject" },
         { "$ref": "#/$defs/stdBoxObject" },
+        { "$ref": "#/$defs/calloutObject" },
         { "$ref": "#/$defs/spacerObject" },
         { "$ref": "#/$defs/pageBreakObject" }
       ]
@@ -123,6 +124,25 @@
           "additionalProperties": false
         },
         "answer": { "$ref": "#/$defs/commonProps/answer" },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
+      },
+      "additionalProperties": false
+    },
+
+    "calloutObject": {
+      "type": "object",
+      "description": "강조상자(팁·주의·핵심정리 등) — flow 전용, 정답 미포함 중립 박스.",
+      "required": ["id", "type", "placement", "variant", "body"],
+      "properties": {
+        "id": { "$ref": "#/$defs/commonProps/id" },
+        "type": { "const": "callout" },
+        "placement": { "const": "flow" },
+        "variant": { "type": "string", "enum": ["tip", "warning", "note", "summary"], "description": "강조 유형(팁/주의/노트/핵심정리)." },
+        "body": { "type": "string", "description": "강조상자 본문(살균 HTML)." },
+        "title": { "type": "string", "description": "강조상자 제목(선택, 평문)." },
+        "titleHtml": { "type": "string", "description": "제목 인라인 서식 살균 HTML(선택)." },
         "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
         "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
         "align": { "$ref": "#/$defs/commonProps/align" }

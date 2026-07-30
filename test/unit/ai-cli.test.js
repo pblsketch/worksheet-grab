@@ -107,6 +107,21 @@ test('Phase 4 ai respond --ops: v4 계획 기록(replace+insert+delete) + 요약
   assert.deepEqual(resp.ops.map((o) => o.op), ['replace', 'insert', 'delete']);
 });
 
+test('M5 ai respond --unsupported: 반려 봉투 기록 → getStatus unsupported + 요약 표시', async () => {
+  const base = await autoTmpDir('wsg-aicli-uns-');
+  const bridge = new FsAiBridgeRepository({ baseDir: base });
+  await bridge.putRequest(reqV4('req-uns'));
+
+  const reason = '문항 3개를 하나로 합치는 지시는 표현할 수 없습니다.';
+  const r = logger();
+  assert.equal(await run(['ai', 'respond', 'req-uns', '--unsupported', reason, '--workspaces-dir', base], { root: ROOT, log: r.log, err: r.err }), 0);
+  assert.ok(r.lines.some((l) => /응답 기록: req-uns \(반려\(/.test(l)), r.lines.join('\n'));
+  assert.equal(await bridge.getStatus('req-uns'), 'unsupported', '반려 봉투 → 상태 파생 unsupported(answered 아님)');
+  const resp = await bridge.readResponse('req-uns');
+  assert.equal(resp.unsupported, true);
+  assert.equal(resp.reason, reason, 'reason 이 그대로 기록된다');
+});
+
 test('Phase 4 ai respond --ops: {ops:[…]} 래핑 허용 · 형태 불일치는 거부', async () => {
   const base = await autoTmpDir('wsg-aicli-opsbad-');
   const bridge = new FsAiBridgeRepository({ baseDir: base });

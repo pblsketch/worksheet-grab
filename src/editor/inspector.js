@@ -11,7 +11,7 @@ import { icon } from './icons.js';
 import { QTYPE_LABELS, SHAPE_KINDS, DASH_STYLES, ANSWER_AREA_STYLES } from './objectFactory.js';
 import {
   ANSWERABLE_TYPES, QUESTION_TYPES, SIZEABLE_TYPES, PLACEMENT_TOGGLEABLE_TYPES,
-  ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX,
+  ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX, CALLOUT_VARIANTS,
 } from '/src/domain/schema/index.js';
 import { PAPER_PRESETS, resolvePaper, matchPreset, paperDims, paperMargins } from '/src/usecases/paper.js';
 
@@ -36,7 +36,7 @@ const ALIGN_BUTTONS = [
 const TYPE_LABELS = Object.freeze({
   title: '제목', question: '문항', table: '표', 'image-slot': '이미지', 'answer-area': '답란',
   richtext: '자유 텍스트', shape: '도형', divider: '구분선', 'passage-slot': '지문 슬롯', 'std-box': '학습목표 박스',
-  spacer: '빈 공간', 'page-break': '페이지 나누기',
+  callout: '강조상자', spacer: '빈 공간', 'page-break': '페이지 나누기',
 });
 // placement(flow/float) → 사용자용 한국어(#9): float=자유 배치, flow=본문 배치(교사 친화 표현, US-E4).
 const PLACEMENT_LABEL = Object.freeze({ float: '자유 배치', flow: '본문 배치' });
@@ -471,6 +471,25 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         // 표시를 꺼도 이 값은 그대로 남아, 다시 켜면 원문이 되살아난다.
         const codes = el('input', { type: 'text', id: 'insp-std-codes', value: (obj.codes || []).join(', '), readonly: 'readonly' });
         root.appendChild(field('성취기준 코드(읽기 전용)', codes));
+        break;
+      }
+      case 'callout': {
+        // 강조상자(M4) — 종류(variant)·제목·본문. 크기·정렬은 위 공통 크기 섹션(SIZEABLE)이 처리한다.
+        // body 는 렌더가 raw 방출하는 살균 HTML 이지만 **교사 저작 HTML 은 여기서 살균하지 않는다**
+        // (passage-slot bodyHtml 과 동일 규약 — 자기 문서 신뢰; 살균은 AI 경로 sanitizeObject 소관).
+        const VARIANT_LABELS = { tip: '도움말', warning: '주의', note: '참고', summary: '핵심 정리' };
+        const variant = CALLOUT_VARIANTS.includes(obj.variant) ? obj.variant : 'note';
+        const vSel = el('select', { id: 'insp-callout-variant' });
+        for (const v of CALLOUT_VARIANTS) vSel.appendChild(el('option', { value: v, text: VARIANT_LABELS[v] || v, selected: variant === v ? 'selected' : null }));
+        vSel.addEventListener('change', () => patch({ variant: vSel.value }));
+        root.appendChild(field('종류', vSel));
+        const title = el('input', { type: 'text', id: 'insp-callout-title', value: obj.title || '', placeholder: VARIANT_LABELS[variant] });
+        title.addEventListener('change', () => patch({ title: title.value.trim() || undefined }));
+        root.appendChild(field('제목(비우면 종류 이름)', title));
+        const body = el('textarea', { id: 'insp-callout-body', rows: '4', text: obj.body || '' });
+        body.addEventListener('change', () => patch({ body: body.value }));
+        root.appendChild(field('본문', body));
+        root.appendChild(el('p', { class: 'insp-note', text: '본문에는 HTML 을 그대로 쓸 수 있습니다(예: <b>굵게</b>). 제목을 비우면 종류 이름(도움말·주의·참고·핵심 정리)이 머리띠에 표시됩니다.' }));
         break;
       }
       default: break;

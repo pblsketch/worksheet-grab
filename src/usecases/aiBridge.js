@@ -33,15 +33,24 @@ export const AI_SCHEMA_VERSIONS = new Set([1, 2, 3, 4]);
 /** v4 응답 계획의 연산 종류. */
 export const AI_OPS = ['replace', 'insert', 'delete', 'insert-section'];
 export const AI_ACTIONS = ['rewrite', 'fill-example'];
-export const AI_STATUSES = ['pending', 'answered', 'cancelled', 'applied'];
+// 'unsupported'(M5 열화 계약): 구독 AI 가 "이 요청은 ops 어휘로 표현할 수 없다"를 명시 반려한 상태.
+// answered 와 같이 **응답 봉투에서 파생**된다(setStatus 로 서버가 쓰지 않는다 — 응답 파일이
+// unsupported:true 면 getStatus 가 이 값을 돌려준다). terminal — 조용한 5분 타임아웃 대신 즉시 사유 표시.
+export const AI_STATUSES = ['pending', 'answered', 'cancelled', 'applied', 'unsupported'];
 
-/** 상태 전이: pending→(answered|cancelled), answered→(applied|cancelled). cancelled·applied = terminal. */
+/** 상태 전이: pending→(answered|cancelled|unsupported), answered→(applied|cancelled). cancelled·applied·unsupported = terminal. */
 const TRANSITIONS = {
-  pending: new Set(['answered', 'cancelled']),
+  pending: new Set(['answered', 'cancelled', 'unsupported']),
   answered: new Set(['applied', 'cancelled']),
   cancelled: new Set(),
   applied: new Set(),
+  unsupported: new Set(),
 };
+
+/** 응답이 열화 반려 봉투('이 요청은 못 한다')인가 — getStatus 가 answered↔unsupported 를 가르는 판별. */
+export function isUnsupportedResponse(res) {
+  return !!res && typeof res === 'object' && res.unsupported === true;
+}
 
 export function canTransition(from, to) {
   return TRANSITIONS[from]?.has(to) ?? false;
@@ -180,6 +189,9 @@ export function validateResponse(res) {
   if (!res || typeof res !== 'object') return false;
   if (!AI_SCHEMA_VERSIONS.has(res.schemaVersion)) return false;
   if (typeof res.id !== 'string' || !res.id) return false;
+  // 열화 반려(M5): ops/objects 대신 unsupported:true + reason(사용자에게 보일 사유). ops 요구를 우회한다
+  // — 구독 AI 가 "합칠 수 없는 지시"·"어휘 초과"를 조용히 무응답으로 두지 않고 명시적으로 돌려보낸다.
+  if (res.unsupported === true) return typeof res.reason === 'string' && !!res.reason.trim();
   // v1 = 단일 html, v2 = blocks[{slot:정수≥0, html:비어있지 않음}], v3 = objects[{id,object}],
   // v4 = ops[{op,…}](개수·종류가 자유로운 계획).
   if (res.schemaVersion === 1) return typeof res.html === 'string' && !!res.html.trim();

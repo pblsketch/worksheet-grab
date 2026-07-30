@@ -35,6 +35,18 @@ test('요청/응답 왕복 + 상태 표현(응답 존재 = answered)', async () 
   assert.equal(await repo.getStatus('req-a'), 'applied');
 });
 
+test('M5 열화 계약: unsupported 봉투 응답이면 getStatus 가 unsupported 로 파생', async () => {
+  const { repo } = await fresh();
+  await repo.putRequest(req('req-u'));
+  assert.equal(await repo.getStatus('req-u'), 'pending');
+  // 구독 AI 가 "이 지시는 표현 불가"를 명시 반려 — 응답 파일은 unsupported:true + reason.
+  await repo.putResponse({ schemaVersion: AI_SCHEMA_VERSION, id: 'req-u', unsupported: true, reason: '표현할 수 없는 지시입니다.' });
+  assert.equal(await repo.getStatus('req-u'), 'unsupported', '응답 존재하나 answered 아닌 unsupported 로 갈린다');
+  assert.equal((await repo.listPending()).length, 0, 'unsupported 도 pending 목록에서 제외(terminal)');
+  const resp = await repo.readResponse('req-u');
+  assert.equal(resp.reason, '표현할 수 없는 지시입니다.', 'reason 이 그대로 전달된다');
+});
+
 test('취소 우선(레이스): cancelled 후 응답 파일이 생겨도 상태는 cancelled', async () => {
   const { repo } = await fresh();
   await repo.putRequest(req('req-b'));

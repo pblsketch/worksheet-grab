@@ -42,6 +42,9 @@ export const SIZE_FIELDS = Object.freeze(['widthPct', 'minHeightMm', 'align']);
 /** align 허용값 — left 는 기본값이라 렌더가 선언 자체를 생략한다. */
 export const ALIGN_VALUES = Object.freeze(['left', 'center', 'right']);
 
+/** 강조상자(callout) variant 4종(2026-07-30 신설 — M4). 팁/주의/노트/핵심정리. */
+export const CALLOUT_VARIANTS = Object.freeze(['tip', 'warning', 'note', 'summary']);
+
 /** widthPct 범위 — 5% 미만은 내용이 뭉개져 실용적이지 않고, 100% 초과는 열을 넘긴다. */
 export const WIDTH_PCT_MIN = 5;
 export const WIDTH_PCT_MAX = 100;
@@ -130,6 +133,15 @@ export const TYPE_SPECS = Object.freeze({
     //   (그마저도 학생용에서는 CSS 로 숨는다 — 종전과 같음). 이 필드는 표시 여부만 정하며
     //   codes(조회 참조)는 그대로 보존된다 — 껐다 켜도 성취기준 정보가 소실되지 않는다.
     optional: Object.freeze(['codes', 'objectives', 'heading', 'showStandards', ...SIZE_FIELDS]),
+  }),
+  // ── 강조상자(2026-07-30 신설 — M4) ─────────────────────────────────────────
+  // 팁·주의·핵심정리 박스. flow 전용. body 는 살균 HTML(정제 allowlist). **answer 없음**(중립 박스라
+  // 정답을 담지 않는다 — BuildVariants 학생본 제거·정답누출 검사 확장 불필요). SIZE_FIELDS 는 편집기
+  // 전용(AI 저작 어휘 아님 — designer 어휘에는 variant/title/body 만 넣는다).
+  'callout': Object.freeze({
+    placements: Object.freeze(['flow']),
+    required: Object.freeze(['variant', 'body']),
+    optional: Object.freeze(['title', 'titleHtml', ...SIZE_FIELDS]),
   }),
   // ── 레이아웃 전용 2종(2026-07-28 신설) ─────────────────────────────────────
   // 둘 다 "내용"이 아니라 **조판 의도**를 담는다. flow 전용인 이유가 각각 있다(아래 주석).

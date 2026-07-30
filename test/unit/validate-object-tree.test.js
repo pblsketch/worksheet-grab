@@ -33,7 +33,7 @@ test('정상 문서는 PASS', () => {
 
 test('FAIL 1/4: 미지정 타입(닫힌 카탈로그 밖)', () => {
   const doc = baseDocument();
-  doc.pages[0].flow.push({ id: 'bad1', type: 'callout', placement: 'flow', text: '강조박스' });
+  doc.pages[0].flow.push({ id: 'bad1', type: 'sidebar', placement: 'flow', text: '강조박스' });
   const { ok, findings } = new ValidateObjectTree().execute(doc);
   assert.equal(ok, false);
   assert.ok(findings.some((f) => f.rule === 'unknown-type'));

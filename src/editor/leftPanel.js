@@ -428,7 +428,7 @@ export function createLeftPanel({
   }
   function iconFor(type) {
     return { title: 'type', question: 'list', table: 'table', 'image-slot': 'image', 'answer-area': 'square',
-      richtext: 'type', shape: 'square', divider: 'minus', 'passage-slot': 'file', 'std-box': 'files' }[type] || 'plus';
+      richtext: 'type', shape: 'square', divider: 'minus', 'passage-slot': 'file', 'std-box': 'files', callout: 'highlighter' }[type] || 'plus';
   }
 
   // ── ③ 내 블록(/presets 재배선) ──
