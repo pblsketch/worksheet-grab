@@ -6,6 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateObjectShape } from '../../src/domain/schema/index.js';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { parseTableRows } from '../../src/usecases/MigrateManifestToObjectTree.js';
+import { ORGANIZER_GENERATORS } from '../../src/usecases/OrganizerGen.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -73,5 +74,33 @@ test('조직자 삽입: 프레이어 개념=병합 헤더(colspan2·중앙) · c
   // 삽입 조직자는 전부 빈 구조 — answer:true 없음(정답 누출 원천 차단, #4 fail-closed 와 독립).
   for (const desc of ORGANIZER_INSERTS) {
     assert.notEqual(createOrganizerObject(desc.key).answer, true, `${desc.key}: 삽입 시 정답 플래그 없음`);
+  }
+});
+
+// ── #2 P2: 그림형(SVG) 조직자 잠금 삽입(richtext) ──────────────────────────────
+
+test('그림형 조직자 삽입: 6종이 스키마 유효한 flow richtext(인라인 SVG) 개체를 만든다(새 타입 없이)', async () => {
+  const { GRAPHIC_ORGANIZER_INSERTS, createOrganizerObject } = await loadObjectFactory();
+  assert.ok(GRAPHIC_ORGANIZER_INSERTS.length >= 6, `그림형 조직자 ≥6종(실제 ${GRAPHIC_ORGANIZER_INSERTS.length})`);
+  for (const desc of GRAPHIC_ORGANIZER_INSERTS) {
+    const obj = createOrganizerObject(desc.key);
+    assert.equal(obj.type, 'richtext', `${desc.key}: richtext 잠금 삽입(새 개체 타입 아님)`);
+    assert.equal(obj.placement, 'flow', `${desc.key}: flow`);
+    assert.equal(obj.rect, undefined, `${desc.key}: flow 는 좌표 없음`);
+    assert.match(obj.html, /<svg/, `${desc.key}: 인라인 SVG 포함(색은 blocks.css)`);
+    assert.doesNotMatch(obj.html, /#[0-9a-fA-F]{3,6}\b/, `${desc.key}: HTML 에 hex 색 리터럴 없음(색은 CSS — 범교과)`);
+    assert.notEqual(obj.answer, true, `${desc.key}: 정답 플래그 없음`);
+    const { ok, findings } = validateObjectShape(obj);
+    assert.ok(ok, `${desc.key} 스키마 위반: ${findings.map((f) => f.rule).join(',')}`);
+  }
+});
+
+test('그림형 조직자 삽입: html 이 엔진 생성기(OrganizerGen) 기본 출력과 동일(단일 출처 — 드리프트 0)', async () => {
+  const { GRAPHIC_ORGANIZER_INSERTS, createOrganizerObject } = await loadObjectFactory();
+  for (const desc of GRAPHIC_ORGANIZER_INSERTS) {
+    const gen = ORGANIZER_GENERATORS[desc.key];
+    assert.ok(typeof gen === 'function', `${desc.key}: OrganizerGen 생성기 존재`);
+    assert.equal(createOrganizerObject(desc.key).html, gen({}),
+      `${desc.key}: 삽입 SVG 가 compose 와 같은 엔진 기본 출력이어야(이중 출처 금지)`);
   }
 });

@@ -19,6 +19,9 @@ import {
   WIDTH_PCT_MAX,
   createUniquePageId,
 } from '/src/domain/schema/index.js';
+// 그림형 조직자 삽입(#2 P2)은 엔진의 파라메트릭 SVG 생성기를 그대로 재사용한다(단일 출처 —
+// compose 와 같은 OrganizerGen). 순수 모듈이라 브라우저/노드 양쪽에서 그대로 import 된다.
+import { ORGANIZER_GENERATORS } from '/src/usecases/OrganizerGen.js';
 
 /** 자유 배치 기본 rect — 실측을 못 얻었을 때만 쓰는 폴백(삽입·승격 공통 단일 출처). */
 const DEFAULT_FLOAT_RECT = Object.freeze({ xMm: 20, yMm: 20, wMm: 60, hMm: 30 });
@@ -142,6 +145,18 @@ export const ORGANIZER_INSERTS = Object.freeze([
   ] },
 ]);
 
+// 그림형 시각 조직자 삽입(#2 P2) — SVG 조직자를 richtext 개체로 "잠금 삽입"한다. 원본 블록과 동일한
+// 인라인 SVG 라 blocks.css 색/인쇄안전(.keep)이 그대로 적용된다(이미지로 넣으면 색이 빠진다). 표형과
+// 달리 편집 가능한 표가 아니라 이동·삭제 가능한 그림 블록이다(개수는 엔진 기본값 = 정적 블록과 동일).
+export const GRAPHIC_ORGANIZER_INSERTS = Object.freeze([
+  { key: 'venn', label: '벤다이어그램 (공통점·차이점)' },
+  { key: 'conceptmap', label: '개념 지도 (핵심·가지)' },
+  { key: 'fishbone', label: '피시본 (원인·결과)' },
+  { key: 'flowchart', label: '순서 흐름도' },
+  { key: 'hierarchy', label: '위계 트리 (상위·하위)' },
+  { key: 'hexagon', label: '육각형 연결 (헥사고날)' },
+]);
+
 export const QTYPE_LABELS = Object.freeze({
   'multiple-choice': '객관식', 'short-answer': '단답형', essay: '서술형', 'fill-blank': '빈칸',
   'true-false': '참/거짓', matching: '연결형', ordering: '순서배열',
@@ -204,10 +219,15 @@ export function createObject(type, { placement = 'flow', qtype, rect } = {}) {
   return obj;
 }
 
-/** 시각 조직자 삽입(#2) — ORGANIZER_INSERTS 서술자로 미리 채운 flow `table` 개체를 만든다.
- *  새 개체 타입이 아니라 기존 table 개체다(스키마 무변경 — 닫힌 카탈로그 재사용). 조직자는 구조
- *  콘텐츠라 flow 전용(float 없음). rows 는 깊은 복사해 서술자 원본이 공유·변형되지 않게 한다. */
+/** 시각 조직자 삽입(#2) — 새 개체 타입 없이 기존 개체로 만든다(스키마 무변경). 조직자는 구조 콘텐츠라
+ *  flow 전용(float 없음).
+ *  - 표형(ORGANIZER_INSERTS): 미리 채운 `table` 개체(등폭 w·필기높이 h·병합 개념). rows 는 깊은 복사.
+ *  - 그림형(GRAPHIC_ORGANIZER_INSERTS, P2): 엔진 생성기(OrganizerGen)로 기본 개수 SVG 를 만들어 `richtext`
+ *    로 잠금 삽입한다. 인라인 SVG 라 blocks.css 색/인쇄안전이 그대로 적용된다(이미지로는 색이 빠진다). */
 export function createOrganizerObject(key) {
+  if (ORGANIZER_GENERATORS[key]) {
+    return { id: generateId(key), type: 'richtext', placement: 'flow', html: ORGANIZER_GENERATORS[key]({}) };
+  }
   const desc = ORGANIZER_INSERTS.find((o) => o.key === key);
   if (!desc) throw new Error(`objectFactory: 알 수 없는 조직자 삽입 키: ${key}`);
   const obj = {
