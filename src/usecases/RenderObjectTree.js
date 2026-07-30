@@ -634,14 +634,21 @@ ${lis}
  * blocks.css `.callout-<variant>` 가 색/아이콘을 받는다(편집==인쇄 동일 선언). 폭·정렬(SIZE_FIELDS)은
  * flow 래퍼(renderFlowObject)가 처리하므로 여기서 만지지 않는다.
  */
+/** variant 기본 라벨(제목 미지정 시 헤더밴드에 표시). */
+const CALLOUT_LABELS = { tip: '도움말', warning: '주의', note: '참고', summary: '핵심 정리' };
+
 function renderCallout(obj) {
   const variant = typeof obj.variant === 'string' ? obj.variant : 'note';
-  const titleHtml = typeof obj.titleHtml === 'string' && obj.titleHtml
+  // 헤더밴드 라벨 = titleHtml(살균) > title(평문 이스케이프) > variant 기본 라벨. 상단 색 밴드는
+  // .std-box/.strip 과 동형(이 활동지의 고유 디자인 — 왼쪽 세로띠 같은 제네릭 룩을 쓰지 않는다).
+  const head = (typeof obj.titleHtml === 'string' && obj.titleHtml)
     ? obj.titleHtml
-    : (typeof obj.title === 'string' && obj.title ? escapeHtml(obj.title) : '');
+    : (typeof obj.title === 'string' && obj.title
+      ? escapeHtml(obj.title)
+      : escapeHtml(CALLOUT_LABELS[variant] || '참고'));
   const body = typeof obj.body === 'string' ? obj.body : '';
-  const titleBlock = titleHtml ? `\n    <div class="callout-title">${titleHtml}</div>` : '';
-  return `<div class="callout callout-${escapeHtml(variant)}">${titleBlock}
+  return `<div class="callout callout-${escapeHtml(variant)}">
+    <div class="callout-head">${head}</div>
     <div class="callout-body">${body}</div>
   </div>`;
 }
