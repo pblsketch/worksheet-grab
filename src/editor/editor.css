@@ -178,6 +178,7 @@ button { font: inherit; }
   cursor: pointer; font-size: 11.5px; color: #24292f;
 }
 .insert-card:hover { border-color: #2563eb; background: #f0f6ff; }
+.insert-section-head { font-size: 11px; font-weight: 600; color: #57606a; margin: 14px 0 6px; letter-spacing: .02em; }
 
 /* 레이어(개체 목록) 패널 — 현재 페이지 개체의 파생 뷰(manifest 렌더, 조작은 applyDocOp) */
 .layer-hint { font-size: 11.5px; color: #57606a; margin: 0 0 8px; line-height: 1.5; }

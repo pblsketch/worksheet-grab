@@ -1270,6 +1270,28 @@ export async function runEditorTestSeed(seed, {
     const saved = await save();
     document.body.dataset.floatSaveOk = String(saved != null && saved.unsafe === false);
     document.body.dataset.savedExists = String(!!core.findObject(newId));
+  } else if (seed === 'organizer-insert') {
+    // #2 P1a — 표형 시각 조직자 삽입: 좌측 "시각 조직자" 그리드 버튼 클릭 → 미리 채운 table 개체 삽입.
+    // 삽입되는 건 새 개체 타입이 아니라 table(스키마 무변경)이며 flow 전용·정답 없음(빈 구조).
+    document.querySelector('[data-tab="insert"]').click();
+    document.body.dataset.organizerBtnCount = String(document.querySelectorAll('#organizer-grid [data-organizer-key]').length);
+    document.querySelector('#organizer-grid [data-organizer-key="frayer"]').click();
+    await wait(150);
+    cancelScheduledReflow();
+    doc = frames.teacher.contentDocument;
+    const newId = [...selection.state.selectedIds][0];
+    const ins = core.findObject(newId).obj;
+    document.body.dataset.insType = ins.type;
+    document.body.dataset.insPlacement = ins.placement;
+    document.body.dataset.insCaption = ins.caption || '';
+    document.body.dataset.insRows = String(Array.isArray(ins.rows) ? ins.rows.length : 0);
+    document.body.dataset.insHasAnswer = String(ins.answer === true);
+    const el = doc.querySelector(`[data-oid="${newId}"]`);
+    const rendered = el ? el.innerHTML : '';
+    document.body.dataset.insRendersTable = String(!!el && /<table/i.test(rendered));
+    document.body.dataset.insHasHeaders = String(/정의/.test(rendered) && /예가 아닌 것/.test(rendered));
+    const saved = await save();
+    document.body.dataset.organizerSaveOk = String(saved != null && saved.unsafe === false);
   } else if (seed === 'view-toggle') {
     // US-20 — 눈금자/격자/여백선 재작성: 신 UI 는 CSS 클래스 토글(전역 보기 메뉴)만 제공한다
     // (us20.md 기능 공백: 픽셀 단위 눈금 개수·드래그 중 중앙 스냅 안내선은 없음).

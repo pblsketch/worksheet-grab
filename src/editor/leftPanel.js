@@ -5,7 +5,7 @@
 // editor.js 가 core/history/reflow 와 묶어 호출).
 
 import { icon } from './icons.js';
-import { CATALOG_ITEMS } from './objectFactory.js';
+import { CATALOG_ITEMS, ORGANIZER_INSERTS } from './objectFactory.js';
 import { settlePageReorder } from './pageReorder.js';
 import { collectStyles } from './thumbs.js';
 
@@ -43,6 +43,7 @@ export function createLeftPanel({
   onPageRoleChange,
   onPageReorder,
   onInsertItem,
+  onInsertOrganizer = () => {},
   fetchPresets,
   onPresetInsert,
   onPresetDelete,
@@ -54,6 +55,7 @@ export function createLeftPanel({
   const panels = Object.fromEntries(TABS.map((t) => [t, root.querySelector(`[data-panel="${t}"]`)]));
   const thumbList = root.querySelector('#thumb-list');
   const insertGrid = root.querySelector('#insert-grid');
+  const organizerGrid = root.querySelector('#organizer-grid');
   const floatToggle = root.querySelector('#insert-float-toggle');
   const presetList = root.querySelector('#preset-list');
   const layerList = root.querySelector('#layer-list');
@@ -429,6 +431,21 @@ export function createLeftPanel({
   function iconFor(type) {
     return { title: 'type', question: 'list', table: 'table', 'image-slot': 'image', 'answer-area': 'square',
       richtext: 'type', shape: 'square', divider: 'minus', 'passage-slot': 'file', 'std-box': 'files', callout: 'highlighter' }[type] || 'plus';
+  }
+
+  // ── ②' 시각 조직자(표형) 삽입 — 미리 채운 table 개체(새 개체 타입 없이·스키마 무변경).
+  //      그림형(SVG)·특수 레이아웃(신호등 색·쓰기줄)은 여기 없다(후속 P2 잠금 삽입). ──
+  if (organizerGrid) {
+    for (const desc of ORGANIZER_INSERTS) {
+      const btn = document.createElement('button');
+      btn.className = 'insert-card';
+      btn.type = 'button';
+      btn.dataset.organizerKey = desc.key;
+      btn.innerHTML = `${icon('table')}<span>${desc.label}</span>`;
+      btn.title = desc.label;
+      btn.addEventListener('click', () => onInsertOrganizer(desc.key));
+      organizerGrid.appendChild(btn);
+    }
   }
 
   // ── ③ 내 블록(/presets 재배선) ──

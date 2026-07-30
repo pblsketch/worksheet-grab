@@ -626,6 +626,16 @@ async function doInsert(item, { float = false, afterId = null } = {}) {
   return obj.id;
 }
 
+// 시각 조직자 삽입(#2) — 표형 조직자를 미리 채운 flow `table` 개체로 삽입한다(새 개체 타입 아님).
+// doInsert 와 동형이나 organizer 서술자 기반이고 flow 전용(그림형은 후속 P2 잠금 richtext).
+async function doInsertOrganizer(key, { afterId = null } = {}) {
+  const obj = ObjOps.createOrganizerObject(key);
+  const anchorId = afterId ?? currentSingleSelectedId();
+  const next = ObjOps.insertFlow(core.getDocument(), obj, { afterId: anchorId });
+  await applyDocOp(next, { reflow: true, selectId: obj.id });
+  return obj.id;
+}
+
 // 페이지 add/duplicate/delete/reorder 는 의도적으로 리플로우를 예약하지 않는다 — reflow.js 의 페이지네이션은
 // flow 콘텐츠 높이로만 pages[] 개수를 다시 계산하므로(D-A, 페이지는 파생값), 빈 페이지를 추가한 직후
 // 리플로우가 돌면 그 빈 페이지가 즉시 사라진다(콘텐츠가 0 이라 assignFlowToPages 가 배정할 이유가
@@ -1037,6 +1047,7 @@ const leftPanel = createLeftPanel({
   onPageRoleChange: (pageId, role) => handlePageAction('set-role', pageId, { role }),
   onPageReorder: (pageIds, movedPageId) => handlePageAction('reorder', movedPageId, { pageIds }),
   onInsertItem: (item, opts) => doInsert(item, opts),
+  onInsertOrganizer: (key) => doInsertOrganizer(key),
   fetchPresets: () => fetch('/presets').then((r) => r.json()),
   onPresetInsert: (preset) => {
     const obj = ObjOps.createObject('richtext', { placement: 'flow' });
