@@ -2,8 +2,8 @@
   "version": 1,
   "note": "블록 타입 어휘 + 계약. 코어=≥2교과 사용·var(--*)만 참조(인쇄안전). 교과팩=해당 교과 전용. gen 타입(standard-label)은 파일 없이 엔진이 성취기준 원문으로 렌더. 콘텐츠는 요청마다 manifest 에 인라인 저작(동적 조립), exemplar 는 재사용 시드/폴백.",
   "counts": {
-    "total": 28,
-    "core": 17,
+    "total": 34,
+    "core": 23,
     "pack": 11
   },
   "types": {
@@ -411,6 +411,78 @@
       "desc": "대화문(빈칸 채우기)",
       "cssClass": "dialogue",
       "file": "pack-english/dialogue.html"
+    },
+    "kwl": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "KWL 조직자(아는 것·알고 싶은 것·배운 것) — 단원 도입·정리",
+      "cssClass": "kwl",
+      "file": "core/kwl.html"
+    },
+    "frayer": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "프레이어 모형(정의·특징·예·비예) — 어휘·개념 학습",
+      "cssClass": "frayer",
+      "file": "core/frayer.html"
+    },
+    "w5h1": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "5W1H(누가·언제·어디서·무엇을·어떻게·왜) — 사건·자료 분석",
+      "cssClass": "w5h1",
+      "file": "core/w5h1.html"
+    },
+    "bme": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "처음·중간·끝 — 서사 구조 정리",
+      "cssClass": "bme",
+      "file": "core/bme.html"
+    },
+    "exit321": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "3-2-1 성찰(엑시트 티켓) — 배운 것 3·연결 2·질문 1",
+      "cssClass": "exit321",
+      "file": "core/exit321.html"
+    },
+    "mainidea": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "desc": "핵심 아이디어 + 뒷받침 근거 — 요지·근거 구조화",
+      "cssClass": "mainidea",
+      "file": "core/mainidea.html"
     }
   }
 }

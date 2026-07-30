@@ -294,3 +294,41 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .dialogue .turn { display: flex; gap: 8px; margin: 5px 0; font-size: 9.5pt; }
 .dialogue .spk { font-weight: 700; color: var(--cink); min-width: 34px; }
 .dialogue .blank { border-bottom: 1px solid #bbb; flex: 1; min-height: 16px; }
+
+/* ===== 시각 조직자(graphic organizers) — Track A 표형 (범교과 코어) ===== */
+/* 인쇄안전은 .keep(page-break-inside:avoid, paper.css)로 보장. 색은 테마 토큰(var(--*))만. */
+.kwl, .frayer, .w5h1, .bme, .exit321, .mainidea {
+  margin-top: 3mm; width: 100%; border-collapse: collapse; }
+.kwl th, .frayer th, .bme th, .mainidea th {
+  background: var(--clabel); color: var(--cink); font-weight: 700;
+  padding: 6px; font-size: 9.5pt; border: 1px solid #cbd5c0; text-align: center; }
+.kwl td, .frayer td, .bme td, .w5h1 td, .exit321 td, .mainidea td {
+  border: 1px solid #cbd5c0; padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+
+/* KWL — 아는 것 / 알고 싶은 것 / 배운 것 (3열) */
+.kwl th span { display: block; font-weight: 400; font-size: 8pt; color: #555; margin-top: 2px; }
+.kwl td { height: 96px; width: 33.33%; }
+
+/* 프레이어 모형 — 정의·특징·예·비예 (2×2) + 중심 개념 */
+.frayer { caption-side: top; }
+.frayer caption { font-weight: 700; color: var(--cink); font-size: 9.5pt;
+  margin-bottom: 3px; text-align: center; }
+.frayer th { width: 50%; }
+.frayer td.fq { height: 72px; width: 50%; }
+
+/* 5W1H (Big 6) — 라벨-값 6행 */
+.w5h1 td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 28%; }
+.w5h1 td { height: 34px; }
+
+/* 처음·중간·끝 — 3열 서사 구조 */
+.bme td { height: 112px; width: 33.33%; }
+
+/* 3-2-1 성찰(엑시트 티켓) */
+.exit321 td.num { background: var(--clabel); color: var(--cink); font-weight: 700;
+  text-align: center; width: 12%; font-size: 12pt; }
+.exit321 .wr { border-bottom: 1px solid #bbb; margin: 8px 0 2px; min-height: 15px; }
+
+/* 핵심 아이디어 + 뒷받침 근거 */
+.mainidea td.mi-main { height: 46px; }
+.mainidea td.mi-sup { height: 20px; }
+.mainidea .wr { border-bottom: 1px solid #bbb; margin: 6px 0 10px; min-height: 15px; }
