@@ -76,6 +76,26 @@ export const CATALOG_ITEMS = Object.freeze([
   { key: 'page-break', type: 'page-break', label: '페이지 나누기', floatable: false },
 ]);
 
+// 시각 조직자 삽입(#2) — 표형 조직자를 "새 개체 타입 없이" 미리 채운 `table` 개체로 삽입한다.
+// 스키마 무변경(닫힌 카탈로그의 table 재사용). 각 rows 는 blocks/core/<key>.html 의 <table> 을
+// parseTableRows(MigrateManifestToObjectTree)로 파생한 값과 동일해야 한다(단일 출처 — organizer-insert
+// 테스트가 블록↔서술자 parity 를 강제해 드리프트를 막는다). 그림형(SVG)·특수 레이아웃(신호등 색·쓰기줄)은
+// 여기 없다 — 잠금 richtext 삽입(후속 P2)으로 원본 HTML 을 그대로 보존한다.
+// 셀은 parseTableRows 규약과 정합: 헤더 셀은 {text, header:true}, 일반 셀은 {text}. 정답은 비운다
+// (빈 조직자 삽입 — 교사 예시는 삽입 후 개체 answer 토글/저작으로, #4 fail-closed 불변식과 독립).
+export const ORGANIZER_INSERTS = Object.freeze([
+  { key: 'kwl', label: 'KWL (아는·알고싶은·배운 것)', rows: [[{ text: 'K 아는 것', header: true }, { text: 'W 알고 싶은 것', header: true }, { text: 'L 배운 것', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
+  { key: 'frayer', label: '프레이어 모형 (정의·특징·예·비예)', caption: '개념:', rows: [[{ text: '정의', header: true }, { text: '특징', header: true }], [{ text: '' }, { text: '' }], [{ text: '예', header: true }, { text: '예가 아닌 것', header: true }], [{ text: '' }, { text: '' }]] },
+  { key: 'w5h1', label: '5W1H (누가·언제·어디서·무엇·어떻게·왜)', rows: [[{ text: '누가 (Who)' }, { text: '' }], [{ text: '언제 (When)' }, { text: '' }], [{ text: '어디서 (Where)' }, { text: '' }], [{ text: '무엇을 (What)' }, { text: '' }], [{ text: '어떻게 (How)' }, { text: '' }], [{ text: '왜 (Why)' }, { text: '' }]] },
+  { key: 'bme', label: '처음·중간·끝', rows: [[{ text: '처음', header: true }, { text: '중간', header: true }, { text: '끝', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
+  { key: 'prediction', label: '예측하기 (예상·관찰·비교)', rows: [[{ text: '내 예상', header: true }, { text: '실제 관찰 · 결과', header: true }, { text: '비교 · 까닭', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
+  { key: 'glowgrow', label: 'Glow & Grow (잘한 점·기를 점)', rows: [[{ text: '잘한 점 (Glow)', header: true }, { text: '더 기를 점 (Grow)', header: true }], [{ text: '' }, { text: '' }]] },
+  { key: 'perspectives', label: '관점 비교 (입장·근거·내 생각)', rows: [[{ text: '관점 · 입장', header: true }, { text: '근거 · 이유', header: true }, { text: '내 생각', header: true }], [{ text: '' }, { text: '' }, { text: '' }], [{ text: '' }, { text: '' }, { text: '' }]] },
+  { key: 'character', label: '인물 분석 (인물·특성·근거·변화)', rows: [[{ text: '인물' }, { text: '' }], [{ text: '성격 · 특성' }, { text: '' }], [{ text: '근거 (말 · 행동)' }, { text: '' }], [{ text: '변화 · 성장' }, { text: '' }]] },
+  { key: 'quotejournal', label: '인용 저널 (인용문·쪽·내 생각)', rows: [[{ text: '인용한 문장', header: true }, { text: '쪽', header: true }, { text: '왜 골랐나 · 내 생각', header: true }], [{ text: '' }, { text: '' }, { text: '' }], [{ text: '' }, { text: '' }, { text: '' }]] },
+  { key: 'bookreview', label: '북 리뷰 (제목·줄거리·평가)', rows: [[{ text: '책 제목 · 지은이' }, { text: '' }], [{ text: '줄거리 요약' }, { text: '' }], [{ text: '인상 깊은 부분' }, { text: '' }], [{ text: '느낀 점 · 평가' }, { text: '' }], [{ text: '별점 · 추천' }, { text: '' }]] },
+]);
+
 export const QTYPE_LABELS = Object.freeze({
   'multiple-choice': '객관식', 'short-answer': '단답형', essay: '서술형', 'fill-blank': '빈칸',
   'true-false': '참/거짓', matching: '연결형', ordering: '순서배열',
@@ -135,6 +155,23 @@ export function createObject(type, { placement = 'flow', qtype, rect } = {}) {
   if (finalPlacement === 'float') {
     obj.rect = rect ? { ...rect } : { ...DEFAULT_FLOAT_RECT };
   }
+  return obj;
+}
+
+/** 시각 조직자 삽입(#2) — ORGANIZER_INSERTS 서술자로 미리 채운 flow `table` 개체를 만든다.
+ *  새 개체 타입이 아니라 기존 table 개체다(스키마 무변경 — 닫힌 카탈로그 재사용). 조직자는 구조
+ *  콘텐츠라 flow 전용(float 없음). rows 는 깊은 복사해 서술자 원본이 공유·변형되지 않게 한다. */
+export function createOrganizerObject(key) {
+  const desc = ORGANIZER_INSERTS.find((o) => o.key === key);
+  if (!desc) throw new Error(`objectFactory: 알 수 없는 조직자 삽입 키: ${key}`);
+  const obj = {
+    id: generateId(key),
+    type: 'table',
+    placement: 'flow',
+    splittable: false,
+    rows: structuredClone(desc.rows),
+  };
+  if (typeof desc.caption === 'string') obj.caption = desc.caption;
   return obj;
 }
 

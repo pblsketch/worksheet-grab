@@ -110,8 +110,10 @@ function buildQuestion(id, html) {
   return { id, type: 'question', placement: 'flow', qtype: 'essay', prompt: stripTags(html), lines: 0 };
 }
 
-/** 원본 HTML 안의 첫 <table>...</table> 을 rows(2차원 셀 배열)로 구조 파싱(DOM 없이 정규식). */
-function parseTableRows(html) {
+/** 원본 HTML 안의 첫 <table>...</table> 을 rows(2차원 셀 배열)로 구조 파싱(DOM 없이 정규식).
+ *  조직자 삽입(objectFactory)·삽입-parity 테스트가 블록 <table> 을 table 개체 rows 로 파생할 때
+ *  재사용한다(단일 파서 — 마이그레이션·삽입이 같은 규칙을 공유해 드리프트를 없앤다). */
+export function parseTableRows(html) {
   const tableMatch = /<table[^>]*>([\s\S]*?)<\/table>/i.exec(html);
   if (!tableMatch) return null;
   const rowRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
