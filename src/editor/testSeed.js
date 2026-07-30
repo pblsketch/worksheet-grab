@@ -607,7 +607,10 @@ export async function runEditorTestSeed(seed, {
     const idxBeforeApply = history.depth().index;
     document.getElementById('ai-apply-replace').click();
     await pollUntil(() => !document.getElementById('ai-panel'), { timeoutMs: 15000 });
-    await wait(80);
+    // codex#10: 고정 대기 대신 비동기 리플로우+history.amend 완료를 결정적으로 기다린 뒤 검증한다 —
+    // amend 가 undo 뒤로 새면 pre-apply 엔트리를 오염시키므로(runReflow 는 in-flight 면 그걸 await),
+    // 그 레이스를 이 테스트가 가리지 않고 잡도록 한다.
+    await runReflow();
     doc = frames.teacher.contentDocument;
     document.body.dataset.aiApplyOneOp = String(history.depth().index === idxBeforeApply + 1);
     const promptAfterApply = core.findObject('q1').obj.prompt;
@@ -723,7 +726,10 @@ export async function runEditorTestSeed(seed, {
     const idxBeforeApply = history.depth().index;
     document.getElementById('ai-apply-ops').click();
     await pollUntil(() => !document.getElementById('ai-panel'), { timeoutMs: 15000 });
-    await wait(80);
+    // codex#10: 다중 op(3→1 병합+신규) 는 페이지 귀속을 바꿔 리플로우가 반드시 amend 한다 — 고정 대기
+    // 대신 그 완료를 결정적으로 기다린 뒤 history 인덱스·undo 를 검증한다(amend 가 별도 엔트리를 만들면
+    // 여기서 index 가 +2 가 되어 즉시 잡힌다).
+    await runReflow();
     doc = frames.teacher.contentDocument;
     document.body.dataset.opsHistoryOneOp = String(history.depth().index === idxBeforeApply + 1);
     document.body.dataset.opsCountBeforeApply = String(beforeCount);
