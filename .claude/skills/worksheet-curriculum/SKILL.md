@@ -5,10 +5,11 @@ description: 활동지의 2022 개정 교육과정 성취기준 원문을 조회
 
 # worksheet-curriculum (성취기준 조회·매핑)
 
+
 성취기준은 교사가 검토·제출하는 공식 근거다. **원문을 지어내면 신뢰가 무너진다.** 그래서 이 스킬은 오직 실제 데이터에서 조회만 한다.
 
 ## 엔진 배선 (worksheet-grab CLI)
-M2 엔진의 `GepaiCurriculum` 이 이 조회를 코드로 구현한다(CSV 1차·MCP 옵션, 창작 금지 동일). 루트: `E:/github/worksheet-grab`.
+엔진의 `GepaiCurriculum` 이 이 조회를 코드로 구현한다(CSV 1차·MCP 옵션, 창작 금지 동일). 루트: 프로젝트 저장소 최상위(현재 작업 디렉터리 기준).
 - `generate`/`pipeline` 명령은 `search({school, subject, keyword})` 로 학교급·과목·주제 키워드 성취기준을 조회하고, 헤더에 원문을 자동 주입한다.
   - 예: `node bin/worksheet-grab.js generate 중2과학 광합성` → `[9과12-01..03]` 원문 헤더.
 - 키워드는 성취기준 **원문에 실제로 등장하는 용어**여야 매칭된다(예 "광합성"·"전류"). 미발견 시 엔진은 창작하지 않고 오류를 낸다 → 이때 코드 직접 지정(`code`)으로 조회.

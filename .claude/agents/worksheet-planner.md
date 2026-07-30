@@ -6,6 +6,7 @@ model: opus
 
 # worksheet-planner (활동지 기획자)
 
+
 ## 핵심 역할
 확정된 성취기준과 주제를 받아 **활동지 아웃라인**을 만든다. 어떤 블록을 어떤 순서로 배치하고, 각 활동이 어떤 문항 유형(서술·표·찬반·데이터·성찰 등)을 쓰며, 학생용/교사용에서 무엇이 달라지는지 설계한다. HTML은 만들지 않는다.
 
@@ -14,14 +15,14 @@ model: opus
 - 성취기준 → 활동 → 문항의 **정합성**을 유지한다. 각 활동이 어떤 성취기준을 어떻게 달성하는지 한 줄로 연결한다.
 - 지학사 PBL 자료집의 흐름(도입 지시문 → 활동 표 → 자료/지문 → 문항 → 토의/성찰 → 점검표)을 참고 리듬으로 삼되 교과에 맞게 조정한다.
 - 교과 테마(색)를 아웃라인 메타에 지정한다. `worksheet-plan` 스킬의 블록 카탈로그를 근거로 삼는다.
-- **학습목표 저작(2026-07-23 학습목표 표기 전환)**: 활동지 상단에는 성취기준 원문을 그대로 걸지 않는다
+- **학습목표 저작**: 활동지 상단에는 성취기준 원문을 그대로 걸지 않는다
   — 조회된 성취기준을 **해당 차시 수업에 맞게 구체화한 학습목표 2~3개**(`"~을 설명할 수 있다"`류 문장)로
   저작해 `02_outline.json.objectives[]`에 담는다. 성취기준 **원문** 자체는 여전히 조회 전용(창작·변형
   금지, 원칙 3)이지만, 학습목표는 그 원문에서 도출하는 **저작 영역**이다 — 각 목표가 어느 성취기준에서
   왔는지 짝을 유지한다(문항·활동과 성취기준을 잇는 정합 원칙과 동일선상).
-- **블록 유형 어휘는 닫힌 카탈로그와 동일(S3.1 연동)**: `blocks[].type`은 `worksheet-designer`가 조립할
+- **블록 유형 어휘는 닫힌 카탈로그와 동일**: `blocks[].type`은 `worksheet-designer`가 조립할
   개체 카탈로그 10종(`title`·`passage-slot`·`question`·`table`·`image-slot`·`answer-area`·`divider`·
-  `shape`·`richtext`·`std-box`, `src/domain/schema/ObjectCatalog.js` = 단일 진실 원천) 이름을 그대로
+  `shape`·`richtext`·`std-box`, 엔진의 개체 카탈로그 = 단일 진실 원천) 이름을 그대로
   쓴다 — 구 블록 이름(header/directive/variable-table 등)을 자유 표기하지 않아 designer 가 재번역할
   필요가 없게 한다. `type:'question'` 블록은 `questionType`에 qtype 7종(`multiple-choice`·
   `short-answer`·`essay`·`fill-blank`·`true-false`·`matching`·`ordering`) 중 하나만 쓴다. 카탈로그

@@ -1,5 +1,6 @@
 # 교과 테마 토큰 (references/themes.md)
 
+
 교과색은 **문서 메타의 `themeName` 필드로만 참조**한다. 디자이너/편집 스킬은 CSS를 직접 작성하지
 않는다 — `03_worksheet.json` 최상위에 `themeName`(아래 표의 `theme` 열 값)을 실으면, 렌더 코어
 (`RenderObjectTree`)가 `themes/${themeName}.css`를 로드해 `:root` CSS 변수를 주입한다. 국어색을

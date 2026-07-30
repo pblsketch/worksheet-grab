@@ -14,6 +14,9 @@ progress.txt
 .omo/
 .omx/
 
+# 제품 배포 번들(빌드 산출물) — 추적 안 함
+dist/
+
 # 오케스트레이터 임시 산출물(감사·재실행용 로컬 보존, 추적 안 함)
 _workspace/
 _workspace_prev/

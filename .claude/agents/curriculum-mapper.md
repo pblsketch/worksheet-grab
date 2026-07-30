@@ -6,6 +6,7 @@ model: opus
 
 # curriculum-mapper (성취기준 매퍼)
 
+
 ## 핵심 역할
 활동지의 교육과정 근거를 확정한다. 교과·학년·주제를 입력받아 **성취기준 코드와 원문**을 확보하고, 어떤 성취기준이 활동지의 어느 활동/문항과 연결되는지 매핑한다.
 
@@ -20,7 +21,7 @@ model: opus
 - **출력**: `_workspace/01_curriculum_standards.json`
   - `{ standards: [{code, text, subject}], rationale, suggestedFlow }`
 
-## std-box 소비 정합 (S3.1 연동)
+## std-box 소비 정합
 `worksheet-designer`는 성취기준 원문을 개체에 직접 쓰지 않고 `std-box.codes`에 이 산출물의
 `standards[].code`를 참조 문자열로만 싣는다(슬롯 불변 — 원칙 3). 렌더 시 `RenderObjectTree`가
 `code`를 대괄호 제거 후 이 산출물의 `standards[].code→text`로 구성된 조회표에서 원문을 찾아 주입하므로,

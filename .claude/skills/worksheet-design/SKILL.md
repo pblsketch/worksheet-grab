@@ -5,16 +5,17 @@ description: 활동지 아웃라인을 닫힌 카탈로그 10종의 **개체 트
 
 # worksheet-design (활동지 개체 트리 저작·편집)
 
-아웃라인(`02_outline.json`)을 `docs/HANDOFF-object-schema.md` 동결 스키마를 준수하는 **개체 트리 JSON**
+
+아웃라인(`02_outline.json`)을 개체 트리 스키마(엔진이 검증하는 계약)를 준수하는 **개체 트리 JSON**
 으로 만든다. **HTML 문자열을 직접 저작하지 않는다** — paper-css 조립·`.sheet` 페이지 골격·CSS 변수
-주입은 렌더 코어(`RenderObjectTree`, M2 소관)의 책임이다. 이 스킬은 "무엇을 어떤 타입으로 표현할지"만
+주입은 렌더 코어(`RenderObjectTree`)의 책임이다. 이 스킬은 "무엇을 어떤 타입으로 표현할지"만
 결정한다.
 
 ## 단일 진실 원천
-- **스키마 계약**: `docs/HANDOFF-object-schema.md`(사람이 읽는 요약) +
-  `schema/worksheet-object.schema.json`(계약 문서) + `src/domain/schema/ObjectCatalog.js`(런타임 상수).
+- **스키마 계약**: 개체 트리 스키마 문서(사람이 읽는 요약) +
+  `schema/worksheet-object.schema.json`(계약 문서) + 엔진의 개체 카탈로그 상수(런타임).
   이 세 산출물이 갈라지면 무조건 코드(`ObjectCatalog.js`/`validateObjectShape.js`)가 맞다.
-- **검증**: `src/usecases/ValidateObjectTree.js` — 저작·편집 후 개체 트리가 이 검증을 PASS해야 한다.
+- **검증**: 엔진의 개체 트리 검증(`ValidateObjectTree`) — 저작·편집 후 개체 트리가 이 검증을 PASS해야 한다.
 
 ## 닫힌 카탈로그 — 저작 대상 10종 (신규 타입 창설 금지)
 
@@ -23,7 +24,7 @@ description: 활동지 아웃라인을 닫힌 카탈로그 10종의 **개체 트
 > 이미 있으면 그대로 보존하라.
 >
 > 같은 이유로 **크기·정렬 필드 3종**(`widthPct` 본문 폭 대비 % · `minHeightMm` 최소 높이 ·
-> `align` 좌우 정렬, 2026-07-28 신설)도 저작하지 않는다 — flow 개체에 실을 수 있지만 조판은
+> `align` 좌우 정렬)도 저작하지 않는다 — flow 개체에 실을 수 있지만 조판은
 > 교사 몫이다. 넣지 않으면 폭 100%·높이 내용대로가 기본이며, 기존 문서의 값은 보존한다.
 `title` · `passage-slot` · `question`(qtype 7종: multiple-choice/short-answer/essay/fill-blank/
 true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정) · `image-slot` ·
@@ -44,7 +45,7 @@ true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정
 - **`pagination:'scaffold'`**: 문서는 `{ pagination:'scaffold', pages:[{ id:'page-...', flow:[...전체
   개체 순서 그대로...], float:[] }] }` 단일 스캐폴드 페이지로 산출한다. 페이지 `id`는 문서 안에서
   유일한 비어 있지 않은 문자열이며 index를 쓰지 않는다. 몇 페이지로 나눌지는 계산하지 않는다 —
-  실제 경계는 Chrome 측정 페이지네이션 패스(S3.5)가 산출해 `pagination:'paginated'`로 승격한다.
+  실제 경계는 Chrome 측정 페이지네이션 패스가 산출해 `pagination:'paginated'`로 승격한다.
   `scaffold` 문서는 export가 거부된다(`checkExportGate`, 이 스킬의 책임 밖).
 
 ## 교과 테마 (themeName 참조만, CSS 직접 작성 금지)
@@ -57,7 +58,7 @@ true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정
   무의미).
 - 인접한 정답 콘텐츠는 별도 개체로 흩어 두지 말고 `question.answerKey`(`{text, html}`)로 해당 질문
   개체에 합쳐 담는다.
-- 학생용에서는 `answer:true`인 개체 전체가 물리 제거된다(BuildVariants, S2.2) — 시각적으로만 숨기는
+- 학생용에서는 `answer:true`인 개체 전체가 물리 제거된다(BuildVariants) — 시각적으로만 숨기는
   게 아니라 개체 자체가 학생 문서에 존재하지 않게 된다.
 
 ## 슬롯 불변(성취기준, 원문 창작 금지) / 저작권 지문(3층 정책, 명시 요청 시 AI 허용)
@@ -65,18 +66,18 @@ true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정
   싣는다. 성취기준 원문 텍스트를 절대 개체에 쓰지 않는다 — `curriculum-mapper`가 확정한 `codes`만
   참조하고, 원문은 렌더 시 성취기준 CSV/gepai에서 주입된다. `text`/`html`/`bodyHtml` 등 자유 필드를
   실으면 슬롯 변조(`slot-invariant`)로 거부된다. 이 규칙은 변경 없음(원칙 3).
-  - **`objectives`(학습목표, 2026-07-23 학습목표 표기 전환)**: `codes`와 달리 **저작 영역**이다.
+  - **`objectives`(학습목표)**: `codes`와 달리 **저작 영역**이다.
     활동지 상단에는 성취기준 원문이 아니라 해당 차시 학습목표를 낸다(현장 관행) — `02_outline.json`
     (`worksheet-plan`이 저작)의 `objectives[]`를 그대로 옮긴다(문자열 배열, `"~할 수 있다"` 형식
     2~3개 권장). `objectives`가 있으면 렌더러가 학생/교사 공통 "학습 목표" 박스를 렌더한다.
     `objectives`가 없으면(하위호환) 현행 성취기준 박스를 그대로 렌더한다.
-  - **`showStandards`(근거 성취기준 표시, 2026-07-28 기본값 전환)**: 활동지에는 학습목표만 싣는 것이
+  - **`showStandards`(근거 성취기준 표시)**: 활동지에는 학습목표만 싣는 것이
     기본이라 **이 필드를 설정하지 않는다**(기본 false). 사용자가 명시적으로 요청할 때만
     `showStandards: true`를 실어 "근거 성취기준"(코드+원문) 박스를 함께 낸다 — 그 경우에도 학생용에서는
     `data-mode` CSS로 숨고 교사용에만 보인다(정답이 아니므로 물리 제거는 없다). 표시를 끄더라도
     `codes`는 항상 싣는다(검수·교사 확인용 참조).
   - **`heading`(박스 제목)**: 설정하지 않는다(기본 "학습 목표"). 교사가 편집기에서 직접 고치는 필드다.
-- **`passage-slot`**(2026-07-23 2차 델타): **기본은 빈 슬롯** — `slotLabel`(필수, 예: `'［지문 삽입
+- **`passage-slot`**: **기본은 빈 슬롯** — `slotLabel`(필수, 예: `'［지문 삽입
   슬롯］'`)로 안내만 채우고 `bodyHtml`/`source`는 비워 둔다(사용자가 지문을 요청하지 않은 일반 아웃라인
   조립에서는 이전과 동일). **사용자가 명시적으로 지문 생성·재구성을 요청하면** `bodyHtml`을 (a) 순수
   창작 또는 (b) 교사가 넣은 기존 글의 재구성/수준 조정/요약으로 채울 수 있다 — **실존 저작물의 원문을
@@ -84,14 +85,14 @@ true-false/matching/ordering) · `table`(분할불가, `splittable:false` 고정
   (예: `'AI 창작'` / `'원문 ○○ 재구성'`). `slot-invariant`는 여전히 카탈로그 밖 필드만 막는다(`title`·
   `bodyHtml`·`source`·`footnotes`는 카탈로그 필드라 걸리지 않음).
 
-## 삽화(생성 이미지) 필요 시 (F5)
+## 삽화(생성 이미지) 필요 시
 1. 사용자 로컬 `codex-image` 스킬로 생성한다(gpt-image-2·OAuth·무API — 장당 약 2~6분 소요).
 2. 산출 PNG를 `worksheets/<문서명>/assets/`에 저장한다(안전문자 파일명·`.png`). 교사 보유 이미지도
    동일 경로로 다룬다(에디터 픽커·붙여넣기·DnD 또는 파일 직접 복사 — `POST /assets`, 5MB·SVG 제외).
 3. 개체: `{id, type:'image-slot', placement:'flow', src:'assets/<파일명>', alt:'설명'[, caption]}`.
    - **`alt` 필수**(스크린리더·인쇄 실패 대체).
    - 크기(mm 폭) 지정 필드는 스키마에 없다 — flow 배치에서는 렌더러가 기본 폭을 적용한다. 교사가
-     편집기에서 float로 전환해 `rect`로 크기·위치를 조정하는 것은 편집 전용 기능(M4)이다.
+     편집기에서 float로 전환해 `rect`로 크기·위치를 조정하는 것은 편집 전용 기능이다.
    - **흑백 인쇄 대비**: 색상만으로 구분되는 이미지(예: 색깔별 범례)는 피하거나 명도차·패턴으로
      보완한다(학교 인쇄는 흑백/회색조가 흔하다).
 4. 원격 URL 인라인은 금지 — `src`는 항상 `assets/` 상대경로.

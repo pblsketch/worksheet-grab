@@ -5,12 +5,13 @@ description: 활동지 생성 전 교사와의 협의(공동 설계) 단계. 수
 
 # worksheet-consult (활동지 협의·공동 설계)
 
+
 교사와 AI가 활동지의 **왜(의도)·누구(학생 맥락)·무엇으로 확인(평가 증거)·어디서 헷갈릴지(오개념)**에
 대한 공유된 이해를 만든 뒤에 초안으로 넘어가게 하는 조건부 단계다.
 k-teacher-skills 의 grill-me-for-k-teacher + grill-with-curriculum + to-lesson-brief 를
 worksheet-grab 도메인에 맞게 통합 재저작했다(adapted from k-teacher-skills v2.5.1+).
 
-**독립 단계 규약(R8):** 이 스킬은 인터뷰를 수행하고 `_workspace/00_brief.json` 을 **쓰고 종료**한다.
+**독립 단계 규약:** 이 스킬은 인터뷰를 수행하고 `_workspace/00_brief.json` 을 **쓰고 종료**한다.
 파이프라인(오케스트레이터 Phase 2)은 이 파일을 **새로 읽어** 시작한다. 이 스킬은 팀 에이전트가
 아니며, 파이프라인 조율과 한 컨텍스트에 섞지 않는다.
 
@@ -46,7 +47,7 @@ worksheet-grab 도메인에 맞게 통합 재저작했다(adapted from k-teacher
 ## 3. 인터뷰 절차
 
 판정·절차의 SSOT 는 `references/interview-readiness.md`(upstream Gate v2, **verbatim 번들 —
-편집 금지**)다. 이 스킬이 실제로 조작하는 것은 아래 **최소 부분집합**이다(F6):
+편집 금지**)다. 이 스킬이 실제로 조작하는 것은 아래 **최소 부분집합**이다:
 
 - **Intent-first 순서(§3)**: 수업 의도 → 학생 맥락 → 평가 증거 → 오개념. 의도가 흐릿하면
   뒤 차원으로 넘어가지 않는다.
@@ -59,7 +60,7 @@ worksheet-grab 도메인에 맞게 통합 재저작했다(adapted from k-teacher
 - **closure audit(§6)**: 산출 직전 "다음 질문이 산출물을 실질적으로 바꾸는가, 표현만 다듬는가"
   를 자문 — 표현만 다듬으면 산출로 넘어간다.
 
-**십진 공식 선언(F6):** upstream §2 의 가중 ambiguity 공식(brownfield 등)은 **provenance 전용**으로
+**십진 공식 선언:** upstream §2 의 가중 ambiguity 공식(brownfield 등)은 **provenance 전용**으로
 번들만 한다. 이 스킬은 그 공식을 **절대 계산하지 않고, 어떤 산출물에도 계산값을 emit 하지
 않는다.** 4버킷 라벨과 binary 게이트만이 실행 대상이다.
 
@@ -77,7 +78,7 @@ worksheet-grab 도메인에 맞게 통합 재저작했다(adapted from k-teacher
 확인만 받는다. 원문 창작·변조 금지. 근거화한 코드는 `00_brief.json` 의
 `meta.groundedStandards` 에 기록한다(대조 권위는 Phase 2 의 curriculum-mapper).
 
-## 4. worksheet-grab 마감 정책 (F1)
+## 4. worksheet-grab 마감 정책
 
 > **(worksheet-grab 마감 정책 — upstream §4 는 verbatim 유지된다. 아래는 upstream 의
 > "If max rounds are reached" 절과 §6 closure 정신을 활동지 도메인에 구체화한 보충이며,
@@ -97,7 +98,7 @@ worksheet-grab 도메인에 맞게 통합 재저작했다(adapted from k-teacher
 
 - 전 필드 optional. 미확정은 지어내지 않고 `unresolved` 에 남긴다.
 - `meta.readiness` 에는 anchors 4버킷 라벨·hardGates 불리언·profile·rounds 만 기록
-  (합성 ambiguity 소수 금지 — F3).
+  (합성 ambiguity 소수 금지).
 - 정답성 콘텐츠(`inquiryLadder.generalization` 등)는 planner 의 `teacherAnswerPlan` →
   `<span class="answer">` 경로로만 전달되도록 스키마 소비 규약을 따른다.
 - brief 는 **write-once**: 이 스킬만 쓰고, 파이프라인 에이전트는 읽기 전용(재조정은
@@ -113,7 +114,7 @@ worksheet-grab 도메인에 맞게 통합 재저작했다(adapted from k-teacher
 ## Red flags
 
 - 완결 요청(교과·학년·주제 완비)에 인터뷰를 끼워 넣는다. ← 빠른 경로 침해, 최우선 금지
-- 발동 여부나 readiness 를 십진 점수 계산으로 판정한다. ← 점수는 존재하지 않는다(F2/F6)
+- 발동 여부나 readiness 를 십진 점수 계산으로 판정한다. ← 점수는 존재하지 않는다
 - 성취기준을 교사에게 묻거나 지어낸다. ← gepai 로 조회·진술
 - 학생 실명·민감정보를 요구한다. ← 절대 차단
 - 미확정 항목을 확정처럼 brief 에 쓴다. ← `unresolved` 로

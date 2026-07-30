@@ -5,19 +5,19 @@ description: 검수 통과한 활동지(개체 트리 또는 레거시 HTML)를 
 
 # worksheet-export (활동지 내보내기)
 
+
 검수 통과(`04_review.json`의 `verdict:PASS`)를 먼저 확인한다. PASS가 아니면 내보내지 않는다.
 
 ## pagination 게이트(개체 트리 문서 필수 선결 조건)
 개체 트리 문서는 `pagination` 필드가 `'scaffold'` 또는 `'paginated'` 중 하나다. **`'scaffold'`는 경계
 미계산 상태(compose 산출물)이므로 export를 거부한다.** export 전 반드시 Chrome 측정 페이지네이션
-패스를 통과해 `'paginated'`로 승격된 문서만 내보낸다(D-A/R2-4, `checkExportGate` 계약 —
-`src/domain/schema/exportGate.js`). `scaffold` 상태를 발견하면 designer/오케스트레이터에 "페이지네이션
+패스를 통과해 `'paginated'`로 승격된 문서만 내보낸다(엔진의 `checkExportGate` 내보내기 게이트 계약). `scaffold` 상태를 발견하면 designer/오케스트레이터에 "페이지네이션
 패스 미통과"로 반려하고, sed나 임의 재조립으로 우회하지 않는다.
 
 ## 엔진 배선 — 개체 트리 경로(권장, sed 폐지)
-M2 코어 엔진이 개체 필터→렌더를 결정적으로 처리한다. 문자열 치환(`MODE_TOKEN` sed)이 아니라
+코어 엔진이 개체 필터→렌더를 결정적으로 처리한다. 문자열 치환(`MODE_TOKEN` sed)이 아니라
 **개체 트리 수준에서 `answer:true` 개체를 물리 제거(student)/보존(teacher)**한 뒤 각각 렌더한다.
-루트: `E:/github/worksheet-grab`.
+루트: 프로젝트 저장소 최상위(현재 작업 디렉터리 기준).
 
 ```js
 // 1) 2벌 HTML 산출 — BuildVariants.executeObjectTree(document, assets, meta)
@@ -33,7 +33,7 @@ node bin/worksheet-grab.js render out/worksheet-student.html --out out/{제목}_
 node bin/worksheet-grab.js render out/worksheet-teacher.html --out out/{제목}_{subject}_teacher.pdf
 ```
 - CLI `build-variants` 명령은 현재 레거시 HTML(`MODE_TOKEN` 문자열) 경로만 배선되어 있다(개체 트리
-  경로의 CLI 직접 배선은 오케스트레이터 배선 단계 소관 — 그 전까지는 위처럼 엔진 API를 직접 호출한다).
+  경로는 위처럼 엔진 API를 직접 호출한다).
 - 한 문장에서 종단으로 뽑을 때: `node bin/worksheet-grab.js pipeline <학년교과> <주제> --out out/`
   (조회→조립→2벌→검수 게이트→렌더. 게이트 실패 시 렌더 중단=fail-closed. 레거시 HTML 경로 기준.)
 
@@ -49,7 +49,7 @@ node bin/worksheet-grab.js render out/03_worksheet-student.html --out out/{제�
 node bin/worksheet-grab.js render out/03_worksheet-teacher.html --out out/{제목}_{subject}_teacher.pdf
 ```
 
-## Canva 반입 (선택 — `doc export --canva`, F3)
+## Canva 반입 (선택 — `doc export --canva`)
 문서 워크스페이스(`doc`)로 산출한 활동지를 Canva에서 다시 편집하고 싶을 때:
 ```bash
 node bin/worksheet-grab.js doc export <문서명> --canva
