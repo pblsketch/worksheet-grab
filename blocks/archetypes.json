@@ -63,7 +63,7 @@
       }
     }
   },
-  "count": 6,
+  "count": 8,
   "archetypes": {
     "experimental-inquiry": {
       "name": "실험탐구",
@@ -590,6 +590,53 @@
             "role": "성찰",
             "type": "reflection"
           }
+        ]
+      ]
+    },
+    "vocabulary-concept": {
+      "name": "어휘·개념 정리",
+      "pill": "어휘·개념",
+      "desc": "개념 확인 → 프레이어(정의·특징·예·비예) → 5W1H 분석 → 핵심 아이디어 정리 → 성찰. 시각 조직자 중심의 어휘·개념 학습(범교과).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "개념확인", "type": "subq" },
+          { "role": "프레이어", "type": "frayer" },
+          { "role": "정보분석", "type": "subq" },
+          { "role": "5W1H정리", "type": "w5h1" }
+        ],
+        [
+          { "role": "핵심정리", "type": "subq" },
+          { "role": "핵심아이디어", "type": "mainidea" },
+          { "role": "정리", "type": "section-heading" },
+          { "role": "성찰", "type": "exit321" }
+        ]
+      ]
+    },
+    "kwl-inquiry": {
+      "name": "KWL 탐구",
+      "pill": "KWL 탐구",
+      "desc": "배경지식 활성화(KWL) → 자료 제시 → 탐구 문항 → 처음·중간·끝 정리 → 점검·성찰. 단원 도입/탐구에 쓰는 시각 조직자 중심(범교과).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "배경지식", "type": "subq" },
+          { "role": "KWL", "type": "kwl" },
+          { "role": "자료", "type": "resource-box" }
+        ],
+        [
+          { "role": "탐구", "type": "subq" },
+          { "role": "탐구문항", "type": "question" },
+          { "role": "답줄", "type": "answer-line" },
+          { "role": "서사정리", "type": "bme" },
+          { "role": "점검", "type": "rubric" },
+          { "role": "성찰", "type": "exit321" }
         ]
       ]
     }

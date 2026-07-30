@@ -421,6 +421,7 @@
       "printSafe": true,
       "keepTogether": true,
       "desc": "KWL 조직자(아는 것·알고 싶은 것·배운 것) — 단원 도입·정리",
+      "studentFill": true,
       "cssClass": "kwl",
       "file": "core/kwl.html"
     },
@@ -433,6 +434,7 @@
       "printSafe": true,
       "keepTogether": true,
       "desc": "프레이어 모형(정의·특징·예·비예) — 어휘·개념 학습",
+      "studentFill": true,
       "cssClass": "frayer",
       "file": "core/frayer.html"
     },
@@ -445,6 +447,7 @@
       "printSafe": true,
       "keepTogether": true,
       "desc": "5W1H(누가·언제·어디서·무엇을·어떻게·왜) — 사건·자료 분석",
+      "studentFill": true,
       "cssClass": "w5h1",
       "file": "core/w5h1.html"
     },
@@ -457,6 +460,7 @@
       "printSafe": true,
       "keepTogether": true,
       "desc": "처음·중간·끝 — 서사 구조 정리",
+      "studentFill": true,
       "cssClass": "bme",
       "file": "core/bme.html"
     },
@@ -469,6 +473,7 @@
       "printSafe": true,
       "keepTogether": true,
       "desc": "3-2-1 성찰(엑시트 티켓) — 배운 것 3·연결 2·질문 1",
+      "studentFill": true,
       "cssClass": "exit321",
       "file": "core/exit321.html"
     },
@@ -481,6 +486,7 @@
       "printSafe": true,
       "keepTogether": true,
       "desc": "핵심 아이디어 + 뒷받침 근거 — 요지·근거 구조화",
+      "studentFill": true,
       "cssClass": "mainidea",
       "file": "core/mainidea.html"
     }

@@ -87,6 +87,7 @@ export class ArchetypeLibrary {
       else if (info.copyrightSlot) authoring = '저작권 지문은 ［…슬롯］ 유지 — 원문 저작 금지(교사가 원문 삽입).';
       else if (b.type === 'content' || b.type === 'hypothesis-box') authoring = '교사용 예시 답안(.answer) 저작 — 학생 빌드에서 물리 제거됨.';
       else if (b.type === 'answer-line') authoring = '학생 서술 칸(저작 불필요, 빈 줄 유지).';
+      else if (info.studentFill) authoring = '빈 시각 조직자 구조 — 학생이 채운다(저작 불필요, 빈 칸 유지). 주제 적합은 제목·안내문·성취기준으로 이룬다.';
       else authoring = `이 주제에 맞는 콘텐츠를 저작${info.slots?.length ? ` (슬롯: ${info.slots.join(', ')})` : ''}.`;
       return { role: b.role, type: b.type, category: b.category, packRole: b.packRole, slots: info.slots || [], desc: info.desc || '', authoring };
     }));
