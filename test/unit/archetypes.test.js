@@ -118,3 +118,17 @@ test('스켈레톤 매니페스트가 과학·사회에서 렌더 가능한 A4 �
     assert.match(html, /data-mode="MODE_TOKEN"/, `${subject}: 2벌 분기 전 토큰 유지`);
   }
 });
+
+test('자동 추천: 조직자 전용 키워드는 조직자 구성 틀을, 기존 주제는 기존 아키타입을(회귀 0)', async () => {
+  const l = await lib();
+  // 조직자 전용 키워드 → 조직자 구성 틀
+  assert.equal(l.suggestArchetype('science', '개념 시각화').id, 'concept-visual');
+  assert.equal(l.suggestArchetype('science', 'KWL 도입 활동').id, 'kwl-inquiry');
+  assert.equal(l.suggestArchetype('korean', '글쓰기 계획').id, 'writing-plan');
+  assert.equal(l.suggestArchetype('korean', '독서 감상문').id, 'literary-response');
+  assert.equal(l.suggestArchetype('science', '소화 절차 순서도').id, 'process-structure');
+  // 기존 매핑 불변(회귀 방지)
+  assert.equal(l.suggestArchetype('science', '광합성 실험 탐구').id, 'experimental-inquiry');
+  assert.equal(l.suggestArchetype('science', '생물 분류').id, 'concept-structuring');
+  assert.equal(l.suggestArchetype('korean', '읽기').id, 'reading-comprehension');
+});

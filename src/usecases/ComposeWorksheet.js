@@ -27,6 +27,7 @@ export class ComposeWorksheet {
   async execute({
     grade, subject, topic, archetype = null, codes = null, limit = 6,
     objectives = [], objectivesHeading = null, showStandards = false,
+    organizers = [],
   }) {
     if (!topic) throw new Error('compose: 주제(topic)가 필요합니다.');
     const spec = resolveSubject(subject);
@@ -68,6 +69,16 @@ export class ComposeWorksheet {
       pill: lib.get(archetypeId).pill || '활동',
       topic, subjectLabel: spec.label, school, grade,
     });
+
+    // 3.5) 교사가 명시 요청한 파라메트릭 조직자를 페이지로 추가(자연어 → parseOrganizerSpec 파싱 결과 전달).
+    //   엔진이 개수대로 결정적으로 그린다(params → 생성기, 없으면 정적 블록). 무API 유지.
+    if (Array.isArray(organizers) && organizers.length > 0) {
+      for (const o of organizers) {
+        const def = vocabulary.types[o.type];
+        if (!def) throw new Error(`알 수 없는 조직자 타입: ${o.type}`);
+        manifest.pages.push([{ type: o.type, params: o.params || {}, ...(def.file ? { file: def.file } : {}) }]);
+      }
+    }
 
     // 4) 저작 브리프(designer AI/교사용).
     const brief = lib.buildBrief(archetypeId, subjectKey);

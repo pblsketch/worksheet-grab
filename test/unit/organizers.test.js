@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { AssembleWorksheet } from '../../src/usecases/AssembleWorksheet.js';
 import { ComposeWorksheet } from '../../src/usecases/ComposeWorksheet.js';
-import { vennSvg, conceptMapSvg, fitSvgToBox, fishboneSvg, flowchartSvg, hierarchySvg, hexagonSvg } from '../../src/usecases/OrganizerGen.js';
+import { vennSvg, conceptMapSvg, fitSvgToBox, fishboneSvg, flowchartSvg, hierarchySvg, hexagonSvg, parseOrganizerSpec } from '../../src/usecases/OrganizerGen.js';
 
 // 시각 조직자(graphic organizers) — Track A 표형(P1 배치1).
 // 계약(vocabulary)·assemble 렌더·인쇄안전(keep)·범교과(하드코딩색 0)를 검증한다.
@@ -300,4 +300,30 @@ test('파라메트릭 확장: AssembleWorksheet 가 params 로 확장 조직자�
   assert.equal(cnt(html, 'fc-box'), 5, 'params 흐름도 5단계');
   assert.equal(cnt(html, 'h-node'), 5, 'params 위계 5하위');
   assert.equal(cnt(html, 'hx'), 6, 'params 헥사곤 6개');
+});
+
+// ── 말로 요청(자연어 → 개수) ─────────────────────────────────────────────
+test('말로 요청: parseOrganizerSpec 가 자연어 문구를 {type, params} 로 파싱(+클램프·기본·null)', () => {
+  assert.deepEqual(parseOrganizerSpec('벤다이어그램 3원으로 만들어줘'), { type: 'venn', params: { circles: 3 } });
+  assert.deepEqual(parseOrganizerSpec('개념지도 5칸'), { type: 'conceptmap', params: { nodes: 5 } });
+  assert.deepEqual(parseOrganizerSpec('6단계 흐름도'), { type: 'flowchart', params: { steps: 6 } });
+  assert.deepEqual(parseOrganizerSpec('피시본 원인 4개'), { type: 'fishbone', params: { branches: 4 } });
+  assert.deepEqual(parseOrganizerSpec('육각형 7개'), { type: 'hexagon', params: { count: 7 } });
+  assert.deepEqual(parseOrganizerSpec('위계 하위 3개'), { type: 'hierarchy', params: { children: 3 } });
+  assert.equal(parseOrganizerSpec('개념지도 9칸').params.nodes, 6, '범위 밖은 클램프');
+  assert.deepEqual(parseOrganizerSpec('벤다이어그램 그려줘'), { type: 'venn', params: {} }, '개수 없으면 기본');
+  assert.equal(parseOrganizerSpec('광합성 실험 탐구'), null, '조직자 아니면 null');
+});
+
+test('말로 요청: compose 가 organizers 로 파라메트릭 조직자를 페이지에 추가·렌더', async () => {
+  const compose = new ComposeWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { manifest } = await compose.execute({
+    grade: '중2', subject: '과학', topic: '광합성', archetype: 'vocabulary-concept', codes: ['[9과12-01]'],
+    organizers: [parseOrganizerSpec('벤다이어그램 3원')],
+  });
+  const last = manifest.pages[manifest.pages.length - 1];
+  assert.equal(last[0].type, 'venn', '요청 조직자가 마지막 페이지에 추가');
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { html } = await asm.execute(manifest);
+  assert.equal((html.match(/<circle/g) || []).length, 3, '3원 벤 생성');
 });
