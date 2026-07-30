@@ -384,7 +384,8 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 /* 개념 지도 — 중심 + 방사 노드 */
 .conceptmap svg line { stroke: #aaa; }
 .conceptmap svg .cm-core { fill: #eef1f4; stroke: #666; }
-.conceptmap svg .cm-node { fill: none; stroke: #999; }
+/* 노드 상자는 흰색 채움 — 뒤에서 오는 연결선이 상자 위로 비쳐 보이지 않게 가린다(z-order 디테일). */
+.conceptmap svg .cm-node { fill: #fff; stroke: #999; }
 
 /* 피시본(원인·결과) — 중심선 + 가지 */
 .fishbone svg .fb-spine { stroke: #777; }
@@ -407,7 +408,8 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 
 /* 위계 트리 — 상위 개념 + 하위 노드 */
 .hierarchy svg .h-top { fill: #eef1f4; stroke: #666; stroke-width: 1.4; }
-.hierarchy svg .h-node { fill: none; stroke: #999; stroke-width: 1.2; }
+/* 하위 노드도 흰색 채움 — 연결선이 상자 위로 비치지 않게(z-order 디테일). */
+.hierarchy svg .h-node { fill: #fff; stroke: #999; stroke-width: 1.2; }
 .hierarchy svg .h-link { stroke: #aaa; stroke-width: 1.2; }
 
 /* 순서 흐름도 — 단계 박스 + 화살표 */
