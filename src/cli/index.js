@@ -132,8 +132,9 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
         ai pending [--json] [--watch] [--once]   대기 요청 조회/감시(1s 폴링)
         ai respond <id> --ops <file.json>|--objects <file.json>|--blocks <file.json>|--from <file>|--html <…>
                                                   재작성 결과 회신(취소된 요청은 거부).
-                                                  --ops 는 [{op:'replace'|'insert'|'delete',…}] JSON
-                                                  (개수·종류가 자유로운 계획, v4 — Phase 4)
+                                                  --ops 는 [{op:'replace'|'insert'|'delete'|'insert-section',…}] JSON
+                                                  (개수·종류가 자유로운 계획, v4 — Phase 4. insert-section 은
+                                                   여러 개체를 한 번에·순서대로 생성: {op,objects:[…],afterId|beforeId})
                                                   --objects 는 [{id,object}] JSON(개체 ID 에코, v3 — US-19)
         ai list [--all] · ai clear [<id>]        상태 조회·terminal 정리
       큐 위치: <워크스페이스>/.ai-bridge/. 성취기준·저작권 지문 블록은 대상에서 제외.
@@ -774,7 +775,7 @@ async function cmdAi(args, flags, { log, err }) {
         }
         response = { schemaVersion: AI_SCHEMA_VERSION, id, ops };
         if (!validateResponse(response)) {
-          throw new Error("ai respond --ops: 응답 형태가 v4 스키마와 맞지 않습니다 — replace={op,id,object}, insert={op,object,afterId|beforeId}, delete={op,id}. insert 에 afterId 와 beforeId 를 동시에 줄 수 없습니다.");
+          throw new Error("ai respond --ops: 응답 형태가 v4 스키마와 맞지 않습니다 — replace={op,id,object}, insert={op,object,afterId|beforeId}, delete={op,id}, insert-section={op,objects:[…],afterId|beforeId}(여러 개체 한 번에). insert·insert-section 에 afterId 와 beforeId 를 동시에 줄 수 없습니다.");
         }
       } else if (typeof flags.objects === 'string') {
         const parsed = JSON.parse(await readFile(resolve(flags.objects), 'utf8'));

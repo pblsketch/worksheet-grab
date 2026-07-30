@@ -161,4 +161,8 @@ designer가 사진/일러스트가 필요하다고 판단하면:
      `slot` 은 요청의 blocks 순서(0부터)와 **정확히 일치**시킨다(위치가 아니라 slot 으로 재부착 —
      교사가 대기 중 블록을 옮기거나 삽입해도 어긋나지 않는다). 일부 블록만 고쳤다면 그 slot 만 넣어도 된다.
    - **v1 단일 블록**: 재작성 HTML 을 파일로 저장 후 `ai respond <id> --from <file>`(또는 `--html <inline>`).
+   - **v4 개체 계획(개체 트리 편집·생성)**: `[{op,…}]` JSON 을 `ai respond <id> --ops <file.json>` 로 회신한다.
+     `op`∈`replace`(치환)·`insert`(단일 신규)·`delete`(삭제)·`insert-section`(여러 개체를 한 번에·순서대로
+     **새 섹션**으로 생성 — `{op:'insert-section', objects:[…], afterId|beforeId}`, 예: "여기에 연습문제 묶음
+     만들어줘"). 새 개체가 성취기준이면 거부된다(원칙 3). 삽입 위치는 `afterId`/`beforeId` 중 하나만.
    에디터가 폴링으로 수신해 교사에게 diff 미리보기(다중이면 결합 뷰)를 보여주고, 적용·저장은 교사가 한다.

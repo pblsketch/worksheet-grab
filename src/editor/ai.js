@@ -488,6 +488,26 @@ export function createAiPanel(deps) {
           ...(raw.afterId ? { afterId: raw.afterId } : {}),
           ...(raw.beforeId ? { beforeId: raw.beforeId } : {}),
         });
+      } else if (raw.op === 'insert-section') {
+        // M3a: 여러 개체를 한 번에 생성. 미리보기는 각 개체를 신규 카드로 펼쳐 보여주고, 적용은
+        // 원자 op 하나(순서 보존·단일 undo)로 간다. 앵커 검증은 insert 와 동일 규약.
+        const list = Array.isArray(raw.objects) ? raw.objects : [];
+        if (list.length === 0) { problems.push('생성할 섹션 개체가 없습니다.'); continue; }
+        const anchorId = raw.afterId ?? raw.beforeId ?? null;
+        const anchor = anchorId != null ? deps.findObject(anchorId)?.obj : null;
+        if (anchorId != null && !anchor) { problems.push(`섹션 삽입 기준 개체를 찾을 수 없습니다: ${anchorId}`); continue; }
+        if (anchor && anchor.placement === 'float') { problems.push(`섹션 삽입 기준 개체가 본문 흐름 개체가 아닙니다: ${anchorId}`); continue; }
+        if (outOfScope(anchorId)) { problems.push(`섹션 삽입 기준 개체가 요청 범위 밖입니다: ${anchorId}`); continue; }
+        const badType = list.find((o) => o && excludedSet.has(o.type));
+        if (badType) { problems.push(`"${badType.type}" 개체는 AI 가 생성할 수 없습니다 — 성취기준 원문은 보존됩니다(원칙 3).`); continue; }
+        const cleaned = list.map((o) => sanitizeObject(o));
+        for (const after of cleaned) items.push({ key: `sec-${items.length}`, kind: 'insert', id: null, before: null, after });
+        ops.push({
+          op: 'insert-section',
+          objects: cleaned,
+          ...(raw.afterId ? { afterId: raw.afterId } : {}),
+          ...(raw.beforeId ? { beforeId: raw.beforeId } : {}),
+        });
       } else {
         problems.push(`알 수 없는 계획 항목: ${String(raw?.op)}`);
       }
