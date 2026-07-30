@@ -94,6 +94,66 @@ node bin/worksheet-grab.js doc export 광합성탐구 # 저장본 → 학생/교
   없음). 브리프가 없으면 파이프라인은 기존과 완전히 동일하게 동작한다.
 - 상세: `.claude/skills/worksheet-consult/` (스킬·브리프 스키마·대화 예시).
 
+## 시각 조직자 (graphic organizers)
+
+학생 사고를 돕는 **시각 조직자 23종**을 기본 제공한다(모두 범교과 코어 블록, `answer` 없는
+학생 기입형 = `studentFill`). 개체 스키마는 손대지 않고 기존 `table`·SVG 블록으로 구현했으며,
+전 종이 실물 Chrome 렌더에서 **편집 페이지 = 인쇄 페이지**(잘림·넘침 0)로 검증된다.
+
+**표형 16종** — KWL · 프레이어 모형 · 5W1H · 처음·중간·끝 · 3-2-1 · 핵심아이디어+뒷받침 ·
+노트정리(코넬) · 문단햄버거 · 관점비교 · 예측하기 · Glow&Grow · 신호등 · 5문단 에세이 설계 ·
+인물분석 · 북리뷰 · 인용저널. (큰 조직자는 섹션 스택으로 페이지 경계에서 안전 분할)
+
+**그림형 7종(SVG)** — 벤다이어그램 · 개념지도 · 피시본 · 플롯다이어그램 · 위계트리 · 순서흐름도 ·
+헥사고날. 색은 전부 CSS(HTML엔 hex 0), `.keep`으로 인쇄 안전.
+
+### 개수 지정(파라메트릭)
+
+그림형 6종은 개수를 **매니페스트 `params`** 로 지정하면 엔진이 그 수만큼 결정적으로 그린다(좌표는
+엔진이 계산 — AI 는 개수만). 정적 블록과 **하위호환**(params 없으면 기존 그대로).
+
+```jsonc
+{ "type": "venn",       "params": { "circles": 3 } }   // 2~3
+{ "type": "conceptmap", "params": { "nodes": 5 } }     // 3~6
+{ "type": "fishbone",   "params": { "branches": 6 } }  // 2~6
+{ "type": "flowchart",  "params": { "steps": 6 } }     // 2~6
+{ "type": "hierarchy",  "params": { "children": 5 } }  // 2~5
+{ "type": "hexagon",    "params": { "count": 7 } }     // 3~7  (범위 밖은 자동 클램프)
+```
+
+### 용지 자동 맞춤(fit-to-page)
+
+매니페스트 엔트리에 `"fit": true` 를 주면 SVG 조직자를 **용지 여백 박스에 비율 유지로 꽉 맞춘다**
+(잘림·과여백 0). `{ "w": px, "h": px }` 로 박스를 직접 줄 수도 있다. 가로 용지는
+`paper: { "size": "A4", "orientation": "landscape" }` (또는 프리셋 `a4-landscape`).
+
+### 말로 요청 · 자동 추천
+
+- **말로 요청**: `parseOrganizerSpec("벤다이어그램 3원")` → `{ type:"venn", params:{circles:3} }`.
+  compose 의 `organizers: [{type, params}]` 옵션으로 요청 조직자를 페이지에 추가한다.
+- **자동 추천**: 주제에 조직자 키워드(시각화·마인드맵·KWL·글쓰기·독서·순서도 등)가 있으면
+  `suggestArchetype` 이 알맞은 조직자 구성 틀을 추천한다(기존 주제 추천은 불변).
+
+### 바로 쓰는 구성 틀(아키타입)
+
+`compose <학년교과> <주제> --archetype <id>` 한 줄로 조직자 중심 활동지를 생성한다.
+
+| 아키타입 | 구성 |
+|---|---|
+| `vocabulary-concept` | 프레이어 · 5W1H · 핵심아이디어 · 성찰 |
+| `kwl-inquiry`        | KWL · 자료 · 탐구 문항 · 처음중간끝 |
+| `writing-plan`       | 노트정리 · 관점비교 · 문단햄버거 · Glow&Grow |
+| `concept-visual`     | 벤다이어그램 · 개념지도 · 피시본 (그림형) |
+| `process-structure`  | 순서흐름도 · 위계트리 |
+| `literary-response`  | 북리뷰 · 인물분석 · 인용저널 · 에세이 설계 |
+| `landscape-organizer`| 가로 A4, 페이지당 조직자 하나 자동 맞춤 |
+
+```bash
+node bin/worksheet-grab.js compose 중2과학 광합성 --archetype concept-visual
+node bin/worksheet-grab.js compose 중2국어 소나기 --archetype literary-response
+node bin/worksheet-grab.js compose 중2과학 광합성 --archetype landscape-organizer
+```
+
 ## CLI 사용법
 
 ```bash
@@ -200,7 +260,7 @@ node bin/worksheet-grab.js doc export 광합성탐구 --canva               # + 
 node bin/worksheet-grab.js list-blocks                    # 타입 exemplar 파일(core/*, pack-*/*)
 node bin/worksheet-grab.js list-vocab                     # 블록 타입 어휘 + 계약(코어/교과팩·슬롯)
 node bin/worksheet-grab.js list-vocab --subject science  # 과학에서 쓸 수 있는 타입만
-node bin/worksheet-grab.js list-archetypes               # 교과 초월 구조 패턴 6개(동적 조립용)
+node bin/worksheet-grab.js list-archetypes               # 교과 초월 구조 패턴 13개(동적 조립용, 조직자 세트 포함)
 node bin/worksheet-grab.js list-archetypes --subject science  # 아키타입을 교과에 바인딩한 시퀀스
 node bin/worksheet-grab.js list-themes
 ```
@@ -272,7 +332,7 @@ src/
                  canvasInline(슬래시·버블·⠿핸들)·icons + browserGraph.js(두-런타임 순수성 화이트리스트)
   cli/         커맨드 파서
 bin/worksheet-grab.js  엔트리
-blocks/        타입 어휘: vocabulary.json(계약 레지스트리) + archetypes.json(구조 패턴 6) + core/*·pack-*/*(exemplar)
+blocks/        타입 어휘: vocabulary.json(계약 레지스트리) + archetypes.json(구조 패턴 13) + core/*·pack-*/*(exemplar)
 themes/        교과 테마 토큰 CSS(ko=green, sci=teal). 교과색은 여기 :root 변수로만.
 assets/        paper.css(인쇄 베이스) + blocks.css(블록 스타일, var(--*)만 참조)
 manifests/     재조립 명세(ko.json, sci.json), 인라인 html 콘텐츠(동적 조립 모델)
@@ -290,7 +350,7 @@ DIP 는 실제로 변하는 3경계(Curriculum·Renderer·ContentAuthor)에만 �
 
 주제마다 구조가 달라지도록, 세 층으로 조립한다(상세: [docs/HANDOFF-dynamic-composition.md](docs/HANDOFF-dynamic-composition.md)):
 1. **어휘 + 계약**(`blocks/vocabulary.json`): 타입별 재사용 부품·인쇄안전 계약(코어 17·교과팩 11). 코어는 `var(--*)`만.
-2. **아키타입**(`blocks/archetypes.json`): 교과 초월 구조 패턴 6종(실험탐구·자료해석·읽기독해·토론의사결정·개념구조화·프로젝트제작). "어느 타입을 어떤 순서로" + packRole 교과 바인딩.
+2. **아키타입**(`blocks/archetypes.json`): 교과 초월 구조 패턴 13종. 기본 6종(실험탐구·자료해석·읽기독해·토론의사결정·개념구조화·프로젝트제작) + 시각 조직자 세트 7종(vocabulary-concept·kwl-inquiry·writing-plan·concept-visual·process-structure·literary-response·landscape-organizer). "어느 타입을 어떤 순서로" + packRole 교과 바인딩. 일부 아키타입은 `paper`(가로 등)·step `fit`(용지 자동 맞춤)을 실어 흐른다.
 3. **compose**(`ComposeWorksheet`): 요청+성취기준+아키타입 → 저작 대기 스캐폴드 + 저작 브리프. 엔진은 구조만(결정적), 교육적 본문은 designer AI/교사가 저작(무API).
 
 같은 교과라도 주제가 다르면 구조가 다르다. `compose 중2과학 광합성`(실험탐구: 변인표+그래프) vs `compose 중2과학 "생물 분류"`(개념구조화: 비교표+구조표). 비실험 주제가 실험 구조에 강제되지 않는다. 템플릿(`templates/*.json`)은 빠른 경로용 프리셋/시드로 강등.
