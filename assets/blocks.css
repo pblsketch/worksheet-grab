@@ -332,3 +332,38 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .mainidea td.mi-main { height: 46px; }
 .mainidea td.mi-sup { height: 20px; }
 .mainidea .wr { border-bottom: 1px solid #bbb; margin: 6px 0 10px; min-height: 15px; }
+
+/* ===== 시각 조직자 배치2 (범교과 코어) ===== */
+.notetaking, .hamburger, .perspectives, .prediction, .glowgrow, .stoplight {
+  margin-top: 3mm; width: 100%; border-collapse: collapse; }
+.notetaking th, .hamburger th, .perspectives th, .prediction th, .glowgrow th {
+  background: var(--clabel); color: var(--cink); font-weight: 700; padding: 6px;
+  font-size: 9.5pt; border: 1px solid #cbd5c0; text-align: center; }
+.notetaking td, .hamburger td, .perspectives td, .prediction td, .glowgrow td, .stoplight td {
+  border: 1px solid #cbd5c0; padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+.notetaking .wr, .hamburger .wr, .stoplight .wr {
+  border-bottom: 1px solid #bbb; margin: 6px 0 8px; min-height: 15px; }
+
+/* 노트 정리(코넬식) — 핵심어 / 내용 / 요약 */
+.notetaking th.nt-cue, .notetaking td.nt-cue { width: 30%; }
+.notetaking td.nt-cue { background: #f6f6f6; }
+.notetaking td.nt-note { height: 118px; }
+
+/* 문단 쓰기 계획(햄버거) — 주제문 / 뒷받침 / 맺음 */
+.hamburger td.hb { height: 20px; }
+
+/* 관점 비교 — 입장 / 근거 / 내 생각 */
+.perspectives td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 24%; }
+.perspectives td { height: 60px; }
+
+/* 예측하기 — 예상 / 관찰 / 비교 */
+.prediction td { height: 96px; width: 33.33%; }
+
+/* Glow & Grow 성찰 */
+.glowgrow td { height: 90px; width: 50%; }
+
+/* 신호등 자기점검 */
+.stoplight td.sl { width: 12%; text-align: center; font-size: 18pt; line-height: 1; }
+.stoplight td.sl-r { color: #d32f2f; }
+.stoplight td.sl-y { color: #f9a825; }
+.stoplight td.sl-g { color: #388e3c; }

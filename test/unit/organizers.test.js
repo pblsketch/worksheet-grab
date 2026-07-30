@@ -13,8 +13,11 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const repo = () => new FsBlockRepository({ root: ROOT });
 const mockCurriculum = { async resolve(code) { return { code, text: `원문(${code})`, subject: 'test' }; } };
 
-// 이번 배치에서 추가한 표형 조직자.
-const ORGANIZERS = ['kwl', 'frayer', 'w5h1', 'bme', 'exit321', 'mainidea'];
+// 추가한 표형 조직자(배치1 + 배치2).
+const ORGANIZERS = [
+  'kwl', 'frayer', 'w5h1', 'bme', 'exit321', 'mainidea',
+  'notetaking', 'hamburger', 'perspectives', 'prediction', 'glowgrow', 'stoplight',
+];
 
 test('시각 조직자: 6종이 vocabulary 에 코어(*)·keepTogether·core/<type>.html 로 등록', async () => {
   const v = await repo().readVocabulary();

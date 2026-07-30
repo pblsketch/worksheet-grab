@@ -2,8 +2,8 @@
   "version": 1,
   "note": "블록 타입 어휘 + 계약. 코어=≥2교과 사용·var(--*)만 참조(인쇄안전). 교과팩=해당 교과 전용. gen 타입(standard-label)은 파일 없이 엔진이 성취기준 원문으로 렌더. 콘텐츠는 요청마다 manifest 에 인라인 저작(동적 조립), exemplar 는 재사용 시드/폴백.",
   "counts": {
-    "total": 34,
-    "core": 23,
+    "total": 40,
+    "core": 29,
     "pack": 11
   },
   "types": {
@@ -489,6 +489,84 @@
       "studentFill": true,
       "cssClass": "mainidea",
       "file": "core/mainidea.html"
+    },
+    "notetaking": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "노트 정리 틀(코넬식 — 핵심어·내용·요약)",
+      "cssClass": "notetaking",
+      "file": "core/notetaking.html"
+    },
+    "hamburger": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "문단 쓰기 계획(햄버거 — 주제문·뒷받침·맺음)",
+      "cssClass": "hamburger",
+      "file": "core/hamburger.html"
+    },
+    "perspectives": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "관점 비교(입장·근거·내 생각) — 토론·쟁점",
+      "cssClass": "perspectives",
+      "file": "core/perspectives.html"
+    },
+    "prediction": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "예측하기(예상·관찰·비교) — 탐구 전후 비교",
+      "cssClass": "prediction",
+      "file": "core/prediction.html"
+    },
+    "glowgrow": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "Glow & Grow 성찰(잘한 점·기를 점)",
+      "cssClass": "glowgrow",
+      "file": "core/glowgrow.html"
+    },
+    "stoplight": {
+      "category": "core",
+      "subjects": [
+        "*"
+      ],
+      "slots": [],
+      "printSafe": true,
+      "keepTogether": true,
+      "studentFill": true,
+      "desc": "신호등 자기점검(빨강·노랑·초록)",
+      "cssClass": "stoplight",
+      "file": "core/stoplight.html"
     }
   }
 }

@@ -63,7 +63,7 @@
       }
     }
   },
-  "count": 8,
+  "count": 9,
   "archetypes": {
     "experimental-inquiry": {
       "name": "실험탐구",
@@ -637,6 +637,29 @@
           { "role": "서사정리", "type": "bme" },
           { "role": "점검", "type": "rubric" },
           { "role": "성찰", "type": "exit321" }
+        ]
+      ]
+    },
+    "writing-plan": {
+      "name": "글쓰기·성찰",
+      "pill": "글쓰기 계획",
+      "desc": "자료·생각 정리(노트) → 관점 비교 → 문단 쓰기 계획(햄버거) → 성찰(Glow & Grow). 쓰기 전 계획과 성찰을 돕는 시각 조직자 중심(범교과).",
+      "subjects": ["*"],
+      "pages": [
+        [
+          { "role": "제목", "type": "header" },
+          { "role": "성취기준", "type": "standard-label" },
+          { "role": "안내", "type": "directive" },
+          { "role": "자료정리", "type": "subq" },
+          { "role": "노트", "type": "notetaking" },
+          { "role": "관점정리", "type": "subq" },
+          { "role": "관점비교", "type": "perspectives" }
+        ],
+        [
+          { "role": "글계획", "type": "subq" },
+          { "role": "문단계획", "type": "hamburger" },
+          { "role": "정리", "type": "section-heading" },
+          { "role": "성찰", "type": "glowgrow" }
         ]
       ]
     }

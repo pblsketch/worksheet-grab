@@ -50,18 +50,25 @@ test('P1 수용: compose --archetype kwl-inquiry → 조직자 포함 A4 student
     }
   });
 
-test('P1 수용: 6종 조직자를 한 페이지 매니페스트로 렌더 시 각 조직자가 인쇄물에 존재(실물 Chrome)',
+test('P1 수용: 12종 조직자를 다중페이지 매니페스트로 렌더 시 각 조직자 인쇄물 존재 + 편집=인쇄 쪽수(실물 Chrome)',
   { skip: !READY, timeout: 120000 }, async () => {
     const repo = new FsBlockRepository({ root: ROOT });
     const v = await repo.readVocabulary();
-    const organizers = ['kwl', 'frayer', 'w5h1', 'bme', 'exit321', 'mainidea'];
-    // 조직자를 2쪽에 나눠 배치(한 쪽에 다 넣으면 A4 초과) — 헤더 + 3개씩.
+    const organizers = [
+      'kwl', 'frayer', 'w5h1', 'bme', 'exit321', 'mainidea',
+      'notetaking', 'hamburger', 'perspectives', 'prediction', 'glowgrow', 'stoplight',
+    ];
+    // 조직자를 페이지당 2개로 나눠 배치(A4 넘침 방지) — 넘치면 인쇄 쪽수>편집 쪽수 로 잡힌다.
     const entry = (t) => ({ type: t, file: v.types[t].file });
     const manifest = {
       subject: 'x', theme: 'sci', docTitle: '시각 조직자 렌더 점검', standards: [],
       pages: [
-        [{ type: 'header', file: v.types['header'].file }, entry('kwl'), entry('frayer'), entry('w5h1')],
-        [entry('bme'), entry('exit321'), entry('mainidea')],
+        [{ type: 'header', file: v.types['header'].file }, entry('kwl'), entry('frayer')],
+        [entry('w5h1'), entry('bme')],
+        [entry('exit321'), entry('mainidea')],
+        [entry('notetaking'), entry('hamburger')],
+        [entry('perspectives'), entry('prediction')],
+        [entry('glowgrow'), entry('stoplight')],
       ],
     };
     const asm = new AssembleWorksheet({ blockRepository: repo, curriculum: { async resolve(c) { return { code: c, text: `원문(${c})` }; } } });
