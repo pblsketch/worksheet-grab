@@ -145,3 +145,27 @@ test('P1 배치3: 독서·문학 조직자 4종(에세이 섹션 스택 포함) 
     const pages = await countPdfPages(outPath);
     assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — 에세이 스택 넘침 없음`);
   });
+
+test('파라메트릭: 3원 벤 + 5칸·6칸 개념지도가 실물 Chrome 으로 렌더 + 편집=인쇄 쪽수(넘침 없음)',
+  { skip: !READY, timeout: 120000 }, async () => {
+    const repo = new FsBlockRepository({ root: ROOT });
+    const manifest = {
+      subject: 'x', theme: 'sci', docTitle: '파라메트릭 조직자 렌더 점검', standards: [],
+      pages: [
+        [{ type: 'venn', params: { circles: 3 } }, { type: 'conceptmap', params: { nodes: 5 } }],
+        [{ type: 'conceptmap', params: { nodes: 6 } }],
+      ],
+    };
+    const asm = new AssembleWorksheet({ blockRepository: repo, curriculum: { async resolve(c) { return { code: c, text: `원문(${c})` }; } } });
+    const { html, worksheet } = await asm.execute(manifest);
+    assert.equal((html.match(/<circle/g) || []).length, 3, '3원 벤');
+    assert.equal((html.match(/class="cm-node"/g) || []).length, 11, '5칸+6칸=11 노드');
+    const dir = await autoTmpDir('wsg-param-');
+    const rp = new RenderPdf({ renderer: new ChromeRenderer({}) });
+    const inPath = join(dir, 'param.html');
+    const outPath = join(dir, 'param.pdf');
+    await writeFile(inPath, html.replace(/MODE_TOKEN/g, 'teacher'), 'utf8');
+    await rp.execute({ inputPath: inPath, outputPath: outPath, virtualTimeBudget: 15000 });
+    const pages = await countPdfPages(outPath);
+    assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — 파라메트릭 SVG 넘침 없음`);
+  });

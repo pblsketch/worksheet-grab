@@ -1,5 +1,6 @@
 import { Worksheet, Block, Standard } from '../domain/index.js';
 import { resolvePaper, paperCss } from './paper.js';
+import { ORGANIZER_GENERATORS } from './OrganizerGen.js';
 
 // AssembleWorksheet — 매니페스트 + 블록 라이브러리 + 테마 + 성취기준(CSV) → 활동지 HTML.
 // 겸 Presenter: 도메인 Worksheet 를 HTML(MODE_TOKEN 포함) 로 직렬화한다.
@@ -99,6 +100,11 @@ export class AssembleWorksheet {
   async #entryHtml(entry, standards, manifest) {
     if (entry.gen === 'standard-label' || entry.type === 'standard-label') {
       return this.#renderStandardLabel(standards, manifest);
+    }
+    // 파라메트릭 조직자: entry.params 가 있으면 엔진이 개수대로 SVG 를 생성한다(좌표는 엔진 계산).
+    // params 없으면 이 분기를 건너 정적 블록(entry.file)을 쓴다 = 기존 산출 그대로(하위호환).
+    if (entry.params && ORGANIZER_GENERATORS[entry.type]) {
+      return ORGANIZER_GENERATORS[entry.type](entry.params);
     }
     if (typeof entry.html === 'string') return entry.html; // 인라인 블록(템플릿 슬롯 치환 결과)
     if (!entry.file) throw new Error(`블록 엔트리에 file/html/gen 이 없습니다: ${JSON.stringify(entry)}`);

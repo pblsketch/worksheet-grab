@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { AssembleWorksheet } from '../../src/usecases/AssembleWorksheet.js';
 import { ComposeWorksheet } from '../../src/usecases/ComposeWorksheet.js';
+import { vennSvg, conceptMapSvg } from '../../src/usecases/OrganizerGen.js';
 
 // 시각 조직자(graphic organizers) — Track A 표형(P1 배치1).
 // 계약(vocabulary)·assemble 렌더·인쇄안전(keep)·범교과(하드코딩색 0)를 검증한다.
@@ -177,4 +178,50 @@ test('시각 조직자 surfacing: compose --archetype literary-response 가 북�
   assert.match(html, /class="[^"]*\bessayplan\b/, '에세이 설계 렌더');
   // 에세이 설계는 섹션 스택 — 각 섹션에 keep(섹션 사이 넘김 허용).
   assert.match(html, /class="ep-sec keep"/, '에세이 섹션별 keep');
+});
+
+// ── 파라메트릭 생성(개수 지정) ─────────────────────────────────────────────
+const countCircles = (h) => (h.match(/<circle/g) || []).length;
+const countNodes = (h) => (h.match(/class="cm-node"/g) || []).length;
+const countLines = (h) => (h.match(/<line/g) || []).length;
+
+test('파라메트릭: 벤다이어그램 2원/3원 생성 — 원 개수·keep·svg·hex 0', () => {
+  const two = vennSvg({ circles: 2 });
+  const three = vennSvg({ circles: 3 });
+  assert.equal(countCircles(two), 2, '2원');
+  assert.equal(countCircles(three), 3, '3원');
+  for (const h of [two, three]) {
+    assert.match(h, /class="venn keep"/, 'cssClass+keep');
+    assert.match(h, /<svg/, 'svg');
+    assert.equal(h.match(/#[0-9a-fA-F]{3,6}\b/g), null, 'HTML hex 0(색은 CSS)');
+  }
+  assert.equal(countCircles(vennSvg()), 2, '기본 2원');
+});
+
+test('파라메트릭: 개념 지도 N칸 생성 — 노드=N, 연결선=N (3~6), 범위 밖은 클램프', () => {
+  for (const n of [3, 4, 5, 6]) {
+    const h = conceptMapSvg({ nodes: n });
+    assert.equal(countNodes(h), n, `${n}칸 노드`);
+    assert.equal(countLines(h), n, `${n}개 연결선`);
+    assert.match(h, /class="conceptmap keep"/, 'cssClass+keep');
+    assert.equal(h.match(/#[0-9a-fA-F]{3,6}\b/g), null, 'HTML hex 0');
+  }
+  assert.equal(countNodes(conceptMapSvg({ nodes: 9 })), 6, '6 초과는 6으로 클램프');
+  assert.equal(countNodes(conceptMapSvg({ nodes: 1 })), 3, '3 미만은 3으로 클램프');
+  assert.equal(countNodes(conceptMapSvg()), 4, '기본 4칸');
+});
+
+test('파라메트릭: AssembleWorksheet 가 entry.params 로 변형을 생성(정적 블록 대체)', async () => {
+  const manifest = {
+    subject: 'x', theme: 'sci', docTitle: 't', standards: [],
+    pages: [[
+      { type: 'venn', params: { circles: 3 } },
+      { type: 'conceptmap', params: { nodes: 5 } },
+    ]],
+  };
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculum });
+  const { html } = await asm.execute(manifest);
+  assert.equal(countCircles(html), 3, 'params 로 3원 벤 생성');
+  assert.equal(countNodes(html), 5, 'params 로 5칸 개념지도 생성');
+  assert.match(html, /class="[^"]*\bkeep\b/, '인쇄안전 keep');
 });

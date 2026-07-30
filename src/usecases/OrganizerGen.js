@@ -1,0 +1,75 @@
+// OrganizerGen — 파라메트릭 시각 조직자 생성기.
+//
+// 엔진이 개수(params)로부터 SVG 를 **결정적으로** 그린다. 좌표·도형은 엔진이 계산하고,
+// AI/교사는 개수만 지정한다 → '닫힌 카탈로그 · AI 좌표 생성 금지' 불변식을 지키면서도
+// "원 3개 벤다이어그램", "개념 5칸 지도" 같은 요청에 맞춰 레이아웃을 바꿀 수 있다.
+//
+// 산출 HTML 은 정적 블록(blocks/core/venn.html 등)과 **같은 cssClass** 를 써서 blocks.css
+// 스타일(색·인쇄안전 .keep)이 그대로 적용된다. params 없는 기본 개수는 정적 블록과 동일하다.
+
+const NS = 'xmlns="http://www.w3.org/2000/svg"';
+const cap = (t) => `<div class="org-cap">${escText(t)}</div>`;
+
+function escText(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** 벤다이어그램 — circles: 2(기본) 또는 3. */
+export function vennSvg({ circles = 2 } = {}) {
+  const n = Number(circles) === 3 ? 3 : 2;
+  if (n === 2) {
+    return `<div class="venn keep">
+    <svg width="440" height="240" viewBox="0 0 440 240" ${NS} role="img" aria-label="벤다이어그램(2원)">
+      <circle cx="165" cy="125" r="100" stroke-width="1.6"/>
+      <circle cx="275" cy="125" r="100" stroke-width="1.6"/>
+      <text x="95" y="130" font-size="13" text-anchor="middle">A</text>
+      <text x="345" y="130" font-size="13" text-anchor="middle">B</text>
+      <text x="220" y="28" font-size="11" text-anchor="middle" class="v-mid">공통점</text>
+    </svg>
+    ${cap('양쪽 바깥에는 차이점, 가운데 겹치는 곳에는 공통점을 쓰자.')}
+  </div>`;
+  }
+  // 3원 — 삼각 배치(고전 3-집합 벤다이어그램).
+  return `<div class="venn keep">
+    <svg width="460" height="330" viewBox="0 0 460 330" ${NS} role="img" aria-label="벤다이어그램(3원)">
+      <circle cx="185" cy="132" r="105" stroke-width="1.6"/>
+      <circle cx="275" cy="132" r="105" stroke-width="1.6"/>
+      <circle cx="230" cy="212" r="105" stroke-width="1.6"/>
+      <text x="118" y="92" font-size="13" text-anchor="middle">A</text>
+      <text x="342" y="92" font-size="13" text-anchor="middle">B</text>
+      <text x="230" y="300" font-size="13" text-anchor="middle">C</text>
+      <text x="230" y="150" font-size="10" text-anchor="middle" class="v-mid">공통</text>
+    </svg>
+    ${cap('세 원이 겹치는 부분에는 공통점, 바깥에는 각 대상의 특징을 쓰자.')}
+  </div>`;
+}
+
+/** 개념 지도 — nodes: 3~6칸(기본 4). 중심 개념에서 N개 노드가 방사형으로 뻗는다. */
+export function conceptMapSvg({ nodes = 4 } = {}) {
+  const n = Math.max(3, Math.min(6, Number(nodes) | 0 || 4));
+  const W = 460, H = 300, cx = W / 2, cy = H / 2;
+  const rx = 70, ry = 36;        // 중심 타원
+  const R = 118;                 // 노드 배치 반경(중심→노드 중심)
+  const bw = 110, bh = 44;       // 노드 상자
+  let lines = '', boxes = '';
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + (i * 2 * Math.PI / n); // 위에서 시작, 시계방향
+    const bx = cx + R * Math.cos(ang);
+    const by = cy + R * Math.sin(ang);
+    lines += `<line x1="${cx}" y1="${cy}" x2="${bx.toFixed(1)}" y2="${by.toFixed(1)}"/>\n      `;
+    boxes += `<rect x="${(bx - bw / 2).toFixed(1)}" y="${(by - bh / 2).toFixed(1)}" width="${bw}" height="${bh}" rx="6" class="cm-node" stroke-width="1.2"/>\n      `;
+  }
+  return `<div class="conceptmap keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="개념 지도(${n}칸)">
+      ${lines}<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" class="cm-core" stroke-width="1.6"/>
+      <text x="${cx}" y="${cy + 4}" font-size="12" text-anchor="middle">핵심 개념</text>
+      ${boxes}</svg>
+    ${cap(`가운데 핵심 개념에서 뻗어 나가는 생각·낱말을 ${n}칸에 적자.`)}
+  </div>`;
+}
+
+// 파라메트릭 생성이 가능한 조직자 타입 → 생성기. AssembleWorksheet 가 entry.params 있을 때 사용.
+export const ORGANIZER_GENERATORS = {
+  venn: vennSvg,
+  conceptmap: conceptMapSvg,
+};
