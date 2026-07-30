@@ -430,6 +430,15 @@ export function createAiPanel(deps) {
           if (state && state.currentRequestId === id) { state.phase = 'compose'; state.error = '요청이 취소되었습니다.'; render(); }
           return;
         }
+        // 열화 반려(M5): AI 가 "이 요청은 못 한다"를 명시 반려 — 5분 조용한 타임아웃 대신 즉시 사유를 보여준다.
+        if (body.status === 'unsupported') {
+          if (state && state.currentRequestId === id) {
+            state.phase = 'compose';
+            state.error = `AI가 이 요청은 처리할 수 없다고 답했습니다: ${body.response?.reason || '표현할 수 없는 지시입니다. 더 작은 단위로 나눠 다시 시도해 보세요.'}`;
+            render();
+          }
+          return;
+        }
         if (body.status === 'answered') {
           applyResponseAsVersion(id, body.response);
           return;

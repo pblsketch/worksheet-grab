@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   AI_SCHEMA_VERSION, AI_SCHEMA_VERSIONS, canTransition, newRequestId, parseAction,
-  excludedTypes, assertTargetable, validateRequest, validateResponse,
+  excludedTypes, assertTargetable, validateRequest, validateResponse, isUnsupportedResponse,
 } from '../../src/usecases/aiBridge.js';
 
 // E5 순수 정책: id·액션·타입 가드(§7·§10 유일 강제)·상태 전이·스키마.
@@ -35,6 +35,23 @@ test('상태 전이: cancelled·applied 는 terminal, answered 이후에만 appl
   assert.equal(canTransition('pending', 'applied'), false, '응답 전 적용 불가');
   assert.equal(canTransition('cancelled', 'answered'), false, 'terminal — respond 부활 금지');
   assert.equal(canTransition('applied', 'cancelled'), false);
+});
+
+test('M5 열화 계약: unsupported 반려 봉투(pending→unsupported, terminal)', () => {
+  // pending 에서 unsupported 로 갈 수 있고(구독 AI 가 "못 한다" 반려), 그 뒤론 terminal 이다.
+  assert.equal(canTransition('pending', 'unsupported'), true);
+  assert.equal(canTransition('unsupported', 'answered'), false, 'terminal — 반려 뒤 부활 금지');
+  assert.equal(canTransition('unsupported', 'applied'), false);
+  assert.equal(canTransition('unsupported', 'cancelled'), false);
+  // 판별기: unsupported:true 봉투만 반려로 본다.
+  assert.equal(isUnsupportedResponse({ unsupported: true, reason: 'x' }), true);
+  assert.equal(isUnsupportedResponse({ schemaVersion: 4, id: 'r', ops: [] }), false);
+  assert.equal(isUnsupportedResponse(null), false);
+  // validateResponse: reason 있는 unsupported 봉투는 ops 없이도 유효, 빈/누락 reason 은 거부.
+  assert.equal(validateResponse({ schemaVersion: 4, id: 'req-1', unsupported: true, reason: '문항 3개를 하나로 합치는 지시는 표현할 수 없습니다.' }), true, 'reason 있으면 유효');
+  assert.equal(validateResponse({ schemaVersion: 4, id: 'req-1', unsupported: true, reason: '   ' }), false, '빈 reason 거부');
+  assert.equal(validateResponse({ schemaVersion: 4, id: 'req-1', unsupported: true }), false, 'reason 누락 거부');
+  assert.equal(validateResponse({ schemaVersion: 4, id: '', unsupported: true, reason: 'x' }), false, 'id 누락은 여전히 거부');
 });
 
 test('Phase 4: AI_SCHEMA_VERSION=4(신규 쓰기용, ops 계획)·관용 집합 {1,2,3,4}', () => {

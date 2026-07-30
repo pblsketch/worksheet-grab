@@ -801,15 +801,23 @@ async function cmdAi(args, flags, { log, err }) {
         response = { schemaVersion: 1, id, html: await readFile(resolve(flags.from), 'utf8') };
       } else if (typeof flags.html === 'string') {
         response = { schemaVersion: 1, id, html: flags.html };
+      } else if (typeof flags.unsupported === 'string') {
+        // 열화 반려(M5): AI 가 "이 지시는 ops 어휘로 표현할 수 없다"를 명시 반려한다 — 무응답(에디터 5분
+        // 타임아웃) 대신 reason 을 즉시 돌려보낸다. reason 은 그대로 사용자에게 표시된다.
+        response = { schemaVersion: AI_SCHEMA_VERSION, id, unsupported: true, reason: flags.unsupported };
+        if (!validateResponse(response)) {
+          throw new Error('ai respond --unsupported "<사유>": 비어 있지 않은 사유 문자열이 필요합니다.');
+        }
       } else {
-        throw new Error('ai respond: --from <file> / --html <inline> / --blocks <file.json> / --objects <file.json> 중 하나가 필요합니다.');
+        throw new Error('ai respond: --from <file> / --html <inline> / --blocks <file.json> / --objects <file.json> / --unsupported "<사유>" 중 하나가 필요합니다.');
       }
       await bridge.putResponse(response);
-      // 양형 방어(v1~v4): 없는 필드에 직접 접근하면 v4(ops[]) 회신에서 크래시한다.
-      const detail = response.ops ? `${response.ops.length}계획(${response.ops.map((o) => o.op).join('·')})`
-        : response.objects ? `${response.objects.length}개체`
-          : response.blocks ? `${response.blocks.length}블록`
-            : `${(response.html ?? '').length}자`;
+      // 양형 방어(v1~v4·반려): 없는 필드에 직접 접근하면 다른 형태 회신에서 크래시한다.
+      const detail = response.unsupported ? `반려("${response.reason}")`
+        : response.ops ? `${response.ops.length}계획(${response.ops.map((o) => o.op).join('·')})`
+          : response.objects ? `${response.objects.length}개체`
+            : response.blocks ? `${response.blocks.length}블록`
+              : `${(response.html ?? '').length}자`;
       log(`✔ 응답 기록: ${id} (${detail}) — 에디터가 폴링으로 수신합니다.`);
       return 0;
     }

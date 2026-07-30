@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir, rename, readdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
-import { canTransition, validateRequest, validateResponse } from '../usecases/aiBridge.js';
+import { canTransition, validateRequest, validateResponse, isUnsupportedResponse } from '../usecases/aiBridge.js';
 
 // FsAiBridgeRepository — AI 브리지 파일 큐(<baseDir>/.ai-bridge/{requests,responses}/)의 IO.
 // 에디터 서버(요청 생성·cancelled/applied 기록)와 구독 AI CLI(응답 생성)는 별도
@@ -74,7 +74,8 @@ export class FsAiBridgeRepository {
     if (!req) return null;
     if (req.status === 'cancelled') return 'cancelled';
     if (req.status === 'applied') return 'applied';
-    if (await this.readResponse(id)) return 'answered';
+    const resp = await this.readResponse(id);
+    if (resp) return isUnsupportedResponse(resp) ? 'unsupported' : 'answered';
     return 'pending';
   }
 
