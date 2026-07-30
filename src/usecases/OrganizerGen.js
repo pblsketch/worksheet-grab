@@ -69,9 +69,101 @@ export function conceptMapSvg({ nodes = 4 } = {}) {
 }
 
 // 파라메트릭 생성이 가능한 조직자 타입 → 생성기. AssembleWorksheet 가 entry.params 있을 때 사용.
+/** 피시본 — branches: 2~6개 원인 가지(기본 4). 중심선 + 결과 박스 + N개 가지. */
+export function fishboneSvg({ branches = 4 } = {}) {
+  const n = Math.max(2, Math.min(6, Number(branches) | 0 || 4));
+  const W = 490, H = 240, y = 120;
+  let g = '';
+  for (let i = 0; i < n; i++) {
+    const sx = n === 1 ? 220 : 100 + i * (240 / (n - 1));
+    const up = i % 2 === 0;
+    const ex = sx - 46, ey = up ? 34 : 206;
+    g += `<line x1="${sx.toFixed(1)}" y1="${y}" x2="${ex.toFixed(1)}" y2="${ey}" class="fb-branch" stroke-width="1.2"/>\n      `;
+    g += `<text x="${(ex - 4).toFixed(1)}" y="${up ? 28 : 218}" font-size="9.5" text-anchor="middle" class="fb-lab">원인</text>\n      `;
+  }
+  return `<div class="fishbone keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="피시본(원인 ${n}개)">
+      <line x1="24" y1="${y}" x2="406" y2="${y}" class="fb-spine" stroke-width="1.8"/>
+      <polygon points="412,${y} 398,${y - 7} 398,${y + 7}" class="fb-arrow"/>
+      <rect x="414" y="95" width="66" height="50" rx="6" class="fb-result" stroke-width="1.4"/>
+      <text x="447" y="${y + 4}" font-size="10" text-anchor="middle">결과</text>
+      ${g}</svg>
+    ${cap('오른쪽 결과가 왜 생겼는지 가지마다 원인을 적자.')}
+  </div>`;
+}
+
+/** 순서 흐름도 — steps: 2~6단계(기본 4). N개 박스 + 화살표. */
+export function flowchartSvg({ steps = 4 } = {}) {
+  const n = Math.max(2, Math.min(6, Number(steps) | 0 || 4));
+  const bw = 88, bh = 46, gap = 42, mx = 12, y = 32;
+  const W = mx * 2 + n * bw + (n - 1) * gap, H = 110;
+  let boxes = '', arrows = '', labels = '';
+  for (let i = 0; i < n; i++) {
+    const x = mx + i * (bw + gap);
+    boxes += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="6" class="fc-box"/>\n      `;
+    labels += `<text x="${x + bw / 2}" y="${y + 29}" font-size="11" text-anchor="middle">${i + 1}</text>\n      `;
+    if (i < n - 1) {
+      const ax = x + bw, nx = x + bw + gap;
+      arrows += `<line x1="${ax + 2}" y1="${y + 23}" x2="${nx - 6}" y2="${y + 23}" class="fc-link"/>`;
+      arrows += `<polygon points="${nx},${y + 23} ${nx - 10},${y + 18} ${nx - 10},${y + 28}" class="fc-arrow"/>\n      `;
+    }
+  }
+  return `<div class="flowchart keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="순서 흐름도(${n}단계)">
+      ${arrows}${boxes}${labels}</svg>
+    ${cap('왼쪽부터 순서대로 각 단계에 할 일이나 과정을 적자.')}
+  </div>`;
+}
+
+/** 위계 트리 — children: 2~5개 하위(기본 3). 상위 박스 + N개 하위 박스. */
+export function hierarchySvg({ children = 3 } = {}) {
+  const n = Math.max(2, Math.min(5, Number(children) | 0 || 3));
+  const cw = 120, ch = 52, gap = 18, cy = 150;
+  const totalW = n * cw + (n - 1) * gap;
+  const W = Math.max(300, totalW + 40), H = 216, cx = W / 2;
+  const startX = (W - totalW) / 2;
+  let boxes = '', lines = '';
+  for (let i = 0; i < n; i++) {
+    const x = startX + i * (cw + gap);
+    lines += `<line x1="${cx}" y1="60" x2="${(x + cw / 2).toFixed(1)}" y2="${cy}" class="h-link"/>\n      `;
+    boxes += `<rect x="${x.toFixed(1)}" y="${cy}" width="${cw}" height="${ch}" rx="6" class="h-node"/>\n      `;
+  }
+  return `<div class="hierarchy keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="위계 트리(하위 ${n}개)">
+      ${lines}<rect x="${(cx - 62).toFixed(1)}" y="14" width="124" height="46" rx="6" class="h-top"/>
+      <text x="${cx}" y="42" font-size="12" text-anchor="middle">상위 개념</text>
+      ${boxes}</svg>
+    ${cap('위쪽에 큰 개념, 아래에 그에 속하는 하위 개념을 적자.')}
+  </div>`;
+}
+
+/** 헥사고날 싱킹 — count: 3~7개(기본 5). 벌집형 2줄 배치. */
+export function hexagonSvg({ count = 5 } = {}) {
+  const n = Math.max(3, Math.min(7, Number(count) | 0 || 5));
+  const R = 44, h = 38, sp = 100;
+  const top = Math.ceil(n / 2), bot = n - top;
+  const topW = top * sp, botW = bot * sp;
+  const W = Math.max(topW, botW + sp / 2) + 40, H = bot > 0 ? 210 : 130;
+  const hex = (cx, cy) => `<polygon points="${cx - R},${cy} ${cx - R / 2},${cy - h} ${cx + R / 2},${cy - h} ${cx + R},${cy} ${cx + R / 2},${cy + h} ${cx - R / 2},${cy + h}" class="hx"/>`;
+  let g = '';
+  const topStart = (W - topW) / 2 + sp / 2;
+  for (let i = 0; i < top; i++) g += hex(topStart + i * sp, 75) + '\n      ';
+  const botStart = (W - botW) / 2 + sp / 2;
+  for (let i = 0; i < bot; i++) g += hex(botStart + i * sp, 165) + '\n      ';
+  return `<div class="hexagon keep">
+    <svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" ${NS} role="img" aria-label="헥사고날 싱킹(${n}개)">
+      ${g}</svg>
+    ${cap('각 육각형에 핵심 낱말을 하나씩 쓰고, 관련 있는 것끼리 변을 맞대어 연결하자.')}
+  </div>`;
+}
+
 export const ORGANIZER_GENERATORS = {
   venn: vennSvg,
   conceptmap: conceptMapSvg,
+  fishbone: fishboneSvg,
+  flowchart: flowchartSvg,
+  hierarchy: hierarchySvg,
+  hexagon: hexagonSvg,
 };
 
 /**

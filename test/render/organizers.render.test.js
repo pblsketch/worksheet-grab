@@ -192,3 +192,27 @@ test('가로 자동맞춤: compose --archetype landscape-organizer → 가로 A4
     const pages = await countPdfPages(outPath);
     assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — 가로 조직자 잘림·넘침 0`);
   });
+
+test('파라메트릭 확장: 피시본6·흐름도6·위계5·헥사곤7 실물 Chrome 렌더 + 편집=인쇄 쪽수',
+  { skip: !READY, timeout: 120000 }, async () => {
+    const repo = new FsBlockRepository({ root: ROOT });
+    const manifest = {
+      subject: 'x', theme: 'sci', docTitle: '파라메트릭 확장 렌더 점검', standards: [],
+      pages: [
+        [{ type: 'fishbone', params: { branches: 6 } }, { type: 'flowchart', params: { steps: 6 } }],
+        [{ type: 'hierarchy', params: { children: 5 } }, { type: 'hexagon', params: { count: 7 } }],
+      ],
+    };
+    const asm = new AssembleWorksheet({ blockRepository: repo, curriculum: { async resolve(c) { return { code: c, text: `원문(${c})` }; } } });
+    const { html, worksheet } = await asm.execute(manifest);
+    assert.equal((html.match(/class="fb-branch"/g) || []).length, 6, '피시본 6가지');
+    assert.equal((html.match(/class="hx"/g) || []).length, 7, '헥사곤 7개');
+    const dir = await autoTmpDir('wsg-pext-');
+    const rp = new RenderPdf({ renderer: new ChromeRenderer({}) });
+    const inPath = join(dir, 'pext.html');
+    const outPath = join(dir, 'pext.pdf');
+    await writeFile(inPath, html.replace(/MODE_TOKEN/g, 'teacher'), 'utf8');
+    await rp.execute({ inputPath: inPath, outputPath: outPath, virtualTimeBudget: 15000 });
+    const pages = await countPdfPages(outPath);
+    assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — 확장 SVG 넘침 없음`);
+  });

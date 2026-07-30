@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { AssembleWorksheet } from '../../src/usecases/AssembleWorksheet.js';
 import { ComposeWorksheet } from '../../src/usecases/ComposeWorksheet.js';
-import { vennSvg, conceptMapSvg, fitSvgToBox } from '../../src/usecases/OrganizerGen.js';
+import { vennSvg, conceptMapSvg, fitSvgToBox, fishboneSvg, flowchartSvg, hierarchySvg, hexagonSvg } from '../../src/usecases/OrganizerGen.js';
 
 // 시각 조직자(graphic organizers) — Track A 표형(P1 배치1).
 // 계약(vocabulary)·assemble 렌더·인쇄안전(keep)·범교과(하드코딩색 0)를 검증한다.
@@ -261,4 +261,43 @@ test('fit surfacing: compose --archetype landscape-organizer → paper 가로 + 
   assert.equal(worksheet.pageCount(), manifest.pages.length, '쪽수 유지');
   assert.match(html, /class="[^"]*\bvenn\b/, '벤다이어그램 포함');
   assert.match(html, /<svg/, 'SVG 렌더');
+});
+
+// ── 파라메트릭 확장(피시본·흐름도·위계·헥사고날) ─────────────────────────────
+const cnt = (h, cls) => (h.match(new RegExp(`class="${cls}"`, 'g')) || []).length;
+
+test('파라메트릭 확장: 각 조직자가 개수대로 도형을 생성(+클램프·기본값)', () => {
+  assert.equal(cnt(fishboneSvg({ branches: 5 }), 'fb-branch'), 5, '피시본 5가지');
+  assert.equal(cnt(flowchartSvg({ steps: 6 }), 'fc-box'), 6, '흐름도 6단계');
+  assert.equal(cnt(hierarchySvg({ children: 4 }), 'h-node'), 4, '위계 하위 4');
+  assert.equal(cnt(hexagonSvg({ count: 7 }), 'hx'), 7, '헥사곤 7개');
+  // 클램프
+  assert.equal(cnt(fishboneSvg({ branches: 99 }), 'fb-branch'), 6, '피시본 최대 6');
+  assert.equal(cnt(flowchartSvg({ steps: 1 }), 'fc-box'), 2, '흐름도 최소 2');
+  assert.equal(cnt(hierarchySvg({ children: 9 }), 'h-node'), 5, '위계 최대 5');
+  assert.equal(cnt(hexagonSvg({ count: 1 }), 'hx'), 3, '헥사곤 최소 3');
+  // 기본값
+  assert.equal(cnt(flowchartSvg(), 'fc-box'), 4, '흐름도 기본 4');
+  // HTML hex 0(색은 CSS)
+  for (const h of [fishboneSvg({ branches: 4 }), flowchartSvg({ steps: 4 }), hierarchySvg({ children: 3 }), hexagonSvg({ count: 5 })]) {
+    assert.equal(h.match(/#[0-9a-fA-F]{3,6}\b/g), null, 'HTML 에 hex 색 없음(색은 CSS)');
+    assert.match(h, /<svg/, 'svg 방출');
+  }
+});
+
+test('파라메트릭 확장: AssembleWorksheet 가 params 로 확장 조직자를 생성', async () => {
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculum });
+  const { html } = await asm.execute({
+    subject: 'x', theme: 'sci', docTitle: 't', standards: [],
+    pages: [[
+      { type: 'fishbone', params: { branches: 6 } },
+      { type: 'flowchart', params: { steps: 5 } },
+      { type: 'hierarchy', params: { children: 5 } },
+      { type: 'hexagon', params: { count: 6 } },
+    ]],
+  });
+  assert.equal(cnt(html, 'fb-branch'), 6, 'params 피시본 6가지');
+  assert.equal(cnt(html, 'fc-box'), 5, 'params 흐름도 5단계');
+  assert.equal(cnt(html, 'h-node'), 5, 'params 위계 5하위');
+  assert.equal(cnt(html, 'hx'), 6, 'params 헥사곤 6개');
 });
