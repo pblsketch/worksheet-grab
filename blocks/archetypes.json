@@ -63,7 +63,7 @@
       }
     }
   },
-  "count": 12,
+  "count": 13,
   "archetypes": {
     "experimental-inquiry": {
       "name": "실험탐구",
@@ -732,6 +732,24 @@
         [
           { "role": "글계획안내", "type": "subq" },
           { "role": "에세이설계", "type": "essayplan" }
+        ]
+      ]
+    },
+    "landscape-organizer": {
+      "name": "가로 한 장 조직자",
+      "pill": "가로 조직자",
+      "desc": "가로 용지 한 페이지에 시각 조직자 하나가 크게(자동 맞춤) 들어가는 활동지 — 벤다이어그램·개념지도·피시본을 페이지마다.",
+      "subjects": ["*"],
+      "paper": { "size": "A4", "orientation": "landscape" },
+      "pages": [
+        [
+          { "role": "벤다이어그램", "type": "venn", "fit": true }
+        ],
+        [
+          { "role": "개념지도", "type": "conceptmap", "fit": true }
+        ],
+        [
+          { "role": "피시본", "type": "fishbone", "fit": true }
         ]
       ]
     }

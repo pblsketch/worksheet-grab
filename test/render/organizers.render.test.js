@@ -169,3 +169,26 @@ test('파라메트릭: 3원 벤 + 5칸·6칸 개념지도가 실물 Chrome 으�
     const pages = await countPdfPages(outPath);
     assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — 파라메트릭 SVG 넘침 없음`);
   });
+
+test('가로 자동맞춤: compose --archetype landscape-organizer → 가로 A4, 페이지당 조직자 하나 자동 맞춤(잘림 0)',
+  { skip: !READY, timeout: 120000 }, async () => {
+    const repo = new FsBlockRepository({ root: ROOT });
+    const curriculum = new GepaiCurriculum({});
+    const compose = new ComposeWorksheet({ blockRepository: repo, curriculum });
+    const { manifest } = await compose.execute({
+      grade: '중2', subject: '과학', topic: '광합성', archetype: 'landscape-organizer', codes: ['[9과12-01]'],
+    });
+    assert.equal(manifest.paper?.orientation, 'landscape', '가로 용지');
+    const asm = new AssembleWorksheet({ blockRepository: repo, curriculum });
+    const { html, worksheet } = await asm.execute(manifest);
+    assert.match(html, /<svg/, 'SVG 조직자 렌더');
+
+    const dir = await autoTmpDir('wsg-lsorg-');
+    const rp = new RenderPdf({ renderer: new ChromeRenderer({}) });
+    const inPath = join(dir, 'lsorg.html');
+    const outPath = join(dir, 'lsorg.pdf');
+    await writeFile(inPath, html.replace(/MODE_TOKEN/g, 'teacher'), 'utf8');
+    await rp.execute({ inputPath: inPath, outputPath: outPath, virtualTimeBudget: 15000 });
+    const pages = await countPdfPages(outPath);
+    assert.equal(pages, worksheet.pageCount(), `인쇄 쪽수(${pages}) == 편집 쪽수(${worksheet.pageCount()}) — 가로 조직자 잘림·넘침 0`);
+  });

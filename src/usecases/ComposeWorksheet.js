@@ -109,7 +109,7 @@ export class ComposeWorksheet {
         if (entry.gen === 'standard-label' || entry.type === 'standard-label') { out.push(entry); continue; }
         if (entry.type === 'header') { out.push({ type: 'header', html: headerHtml(ctx) }); continue; }
         const html = typeof entry.html === 'string' ? entry.html : await this.repo.loadBlockHtml(entry.file);
-        out.push({ type: entry.type, html });
+        out.push({ type: entry.type, html, ...(entry.fit ? { fit: entry.fit } : {}) });
       }
       pages.push(out);
     }

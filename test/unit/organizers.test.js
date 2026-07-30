@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { AssembleWorksheet } from '../../src/usecases/AssembleWorksheet.js';
 import { ComposeWorksheet } from '../../src/usecases/ComposeWorksheet.js';
-import { vennSvg, conceptMapSvg } from '../../src/usecases/OrganizerGen.js';
+import { vennSvg, conceptMapSvg, fitSvgToBox } from '../../src/usecases/OrganizerGen.js';
 
 // 시각 조직자(graphic organizers) — Track A 표형(P1 배치1).
 // 계약(vocabulary)·assemble 렌더·인쇄안전(keep)·범교과(하드코딩색 0)를 검증한다.
@@ -224,4 +224,41 @@ test('파라메트릭: AssembleWorksheet 가 entry.params 로 변형을 생성(�
   assert.equal(countCircles(html), 3, 'params 로 3원 벤 생성');
   assert.equal(countNodes(html), 5, 'params 로 5칸 개념지도 생성');
   assert.match(html, /class="[^"]*\bkeep\b/, '인쇄안전 keep');
+});
+
+// ── 자동 맞춤(fit-to-page) ────────────────────────────────────────────────
+const svgW = (html) => Number(html.match(/<svg width="(\d+)"/)?.[1]);
+
+test('fit: fitSvgToBox 가 SVG 를 박스에 비율 유지로 맞추고, viewBox 없는 표는 그대로', () => {
+  const fitted = fitSvgToBox(conceptMapSvg({ nodes: 5 }), 700, 500); // viewBox 490×350(비율 1.4)
+  const m = fitted.match(/<svg width="(\d+)" height="(\d+)"/);
+  const w = +m[1], h = +m[2];
+  assert.ok(w <= 700 && h <= 500, '박스 안에 들어감(잘림 없음)');
+  assert.ok(Math.abs(w / h - 490 / 350) < 0.02, '비율 유지');
+  const table = '<table class="kwl keep"><tr><td></td></tr></table>';
+  assert.equal(fitSvgToBox(table, 700, 500), table, 'viewBox 없는 표는 변경 없음');
+});
+
+test('fit: AssembleWorksheet 가 entry.fit 로 SVG 를 용지 여백에 맞춰 확대', async () => {
+  const base = { subject: 'x', theme: 'sci', docTitle: 't', standards: [], paper: { size: 'A4', orientation: 'landscape' } };
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculum });
+  const noFit = await asm.execute({ ...base, pages: [[{ type: 'venn', params: { circles: 2 } }]] });
+  const fit = await asm.execute({ ...base, pages: [[{ type: 'venn', params: { circles: 2 }, fit: true }]] });
+  assert.ok(svgW(fit.html) > svgW(noFit.html), 'fit 은 가로 여백에 맞춰 더 크게 스케일');
+});
+
+test('fit surfacing: compose --archetype landscape-organizer → paper 가로 + fit 조직자 + 조립', async () => {
+  const compose = new ComposeWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { manifest, archetype } = await compose.execute({
+    grade: '중2', subject: '과학', topic: '광합성', archetype: 'landscape-organizer', codes: ['[9과12-01]'],
+  });
+  assert.equal(archetype, 'landscape-organizer');
+  assert.equal(manifest.paper?.orientation, 'landscape', '가로 용지가 매니페스트로 흐른다');
+  const fitEntries = manifest.pages.flat().filter((e) => e.fit);
+  assert.ok(fitEntries.length >= 3, `fit 조직자 3+ (실제 ${fitEntries.length})`);
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { html, worksheet } = await asm.execute(manifest);
+  assert.equal(worksheet.pageCount(), manifest.pages.length, '쪽수 유지');
+  assert.match(html, /class="[^"]*\bvenn\b/, '벤다이어그램 포함');
+  assert.match(html, /<svg/, 'SVG 렌더');
 });

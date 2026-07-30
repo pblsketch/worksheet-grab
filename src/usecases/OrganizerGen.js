@@ -73,3 +73,19 @@ export const ORGANIZER_GENERATORS = {
   venn: vennSvg,
   conceptmap: conceptMapSvg,
 };
+
+/**
+ * SVG 조직자를 박스(px) 안에 꽉 맞게 스케일한다(가로/세로 중 꽉 차는 쪽 기준, 비율 유지 → 잘림 0).
+ * viewBox 가 있는 SVG 만 대상. 표 등 viewBox 없는 HTML 은 그대로 반환(폭은 이미 width:100%).
+ * @param {string} html 조직자 HTML
+ * @param {number} boxW 박스 폭(px)
+ * @param {number} boxH 박스 높이(px)
+ */
+export function fitSvgToBox(html, boxW, boxH) {
+  const vb = html.match(/viewBox="0 0 (\d+(?:\.\d+)?) (\d+(?:\.\d+)?)"/);
+  if (!vb || !(boxW > 0) || !(boxH > 0)) return html;
+  const vbW = parseFloat(vb[1]), vbH = parseFloat(vb[2]);
+  const s = Math.min(boxW / vbW, boxH / vbH);
+  const w = Math.round(vbW * s), h = Math.round(vbH * s);
+  return html.replace(/<svg width="\d+(?:\.\d+)?" height="\d+(?:\.\d+)?"/, `<svg width="${w}" height="${h}"`);
+}

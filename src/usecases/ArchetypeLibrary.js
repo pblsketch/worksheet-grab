@@ -114,7 +114,7 @@ export class ArchetypeLibrary {
       if (info.category === 'pack' && !info.subjects.includes(subject) && !info.subjects.includes('*')) {
         throw new Error(`${id}/${subject}: pack 타입 '${type}'(role ${step.role})는 ${info.subjects.join(',')} 전용 — 교과 누출.`);
       }
-      return { role: step.role, type, packRole, category: info.category, gen: !!info.gen, file: info.file || null };
+      return { role: step.role, type, packRole, category: info.category, gen: !!info.gen, file: info.file || null, ...(step.fit ? { fit: step.fit } : {}) };
     }));
     return { id, name: a.name, subject, theme: this.themeFor(subject), pill: a.pill || '', pages };
   }
@@ -132,13 +132,15 @@ export class ArchetypeLibrary {
     objectives = [], objectivesHeading = null, showStandards = false,
   } = {}) {
     const r = this.resolve(id, subject);
+    const arch = this.get(id);
     const katex = r.pages.some((pg) => pg.some((b) => this.vocab.types[b.type]?.requiresKatex));
     const pages = r.pages.map((pg) => pg.map((b) => (
-      b.gen ? { type: b.type, gen: 'standard-label' } : { type: b.type, file: b.file }
+      b.gen ? { type: b.type, gen: 'standard-label' } : { type: b.type, file: b.file, ...(b.fit ? { fit: b.fit } : {}) }
     )));
     return {
       id: `${id}-${subject}`,
       subject,
+      ...(arch.paper ? { paper: arch.paper } : {}),
       dataSubject: dataSubject || subject,
       theme: r.theme,
       lang: 'ko',
