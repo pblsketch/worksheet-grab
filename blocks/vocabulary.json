@@ -435,6 +435,7 @@
       "keepTogether": true,
       "desc": "프레이어 모형(정의·특징·예·비예) — 어휘·개념 학습",
       "studentFill": true,
+      "teacherExample": "정의·특징·예·비예 4칸",
       "cssClass": "frayer",
       "file": "core/frayer.html"
     },
@@ -448,6 +449,7 @@
       "keepTogether": true,
       "desc": "5W1H(누가·언제·어디서·무엇을·어떻게·왜) — 사건·자료 분석",
       "studentFill": true,
+      "teacherExample": "누가·언제·어디서·무엇을·어떻게·왜 6칸",
       "cssClass": "w5h1",
       "file": "core/w5h1.html"
     },
@@ -487,6 +489,7 @@
       "keepTogether": true,
       "desc": "핵심 아이디어 + 뒷받침 근거 — 요지·근거 구조화",
       "studentFill": true,
+      "teacherExample": "핵심 아이디어·뒷받침 근거 칸",
       "cssClass": "mainidea",
       "file": "core/mainidea.html"
     },
@@ -525,6 +528,7 @@
       "printSafe": true,
       "keepTogether": true,
       "studentFill": true,
+      "teacherExample": "각 관점의 입장·근거·내 생각 칸",
       "desc": "관점 비교(입장·근거·내 생각) — 토론·쟁점",
       "cssClass": "perspectives",
       "file": "core/perspectives.html"
@@ -681,6 +685,7 @@
       "printSafe": true,
       "keepTogether": true,
       "studentFill": true,
+      "teacherExample": "성격·특성, 근거(말·행동), 변화·성장 칸",
       "desc": "인물 분석(인물·특성·근거·변화) — 문학·역사 인물",
       "cssClass": "character",
       "file": "core/character.html"

@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
 import { AssembleWorksheet } from '../../src/usecases/AssembleWorksheet.js';
 import { ComposeWorksheet } from '../../src/usecases/ComposeWorksheet.js';
+import { BuildVariants } from '../../src/usecases/BuildVariants.js';
 import { vennSvg, conceptMapSvg, fitSvgToBox, fishboneSvg, flowchartSvg, hierarchySvg, hexagonSvg, parseOrganizerSpec } from '../../src/usecases/OrganizerGen.js';
 
 // 시각 조직자(graphic organizers) — Track A 표형(P1 배치1).
@@ -326,4 +327,77 @@ test('말로 요청: compose 가 organizers 로 파라메트릭 조직자를 페
   const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
   const { html } = await asm.execute(manifest);
   assert.equal((html.match(/<circle/g) || []).length, 3, '3원 벤 생성');
+});
+
+// ── #4 교사용 예시 답안(정답 있는 시각 조직자) ─────────────────────────────
+// 프레이어·인물분석 등 "정답이 있는" 조직자는 정답 칸에 교사용 모범 예시를 .answer 로 저작 →
+// 교사용엔 실리고 학생 빌드에서 물리 제거(fail-closed). 빈칸 조직자는 종전대로 빈 구조만.
+const TEACHER_EXAMPLE_ORGANIZERS = ['frayer', 'character', 'mainidea', 'w5h1', 'perspectives'];
+const BLANK_ORGANIZERS = ['kwl', 'exit321', 'notetaking', 'stoplight', 'glowgrow', 'bme'];
+
+test('교사 예시: 대상 조직자만 vocabulary 에 teacherExample 표식(studentFill 불변) — 빈칸 조직자엔 없음', async () => {
+  const v = await repo().readVocabulary();
+  for (const t of TEACHER_EXAMPLE_ORGANIZERS) {
+    assert.equal(typeof v.types[t].teacherExample, 'string', `${t}: teacherExample 문자열`);
+    assert.ok(v.types[t].teacherExample.length > 0, `${t}: teacherExample 비어있지 않음`);
+    assert.equal(v.types[t].studentFill, true, `${t}: studentFill 유지(빈칸 원칙 불변)`);
+  }
+  for (const t of BLANK_ORGANIZERS) {
+    assert.equal(v.types[t].teacherExample, undefined, `${t}: 빈칸 조직자엔 teacherExample 없음(회귀 방지)`);
+  }
+});
+
+test('교사 예시: compose 브리프가 정답 있는 조직자에 .answer 저작 지침을 낸다(무API — 지침만)', async () => {
+  const compose = new ComposeWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  // frayer(어휘·개념) + w5h1 + mainidea 를 담은 아키타입.
+  const { brief } = await compose.execute({
+    grade: '중2', subject: '과학', topic: '광합성', archetype: 'vocabulary-concept', codes: ['[9과12-01]'],
+  });
+  for (const type of ['frayer', 'w5h1', 'mainidea']) {
+    const note = brief.pages.flat().find((b) => b.type === type);
+    assert.ok(note, `브리프에 ${type} 포함`);
+    assert.match(note.authoring, /class="answer"/, `${type}: .answer 저작 지침`);
+    assert.match(note.authoring, /학생이 채운다/, `${type}: 나머지 칸은 학생 채움 명시(오염 방지)`);
+    assert.equal(typeof note.teacherExample, 'string', `${type}: 브리프에 teacherExample 구조 노출`);
+  }
+});
+
+test('교사 예시: 빈칸 조직자 브리프는 종전대로 "학생이 채운다"만(정답 지침 없음 — 회귀 0)', async () => {
+  const compose = new ComposeWorksheet({ blockRepository: repo(), curriculum: mockCurriculumC });
+  const { brief } = await compose.execute({
+    grade: '중2', subject: '과학', topic: '광합성', archetype: 'kwl-inquiry', codes: ['[9과12-01]'],
+  });
+  const kwl = brief.pages.flat().find((b) => b.type === 'kwl');
+  assert.ok(kwl, 'KWL 포함');
+  assert.match(kwl.authoring, /학생이 채운다/, 'KWL: 학생 채움');
+  assert.ok(!/class="answer"/.test(kwl.authoring), 'KWL: 정답 저작 지침 없음(빈칸 유지)');
+  assert.equal(kwl.teacherExample, undefined, 'KWL: 브리프에 teacherExample 없음');
+});
+
+test('교사 예시(fail-closed): 저작된 프레이어 정답(.answer)은 교사용엔 있고 학생용엔 물리 제거된다', async () => {
+  // designer AI 가 브리프대로 정답 칸에 .answer 를 저작한 인라인 조직자(엔진 구조 불변, 예시 내용만 저작).
+  const authoredFrayer = `<table class="frayer keep">
+    <caption>개념: 광합성</caption>
+    <tr><th>정의</th><th>특징</th></tr>
+    <tr><td class="fq"><span class="answer">빛에너지로 양분을 만드는 과정</span></td><td class="fq"><span class="answer">엽록체에서 일어난다</span></td></tr>
+    <tr><th>예</th><th>예가 아닌 것</th></tr>
+    <tr><td class="fq"><span class="answer">식물의 잎</span></td><td class="fq"><span class="answer">세포호흡</span></td></tr>
+  </table>`;
+  const manifest = {
+    subject: 'x', theme: 'sci', docTitle: 't', standards: [],
+    pages: [[{ type: 'frayer', html: authoredFrayer }]],
+  };
+  const asm = new AssembleWorksheet({ blockRepository: repo(), curriculum: mockCurriculum });
+  const { html } = await asm.execute(manifest);
+  const { student, teacher } = new BuildVariants().execute(html);
+  // 교사용: 모범 예시 보존
+  assert.match(teacher, /빛에너지로 양분을 만드는 과정/, '교사용에 정의 예시 존재');
+  assert.match(teacher, /세포호흡/, '교사용에 비예 예시 존재');
+  // 학생용: 정답 물리 제거(grep 2차 방어)
+  for (const leak of ['빛에너지로 양분을 만드는 과정', '엽록체에서 일어난다', '식물의 잎', '세포호흡']) {
+    assert.ok(!student.includes(leak), `학생용에 정답 누출 없음: ${leak}`);
+  }
+  // 구조는 학생용에도 유지(빈 틀) — 셸만 남고 내용 제거
+  assert.match(student, /class="[^"]*\bfrayer\b/, '학생용에 프레이어 구조 유지');
+  assert.match(student, /<span class="answer"><\/span>/, '정답 셸은 빈 채로 유지(내용만 제거)');
 });
