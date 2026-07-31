@@ -104,7 +104,9 @@ export class AssembleWorksheet {
     let html;
     // 파라메트릭 조직자: entry.params 가 있으면 엔진이 개수대로 SVG 를 생성한다(좌표는 엔진 계산).
     // params 없으면 정적 블록(entry.file)을 쓴다 = 기존 산출 그대로(하위호환).
-    if (entry.params && ORGANIZER_GENERATORS[entry.type]) html = ORGANIZER_GENERATORS[entry.type](entry.params);
+    if (entry.params && ORGANIZER_GENERATORS[entry.type]) {
+      html = ORGANIZER_GENERATORS[entry.type](entry.params, entry.labels);
+    }
     else if (typeof entry.html === 'string') html = entry.html; // 인라인 블록(템플릿 슬롯 치환 결과)
     else if (entry.file) html = await this.repo.loadBlockHtml(entry.file);
     else throw new Error(`블록 엔트리에 file/html/gen 이 없습니다: ${JSON.stringify(entry)}`);

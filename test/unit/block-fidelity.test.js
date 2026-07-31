@@ -87,3 +87,14 @@ test('SVG 를 쓰는 블록이 있다 — 이식 시 스키마가 아니라 원�
   // 목록이 늘어나면(새 SVG 블록 추가) 이식 스키마도 같이 손봐야 한다는 신호.
   assert.ok(svgFiles.length > 0, `SVG 블록이 존재: ${svgFiles.join(', ')}`);
 });
+
+test('사회 지도 블록은 실제 세계 백지도 윤곽과 출처를 내장한다', async () => {
+  const html = await repo.loadBlockHtml('pack-social/map.html');
+  const path = html.match(/class="map-land"[^>]* d="([^"]+)"/)?.[1] || '';
+
+  assert.match(html, /aria-label="국가 경계와 위경선이 표시된 세계 백지도"/);
+  assert.match(html, /Natural Earth 기반/);
+  assert.ok(path.length > 10000, `국가 경계를 담은 경로 길이 > 10000 (실제 ${path.length})`);
+  assert.ok((path.match(/M/g) || []).length > 100, '다수 국가·도서 윤곽을 포함');
+  assert.doesNotMatch(html, /M40 30 L110 20/, '임시 다각형은 제거');
+});

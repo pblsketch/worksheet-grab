@@ -299,7 +299,12 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   font-size: 9pt; padding: 2px 12px; border-radius: 4px; margin-bottom: 6px; }
 .mapbox .mapcanvas { background: #fff; border: 1px dashed #b9b9b9; border-radius: 6px;
   min-height: 128px; display: flex; align-items: center; justify-content: center; }
+.mapbox .mapcanvas svg { display: block; width: 100%; height: auto; max-height: 72mm; }
+.mapbox .map-ocean { fill: #fff; stroke: #aaa; }
+.mapbox .map-graticule { fill: none; stroke: #d7d7d7; stroke-width: .65; }
+.mapbox .map-land { fill: #f2f0e9; stroke: #686868; stroke-width: .55; vector-effect: non-scaling-stroke; }
 .mapbox .mapcap { font-size: 9pt; color: #555; margin-top: 4px; }
+.mapbox .map-source { float: right; color: #777; font-size: 8pt; }
 
 /* ===== 사회 특수 블록 ② 연표(타임라인) ===== */
 .timeline { margin-top: 3mm; border-top: 3px solid var(--c); padding-top: 4px; }
