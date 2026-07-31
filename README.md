@@ -24,6 +24,35 @@
 - 협의형 공동 설계(조건부): "같이 설계하자" 신호가 있거나 교과·학년·주제가 빠졌을 때만
   생성 전에 교사와 협의한다(worksheet-consult). 완결 요청의 빠른 경로는 그대로다.
 
+## 어디서 시작할까요?
+
+- **교사(최종 사용자)** → [교사용 2분 시작](#교사용-2분-시작)
+- **개발자(기여자)** → [개발자용 2분 시작](#개발자용-2분-시작)
+
+## 교사용 2분 시작
+
+1. **AI 하네스를 준비하세요.** Claude Code는 5인 팀 풀모드로, Codex CLI와
+   Antigravity는 단일 에이전트 순차 축소모드로 실행합니다.
+2. **Node 24 이상**을 설치하고 `node --version`으로 확인하세요.
+3. PDF·PNG 출력에는 **Google Chrome**이 필요합니다. 자동 탐색되지 않으면
+   `CHROME_PATH` 환경변수에 Chrome 실행 파일 경로를 지정하세요.
+4. 이 README는 **GitHub에서 프로젝트를 찾고 설치하기 위한 안내서**입니다. 실제 교사 배포본에서는
+   `CLAUDE.md`와 `AGENTS.md`가 AI 도구의 진입 문서입니다.
+
+```bash
+git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
+cd worksheet-grab
+node bin/worksheet-grab.js help
+```
+
+AI 도구에서 저장소 또는 교사 배포본을 연 뒤, “중2 과학 광합성 활동지 만들어줘”처럼 요청하세요.
+같이 설계하려면 “먼저 질문해줘”라고 덧붙이면 됩니다.
+
+## 개발자용 2분 시작
+
+의존성 설치나 빌드 없이 Node CLI를 바로 실행할 수 있습니다. 아래의 요구 환경·명령 레퍼런스와
+`docs/HARNESS-MAP.md`를 기준으로 엔진과 제품 하네스의 경계를 유지하세요.
+
 ## 요구 환경
 
 - **Node ≥ 24** (의존성 0, 표준 라이브러리만 사용)
@@ -36,7 +65,7 @@
 ## 설치
 
 ```bash
-git clone <repo> worksheet-grab
+git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
 cd worksheet-grab
 # 별도 install 불필요(의존성 없음)
 node bin/worksheet-grab.js help
@@ -53,7 +82,7 @@ npm link          # 이후 `worksheet-grab <command>` 로 실행
 의존성 0에 성취기준 CSV까지 번들이라 클론만 하면 바로 한 문장으로 활동지가 나온다(Chrome은 아래 요구 환경 참고).
 
 ```bash
-git clone <repo> worksheet-grab && cd worksheet-grab
+git clone https://github.com/pblsketch/worksheet-grab worksheet-grab && cd worksheet-grab
 
 # 한 문장 → 검수 게이트 통과 시 student/teacher A4 PDF
 node bin/worksheet-grab.js pipeline 중2과학 광합성 --out out/
