@@ -24,10 +24,21 @@ test('유효 scaffold(flow-only) 프래그먼트는 승인되고 원본을 그�
   assert.deepEqual(r.objects, frag); // 승인 = 원문 그대로(preview==apply 보장)
 });
 
-test('AI 저작 가능 타입 9종만 — std-box/shape/spacer/page-break 제외', () => {
+test('AI 저작 가능 타입 10종만 — std-box/shape/spacer/page-break 제외(organizer 포함)', () => {
   assert.deepEqual([...AI_AUTHORABLE_TYPES].sort(), [
-    'answer-area', 'callout', 'divider', 'image-slot', 'passage-slot', 'question', 'richtext', 'table', 'title',
+    'answer-area', 'callout', 'divider', 'image-slot', 'organizer', 'passage-slot', 'question', 'richtext', 'table', 'title',
   ]);
+});
+
+test('organizer 저작 허용 — kind·params(개수)·labels(슬롯 글자)만, 좌표 없이 승인', () => {
+  const frag = [
+    { type: 'organizer', kind: 'venn', params: { circles: 3 }, labels: { a: '고체', b: '액체', c: '기체', common: '물질' } },
+    { type: 'organizer', kind: 'fishbone', params: { branches: 4 }, labels: { result: '성적 하락', cause1: '수면 부족' } },
+    { type: 'organizer', kind: 'conceptmap' }, // params·labels 없이도 유효(엔진 기본 개수·라벨)
+  ];
+  const r = validateAiFragment(frag);
+  assert.equal(r.ok, true, JSON.stringify(r.findings));
+  assert.deepEqual(r.objects, frag); // 승인 = 원문 그대로(preview==apply)
 });
 
 test('중첩 id(choices/left/right/items/blanks)는 정상 — 최상위 id 만 거부', () => {
@@ -75,6 +86,14 @@ const REJECT_CASES = [
   ['필수 누락(callout.body)', [{ type: 'callout', variant: 'tip' }], 'missing-field'],
   ['passage bodyHtml 무권한', [{ type: 'passage-slot', slotLabel: 'x', bodyHtml: '<p>본문</p>' }], 'passage-content-denied'],
   ['평문 불일치(textHtml≠text)', [{ type: 'title', text: 'A', textHtml: '<strong>B</strong>' }], 'plaintext-mismatch'],
+  // organizer(P3) — 좌표는 이미 forbidden-coordinate 로 막히고, kind/params/labels 는 안전 스칼라 맵으로 검증.
+  ['organizer 좌표(rect)', [{ type: 'organizer', kind: 'venn', rect: { xMm: 1, yMm: 1, wMm: 1, hMm: 1 } }], 'forbidden-coordinate'],
+  ['organizer 잘못된 kind', [{ type: 'organizer', kind: 'spiral' }], 'invalid-value'],
+  ['organizer 필수 누락(kind)', [{ type: 'organizer', params: { circles: 2 } }], 'missing-field'],
+  ['organizer.params 비정수', [{ type: 'organizer', kind: 'venn', params: { circles: 'x' } }], 'nested-shape'],
+  ['organizer.labels 비문자열', [{ type: 'organizer', kind: 'venn', labels: { left: 3 } }], 'nested-shape'],
+  ['organizer.html(허용 밖 필드)', [{ type: 'organizer', kind: 'venn', html: '<p>x</p>' }], 'unknown-field'],
+  ['organizer answer(중립·금지)', [{ type: 'organizer', kind: 'venn', answer: true }], 'forbidden-answer'],
 ];
 
 for (const [name, frag, expectedRule] of REJECT_CASES) {
@@ -146,6 +165,7 @@ test('컴파일 산출 개체는 전부 validateObjectShape 를 통과한다(구
     { type: 'question', qtype: 'short-answer', prompt: 'q' },
     { type: 'table', splittable: false, rows: [[{ text: 'a', header: true }]] },
     { type: 'callout', variant: 'summary', body: '<p>핵심</p>' },
+    { type: 'organizer', kind: 'venn', params: { circles: 2 }, labels: { left: '식물', right: '동물', common: '공통점' } },
   ];
   const r = validateAiFragment(frag);
   const { op } = compileFragmentToInsertSection(r.objects, { anchor: { afterId: 'a' }, genId: seq() });

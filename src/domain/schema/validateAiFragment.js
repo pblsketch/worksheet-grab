@@ -16,12 +16,13 @@
 //
 // 반환: { ok, findings:[{rule, path, message, detail?}], objects? } (ok 면 승인된 개체 배열 동봉).
 
-import { CALLOUT_VARIANTS, QUESTION_TYPES } from './ObjectCatalog.js';
+import { CALLOUT_VARIANTS, QUESTION_TYPES, ORGANIZER_KINDS } from './ObjectCatalog.js';
 import { validateHtmlField } from './htmlAllowlist.js';
 
-/** AI 가 저작 가능한 타입(9종). std-box(원문 불변)·shape(float 전용)·spacer/page-break(조판 어휘)는 제외. */
+/** AI 가 저작 가능한 타입(10종). std-box(원문 불변)·shape(float 전용)·spacer/page-break(조판 어휘)는 제외.
+ *  organizer(P3, 편집 가능 그림형 조직자)는 kind·개수·슬롯 글자만 저작하고 좌표·도형은 엔진 소유(원칙 3). */
 export const AI_AUTHORABLE_TYPES = Object.freeze([
-  'title', 'passage-slot', 'question', 'table', 'image-slot', 'answer-area', 'divider', 'richtext', 'callout',
+  'title', 'passage-slot', 'question', 'table', 'image-slot', 'answer-area', 'divider', 'richtext', 'callout', 'organizer',
 ]);
 const FORBIDDEN_TYPES = Object.freeze(['std-box', 'shape', 'spacer', 'page-break']);
 
@@ -131,6 +132,19 @@ const TYPE_FIELDS = {
       body: 'html',
     },
   },
+  // 편집 가능 그림형 조직자(P3) — AI 는 kind(종류)·params(개수)·labels(슬롯 글자)만 저작한다. 좌표·도형은
+  // 엔진(OrganizerGen)이 그린다(원칙 3): rect·개별좌표는 FORBIDDEN_KEY_RULES 가 이미 막고, params 는 엔진이
+  // 종류별 범위로 clamp, labels 값은 엔진이 escText 로 이스케이프하며 모르는 슬롯 키는 무시한다. 그래서
+  // params/labels 는 "안전한 스칼라 맵"(정수/문자열)으로만 검증한다 — 엔진이 sanitizer 다. answer·HTML 은
+  // 조직자에 없다(HTML_POSITIONS 밖 → html 계열 필드는 unknown-field 로 거부).
+  'organizer': {
+    required: ['kind'],
+    fields: {
+      kind: (v) => ORGANIZER_KINDS.includes(v) || `kind 이 조직자 종류(${ORGANIZER_KINDS.join('|')}) 밖입니다: ${v}`,
+      params: 'organizerParams',
+      labels: 'organizerLabels',
+    },
+  },
 };
 
 /** 중첩 {id?, text} 원소 배열(choices/left/right/items) — text 필수, id 선택(중첩 id 는 정상). */
@@ -176,6 +190,24 @@ function validateRows(rows, path, findings) {
       }
     });
   });
+}
+
+/** organizer.params — 개수 파라미터 맵. 값은 작은 양의 정수만(엔진이 종류별 범위로 clamp). 키는 종류별로
+ *  다르고 엔진이 모르는 키를 무시하므로 제한하지 않는다 — 좌표가 될 수 없는 스칼라 맵임을 보장한다. */
+function validateOrganizerParams(v, path, findings) {
+  if (!isPlainObject(v)) { findings.push({ rule: 'nested-shape', path, message: 'params 는 객체여야 합니다.' }); return; }
+  for (const k of Object.keys(v)) {
+    if (!(isInt(v[k]) && v[k] >= 1 && v[k] <= 20)) findings.push({ rule: 'nested-shape', path: `${path}.${k}`, message: `params.${k} 는 1~20 정수여야 합니다(엔진이 종류별 범위로 clamp).` });
+  }
+}
+
+/** organizer.labels — 슬롯 이름→글자 맵. 값은 문자열만(엔진이 이스케이프). 키는 엔진이 모르면 무시하므로
+ *  제한하지 않는다 — 주입 벡터가 될 수 없는 문자열 맵임을 보장한다. */
+function validateOrganizerLabels(v, path, findings) {
+  if (!isPlainObject(v)) { findings.push({ rule: 'nested-shape', path, message: 'labels 는 객체여야 합니다.' }); return; }
+  for (const k of Object.keys(v)) {
+    if (!isStr(v[k])) findings.push({ rule: 'nested-shape', path: `${path}.${k}`, message: `labels.${k} 는 문자열이어야 합니다.` });
+  }
 }
 
 /** title.meta — {pill?, page?, source?} 닫힌 형태. */
@@ -243,6 +275,8 @@ function validateOne(obj, index, ctx, findings) {
     if (validator === 'blanks') { validateBlanks(val, p, findings); continue; }
     if (validator === 'rows') { validateRows(val, p, findings); continue; }
     if (validator === 'meta') { validateMeta(val, p, findings); continue; }
+    if (validator === 'organizerParams') { validateOrganizerParams(val, p, findings); continue; }
+    if (validator === 'organizerLabels') { validateOrganizerLabels(val, p, findings); continue; }
     // 스칼라 검증기(함수).
     const res = validator(val);
     if (res !== true) findings.push({ rule: 'invalid-value', path: p, message: `${key}: ${res}`, detail: key });

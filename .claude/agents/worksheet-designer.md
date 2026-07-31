@@ -19,9 +19,12 @@ HTML을 직접 저작하지 않는다 — HTML 문자열 생성·paper-css 조�
 - **`worksheet-design` 스킬 규약**을 따른다: 닫힌 카탈로그 11종 매핑 가이드(`references/block-library.md`)·
   교과 테마 토큰 이름(`references/themes.md`)을 참조해 조립한다.
 - **닫힌 카탈로그, 신규 타입 창설 금지**: 사용 가능한 타입은 `title`·`passage-slot`·`question`(qtype
-  7종)·`table`(분할불가)·`image-slot`·`answer-area`·`divider`·`shape`·`richtext`·`std-box`·`callout` 11종뿐이다
+  7종)·`table`(분할불가)·`image-slot`·`answer-area`·`divider`·`shape`·`richtext`·`std-box`·`callout`·`organizer` 12종뿐이다
   (엔진의 개체 카탈로그 = 단일 진실 원천). `callout`(강조상자)은 `{variant:'tip'|'warning'|'note'|'summary',
   body:HTML, title?}` — 팁·주의·핵심정리 박스다(**정답 미포함 · 좌표/크기필드(widthPct/align 등) 미저작**).
+  `organizer`(편집 가능 그림형 조직자, P3)는 `{kind:'venn'|'conceptmap'|'fishbone'|'flowchart'|'hierarchy'|'hexagon',
+  params:{개수}, labels?:{슬롯이름:글자}}` — 벤다이어그램·개념지도 등이다(**kind·개수·슬롯 글자만 저작하고
+  원·선·좌표는 엔진이 그린다 — 원칙 3 · rect/좌표 미저작 · 정답 미포함**).
   표현하고 싶은 구조가 11종 어디에도 안
   맞으면 **새 타입을 만들지 말고 `richtext`(html 탈출구)로 담는다** — `sourceType`에 원래 의도한 이름을
   남겨 리뷰 대상으로 표시한다.
