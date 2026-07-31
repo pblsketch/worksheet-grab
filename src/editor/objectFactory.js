@@ -386,7 +386,17 @@ export function applyAiOps(document, ops, { excludedTypes = [] } = {}) {
       for (const src of list) {
         if (excluded.has(src?.type)) throw new Error(`"${src?.type}" 개체는 AI 가 생성할 수 없습니다 — 성취기준 원문은 보존됩니다(원칙 3).`);
       }
-      if (op.beforeId) {
+      if (!op.afterId && !op.beforeId && op.pageId) {
+        // pageId 앵커(빈 페이지 append): 지목할 flow 개체가 없는 페이지(새 페이지에 섹션 저작)에
+        // 리스트 순서대로 그 페이지 flow 말미에 넣는다. compileFragmentToInsertSection 의 3번째 앵커 모드.
+        const pageIndex = (doc.pages || []).findIndex((p) => p && p.id === op.pageId);
+        if (pageIndex < 0) throw new Error(`AI 섹션 삽입 대상 페이지를 찾을 수 없습니다: ${op.pageId}`);
+        for (const src of list) {
+          const obj = { ...src, id: generateId(src?.type || 'o') };
+          doc = insertFlow(doc, obj, { pageIndex });
+          resultIds.push(obj.id);
+        }
+      } else if (op.beforeId) {
         // beforeId 앞에 리스트 순서대로: 각 개체를 기준 바로 앞에 넣으면 먼저 넣은 것이 앞에 남는다.
         for (const src of list) {
           const obj = { ...src, id: generateId(src?.type || 'o') };

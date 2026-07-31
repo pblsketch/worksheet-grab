@@ -269,11 +269,13 @@ export async function runEditorTestSeed(seed, {
     richEl.dispatchEvent(new KeyboardEvent('keydown', { key: '/', bubbles: true, cancelable: true }));
     document.body.dataset.slashOpenCaptured = document.body.dataset.slashOpen ?? 'false';
     const slashMenuEl = document.getElementById('canvas-slash-menu');
-    // US-19: 슬래시 메뉴에 AI 진입점(data-slash-item="ai") 이 추가됐다 — "닫힌 카탈로그만 노출"
-    // 단정은 카탈로그 항목(10종+qtype 7종=16)만 세고, AI 유틸리티 항목은 별도로 존재만 확인한다.
+    // US-19/B1: 슬래시 메뉴에 유틸리티 진입점(data-slash-item="ai" · "author-section")이 있다 —
+    // "닫힌 카탈로그만 노출" 단정은 카탈로그 항목(10종+qtype 7종=16)만 세고, 유틸리티 항목은 별도로
+    // 존재만 확인한다(카운트에서 제외).
     document.body.dataset.slashItemCount = slashMenuEl
-      ? String(slashMenuEl.querySelectorAll('button[data-slash-item]:not([data-slash-item="ai"])').length) : '0';
+      ? String(slashMenuEl.querySelectorAll('button[data-slash-item]:not([data-slash-item="ai"]):not([data-slash-item="author-section"])').length) : '0';
     document.body.dataset.slashHasAiItem = String(!!slashMenuEl?.querySelector('button[data-slash-item="ai"]'));
+    document.body.dataset.slashHasAuthorItem = String(!!slashMenuEl?.querySelector('button[data-slash-item="author-section"]'));
     const beforeSlashInsert = core.allObjects().length;
     slashMenuEl?.querySelector('button[data-slash-item="divider"]')?.click();
     await wait(150);
@@ -1667,6 +1669,101 @@ export async function runEditorTestSeed(seed, {
     document.body.dataset.peImageHeight = String(Math.round(phRect.height));
     document.body.dataset.peImageBorderStyle = phStyle.borderTopStyle;
     document.body.dataset.peImageHasIcon = String(!!ph.querySelector('svg.is-icon'));
+  } else if (seed === 'ai-author-section') {
+    // B1(프래그먼트 저작 UI 진입) — 새 섹션 저작 종단: (A) 개체 앵커(선택 개체 뒤), (B) 빈 페이지
+    // pageId 앵커. 모의 구독 AI 는 --fragment 로 회신한다(watchAndRespondFragment). 응답측 파이프라인
+    // (buildFragmentVersion→prepareAiFragment→buildOpsVersion)은 재사용 — 진입만 새로 검증한다.
+
+    // ── A. 개체 앵커 저작(q1 뒤) ──
+    const beforeCount = core.allObjects().length; // opsDocument = 6
+    doc.querySelector('[data-oid="q1"]').click();
+    document.getElementById('btn-ai-author').click();
+    let panel = document.getElementById('ai-panel');
+    document.body.dataset.aEntryIntent = panel?.dataset.aiIntent || '';
+    document.body.dataset.aPhase = panel?.dataset.aiPhase || '';
+    let summary = document.getElementById('ai-targets-summary');
+    document.body.dataset.aAnchorMode = summary?.dataset.aiAnchorMode || '';
+    document.body.dataset.aSummaryText = summary?.textContent || '';
+    document.body.dataset.aRewriteBtnAbsent = String(!document.getElementById('ai-preset-easier')); // 저작 뷰엔 rewrite 프리셋 없음
+
+    document.getElementById('ai-author-prompt').value = '분수 곱셈 연습 섹션을 만들어줘';
+    document.getElementById('ai-author-send').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'waiting'
+      && (document.getElementById('ai-copy-text')?.value || '').includes('req-'));
+    const copyText = document.getElementById('ai-copy-text').value;
+    document.body.dataset.aCopyHasFragment = String(copyText.includes('--fragment'));
+    document.body.dataset.aCopyNoOps = String(!copyText.includes('--ops') && !copyText.includes('--objects'));
+    document.body.dataset.aRequestId = document.querySelector('.ai-waiting')?.dataset.aiRequestId || '';
+
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+    const cardsA = [...document.querySelectorAll('.ai-preview-card')];
+    document.body.dataset.aCardKinds = cardsA.map((c) => c.dataset.aiPreviewKind).join(',');
+    document.body.dataset.aCountInsert = document.getElementById('ai-count-change')?.dataset.aiCountInsert || '';
+    document.body.dataset.aPreviewHasTitle = String(
+      !!document.querySelector('.ai-preview-after .ai-preview-render')?.textContent.includes('분수 곱셈 활동'));
+
+    const idxBeforeA = history.depth().index;
+    document.getElementById('ai-apply-ops').click();
+    await pollUntil(() => !document.getElementById('ai-panel'), { timeoutMs: 15000 });
+    cancelScheduledReflow(); // reflow 가 페이지 귀속을 바꾸기 전에 문서 순서를 실측(작은 콘텐츠라 넘침 없음)
+    doc = frames.teacher.contentDocument;
+    document.body.dataset.aHistoryOneOp = String(history.depth().index === idxBeforeA + 1);
+    document.body.dataset.aCountAfter = String(core.allObjects().length);
+    // 문서 순서(페이지 병합에 강인): q1 바로 뒤가 저작된 title 이어야 한다.
+    const allFlowA = core.getDocument().pages.flatMap((p) => p.flow);
+    const q1i = allFlowA.findIndex((o) => o.id === 'q1');
+    const afterQ1 = allFlowA[q1i + 1];
+    document.body.dataset.aInsertedAfterQ1 = String(!!afterQ1 && afterQ1.type === 'title' && !['q2', 'q3', 'std1', 't1'].includes(afterQ1.id));
+    document.body.dataset.aStdIntact = String(!!core.findObject('std1') && core.findObject('std1').obj.type === 'std-box');
+    document.body.dataset.aInsertedRendered = String(doc.body.textContent.includes('분수 곱셈 활동'));
+
+    history.undo();
+    updateAll();
+    await wait(80);
+    document.body.dataset.aUndoRestored = String(
+      core.allObjects().length === beforeCount && !!core.findObject('q2') && !!core.findObject('q3'));
+
+    // ── B. 후행 빈 페이지: pageId 가 아니라 "문서 마지막 flow 개체 뒤"로 앵커한다(안정) — 빈 페이지는
+    // reflow 가 지우므로 pageId 앵커는 무API 왕복에서 스테일이 된다(authorAnchor.js). compose 만 확인한다
+    // (적용은 완전 빈 문서 시드 ai-author-empty-doc 가 pageId 경로로 종단한다 — 유일 페이지라 안정).
+    const secondPageId = core.getDocument().pages[1].id;
+    const added = await handlePageAction('add-after', secondPageId);
+    const emptyPageId = added.activePageId;
+    document.body.dataset.bEmptyPageFlow0 = String((core.getDocument().pages.find((p) => p.id === emptyPageId)?.flow || []).length);
+    selection.clearAll?.();
+    updateAll();
+    document.getElementById('btn-ai-author').click();
+    panel = document.getElementById('ai-panel');
+    document.body.dataset.bIntent = panel?.dataset.aiIntent || '';
+    summary = document.getElementById('ai-targets-summary');
+    document.body.dataset.bAnchorMode = summary?.dataset.aiAnchorMode || '';   // 'after'(문서 마지막 flow 뒤), 'page' 아님
+    document.body.dataset.bAnchorLabel = summary?.textContent || '';
+    document.getElementById('ai-panel-close').click();
+    await wait(30);
+  } else if (seed === 'ai-author-empty-doc') {
+    // B1 — 완전 빈 문서(유일 빈 페이지)에 첫 섹션 저작: pageId 앵커(유일 페이지라 reflow 가 못 지움 = 안정).
+    document.body.dataset.edFlow0 = String((core.getDocument().pages[0].flow || []).length);
+    document.getElementById('btn-ai-author').click(); // 선택 없음 → 활성(유일) 페이지
+    const panel = document.getElementById('ai-panel');
+    document.body.dataset.edIntent = panel?.dataset.aiIntent || '';
+    const summary = document.getElementById('ai-targets-summary');
+    document.body.dataset.edAnchorMode = summary?.dataset.aiAnchorMode || '';   // 'page'
+    document.body.dataset.edTargetCount = summary?.dataset.aiTargetCount || '';  // 0
+    document.getElementById('ai-author-prompt').value = '첫 섹션을 만들어줘';
+    document.getElementById('ai-author-send').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'waiting'
+      && (document.getElementById('ai-copy-text')?.value || '').includes('req-'));
+    document.body.dataset.edCopyHasFragment = String((document.getElementById('ai-copy-text')?.value || '').includes('--fragment'));
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+    document.body.dataset.edApplyEnabled = String(!document.getElementById('ai-apply-ops')?.disabled);
+    document.getElementById('ai-apply-ops').click();
+    await pollUntil(() => !document.getElementById('ai-panel'), { timeoutMs: 15000 });
+    cancelScheduledReflow();
+    const page0 = core.getDocument().pages[0];
+    document.body.dataset.edFlowAfter = String((page0?.flow || []).length);      // 2
+    document.body.dataset.edFirstType = String(page0?.flow?.[0]?.type || '');     // title
+    doc = frames.teacher.contentDocument;
+    document.body.dataset.edRendered = String(doc.body.textContent.includes('분수 곱셈 활동'));
   }
   document.body.dataset.seedDone = seed;
 }

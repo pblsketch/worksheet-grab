@@ -293,6 +293,10 @@ button { font: inherit; }
 .ai-entry-btn.appbar-btn { background: #4c1d95; border-color: #6d28d9; }
 .ai-entry-btn.appbar-btn:hover { background: #5b21b6; }
 .ai-entry-btn.appbar-btn:disabled { opacity: .4; cursor: not-allowed; background: transparent; }
+/* B1: 새 섹션 저작 진입(＋섹션) — rewrite AI 진입과 구분되는 강조색 */
+.ai-author-btn.appbar-btn { background: #0f766e; border-color: #14b8a6; margin-left: 4px; }
+.ai-author-btn.appbar-btn:hover { background: #115e59; }
+.ai-author-compose .ai-targets-summary { border-left: 3px solid #14b8a6; padding-left: 8px; }
 #ai-panel-host { position: relative; z-index: 70; }
 .ai-panel {
   position: fixed; top: 54px; right: 16px; width: 420px; max-height: calc(100vh - 90px); overflow-y: auto;

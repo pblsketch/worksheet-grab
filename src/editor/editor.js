@@ -923,6 +923,7 @@ const aiPanel = createAiPanel({
   getDoc: () => frames.teacher?.contentDocument ?? null,
   getActivePageId: () => activePageId,
   getSelectedPageIds: () => multiSelectedPageIds,
+  getObjectDocument: () => core.getDocument(), // B1 저작 앵커: 빈 페이지 폴백(문서 마지막 flow 개체) 계산용
   getPage: (pageId) => (core.getDocument().pages || []).find((page) => page.id === pageId) ?? null,
   getPageIdOf: (objectId) => {
     const index = ObjOps.pageIndexOf(core.getDocument(), objectId);
@@ -1068,6 +1069,8 @@ const canvasInline = createCanvasInline({
   findObject: (id) => core.findObject(id),
   excludedAiTypes,
   onAiOpen: (id) => aiPanel.openFor([id]),
+  // B1: 우클릭/슬래시 "새 섹션 AI 저작" — 이 개체 뒤에 새 섹션을 저작한다(프래그먼트 진입).
+  onAuthorSection: (id) => aiPanel.openFor(id ? [id] : [], { intent: 'author-section' }),
   onFormat: (cmd, value) => applyFormat(cmd, value),
   onAnswerToggle: (id) => { const next = ObjOps.toggleAnswer(core.getDocument(), id); applyDocOp(next, { selectId: id }); },
   onInsertAfter: (item, afterId) => doInsert(item, { float: !!item.floatOnly, afterId }),

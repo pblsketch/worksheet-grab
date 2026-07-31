@@ -120,11 +120,17 @@ test('컴파일: 엔진 id·placement:flow 주입, 순서 보존, 단일 insert-
   assert.ok(op.objects.every((o) => o.placement === 'flow')); // flow 주입
 });
 
-test('컴파일: anchor(afterId|beforeId 정확히 하나) 필수', () => {
+test('컴파일: anchor(afterId|beforeId|pageId 정확히 하나) 필수', () => {
   const r = validateAiFragment([{ type: 'title', text: 'T' }]);
   assert.throws(() => compileFragmentToInsertSection(r.objects, { anchor: {} }), /anchor/);
   assert.throws(() => compileFragmentToInsertSection(r.objects, { anchor: { afterId: 'a', beforeId: 'b' } }), /anchor/);
+  assert.throws(() => compileFragmentToInsertSection(r.objects, { anchor: { afterId: 'a', pageId: 'p1' } }), /anchor/);
   assert.doesNotThrow(() => compileFragmentToInsertSection(r.objects, { anchor: { beforeId: 'b' } }));
+  // pageId 앵커(빈 페이지 저작): 개체 앵커 없이 op.pageId 만 실린다.
+  const { op } = compileFragmentToInsertSection(r.objects, { anchor: { pageId: 'p1' }, genId: seq() });
+  assert.equal(op.pageId, 'p1');
+  assert.equal(op.afterId, undefined);
+  assert.equal(op.beforeId, undefined);
 });
 
 test('컴파일 산출 op 는 aiBridge.validateResponse(v4) 를 통과한다', () => {

@@ -219,6 +219,17 @@ test('Phase 4 요청: pageId·pageVersion·scope 는 선택이되 있으면 형�
   assert.equal(validateRequest({ ...base, objects: [] }), false, 'v4 도 objects[] 는 필수');
 });
 
+test('B1 저작 요청: context.intent:author-section 이면 빈 objects[] 를 관용(빈 페이지 첫 섹션 저작)', () => {
+  const base = {
+    schemaVersion: 4, id: 'req-author', docName: '문서', action: 'rewrite', status: 'pending',
+  };
+  assert.equal(validateRequest({ ...base, objects: [], context: { intent: 'author-section' } }), true, '저작 요청은 대상 개체 없이도 유효');
+  assert.equal(validateRequest({ ...base, objects: [] }), false, 'context.intent 없으면 빈 objects 거부(rewrite 불변)');
+  assert.equal(validateRequest({ ...base, objects: [], context: { intent: 'rewrite' } }), false, '다른 intent 는 완화 안 함');
+  // 문맥 개체가 실려도(개체 앵커 저작) 정상 유효.
+  assert.equal(validateRequest({ ...base, objects: [{ id: 'o1', type: 'title' }], context: { intent: 'author-section' } }), true);
+});
+
 // 후속(다중 페이지 충돌 검사): 요청이 여러 쪽에 걸치면 대표 한 장이 아니라 걸친 모든 페이지의
 // 지문을 실어야 한다 — 대표만 재면 다른 쪽의 교사 편집이 조용히 덮인다.
 test('Phase 4 요청: pageVersions{pageId:version} 맵도 선택이되 있으면 형태를 강제한다', () => {

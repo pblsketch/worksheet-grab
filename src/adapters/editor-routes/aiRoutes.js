@@ -32,9 +32,12 @@ export function createAiRoutes({ docName, aiBridge }) {
           return sendJson(res, 400, { error: e.message });
         }
         const rawObjects = Array.isArray(body?.objects) ? body.objects : [];
+        // B1 프래그먼트 저작 요청(context.intent:'author-section')은 대상 개체가 없을 수 있다(빈 페이지에
+        // 첫 섹션 저작). 그 외(rewrite)는 무엇을 고칠지 알아야 하므로 비어있지 않은 objects 를 강제한다.
+        const isAuthorSection = body?.context && typeof body.context === 'object' && body.context.intent === 'author-section';
         try {
           parseAction(body?.action);
-          if (rawObjects.length === 0) throw new Error('objects 가 필요합니다.');
+          if (rawObjects.length === 0 && !isAuthorSection) throw new Error('objects 가 필요합니다.');
           for (const o of rawObjects) {
             if (typeof o?.id !== 'string' || !o.id) throw new Error('각 개체에 id 가 필요합니다.');
             // 집합 중 하나라도 제외 타입(성취기준)이면 전체 400(부분 요청 금지, §7·§10).

@@ -70,9 +70,43 @@ test('prepareAiFragment: 답안(answer/answerKey)은 반려(B′ 답안 미생�
   assert.equal(prepareAiFragment([{ type: 'question', qtype: 'essay', prompt: 'q', answerKey: { text: '42' } }], { anchor: { afterId: 'a' }, genId: seq() }).stage, 'validate');
 });
 
-test('prepareAiFragment: anchor 누락/양쪽 지정은 anchor 단계에서 반려', () => {
+test('prepareAiFragment: anchor 누락/둘 이상 지정은 anchor 단계에서 반려', () => {
   assert.equal(prepareAiFragment(FRAG(), { anchor: {}, genId: seq() }).stage, 'anchor');
   assert.equal(prepareAiFragment(FRAG(), { anchor: { afterId: 'a', beforeId: 'b' }, genId: seq() }).stage, 'anchor');
+  assert.equal(prepareAiFragment(FRAG(), { anchor: { afterId: 'a', pageId: 'p1' }, genId: seq() }).stage, 'anchor');
+  assert.equal(prepareAiFragment(FRAG(), { anchor: { beforeId: 'b', pageId: 'p1' }, genId: seq() }).stage, 'anchor');
+});
+
+test('prepareAiFragment: pageId 앵커(빈 페이지 저작) → insert-section op.pageId(개체 앵커 없음)', () => {
+  const prep = prepareAiFragment(FRAG(), { anchor: { pageId: 'p-empty' }, requestPageVersions: { 'p-empty': 'v1' }, genId: seq() });
+  assert.equal(prep.ok, true, prep.ok ? '' : prep.blockReason);
+  assert.equal(prep.op.op, 'insert-section');
+  assert.equal(prep.op.pageId, 'p-empty');
+  assert.equal(prep.op.afterId, undefined);
+  assert.equal(prep.op.beforeId, undefined);
+  assert.deepEqual(prep.op.objects.map((o) => o.type), ['title', 'callout', 'question']);
+});
+
+test('prepareAiFragment → applyAiOps: pageId 앵커로 빈 페이지 flow 말미에 순서대로 append(e2e)', async () => {
+  const prep = prepareAiFragment(FRAG(), { anchor: { pageId: 'p2' }, genId: seq() });
+  const doc = {
+    pagination: 'paginated',
+    pages: [
+      { id: 'p1', flow: [{ id: 'q1', type: 'question', placement: 'flow', qtype: 'essay', prompt: '기존' }], float: [] },
+      { id: 'p2', flow: [], float: [] }, // 빈 페이지(지목할 flow 개체 없음)
+    ],
+  };
+  const { document: after, resultIds } = await applyOps(doc, [prep.op]);
+  assert.deepEqual(after.pages[0].flow.map((o) => o.id), ['q1'], '1쪽은 불변');
+  assert.deepEqual(after.pages[1].flow.map((o) => o.type), ['title', 'callout', 'question'], '2쪽(빈 페이지)에 순서대로 append');
+  assert.equal(resultIds.length, 3);
+  assert.ok(after.pages[1].flow.every((o) => o.placement === 'flow'));
+});
+
+test('prepareAiFragment → applyAiOps: pageId 앵커인데 그 페이지가 없으면 적용이 던진다', async () => {
+  const prep = prepareAiFragment(FRAG(), { anchor: { pageId: '없는페이지' }, genId: seq() });
+  const doc = { pagination: 'paginated', pages: [{ id: 'p1', flow: [], float: [] }] };
+  await assert.rejects(() => applyOps(doc, [prep.op]), /대상 페이지를 찾을 수 없습니다/);
 });
 
 test('prepareAiFragment: HTML 공격은 validate 단계에서 반려', () => {

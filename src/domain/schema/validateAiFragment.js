@@ -301,12 +301,14 @@ function defaultIdGen() {
 
 /**
  * 승인된 개체 배열을 **단일 insert-section op** 로 컴파일한다. 엔진 ID·placement:'flow' 를 주입하고
- * (프래그먼트는 저작 못 함), 순서를 보존하며, anchor(afterId|beforeId 정확히 하나)를 필수화한다
- * (anchor 없는 insert-section 은 문서 말미로 들어간다 — 선택 페이지 생성 목표와 어긋남).
+ * (프래그먼트는 저작 못 함), 순서를 보존하며, anchor(afterId|beforeId|pageId 정확히 하나)를 필수화한다
+ * (anchor 없는 insert-section 은 문서 말미로 새어 들어간다 — 선택 페이지 생성 목표와 어긋남).
+ * 개체 앵커(afterId/beforeId)는 지목할 개체가 있을 때, pageId 앵커는 **빈 페이지**(지목할 flow 개체가
+ * 없는 새 페이지)에 섹션을 저작할 때 쓴다 — applyAiOps 가 pageId→그 페이지 flow 말미 append 로 해석한다.
  * 요청 시점 pageVersions 를 봉투에 묶어 적용 직전 stale 비교에 쓴다.
  *
  * @param {object[]} objects validateAiFragment().objects (승인 개체).
- * @param {{anchor:{afterId?:string, beforeId?:string}, pageVersions?:object, genId?:()=>string}} opts
+ * @param {{anchor:{afterId?:string, beforeId?:string, pageId?:string}, pageVersions?:object, genId?:()=>string}} opts
  * @returns {{op:object, requestPageVersions:object|null}}
  */
 export function compileFragmentToInsertSection(objects, opts = {}) {
@@ -314,12 +316,17 @@ export function compileFragmentToInsertSection(objects, opts = {}) {
   const { anchor = {}, pageVersions = null, genId } = opts;
   const hasAfter = typeof anchor.afterId === 'string' && !!anchor.afterId;
   const hasBefore = typeof anchor.beforeId === 'string' && !!anchor.beforeId;
-  if (hasAfter === hasBefore) throw new Error("anchor 는 afterId 또는 beforeId 중 정확히 하나가 필요합니다(anchor 필수).");
+  const hasPage = typeof anchor.pageId === 'string' && !!anchor.pageId;
+  if ([hasAfter, hasBefore, hasPage].filter(Boolean).length !== 1) {
+    throw new Error('anchor 는 afterId·beforeId·pageId 중 정확히 하나가 필요합니다(anchor 필수).');
+  }
 
   const gen = genId || defaultIdGen();
   const compiledObjects = objects.map((o) => ({ ...structuredClone(o), id: gen(), placement: 'flow' }));
   const op = { op: 'insert-section', objects: compiledObjects };
-  if (hasAfter) op.afterId = anchor.afterId; else op.beforeId = anchor.beforeId;
+  if (hasAfter) op.afterId = anchor.afterId;
+  else if (hasBefore) op.beforeId = anchor.beforeId;
+  else op.pageId = anchor.pageId;
   return { op, requestPageVersions: pageVersions ? { ...pageVersions } : null };
 }
 

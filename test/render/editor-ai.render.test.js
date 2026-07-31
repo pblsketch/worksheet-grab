@@ -201,6 +201,22 @@ function opsDocument() {
   };
 }
 
+/** B1 전용 — 완전 빈 문서(유일 빈 페이지, 개체 0개). pageId 앵커 저작 경로를 종단한다(유일 페이지라
+ *  reflow 가 지우지 못해 안정). */
+function emptyDocument() {
+  return {
+    pagination: 'paginated',
+    docTitle: '빈 문서(저작 대상)',
+    subject: 'science',
+    dataSubject: 'science',
+    themeName: 'sci',
+    lang: 'ko',
+    paper: null,
+    standards: [],
+    pages: [{ id: 'p-empty', flow: [], float: [] }],
+  };
+}
+
 async function startEditServer({ document: initialDocument = freshDocument() } = {}) {
   const base = await autoTmpDir('wsg-ai-render-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
@@ -274,6 +290,29 @@ function watchAndRespondOps(bridge, planFor, { rounds = 1, timeoutMs = 40000 } =
       if (!fresh) { await new Promise((r) => setTimeout(r, 150)); continue; }
       seen.push(fresh.id);
       await bridge.putResponse({ schemaVersion: 4, id: fresh.id, ops: planFor(fresh, seen.length) });
+    }
+    return seen;
+  })();
+}
+
+/**
+ * B1 모의 구독 AI: 요청 하나에 B′ 프래그먼트 봉투({fragment:[…id 없는 scaffold 개체]})로 회신한다.
+ * 삽입 위치는 에디터(교사 앵커, computeAuthorAnchor)가 정하므로 afterId 를 싣지 않는다 — 실제로는
+ * 별도 프로세스의 `worksheet-grab ai respond <id> --fragment <file.json>` 이 같은 파일을 쓴다.
+ */
+function watchAndRespondFragment(bridge, fragmentFor, { rounds = 1, timeoutMs = 40000 } = {}) {
+  return (async () => {
+    const seen = [];
+    const startedAt = Date.now();
+    while (seen.length < rounds) {
+      if (Date.now() - startedAt > timeoutMs) {
+        throw new Error(`watchAndRespondFragment: ${timeoutMs}ms 내 ${rounds}개 요청 중 ${seen.length}개만 수신`);
+      }
+      const pending = await bridge.listPending();
+      const fresh = pending.find((r) => !seen.includes(r.id));
+      if (!fresh) { await new Promise((r) => setTimeout(r, 150)); continue; }
+      seen.push(fresh.id);
+      await bridge.putResponse({ schemaVersion: 4, id: fresh.id, fragment: fragmentFor(fresh, seen.length) });
     }
     return seen;
   })();
@@ -609,6 +648,76 @@ test('US-P4-5 대상 페이지 삭제: 적용 거부 + 사유 표시(강행 경�
     assert.equal(ds(dom, 'pmi-panel-still-open'), 'true');
     assert.equal(ds(dom, 'pmi-count-unchanged'), 'true', '문서는 그대로');
     assert.match(ds(dom, 'pmi-message') || '', /페이지가 삭제/, '사유 문구');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+// B1(프래그먼트 저작 UI 진입, ADR-bspike-ai-fragment.md §10 후속) — "새 섹션 AI 저작" 진입점 종단.
+// 응답측 배선(buildFragmentVersion→prepareAiFragment→buildOpsVersion)은 이미 완성이라 진입만 새로
+// 검증한다: (A) 개체 앵커(선택 개체 뒤), (B) 빈 페이지 pageId 앵커. 모의 구독 AI 는 --fragment 로 회신.
+// 이 테스트가 B6(프래그먼트 렌더 seed 테스트) 부채도 함께 해소한다(브라우저 seed 구동 종단).
+test('B1 새 섹션 저작: 진입→요청(--fragment)→미리보기 insert→적용 1 op→undo · 후행 빈 페이지 안정 앵커', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    // 개체 앵커 저작 1건에 프래그먼트로 회신한다(id·좌표 없는 scaffold — 엔진이 발급/배치·검증).
+    const watcher = watchAndRespondFragment(bridge, () => ([
+      { type: 'title', text: '분수 곱셈 활동' },
+      { type: 'question', qtype: 'short-answer', prompt: '2/3 × 3/4 = ?' },
+    ]), { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-author-section`, { timeoutMs: 90000 }), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-author-section');
+
+    // ── A. 개체 앵커(선택 개체 뒤) ──
+    assert.equal(ds(dom, 'a-entry-intent'), 'author-section', '＋섹션 진입 = 저작 인텐트(rewrite 아님)');
+    assert.equal(ds(dom, 'a-phase'), 'compose', '작성 단계로 열린다');
+    assert.equal(ds(dom, 'a-anchor-mode'), 'after', '선택 개체 뒤 앵커');
+    assert.match(ds(dom, 'a-summary-text') || '', /새 섹션 AI 저작/, '저작 전용 요약');
+    assert.equal(ds(dom, 'a-rewrite-btn-absent'), 'true', '저작 뷰에는 rewrite 프리셋이 없다');
+    assert.equal(ds(dom, 'a-copy-has-fragment'), 'true', '지시문이 --fragment 회신을 안내');
+    assert.equal(ds(dom, 'a-copy-no-ops'), 'true', '저작 지시문엔 --ops/--objects 안내가 없다');
+    assert.equal(ds(dom, 'a-card-kinds'), 'insert,insert', '미리보기는 신규(insert) 카드 2개');
+    assert.equal(ds(dom, 'a-count-insert'), '2');
+    assert.equal(ds(dom, 'a-preview-has-title'), 'true', '미리보기에 저작된 제목이 렌더된다');
+    assert.equal(ds(dom, 'a-history-one-op'), 'true', '적용은 applyDocOp 한 번 = history 1 op');
+    assert.equal(ds(dom, 'a-count-after'), '8', '6 → 8(2개 저작)');
+    assert.equal(ds(dom, 'a-inserted-after-q1'), 'true', '새 섹션이 q1 바로 뒤(교사 앵커)에 삽입');
+    assert.equal(ds(dom, 'a-std-intact'), 'true', 'std-box 불변(원칙 3)');
+    assert.equal(ds(dom, 'a-inserted-rendered'), 'true', '저작 섹션이 캔버스에 실제 렌더');
+    assert.equal(ds(dom, 'a-undo-restored'), 'true', 'Ctrl+Z 한 번으로 원복');
+
+    // ── B. 후행 빈 페이지: pageId 가 아니라 문서 마지막 flow 개체 뒤로 앵커(안정 — 빈 페이지는 reflow 가
+    // 지우므로 무API 왕복에서 pageId 앵커는 스테일이 된다). ──
+    assert.equal(ds(dom, 'b-empty-page-flow0'), '0', '새 페이지는 flow 0개(빈 페이지)');
+    assert.equal(ds(dom, 'b-intent'), 'author-section');
+    assert.equal(ds(dom, 'b-anchor-mode'), 'after', '후행 빈 페이지는 pageId 가 아니라 문서 마지막 flow 개체 뒤로 앵커(스테일 방지)');
+    assert.match(ds(dom, 'b-anchor-label') || '', /개체 뒤/, '앵커 설명이 개체 기준임을 보인다');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+// B1 — 완전 빈 문서(유일 빈 페이지)에 첫 섹션 저작: 이 경우만 pageId 앵커를 쓴다(유일 페이지라 reflow 가
+// 지우지 못해 안정). 요청 objects 가 0개(문맥 개체 없음)여도 정상 요청임을 함께 확인한다(요청 완화).
+test('B1 새 섹션 저작(완전 빈 문서): pageId 앵커로 유일 페이지에 첫 섹션 저작(요청 objects 0개 허용)', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: emptyDocument() });
+  try {
+    const watcher = watchAndRespondFragment(bridge, () => ([
+      { type: 'title', text: '분수 곱셈 활동' },
+      { type: 'question', qtype: 'short-answer', prompt: '2/3 × 3/4 = ?' },
+    ]), { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-author-empty-doc`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-author-empty-doc');
+
+    assert.equal(ds(dom, 'ed-flow0'), '0', '시작은 빈 페이지');
+    assert.equal(ds(dom, 'ed-intent'), 'author-section');
+    assert.equal(ds(dom, 'ed-anchor-mode'), 'page', '완전 빈 문서만 pageId 앵커');
+    assert.equal(ds(dom, 'ed-target-count'), '0', '문맥 개체 0개(요청 완화 — 빈 objects 허용)');
+    assert.equal(ds(dom, 'ed-copy-has-fragment'), 'true', '지시문이 --fragment 회신 안내');
+    assert.equal(ds(dom, 'ed-apply-enabled'), 'true', '빈 문서 저작도 적용 가능(차단 없음)');
+    assert.equal(ds(dom, 'ed-flow-after'), '2', '유일 페이지 flow 에 2개 저작');
+    assert.equal(ds(dom, 'ed-first-type'), 'title', '순서 보존(첫 개체 title)');
+    assert.equal(ds(dom, 'ed-rendered'), 'true', '저작 섹션이 캔버스에 렌더');
   } finally {
     await new Promise((r) => server.close(r));
   }

@@ -179,3 +179,8 @@ designer가 사진/일러스트가 필요하다고 판단하면:
        `callout.body`·`title.textHtml`·`question.promptHtml`. `<script>`/`style`/`iframe`/`on*`/`javascript:`
        등은 반려된다. 표 셀·choices 등 **중첩 id 는 정상**.
    에디터가 폴링으로 수신해 교사에게 diff 미리보기(다중이면 결합 뷰)를 보여주고, 적용·저장은 교사가 한다.
+   - **에디터 진입(B1)**: 교사가 "새 섹션 AI 저작"(앱 바 `＋섹션` · 우클릭/슬래시)을 누르면 요청에
+     `context.intent:'author-section'` 신호가 실린다 — 이 신호를 받으면 구독 AI 는 rewrite(`--ops`/`--objects`)가
+     아니라 **`--fragment`** 로 회신해야 한다(위 저작 어휘 준수). **삽입 위치(anchor)는 교사가 정한다** —
+     응답의 `--after`/`--before` 는 무시되고 에디터가 클릭 위치(선택 개체 뒤 · 페이지 말미 · 빈 페이지)에 삽입한다.
+     저작 요청은 대상 개체가 없을 수 있다(빈 페이지 첫 섹션) — 그래도 정상 요청이다.

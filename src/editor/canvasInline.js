@@ -126,6 +126,7 @@ function buildRuler(doc, axis, lenMm) {
  *   excludedAiTypes: Set<string>, // US-19 — std-box(§7, 원칙 3) 는 AI 진입점 비활성(passage-slot 은
  *   3층 정책, 2026-07-23 2차 델타로 해제)
  *   onAiOpen: (id:string) => void, // US-19 — AI 패널을 이 개체로 연다
+ *   onAuthorSection?: (afterId:string) => void, // B1 — 이 개체 뒤에 새 섹션을 AI 로 저작(프래그먼트 진입)
  * }} deps
  */
 export function createCanvasInline(deps) {
@@ -198,6 +199,17 @@ export function createCanvasInline(deps) {
       deps.onAiOpen?.(afterId);
     });
     menu.appendChild(aiBtn);
+    // B1: 슬래시 메뉴 "새 섹션 AI 저작" — afterId(직전 개체) 뒤에 제약 AI 가 새 섹션을 저작한다.
+    // 그 개체를 고치는 게 아니라 뒤에 저작할 뿐이라 std-box·float 에서도 활성이다(rewrite 진입과 다름).
+    const authorBtn = document.createElement('button');
+    authorBtn.textContent = '새 섹션 AI 저작';
+    authorBtn.dataset.slashItem = 'author-section';
+    authorBtn.addEventListener('click', () => {
+      closeAll(popupsHost);
+      document.body.dataset.slashOpen = 'false';
+      deps.onAuthorSection?.(afterId);
+    });
+    menu.appendChild(authorBtn);
     for (const item of CATALOG_ITEMS) {
       const b = document.createElement('button');
       b.textContent = item.label;
@@ -499,6 +511,8 @@ export function createCanvasInline(deps) {
     const aiDisabled = !targetForAi || excludedAiTypes.has(targetForAi.obj.type);
     const items = [
       ['AI 로 편집', () => deps.onAiOpen?.(id), aiDisabled, aiDisabled ? '(성취기준·저작권 슬롯 제외)' : '', 'ctx-ai'],
+      // B1: 이 개체 뒤에 새 섹션을 AI 로 저작(그 개체를 고치지 않으므로 std-box 에서도 활성).
+      ['새 섹션 AI 저작', () => deps.onAuthorSection?.(id), false, '', 'ctx-ai-author'],
       ['복제', () => deps.onDuplicate(id), false, '', null],
       ['삭제', () => deps.onDelete(id), false, '', null],
       ['본문 배치 ⇄ 자유 배치 전환', () => deps.onFlowFloat(id), false, '', null],

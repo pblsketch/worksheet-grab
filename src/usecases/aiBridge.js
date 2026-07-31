@@ -188,7 +188,12 @@ export function validateRequest(req) {
   if (req.schemaVersion === 1) return isValidBlock(req.block);
   if (req.schemaVersion === 2) return Array.isArray(req.blocks) && req.blocks.length > 0 && req.blocks.every(isValidBlock);
   if (req.schemaVersion === 4 && !hasValidOptionalPageFields(req)) return false;
-  return Array.isArray(req.objects) && req.objects.length > 0 && req.objects.every(isValidObjectItem);
+  if (!Array.isArray(req.objects)) return false;
+  // B1 프래그먼트 저작 요청(context.intent:'author-section')은 대상 개체가 없을 수 있다 — 빈 페이지에
+  // 첫 섹션을 저작하는 경우. 여기서 objects 는 "고칠 대상"이 아니라 문맥일 뿐이라 비어 있어도 유효하다.
+  // (rewrite 요청은 그대로 비어있지 않은 objects[] 를 강제한다 — 무엇을 고칠지 알아야 하므로.)
+  if (req.objects.length === 0) return req.context?.intent === 'author-section';
+  return req.objects.every(isValidObjectItem);
 }
 
 /**

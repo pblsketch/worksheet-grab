@@ -127,6 +127,11 @@ HTML을 직접 저작하지 않는다 — HTML 문자열 생성·paper-css 조�
   `ValidateAiFragment`로 게이트한 뒤 단일 `insert-section`으로 컴파일한다. 어휘·금지 규칙은
   `.claude/skills/worksheet-grab/SKILL.md`의 "B′ 프래그먼트 저작" 절을 따른다(좌표·조판·`id`·**답안**
   금지, HTML 5위치만). 답안이 필요한 문항은 이 경로가 아니라 기존 `--ops`/answerKey 경로를 쓴다.
+  - **에디터 저작 진입(B1) 신호**: 요청에 `context.intent:'author-section'`이 실려 있으면 그 요청은
+    교사가 "새 섹션 AI 저작"을 누른 것이다 — rewrite(`--ops`/`--objects`)가 아니라 반드시 `--fragment`로
+    회신한다. **삽입 위치(anchor)는 교사가 이미 정했으므로** `--after`/`--before`를 신경 쓸 필요가 없다
+    (에디터가 무시하고 클릭 위치에 삽입). 이 요청은 대상 개체(`objects`)가 비어 있을 수 있다(빈 페이지
+    첫 섹션) — 정상이며, `instruction`과 문맥만 보고 저작하면 된다.
 
 ## 삽화(생성 이미지) 저작 가이드
 - 사진/일러스트가 필요하면 사용자 로컬 `codex-image` 스킬로 생성한다(gpt-image-2·OAuth·무API·

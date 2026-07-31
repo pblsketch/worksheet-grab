@@ -26,6 +26,12 @@
 //
 // 진입점(모두 같은 패널을 연다): 앱 바 AI 버튼(#ai-entry-slot) · 우클릭 메뉴 · 슬래시 메뉴(/ai) ·
 // 컨텍스트 툴바 공통 버튼 — editor.js 가 각 모듈에 onAiOpen 콜백으로 이 패널의 openFor()를 배선한다.
+//
+// B1(프래그먼트 저작 진입, ADR-bspike-ai-fragment.md): 위 rewrite 진입과 별개로 "새 섹션 AI 저작"
+// 진입이 있다 — 앱 바 ＋섹션 버튼(#btn-ai-author) · 우클릭/슬래시 "새 섹션 AI 저작". 이들은
+// openFor(ids, {intent:'author-section'}) 로 열려, 기존 개체를 고치지 않고 제약 AI 가 저작한 섹션을
+// 교사가 정한 앵커 위치(computeAuthorAnchor)에 삽입한다. 응답측 파이프라인(buildFragmentVersion→
+// prepareAiFragment→buildOpsVersion)은 그대로 재사용한다(진입만 추가).
 
 import { RenderObjectTree } from '/src/usecases/RenderObjectTree.js';
 import { QUESTION_TYPES, computePageVersion } from '/src/domain/schema/index.js';
@@ -33,6 +39,7 @@ import { QTYPE_LABELS } from './objectFactory.js';
 import { pageScopeTargets } from '/editor/pageScope.js';
 import { enforceAiLayout } from '/editor/aiLayoutGuard.js';
 import { prepareAiFragment } from '/src/usecases/applyAiFragment.js';
+import { computeAuthorAnchor } from '/editor/authorAnchor.js';
 
 const renderer = new RenderObjectTree();
 const WAIT_TIMEOUT_MS = 5 * 60 * 1000; // 대기 총 상한(무API 특성상 사람이 응답 — 옛 ai.js 관례와 동일)
@@ -228,6 +235,7 @@ export function sanitizeAiObject(obj, before = null) {
  *   getRenderMeta: () => object,      // reflow.js#buildRenderMeta(core.getDocument()) 재사용
  *   getDoc: () => Document|null,      // 현재 teacher iframe contentDocument(배지 DOM 조작용)
  *   getActivePageId: () => string|null,        // 현재 활성 페이지 ID(index 금지 — Phase 2 규약)
+ *   getObjectDocument?: () => {pages?:object[]}|null,  // B1 저작 앵커: 빈 페이지 폴백(문서 마지막 flow 개체) 계산
  *   getPage: (pageId:string) => {id:string,flow?:object[],float?:object[]}|null,
  *   getPageIdOf: (objectId:string) => string|null,
  *   onApply: (
@@ -257,6 +265,19 @@ export function createAiPanel(deps) {
     openFor(ids, pageIds.length >= 2 ? { scope: 'page', pageIds } : {});
   });
   deps.entryHost.appendChild(entryBtn);
+
+  // B1: "새 섹션 AI 저작" 진입(프래그먼트 저작). rewrite 와 달리 기존 개체를 고치지 않고 제약 AI 가
+  // 저작한 새 섹션을 앵커 위치(선택 개체 뒤 or 페이지 말미)에 삽입한다 — std-box 선택에서도 활성이다
+  // (그 개체를 고치는 게 아니라 그 뒤에 저작할 뿐이므로). 선택이 정확히 1개면 그 뒤, 아니면 페이지 말미.
+  const authorBtn = el('button', {
+    type: 'button', id: 'btn-ai-author', class: 'appbar-btn ai-entry-btn ai-author-btn',
+    title: '새 섹션을 AI 로 저작(선택 개체 뒤 또는 현재 페이지 말미)', text: '＋섹션',
+  });
+  authorBtn.addEventListener('click', () => {
+    const ids = [...(deps.getSelectionState().selectedIds || [])];
+    openFor(ids.length === 1 ? ids : [], { intent: 'author-section' });
+  });
+  deps.entryHost.appendChild(authorBtn);
 
   // ── 대상 졸업 배지(data-ai-fresh) ──
   function markFresh(ids) {
@@ -303,8 +324,39 @@ export function createAiPanel(deps) {
     return !!state && state.targets.some((t) => t.obj.type === 'passage-slot');
   }
 
+  /** 앵커를 사람이 읽을 설명으로(compose 요약·copyText 공용). */
+  function describeAnchor(anchor) {
+    if (!anchor) return '(위치 미정)';
+    if (anchor.afterId) {
+      const obj = deps.findObject(anchor.afterId)?.obj;
+      return obj ? `'${QTYPE_LABELS[obj.qtype] || obj.type}' 개체 뒤` : '선택 개체 뒤';
+    }
+    return '현재 페이지 말미(빈 페이지)';
+  }
+
+  /** B1 새 섹션 저작 요청의 구독 AI 지시문 — rewrite(--ops/--objects)와 달리 --fragment 로 회신하도록
+   *  안내한다. 삽입 위치는 교사가 정했으므로(state.authorAnchor) 응답의 앵커는 무시된다. */
+  function buildAuthorCopyText() {
+    const ctxSummary = state.targets.length
+      ? state.targets.map((t) => `${t.obj.type}(${t.id})`).join(', ')
+      : '(없음 — 빈 페이지)';
+    return [
+      `[worksheet-grab AI 요청 — 새 섹션 저작] id=${state.currentRequestId}`,
+      `삽입 위치: ${state.anchorLabel || describeAnchor(state.authorAnchor)} (배치는 교사가 정했습니다 — 이 위치에 삽입됩니다)`,
+      `문맥 개체: ${ctxSummary}`,
+      `지시: ${state.instruction || '(지시 없음)'}`,
+      '',
+      `회신 방법(구독 AI 세션): worksheet-grab ai respond ${state.currentRequestId} --fragment <file.json>`,
+      'file.json 형식(B′ 프래그먼트): [{"type":"<카탈로그 타입>", …개체 필드}, …]',
+      '  · id·좌표(rect/xMm/yMm/wMm/hMm)·크기(widthPct/minHeightMm/align)·페이지 필드는 넣지 마세요 — 엔진이 발급/배치합니다(결정 게이트가 거부).',
+      '  · 답안(answer)·정답(answerKey)을 넣지 마세요 — B′ 는 답안을 저작하지 않습니다(누출 100% 구조 차단).',
+      '  · 본문 흐름(flow) 개체만. HTML 은 허용 태그만(strong/em/p/ul/li/blockquote/h3/h4/table…, htmlAllowlist).',
+    ].join('\n');
+  }
+
   function buildCopyText() {
     if (!state) return '';
+    if (state.intent === 'author-section') return buildAuthorCopyText();
     const objectsSummary = state.targets.map((t) => `${t.obj.type}(${t.id})`).join(', ');
     const lines = [
       `[worksheet-grab AI 요청] id=${state.currentRequestId}`,
@@ -525,6 +577,11 @@ export function createAiPanel(deps) {
         if (anchorId != null && !anchor) { problems.push(`섹션 삽입 기준 개체를 찾을 수 없습니다: ${anchorId}`); continue; }
         if (anchor && anchor.placement === 'float') { problems.push(`섹션 삽입 기준 개체가 본문 흐름 개체가 아닙니다: ${anchorId}`); continue; }
         if (outOfScope(anchorId)) { problems.push(`섹션 삽입 기준 개체가 요청 범위 밖입니다: ${anchorId}`); continue; }
+        // pageId 앵커(빈 페이지 저작, B1): 개체 앵커가 없을 때 대상 페이지가 요청 범위 안이어야 한다
+        // (그래야 pageVersion 보호를 받는다). 존재 확인은 적용 직전 충돌 검사(detectConflict)가 맡는다.
+        if (anchorId == null && raw.pageId && allowedPageIds.size > 0 && !allowedPageIds.has(raw.pageId)) {
+          problems.push(`섹션 저작 대상 페이지가 요청 범위 밖입니다: ${raw.pageId}`); continue;
+        }
         const badType = list.find((o) => o && excludedSet.has(o.type));
         if (badType) { problems.push(`"${badType.type}" 개체는 AI 가 생성할 수 없습니다 — 성취기준 원문은 보존됩니다(원칙 3).`); continue; }
         const cleaned = list.map((o) => sanitizeAiObject(o, null));
@@ -534,6 +591,7 @@ export function createAiPanel(deps) {
           objects: cleaned,
           ...(raw.afterId ? { afterId: raw.afterId } : {}),
           ...(raw.beforeId ? { beforeId: raw.beforeId } : {}),
+          ...(!raw.afterId && !raw.beforeId && raw.pageId ? { pageId: raw.pageId } : {}),
         });
       } else {
         problems.push(`알 수 없는 계획 항목: ${String(raw?.op)}`);
@@ -593,9 +651,14 @@ export function createAiPanel(deps) {
    */
   function buildFragmentVersion(requestId, response, meta) {
     const lastTarget = state.targets.length ? state.targets[state.targets.length - 1].id : null;
-    const anchor = (typeof response.afterId === 'string' && response.afterId) ? { afterId: response.afterId }
-      : (typeof response.beforeId === 'string' && response.beforeId) ? { beforeId: response.beforeId }
-        : (lastTarget ? { afterId: lastTarget } : {});
+    // B1 저작 진입이면 삽입 위치는 교사가 정한다(state.authorAnchor: {afterId}|{pageId}) — AI 응답의
+    // afterId/beforeId 보다 우선한다(배치는 교사 결정, AI 는 내용만 저작). 구독 AI 가 스스로 --fragment
+    // 로 답한 경우(진입 없음)만 응답 앵커 → 마지막 대상 순으로 폴백한다(하위호환·무변경).
+    const anchor = state.authorAnchor
+      ? state.authorAnchor
+      : (typeof response.afterId === 'string' && response.afterId) ? { afterId: response.afterId }
+        : (typeof response.beforeId === 'string' && response.beforeId) ? { beforeId: response.beforeId }
+          : (lastTarget ? { afterId: lastTarget } : {});
     const prep = prepareAiFragment(response.fragment, {
       ctx: response.context && typeof response.context === 'object' ? response.context : {},
       anchor,
@@ -729,7 +792,50 @@ export function createAiPanel(deps) {
     return el('div', { class: 'ai-blocked', id: 'ai-blocked', text: state.blockedMessage });
   }
 
+  /** B1 — 새 섹션 저작 작성 뷰(rewrite compose 와 분리): 대상 개체를 고르는 게 아니라 만들 섹션을
+   *  지시한다. 삽입 위치는 이미 정해졌다(state.authorAnchor) — 여기선 무엇을 만들지만 입력한다. */
+  function authorComposeView() {
+    const wrap = el('div', { class: 'ai-compose ai-author-compose' });
+    wrap.appendChild(el('div', {
+      class: 'ai-targets-summary',
+      id: 'ai-targets-summary',
+      'data-ai-intent': 'author-section',
+      'data-ai-anchor-mode': state.authorAnchor?.pageId ? 'page' : 'after',
+      'data-ai-page-id': state.pageId || '',
+      'data-ai-target-count': String(state.targets.length),
+      text: `새 섹션 AI 저작 — 삽입 위치: ${state.anchorLabel || describeAnchor(state.authorAnchor)}`,
+    }));
+    if (state.error) wrap.appendChild(el('div', { class: 'ai-error', id: 'ai-error', text: state.error }));
+
+    const presetRow = el('div', { class: 'ai-presets' });
+    const practiceBtn = el('button', { type: 'button', id: 'ai-author-practice', text: '연습문제 섹션' });
+    practiceBtn.addEventListener('click', () => sendRequest(
+      '이 활동지 맥락에 맞는 연습문제 섹션을 새로 저작해 주세요(문항 2~3개). 필요하면 짧은 안내 문장을 함께 넣되, 정답은 넣지 마세요.',
+      { intent: 'author-section', preset: 'practice' },
+    ));
+    const summaryBtn = el('button', { type: 'button', id: 'ai-author-summary', text: '요약 정리 섹션' });
+    summaryBtn.addEventListener('click', () => sendRequest(
+      '이 활동지 맥락을 정리하는 섹션을 새로 저작해 주세요(제목 + 핵심 정리 본문).',
+      { intent: 'author-section', preset: 'summary' },
+    ));
+    presetRow.append(practiceBtn, summaryBtn);
+    wrap.appendChild(presetRow);
+
+    const freeWrap = el('div', { class: 'ai-freeform' });
+    const ta = el('textarea', { id: 'ai-author-prompt', placeholder: '어떤 섹션을 만들지 설명하세요 — 예: 광합성 개념 정리 활동 3문항' });
+    const sendBtn = el('button', { type: 'button', id: 'ai-author-send', text: '섹션 저작 요청' });
+    sendBtn.addEventListener('click', () => {
+      const text = ta.value.trim();
+      if (!text) return;
+      sendRequest(text, { intent: 'author-section', preset: 'free' });
+    });
+    freeWrap.append(ta, sendBtn);
+    wrap.appendChild(freeWrap);
+    return wrap;
+  }
+
   function composeView() {
+    if (state.intent === 'author-section') return authorComposeView();
     const wrap = el('div', { class: 'ai-compose' });
     wrap.appendChild(el('div', {
       class: 'ai-targets-summary',
@@ -971,6 +1077,7 @@ export function createAiPanel(deps) {
       id: 'ai-panel',
       'data-ai-phase': state.phase,
       'data-ai-scope': state.scope,
+      'data-ai-intent': state.intent || 'rewrite',
       'data-ai-page-id': state.pageId || '',
     });
     panel.appendChild(headerRow());
@@ -1021,15 +1128,69 @@ export function createAiPanel(deps) {
     render();
   }
 
-  function openFor(ids, { scope = null, pageIds = null } = {}) {
-    const selectionIds = [...new Set(ids || [])].filter((id) => !!deps.findObject(id)?.obj);
-    const base = {
+  function makeBaseState(selectionIds) {
+    return {
       selectionIds,
       instruction: '', context: {}, currentRequestId: null, requestIds: new Set(),
       versions: [], versionIndex: 0, error: null,
       pendingPageVersion: null, pendingPageVersions: null, conflict: null, conflictMode: null,
       blockedMessage: null,
+      // B1 저작 인텐트 필드(rewrite 경로에선 null 로 남는다).
+      intent: null, authorAnchor: null, anchorLabel: null,
     };
+  }
+
+  /**
+   * B1 — 새 섹션 AI 저작 진입(프래그먼트 저작). rewrite 와 달리 기존 개체를 고르는 게 아니라,
+   * 교사 클릭이 정한 앵커(computeAuthorAnchor: 선택 flow 개체 뒤 · 페이지 말미 · 빈 페이지 pageId)에
+   * 제약 AI 가 저작한 섹션을 삽입한다. 앵커 페이지는 개체 진입이면 그 개체의 페이지, 아니면 활성 페이지.
+   * 문맥 개체(요청 objects)는 std-box 를 뺀다(서버 가드 §7) — 없으면(빈 페이지) 비어도 유효(요청 완화).
+   */
+  /** 문서에서 activePageId 페이지까지의 마지막 flow 개체 id — 빈 페이지 저작 앵커 폴백(authorAnchor.js
+   *  참조: 빈 페이지는 reflow 가 지우므로 pageId 대신 안정 개체 뒤에 붙인다). 완전 빈 문서면 null. */
+  function lastFlowIdUpTo(anchorPageId) {
+    const objDoc = deps.getObjectDocument?.();
+    const pages = objDoc?.pages || [];
+    let last = null;
+    for (const page of pages) {
+      const flow = page?.flow || [];
+      if (flow.length) last = flow[flow.length - 1]?.id ?? last;
+      if (page?.id === anchorPageId) break; // 활성(빈) 페이지까지만 — 그 뒤 콘텐츠 앞으로 새치기하지 않는다
+    }
+    return last;
+  }
+
+  function openForAuthorSection(ids) {
+    const selectionIds = [...new Set(ids || [])].filter((id) => !!deps.findObject(id)?.obj);
+    const firstId = selectionIds[0] ?? null;
+    const anchorPageId = (firstId ? deps.getPageIdOf?.(firstId) : null) ?? deps.getActivePageId?.() ?? null;
+    const anchorPage = anchorPageId ? deps.getPage?.(anchorPageId) : null;
+    const selectedObj = firstId ? deps.findObject(firstId)?.obj : null;
+    const authorAnchor = computeAuthorAnchor(anchorPage, selectedObj, lastFlowIdUpTo(anchorPageId));
+    const base = makeBaseState(selectionIds);
+
+    if (!authorAnchor) {
+      state = {
+        ...base, intent: 'author-section', scope: 'objects', pageId: anchorPageId, targets: [],
+        phase: 'blocked', blockedMessage: '새 섹션을 저작할 페이지를 찾을 수 없습니다.',
+      };
+      render();
+      return;
+    }
+
+    const targets = (selectionIds.length ? resolveObjectTargets(selectionIds) : collectPageTargets(anchorPageId))
+      .filter((t) => !excludedSet.has(t.obj.type));
+    state = {
+      ...base, intent: 'author-section', scope: 'objects', pageId: anchorPageId,
+      targets, authorAnchor, anchorLabel: describeAnchor(authorAnchor), phase: 'compose',
+    };
+    render();
+  }
+
+  function openFor(ids, { scope = null, pageIds = null, intent = null } = {}) {
+    if (intent === 'author-section') { openForAuthorSection(ids); return; }
+    const selectionIds = [...new Set(ids || [])].filter((id) => !!deps.findObject(id)?.obj);
+    const base = makeBaseState(selectionIds);
 
     // 선택이 없거나 교사가 명시적으로 페이지 전체를 고르면 페이지 전체가 대상이다(US-P4-4).
     // pageIds(다중 페이지 grab, M2)가 오면 그 여러 페이지 전체를, 아니면 활성 페이지 한 장을 대상으로.
