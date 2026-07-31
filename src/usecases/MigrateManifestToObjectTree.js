@@ -139,7 +139,17 @@ export function parseTableRows(html) {
 function buildTable(id, html) {
   const rows = parseTableRows(html);
   if (!rows) return null; // 인식 실패 -> 호출부가 richtext 로 폴백
-  return { id, type: 'table', placement: 'flow', splittable: false, rows };
+  const obj = { id, type: 'table', placement: 'flow', splittable: false };
+  // <caption>(예: 프레이어 "개념:")을 table.caption 으로 승격 — 없으면 미방출(기존 표 마이그레이션 불변).
+  // caption 은 원문에서 rows 앞에 오므로 rows 보다 먼저 넣는다(#applyLosslessSafetyNet 이 필드 삽입
+  // 순서대로 원문 부분열을 판정 — 순서가 어긋나면 무손실 검증에 걸려 richtext 로 강등된다).
+  const capMatch = /<caption[^>]*>([\s\S]*?)<\/caption>/i.exec(html);
+  if (capMatch) {
+    const caption = stripTags(capMatch[1]);
+    if (caption) obj.caption = caption;
+  }
+  obj.rows = rows;
+  return obj;
 }
 
 /** resource-box(`.qbox`) 구조 인식 — `.lab` 라벨 + 인접 값 div 를 1행 2열 table 로 승격(REPORT.md §4-4 후속). */
@@ -182,7 +192,21 @@ function buildAnswerRichtext(id, html, srcType) {
  * 번호 배지+안내문의 소제목 구조, resource-box 는 label+value 1행 구조 — 둘 다 기존 카탈로그 타입의
  * 구조와 합치한다).
  */
+// 깔끔한 표형 시각 조직자(#2 P1b) — 열 때 편집 가능한 table 개체로 승격하는 대상(objectFactory
+// ORGANIZER_INSERTS 의 10종과 일치; migrate-organizers 테스트가 일치를 강제한다). 색이 의미인
+// 신호등·쓰기줄 특수 레이아웃·그림형(SVG)·섹션 스택은 여기 없다 — 그들은 default→richtext 로 원본을
+// 그대로 보존한다(색·구조 손실 방지). 정답(.answer) 있는 것도 아래에서 richtext 로 남긴다.
+export const TABLE_ORGANIZER_TYPES = new Set([
+  'kwl', 'frayer', 'w5h1', 'bme', 'prediction', 'glowgrow', 'perspectives', 'character', 'quotejournal', 'bookreview',
+]);
+
 function buildObjectForEntry(id, srcType, html) {
+  // 표형 시각 조직자: 정답(.answer) 없는 것만 편집 가능한 table 개체로 승격한다. 정답 있는 것은 null 을
+  // 돌려 호출부가 richtext 로 남기고(BuildVariants 가 학생 빌드에서 셀 .answer 를 물리 제거), 표 인식
+  // 실패나 텍스트 손실(캡션 등)은 buildTable(null)·#applyLosslessSafetyNet 이 richtext 로 되돌린다.
+  if (TABLE_ORGANIZER_TYPES.has(srcType)) {
+    return hasAnswerClass(html) ? null : buildTable(id, html);
+  }
   switch (srcType) {
     case 'header':
       return buildTitle(id, html, 1);
