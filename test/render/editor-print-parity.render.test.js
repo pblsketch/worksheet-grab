@@ -132,6 +132,27 @@ function buildSizedItems(n = 26) {
   return items;
 }
 
+/**
+ * 그림형 조직자(organizer) 픽스처(#2 P3) — 편집 가능 organizer 개체가 편집·인쇄에서 같은 높이를 내
+ * 페이지 귀속이 세 경로로 동치인지 검증한다. 조직자는 엔진(OrganizerGen)이 SVG 를 그리며 editMode
+ * 분기가 없어(RenderObjectTree.renderOrganizer) 편집 렌더와 인쇄 렌더가 문자 그대로 같은 SVG 를 낸다 —
+ * 그 성질이 실제 브라우저 리플로우·실제 인쇄에서도 성립하는지가 이 자리의 검출 대상이다. 6종을 개수·
+ * 라벨을 편집한 상태로 세로로 쌓아 A4 한 쪽을 넘겨 여러 페이지가 되게 한다(귀속 대조에 의미가 생김).
+ */
+function buildOrganizerItems() {
+  const org = (id, kind, params, labels) => ({ id, type: 'organizer', placement: 'flow', kind, params, labels });
+  return [
+    { id: 'og-title', type: 'title', placement: 'flow', text: '그림형 조직자 3자 하드 동치 픽스처' },
+    org('og-venn2', 'venn', { circles: 2 }, { left: '식물', right: '동물', common: '공통점' }),
+    org('og-venn3', 'venn', { circles: 3 }, { a: '고체', b: '액체', c: '기체', common: '물질' }),
+    org('og-cmap', 'conceptmap', { nodes: 5 }, { center: '광합성', node1: '빛', node2: '물', node3: '이산화탄소' }),
+    org('og-fish', 'fishbone', { branches: 4 }, { result: '성적 하락', cause1: '수면 부족', cause2: '집중 저하' }),
+    org('og-flow', 'flowchart', { steps: 4 }, { step1: '문제 인식', step2: '가설', step3: '실험', step4: '결론' }),
+    org('og-hier', 'hierarchy', { children: 3 }, { top: '생물', child1: '동물', child2: '식물' }),
+    org('og-hex', 'hexagon', { count: 5 }, { hex1: '자유', hex2: '평등', hex3: '정의' }),
+  ];
+}
+
 /** ②PaginateObjectTree(Chrome 어댑터 측정) 경로 — 순수 scaffold→paginated. */
 async function computeChromePagination(items, assets, meta) {
   const measurer = new ChromePaginationMeasurer({});
@@ -323,4 +344,38 @@ test('3자 하드 동치 — 개체 크기 픽스처(widthPct·minHeightMm·alig
   const printedPages = await countPrintedPages(editorResult.document, assets, meta, 'parity-sized');
   assert.equal(printedPages, editorResult.pageCount, '인쇄 PDF 페이지 수가 편집기 리플로우 페이지 수와 동치여야 함');
   assert.equal(printedPages, chromeResult.pageCount, '인쇄 PDF 페이지 수가 Chrome 페이지네이션 페이지 수와도 동치여야 함');
+});
+
+test('3자 하드 동치 — 그림형 조직자(organizer) 픽스처: 편집기 리플로우 == PaginateObjectTree(Chrome) == 인쇄 PDF', { skip: !HAS_CHROME, timeout: TIMEOUT }, async () => {
+  // 편집 가능 그림형 조직자(#2 P3)의 R2-1 게이트. 조직자 SVG 는 엔진이 그리며 editMode 분기가 없어
+  // 편집·인쇄가 같은 SVG(=같은 높이)를 낸다. 그 성질이 실제 브라우저 리플로우·실제 인쇄 PDF 쪽수에서도
+  // 성립하는지 세 경로로 대조한다(단위·구조 파리티는 문자열까지만 본다).
+  const repo = new FsBlockRepository({ root: ROOT });
+  const assets = await loadAssets(repo, 'sci');
+  const items = buildOrganizerItems();
+  const meta = { docTitle: '3자 하드동치 — 그림형 조직자', dataSubject: 'science', themeName: 'sci', lang: 'ko', paper: null };
+
+  const chromeResult = await computeChromePagination(items, assets, meta);
+  assert.ok(chromeResult.pageCount >= 2, `조직자 픽스처가 여러 페이지를 만들어야 검증 의미가 있음(실측 ${chromeResult.pageCount})`);
+
+  const editorResult = await computeEditorPagination(items, '3자동치-조직자', meta);
+
+  // 골격 가드: pageOfId 대조에 앞서 편집·인쇄 렌더의 레이아웃 선언이 같은지 본다(renderParity.js 머리말).
+  assertEditPrintDeclarationParity(editorResult.document, assets, meta, '리플로우 저장본(조직자)');
+
+  assert.deepEqual(editorResult.pageOfId, chromeResult.pageOfId,
+    '편집기 리플로우 귀속이 Chrome PaginateObjectTree 귀속과 완전히 같아야 함(하드 동치, R2-1)');
+  assert.equal(editorResult.pageCount, chromeResult.pageCount, '페이지 수도 동일해야 함');
+
+  // 공허성 방지 + 편집 전용 속성 누출 방지: 인쇄 HTML 에 조직자 SVG·교사 라벨이 실제로 있고 data-oid 는 없어야 한다.
+  const { html: printHtml } = new RenderObjectTree().execute(editorResult.document, assets, meta);
+  assert.match(printHtml, /class="venn keep"/, '인쇄 HTML 에 벤다이어그램 조직자가 있어야 함');
+  assert.match(printHtml, /class="conceptmap keep"/, '인쇄 HTML 에 개념 지도 조직자가 있어야 함');
+  assert.match(printHtml, /class="hexagon keep"/, '인쇄 HTML 에 헥사고날 조직자가 있어야 함');
+  assert.match(printHtml, /식물/, '교사가 편집한 슬롯 라벨이 인쇄 HTML 에 반영돼야 함');
+  assert.ok(!printHtml.includes('data-oid'), '인쇄 렌더에는 편집용 data-oid 가 없어야 함(편집 전용 속성 누출 방지)');
+
+  const printedPages = await countPrintedPages(editorResult.document, assets, meta, 'parity-organizer');
+  assert.equal(printedPages, editorResult.pageCount, '조직자 인쇄 PDF 쪽수 == 편집기 리플로우 쪽수');
+  assert.equal(printedPages, chromeResult.pageCount, '조직자 인쇄 PDF 쪽수 == Chrome 페이지네이션 쪽수');
 });
