@@ -175,7 +175,7 @@ designer가 사진/일러스트가 필요하다고 판단하면:
        (`widthPct`/`minHeightMm`/`align`)·`opacity`/`angle`·`page*`/`pagination`·표현필드
        (`borderColor`/`bgColor`…)·`image-slot.src`·**답안(`answer`/`answerKey`)**. (id·자리·조판·정답은
        엔진/교사 몫 — 답안은 이 경로로 만들지 않는다.)
-     - HTML 은 5위치만 허용(정제 allowlist 통과분만): `passage-slot.bodyHtml`(권한 필요)·`richtext.html`·
+     - HTML 은 5위치만 허용(정제 allowlist 통과분만): `passage-slot.bodyHtml`(권한 필요 — 교사 opt-in, 아래 B3)·`richtext.html`·
        `callout.body`(=block)·`title.textHtml`·`question.promptHtml`(=inline). 허용 태그는 **깨끗한 시맨틱
        집합**뿐 — inline: `strong`/`em`/`b`/`i`/`u`/`s`/`sub`/`sup`/`mark`/`code`/`span`/`br`/`a`; block: 위 인라인 +
        `p`/`ul`/`ol`/`li`/`dl`/`dt`/`dd`/`blockquote`/`h3`/`h4`/`pre`/`hr`/`table`(+`caption`/`thead`/`tbody`/`tr`/`th`/`td`).
@@ -188,3 +188,8 @@ designer가 사진/일러스트가 필요하다고 판단하면:
      아니라 **`--fragment`** 로 회신해야 한다(위 저작 어휘 준수). **삽입 위치(anchor)는 교사가 정한다** —
      응답의 `--after`/`--before` 는 무시되고 에디터가 클릭 위치(선택 개체 뒤 · 페이지 말미 · 빈 페이지)에 삽입한다.
      저작 요청은 대상 개체가 없을 수 있다(빈 페이지 첫 섹션) — 그래도 정상 요청이다.
+   - **지문 권한(B3)**: `passage-slot.bodyHtml`(저작권 본문)은 교사가 저작 뷰의 **"지문도 AI가 채우도록
+     허용" 토글**을 켠 요청에서만 허용된다(요청 `context.allowPassageContent:true`). **권한은 교사 요청측
+     grant 가 권위** — 에디터가 적용 시 이 값으로 검증하므로, 응답이 스스로 `allowPassageContent` 를 실어도
+     권한을 만들 수 없다(self-grant 차단). 토글 OFF 면 bodyHtml 은 반려되고 빈 슬롯 안내만 남는다. 어느
+     경우든 실존 저작물 원문을 그대로 재현하지 않는다(교사 책임·로컬 처리).

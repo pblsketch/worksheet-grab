@@ -1764,6 +1764,43 @@ export async function runEditorTestSeed(seed, {
     document.body.dataset.edFirstType = String(page0?.flow?.[0]?.type || '');     // title
     doc = frames.teacher.contentDocument;
     document.body.dataset.edRendered = String(doc.body.textContent.includes('분수 곱셈 활동'));
+  } else if (seed === 'ai-author-passage') {
+    // B3 — 지문 저작 권한: 교사 opt-in(토글)이 있어야 fragment 의 passage bodyHtml 이 통과한다. 모의
+    // 구독 AI 는 응답 context 에 allowPassageContent:true 를 실어 보내지만(self-grant 시도), 그것만으론
+    // 통과하지 못한다 — 권한은 교사 요청측 grant(state.context)가 권위다. 라운드 1=OFF(차단), 2=ON(적용).
+
+    // ── 라운드 1: 토글 OFF → 차단(AI 응답 self-grant 무시) ──
+    doc.querySelector('[data-oid="q1"]').click();
+    document.getElementById('btn-ai-author').click();
+    document.body.dataset.pTogglePresent = String(!!document.getElementById('ai-allow-passage'));
+    document.getElementById('ai-allow-passage').checked = false; // 명시 OFF
+    document.getElementById('ai-author-prompt').value = '지문과 문항이 있는 독해 섹션을 만들어줘';
+    document.getElementById('ai-author-send').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+    const applyOff = document.getElementById('ai-apply-ops');
+    document.body.dataset.pOffApplicable = String(!!applyOff && !applyOff.disabled);
+    document.body.dataset.pOffReason = document.getElementById('ai-error')?.textContent || ''; // showVersion 이 blockReason 을 실어둠
+    document.getElementById('ai-panel-close').click();
+    await wait(30);
+
+    // ── 라운드 2: 토글 ON → 승인·적용·렌더 ──
+    doc = frames.teacher.contentDocument;
+    doc.querySelector('[data-oid="q1"]').click();
+    document.getElementById('btn-ai-author').click();
+    document.getElementById('ai-allow-passage').checked = true; // 교사 opt-in
+    document.getElementById('ai-author-prompt').value = '지문과 문항이 있는 독해 섹션을 만들어줘';
+    document.getElementById('ai-author-send').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+    const applyOn = document.getElementById('ai-apply-ops');
+    document.body.dataset.pOnApplicable = String(!!applyOn && !applyOn.disabled);
+    applyOn.click();
+    await pollUntil(() => !document.getElementById('ai-panel'), { timeoutMs: 15000 });
+    cancelScheduledReflow();
+    doc = frames.teacher.contentDocument;
+    const passObj = core.getDocument().pages.flatMap((p) => p.flow)
+      .find((o) => o.type === 'passage-slot' && typeof o.bodyHtml === 'string' && o.bodyHtml.includes('지문 본문 예시'));
+    document.body.dataset.pOnAppliedBody = String(!!passObj);
+    document.body.dataset.pOnRendered = String(doc.body.textContent.includes('교사가 넣은 지문 본문 예시'));
   }
   document.body.dataset.seedDone = seed;
 }

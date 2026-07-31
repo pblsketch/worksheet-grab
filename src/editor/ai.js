@@ -659,8 +659,11 @@ export function createAiPanel(deps) {
       : (typeof response.afterId === 'string' && response.afterId) ? { afterId: response.afterId }
         : (typeof response.beforeId === 'string' && response.beforeId) ? { beforeId: response.beforeId }
           : (lastTarget ? { afterId: lastTarget } : {});
+    // 권한(allowPassageContent)은 **교사의 요청측 grant**(state.context — 이 요청을 보낼 때 교사가 토글로
+    // 명시)가 권위다. AI 응답의 context 는 신뢰하지 않는다 — 신뢰하면 제약 AI 가 응답에
+    // allowPassageContent:true 를 실어 지문 저작 권한을 스스로 부여(self-grant)할 수 있다(B3 보안 경계).
     const prep = prepareAiFragment(response.fragment, {
-      ctx: response.context && typeof response.context === 'object' ? response.context : {},
+      ctx: { allowPassageContent: state.context?.allowPassageContent === true },
       anchor,
       requestPageVersions: meta.pageVersions ?? null,
     });
@@ -807,16 +810,29 @@ export function createAiPanel(deps) {
     }));
     if (state.error) wrap.appendChild(el('div', { class: 'ai-error', id: 'ai-error', text: state.error }));
 
+    // B3 — 지문(저작권 본문) 저작 허용 토글. 교사의 명시 opt-in(기본 OFF)이다. 켜면 요청 컨텍스트에
+    // allowPassageContent:true 가 실려 나가(구독 AI 가 passage bodyHtml 을 채워도 되는지 판단), 적용
+    // 시엔 editor 가 **이 값(교사 결정=state.context)** 을 권위로 삼아 검증한다 — AI 응답이 스스로
+    // 권한을 만들지 못한다(self-grant 차단, buildFragmentVersion 참조). 저작권 경계는 교사 책임·로컬 처리.
+    const passageRow = el('label', { class: 'ai-passage-perm', id: 'ai-passage-perm' });
+    const passageToggle = el('input', { type: 'checkbox', id: 'ai-allow-passage' });
+    passageRow.append(passageToggle, el('span', { text: ' 지문(저작권 본문)까지 AI가 채우도록 허용 — 교사 책임·로컬 처리' }));
+    wrap.appendChild(passageRow);
+    // 프리셋·자유입력이 공유하는 요청 컨텍스트. 토글이 켜졌을 때만 권한 키를 싣는다(미첨부=미허용).
+    const authorContext = (preset) => (passageToggle.checked
+      ? { intent: 'author-section', preset, allowPassageContent: true }
+      : { intent: 'author-section', preset });
+
     const presetRow = el('div', { class: 'ai-presets' });
     const practiceBtn = el('button', { type: 'button', id: 'ai-author-practice', text: '연습문제 섹션' });
     practiceBtn.addEventListener('click', () => sendRequest(
       '이 활동지 맥락에 맞는 연습문제 섹션을 새로 저작해 주세요(문항 2~3개). 필요하면 짧은 안내 문장을 함께 넣되, 정답은 넣지 마세요.',
-      { intent: 'author-section', preset: 'practice' },
+      authorContext('practice'),
     ));
     const summaryBtn = el('button', { type: 'button', id: 'ai-author-summary', text: '요약 정리 섹션' });
     summaryBtn.addEventListener('click', () => sendRequest(
       '이 활동지 맥락을 정리하는 섹션을 새로 저작해 주세요(제목 + 핵심 정리 본문).',
-      { intent: 'author-section', preset: 'summary' },
+      authorContext('summary'),
     ));
     presetRow.append(practiceBtn, summaryBtn);
     wrap.appendChild(presetRow);
@@ -827,7 +843,7 @@ export function createAiPanel(deps) {
     sendBtn.addEventListener('click', () => {
       const text = ta.value.trim();
       if (!text) return;
-      sendRequest(text, { intent: 'author-section', preset: 'free' });
+      sendRequest(text, authorContext('free'));
     });
     freeWrap.append(ta, sendBtn);
     wrap.appendChild(freeWrap);

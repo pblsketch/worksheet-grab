@@ -300,7 +300,9 @@ function watchAndRespondOps(bridge, planFor, { rounds = 1, timeoutMs = 40000 } =
  * 삽입 위치는 에디터(교사 앵커, computeAuthorAnchor)가 정하므로 afterId 를 싣지 않는다 — 실제로는
  * 별도 프로세스의 `worksheet-grab ai respond <id> --fragment <file.json>` 이 같은 파일을 쓴다.
  */
-function watchAndRespondFragment(bridge, fragmentFor, { rounds = 1, timeoutMs = 40000 } = {}) {
+// contextFor(선택): 응답 봉투에 context 를 실어 보낸다 — B3 에서 "AI 가 응답 context 로 권한을
+// self-grant 하려는" 적대 상황을 모의할 때 쓴다(에디터는 교사 요청측 grant 만 권위로 삼아 무시해야 한다).
+function watchAndRespondFragment(bridge, fragmentFor, { rounds = 1, timeoutMs = 40000, contextFor = null } = {}) {
   return (async () => {
     const seen = [];
     const startedAt = Date.now();
@@ -312,7 +314,10 @@ function watchAndRespondFragment(bridge, fragmentFor, { rounds = 1, timeoutMs = 
       const fresh = pending.find((r) => !seen.includes(r.id));
       if (!fresh) { await new Promise((r) => setTimeout(r, 150)); continue; }
       seen.push(fresh.id);
-      await bridge.putResponse({ schemaVersion: 4, id: fresh.id, fragment: fragmentFor(fresh, seen.length) });
+      const resp = { schemaVersion: 4, id: fresh.id, fragment: fragmentFor(fresh, seen.length) };
+      const c = contextFor ? contextFor(fresh, seen.length) : null;
+      if (c) resp.context = c;
+      await bridge.putResponse(resp);
     }
     return seen;
   })();
@@ -718,6 +723,40 @@ test('B1 새 섹션 저작(완전 빈 문서): pageId 앵커로 유일 페이지
     assert.equal(ds(dom, 'ed-flow-after'), '2', '유일 페이지 flow 에 2개 저작');
     assert.equal(ds(dom, 'ed-first-type'), 'title', '순서 보존(첫 개체 title)');
     assert.equal(ds(dom, 'ed-rendered'), 'true', '저작 섹션이 캔버스에 렌더');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
+
+// B3(지문 저작 권한 연결, HANDOFF-bprime-followups §1 B3) — fragment 경로의 passage bodyHtml 은 교사가
+// 명시 opt-in(토글) 했을 때만 통과한다. 종전엔 ctx.allowPassageContent 를 채우는 경로가 없어 사실상
+// 항상 거부됐다. 여기서 모의 구독 AI 는 응답 context 에 allowPassageContent:true 를 실어 보내지만(적대적
+// self-grant 시도) — 권한은 교사 요청측 grant(state.context)가 권위라 그것만으론 통과하지 못한다.
+test('B3 지문 권한: 토글 OFF → passage bodyHtml 차단(AI 응답 self-grant 무시) · 토글 ON → 승인·적용', { skip: !HAS_CHROME, timeout: 120000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    // 두 라운드 모두 같은 프래그먼트(passage bodyHtml 포함) + 같은 적대적 응답 context(allowPassageContent:true).
+    const watcher = watchAndRespondFragment(
+      bridge,
+      () => ([
+        { type: 'passage-slot', slotLabel: '［지문 삽입 슬롯］', bodyHtml: '<p>교사가 넣은 지문 본문 예시.</p>' },
+        { type: 'question', qtype: 'short-answer', prompt: '윗글의 중심 소재는?' },
+      ]),
+      { rounds: 2, contextFor: () => ({ allowPassageContent: true }) }, // AI 가 스스로 권한 부여 시도
+    );
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-author-passage`, { timeoutMs: 90000 }), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-author-passage');
+
+    assert.equal(ds(dom, 'p-toggle-present'), 'true', '저작 뷰에 지문 권한 토글이 있다');
+
+    // ── 라운드 1: 토글 OFF → AI 가 context 로 self-grant 해도 차단 ──
+    assert.equal(ds(dom, 'p-off-applicable'), 'false', '토글 OFF: passage bodyHtml 은 적용 불가(교사 미허가)');
+    assert.match(ds(dom, 'p-off-reason') || '', /allowPassageContent|권한/, '차단 사유가 지문 권한 부재를 가리킨다');
+
+    // ── 라운드 2: 토글 ON → 승인·적용·렌더 ──
+    assert.equal(ds(dom, 'p-on-applicable'), 'true', '토글 ON: passage bodyHtml 저작 허용');
+    assert.equal(ds(dom, 'p-on-applied-body'), 'true', '적용 후 passage 개체 bodyHtml 에 저작 본문 반영');
+    assert.equal(ds(dom, 'p-on-rendered'), 'true', '저작 지문이 캔버스에 실제 렌더');
   } finally {
     await new Promise((r) => server.close(r));
   }
