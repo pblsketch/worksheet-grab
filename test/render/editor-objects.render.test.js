@@ -176,7 +176,7 @@ test('시각 조직자 삽입(#2 P1a): "시각 조직자" 그리드 버튼 → �
     try {
       const dom = await dumpDom(`${url}/?seed=organizer-insert`);
       assert.equal(ds(dom, 'seed-done'), 'organizer-insert');
-      assert.ok(Number(ds(dom, 'organizer-btn-count')) >= 16, `시각 조직자 버튼 ≥16(표형10+그림형6) 렌더(실제 ${ds(dom, 'organizer-btn-count')})`);
+      assert.ok(Number(ds(dom, 'organizer-btn-count')) >= 23, `시각 조직자 버튼 ≥23(표형10+그림형6+특수7) 렌더(실제 ${ds(dom, 'organizer-btn-count')})`);
       assert.equal(ds(dom, 'ins-type'), 'table', '삽입 개체는 table(새 타입 아님 — 스키마 무변경)');
       assert.equal(ds(dom, 'ins-placement'), 'flow', 'flow 전용 삽입(좌표 없음)');
       assert.equal(ds(dom, 'ins-concept-colspan'), '2', '개념=병합 셀(colspan2·중앙) — caption 아님');
@@ -189,6 +189,9 @@ test('시각 조직자 삽입(#2 P1a): "시각 조직자" 그리드 버튼 → �
       // 그림형(P2) — 벤다이어그램 잠금 삽입(richtext 인라인 SVG)
       assert.equal(ds(dom, 'gins-type'), 'richtext', '그림형은 richtext 잠금 삽입(새 타입 아님)');
       assert.equal(ds(dom, 'gins-renders-svg'), 'true', '벤다이어그램 SVG 렌더');
+      // 특수 레이아웃(P2b) — 신호등 잠금 삽입(richtext 블록 HTML, 색이 의미)
+      assert.equal(ds(dom, 'sins-type'), 'richtext', '특수 조직자는 richtext 잠금 삽입');
+      assert.equal(ds(dom, 'sins-renders-stoplight'), 'true', '신호등 구조 렌더(blocks.css 색 적용)');
       assert.equal(ds(dom, 'organizer-save-ok'), 'true', '표형+그림형 저장 왕복 안전(SVG 보존·정답 누출 0)');
     } finally {
       await new Promise((r) => server.close(r));

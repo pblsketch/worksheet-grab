@@ -1301,6 +1301,15 @@ export async function runEditorTestSeed(seed, {
     document.body.dataset.ginsType = core.findObject(gId).obj.type;
     const gEl = doc.querySelector(`[data-oid="${gId}"]`);
     document.body.dataset.ginsRendersSvg = String(!!gEl && /<svg/i.test(gEl.innerHTML));
+    // 특수 레이아웃(P2b) — 신호등(색이 의미) 잠금 삽입(richtext 블록 HTML). 색·구조 보존 확인.
+    document.querySelector('#organizer-grid [data-organizer-key="stoplight"]').click();
+    await wait(150);
+    cancelScheduledReflow();
+    doc = frames.teacher.contentDocument;
+    const sId = [...selection.state.selectedIds][0];
+    document.body.dataset.sinsType = core.findObject(sId).obj.type;
+    const sEl = doc.querySelector(`[data-oid="${sId}"]`);
+    document.body.dataset.sinsRendersStoplight = String(!!sEl && /class="[^"]*\bstoplight\b/.test(sEl.innerHTML));
     const saved = await save();
     document.body.dataset.organizerSaveOk = String(saved != null && saved.unsafe === false);
   } else if (seed === 'view-toggle') {
