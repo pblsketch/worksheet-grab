@@ -1,6 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FsBlockRepository } from '../../src/adapters/FsBlockRepository.js';
@@ -13,11 +12,6 @@ const mockCurriculum = {
   async resolve(code) { return { code, text: `원문(${code})`, subject: 'test' }; },
 };
 
-async function sectionCount(pocFile) {
-  const html = await readFile(resolve(ROOT, pocFile), 'utf8');
-  return (html.match(/<section class="sheet"/g) || []).length;
-}
-
 async function assemble(name) {
   const repo = new FsBlockRepository({ root: ROOT });
   const manifest = await repo.readManifest(name);
@@ -25,18 +19,14 @@ async function assemble(name) {
   return asm.execute(manifest);
 }
 
-test('수용기준 5: 재조립 국어 = 원본 PoC authored 섹션수(5)와 일치', async () => {
+test('수용기준 5: 재조립 국어는 5쪽 구성을 유지한다', async () => {
   const { worksheet } = await assemble('ko');
-  const original = await sectionCount('poc/worksheet.html');
-  assert.equal(original, 5);
-  assert.equal(worksheet.pageCount(), original, '재조립 페이지수 == 원본 섹션수');
+  assert.equal(worksheet.pageCount(), 5);
 });
 
-test('수용기준 5: 재조립 과학 = 원본 PoC authored 섹션수(3)와 일치', async () => {
+test('수용기준 5: 재조립 과학은 3쪽 구성을 유지한다', async () => {
   const { worksheet } = await assemble('sci');
-  const original = await sectionCount('poc/science.html');
-  assert.equal(original, 3);
-  assert.equal(worksheet.pageCount(), original);
+  assert.equal(worksheet.pageCount(), 3);
 });
 
 test('수용기준 5: 재조립 국어에 주요 컴포넌트 존재', async () => {

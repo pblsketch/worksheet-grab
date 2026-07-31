@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Run unit tests
+        run: npm run test:unit
+      - name: Build teacher bundle
+        run: node scripts/build-user-bundle.mjs dist/worksheet-grab-user
+      - name: Verify teacher bundle
+        run: |
+          test -f dist/worksheet-grab-user/AGENTS.md
+          test -f dist/worksheet-grab-user/CLAUDE.md
+          test -f dist/worksheet-grab-user/LICENSE
+          test ! -e dist/worksheet-grab-user/test
+          test ! -e dist/worksheet-grab-user/docs
+          node dist/worksheet-grab-user/bin/worksheet-grab.js help >/dev/null

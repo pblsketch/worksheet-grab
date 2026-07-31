@@ -6,8 +6,8 @@ import {
 } from '../../src/domain/schema/index.js';
 import { validateResponse, AI_SCHEMA_VERSION } from '../../src/usecases/aiBridge.js';
 
-// B′ 스파이크(결정 태스크) — ValidateAiFragment 거부 매트릭스 + 컴파일 계약. docs/ADR-bspike-ai-fragment.md.
-// 계약 근거: docs/HANDOFF-grab-Bspike.md §3 + codex 적대 리뷰 §2·§5~§7.
+// AI 프래그먼트 저작 — ValidateAiFragment 거부 매트릭스 + 컴파일 계약.
+// 정책 근거: docs/ADR-bspike-ai-fragment.md.
 
 const seq = () => { let n = 0; return () => `frag-${n++}`; };
 

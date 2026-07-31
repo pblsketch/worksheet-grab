@@ -1,7 +1,7 @@
 // 하네스 경계 회귀 잠금 — 제품(2층)에 개발(3층) 어휘가 재유입되거나 배포 번들에 3층이 섞이면 빨간불.
 // 근거·어휘 사전: docs/HARNESS-MAP.md §5. 매니페스트만으로는 경계가 침식되므로 테스트로 잠근다.
 //
-// 경계 대상 = 제품 하네스의 "행동 규칙 산문"(SKILL.md·에이전트·PRODUCT-CLAUDE·AGENTS.md).
+// 경계 대상 = 제품 하네스의 "행동 규칙 산문"(SKILL.md·에이전트·CLAUDE.md·AGENTS.md).
 // 제외 = worksheet-consult/{references,examples} 는 upstream verbatim 코퍼스(원문 편집 금지)라 스캔 예외.
 // 허용 = 엔진 인터페이스명(ValidateObjectTree 등)과 `import ... from './src/...'` 예시는 1↔2 계약이라 누출 아님.
 
@@ -72,8 +72,8 @@ function productFiles(base) {
 // 1) 소스트리의 제품 하네스에 개발어휘가 없다
 test('2층 제품 하네스(소스)에 개발(3층) 어휘가 없다', () => {
   const files = productFiles(ROOT);
-  const pc = join(ROOT, '.claude', 'PRODUCT-CLAUDE.md');
-  if (existsSync(pc)) files.push(pc);
+  const claude = join(ROOT, 'CLAUDE.md');
+  if (existsSync(claude)) files.push(claude);
   const agents = join(ROOT, 'AGENTS.md');
   if (existsSync(agents)) files.push(agents);
 
@@ -98,7 +98,8 @@ test('빌드된 사용자 번들에 개발(3층)이 없고 교사용으로 구�
     }
     // 필수 존재
     for (const f of ['bin', 'src', join('schema', 'worksheet-object.schema.json'),
-      join('.claude', 'skills'), join('.claude', 'agents'), 'AGENTS.md', 'CLAUDE.md', 'package.json']) {
+      join('.claude', 'skills'), join('.claude', 'agents'), 'AGENTS.md', 'CLAUDE.md',
+      'LICENSE', 'package.json']) {
       assert.ok(existsSync(join(out, f)), `번들에 필수 자산 누락: ${f}`);
     }
     // 번들 CLAUDE.md = 교사용(개발 헌장 아님)
