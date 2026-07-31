@@ -90,7 +90,9 @@ A/B 를 가르지 못한다. 실제 갈림길은 **라벨**이다: A안은 label
 ## 7. 후속 (Follow-ups) — 승인 후 별도 작업
 
 - ~~나머지 5종 슬롯화~~ · ~~라벨 슬롯 이름 키화~~ — **완료(2026-07-31 확장).** 6종 전부 개수·라벨 편집.
-- **마이그레이션 대칭**(P1b 선례) — compose/기존 문서의 richtext 조직자를 organizer 로 승격.
+- ~~마이그레이션 대칭~~ — **완료(2026-07-31).** compose 파라메트릭 그림형(`{type,params}`)을 열 때
+  organizer 로 승격(P1b 표형 승격과 대칭). 정적 블록·저작 html 그림형은 richtext 로 무손실 보존.
+  부수 효과: 파라메트릭 그림형이 빈 richtext 로 마이그레이션되던 잠재 버그 해소.
 - **에디터 organizer PDF 쪽수 파리티 테스트**(§6-2) — `editor-print-parity.render` 에 organizer 픽스처 추가.
 - **designer 저작 어휘** — AI 가 kind·개수·슬롯 텍스트를 저작(좌표 아님). editorqa(worksheet-design) 와
   겹치므로 그 세션 병합 후 별도 승인.
