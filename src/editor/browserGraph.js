@@ -42,6 +42,11 @@ const DEFAULT_ENTRIES = Object.freeze([
   'src/usecases/ValidateObjectTree.js',
   'src/usecases/RenderObjectTree.js',
   'src/usecases/PaginateObjectTree.js',
+  // 에디터 AI 프래그먼트 저작 경로(B′, ADR-bspike-ai-fragment.md). editor/ai.js 가 /src/ 라우트로
+  // import 하는데 검수 체인에서 도달하지 않아 화이트리스트에 안 들어온다 — 명시 엔트리로 등재하지
+  // 않으면 404 → ai.js 모듈 로드 실패 → AI 패널 백지(apply-ai-fragment.test.js 가 상시 단정).
+  // 순수(domain/schema 만 import)라 purity 가드도 통과한다.
+  'src/usecases/applyAiFragment.js',
 ]);
 
 /**

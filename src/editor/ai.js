@@ -32,6 +32,7 @@ import { QUESTION_TYPES, computePageVersion } from '/src/domain/schema/index.js'
 import { QTYPE_LABELS } from './objectFactory.js';
 import { pageScopeTargets } from '/editor/pageScope.js';
 import { enforceAiLayout } from '/editor/aiLayoutGuard.js';
+import { prepareAiFragment } from '/src/usecases/applyAiFragment.js';
 
 const renderer = new RenderObjectTree();
 const WAIT_TIMEOUT_MS = 5 * 60 * 1000; // 대기 총 상한(무API 특성상 사람이 응답 — 옛 ai.js 관례와 동일)
@@ -583,6 +584,29 @@ export function createAiPanel(deps) {
     render();
   }
 
+  /**
+   * B′ 프래그먼트 응답(제약 AI 가 id 없이 저작한 scaffold 개체 배열) → 미리보기 버전.
+   * prepareAiFragment 로 결정 검증·구조 floor 를 거쳐 **단일 insert-section op** 로 컴파일한 뒤,
+   * 그 op 를 buildOpsVersion 에 그대로 흘려보낸다 — 미리보기·앵커·범위·충돌·단일 undo 파이프라인을
+   * 통째로 재사용한다(ADR-bspike-ai-fragment.md 권고: 검증 계층 채택 + insert-section 전송 계층 유지).
+   * 앵커는 응답이 지정한 afterId/beforeId, 없으면 마지막 대상 개체 뒤(선택 기준 섹션 생성).
+   */
+  function buildFragmentVersion(requestId, response, meta) {
+    const lastTarget = state.targets.length ? state.targets[state.targets.length - 1].id : null;
+    const anchor = (typeof response.afterId === 'string' && response.afterId) ? { afterId: response.afterId }
+      : (typeof response.beforeId === 'string' && response.beforeId) ? { beforeId: response.beforeId }
+        : (lastTarget ? { afterId: lastTarget } : {});
+    const prep = prepareAiFragment(response.fragment, {
+      ctx: response.context && typeof response.context === 'object' ? response.context : {},
+      anchor,
+      requestPageVersions: meta.pageVersions ?? null,
+    });
+    if (!prep.ok) {
+      return { requestId, kind: 'ops', items: [], ops: [], applicable: false, blockReason: prep.blockReason, ...meta };
+    }
+    return buildOpsVersion(requestId, [prep.op], meta);
+  }
+
   function applyResponseAsVersion(requestId, response) {
     if (!state || state.currentRequestId !== requestId) return;
     const meta = {
@@ -591,9 +615,11 @@ export function createAiPanel(deps) {
       pageVersions: state.pendingPageVersions ?? null,
       targetCount: state.targets.length,
     };
-    const version = Array.isArray(response?.ops)
-      ? buildOpsVersion(requestId, response.ops, meta)
-      : buildEchoVersion(requestId, response, meta);
+    const version = Array.isArray(response?.fragment)
+      ? buildFragmentVersion(requestId, response, meta)
+      : Array.isArray(response?.ops)
+        ? buildOpsVersion(requestId, response.ops, meta)
+        : buildEchoVersion(requestId, response, meta);
     state.versions.push(version);
     state.phase = 'preview';
     showVersion(state.versions.length - 1);

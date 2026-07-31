@@ -136,6 +136,9 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
                                                   (개수·종류가 자유로운 계획, v4 — Phase 4. insert-section 은
                                                    여러 개체를 한 번에·순서대로 생성: {op,objects:[…],afterId|beforeId})
                                                   --objects 는 [{id,object}] JSON(개체 ID 에코, v3 — US-19)
+                                                  --fragment <file.json> [--after <id>|--before <id>] 는 id 없는
+                                                   scaffold 개체 배열(B′ 저작 — 좌표·조판·답안 금지). 에디터가
+                                                   validateAiFragment 게이트 후 단일 insert-section 으로 컴파일한다.
         ai list [--all] · ai clear [<id>]        상태 조회·terminal 정리
       큐 위치: <워크스페이스>/.ai-bridge/. 성취기준·저작권 지문 블록은 대상에서 제외.
   worksheet-grab list-blocks
@@ -777,6 +780,22 @@ async function cmdAi(args, flags, { log, err }) {
         if (!validateResponse(response)) {
           throw new Error("ai respond --ops: 응답 형태가 v4 스키마와 맞지 않습니다 — replace={op,id,object}, insert={op,object,afterId|beforeId}, delete={op,id}, insert-section={op,objects:[…],afterId|beforeId}(여러 개체 한 번에). insert·insert-section 에 afterId 와 beforeId 를 동시에 줄 수 없습니다.");
         }
+      } else if (typeof flags.fragment === 'string') {
+        // B′ 프래그먼트 저작(ADR-bspike-ai-fragment.md): id 없는 scaffold 개체 배열을 그대로 싣는다.
+        // 좌표·조판·답안·미허용 HTML 의 결정 검증은 **에디터 적용 시** validateAiFragment 가 수행하고,
+        // 여기(전송 계층)서는 봉투 형태(비어있지 않은 {type,…} 배열 + anchor 동시금지)만 본다.
+        const parsed = JSON.parse(await readFile(resolve(flags.fragment), 'utf8'));
+        const fragment = Array.isArray(parsed) ? parsed : parsed?.fragment;
+        if (!Array.isArray(fragment) || fragment.length === 0) {
+          throw new Error('ai respond --fragment: [{type,…}] scaffold 개체 배열(또는 {fragment:[…]}) JSON 파일이 필요합니다.');
+        }
+        const anchor = {};
+        if (typeof flags.after === 'string' && flags.after) anchor.afterId = flags.after;
+        if (typeof flags.before === 'string' && flags.before) anchor.beforeId = flags.before;
+        response = { schemaVersion: AI_SCHEMA_VERSION, id, fragment, ...anchor };
+        if (!validateResponse(response)) {
+          throw new Error('ai respond --fragment: 봉투 형태가 맞지 않습니다 — fragment 는 비어있지 않은 {type,…} 배열이어야 하고 --after/--before 를 동시에 줄 수 없습니다. (개체 결정 검증은 에디터 적용 시 validateAiFragment 소관)');
+        }
       } else if (typeof flags.objects === 'string') {
         const parsed = JSON.parse(await readFile(resolve(flags.objects), 'utf8'));
         const objects = Array.isArray(parsed) ? parsed : parsed?.objects;
@@ -809,15 +828,16 @@ async function cmdAi(args, flags, { log, err }) {
           throw new Error('ai respond --unsupported "<사유>": 비어 있지 않은 사유 문자열이 필요합니다.');
         }
       } else {
-        throw new Error('ai respond: --from <file> / --html <inline> / --blocks <file.json> / --objects <file.json> / --unsupported "<사유>" 중 하나가 필요합니다.');
+        throw new Error('ai respond: --from <file> / --html <inline> / --blocks <file.json> / --objects <file.json> / --ops <file.json> / --fragment <file.json> / --unsupported "<사유>" 중 하나가 필요합니다.');
       }
       await bridge.putResponse(response);
       // 양형 방어(v1~v4·반려): 없는 필드에 직접 접근하면 다른 형태 회신에서 크래시한다.
       const detail = response.unsupported ? `반려("${response.reason}")`
-        : response.ops ? `${response.ops.length}계획(${response.ops.map((o) => o.op).join('·')})`
-          : response.objects ? `${response.objects.length}개체`
-            : response.blocks ? `${response.blocks.length}블록`
-              : `${(response.html ?? '').length}자`;
+        : response.fragment ? `프래그먼트 ${response.fragment.length}개체(B′ 저작)`
+          : response.ops ? `${response.ops.length}계획(${response.ops.map((o) => o.op).join('·')})`
+            : response.objects ? `${response.objects.length}개체`
+              : response.blocks ? `${response.blocks.length}블록`
+                : `${(response.html ?? '').length}자`;
       log(`✔ 응답 기록: ${id} (${detail}) — 에디터가 폴링으로 수신합니다.`);
       return 0;
     }

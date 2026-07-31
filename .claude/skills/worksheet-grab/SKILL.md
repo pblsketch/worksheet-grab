@@ -165,4 +165,17 @@ designer가 사진/일러스트가 필요하다고 판단하면:
      `op`∈`replace`(치환)·`insert`(단일 신규)·`delete`(삭제)·`insert-section`(여러 개체를 한 번에·순서대로
      **새 섹션**으로 생성 — `{op:'insert-section', objects:[…], afterId|beforeId}`, 예: "여기에 연습문제 묶음
      만들어줘"). 새 개체가 성취기준이면 거부된다(원칙 3). 삽입 위치는 `afterId`/`beforeId` 중 하나만.
+   - **B′ 프래그먼트 저작(새 섹션을 개체트리로 직접 씀)**: `id 없는` scaffold 개체 배열 JSON 을
+     `ai respond <id> --fragment <file.json> [--after <id>|--before <id>]` 로 회신한다. 에디터가
+     **`ValidateAiFragment` 결정 게이트**를 통과시킨 뒤 단일 `insert-section` 으로 컴파일한다(ADR:
+     `docs/ADR-bspike-ai-fragment.md`). **저작 어휘(엄격)**:
+     - 타입 9종만: `title`·`passage-slot`·`question`·`table`·`image-slot`·`answer-area`·`divider`·
+       `richtext`·`callout`. (`std-box`·`shape`·`spacer`·`page-break` 는 금지.)
+     - **쓰지 말 것**(있으면 프래그먼트 전체 반려): 개체 `id`·`placement`·좌표(`rect`/`xMm…`)·크기
+       (`widthPct`/`minHeightMm`/`align`)·`opacity`/`angle`·`page*`/`pagination`·표현필드
+       (`borderColor`/`bgColor`…)·`image-slot.src`·**답안(`answer`/`answerKey`)**. (id·자리·조판·정답은
+       엔진/교사 몫 — 답안은 이 경로로 만들지 않는다.)
+     - HTML 은 5위치만 허용(정제 allowlist 통과분만): `passage-slot.bodyHtml`(권한 필요)·`richtext.html`·
+       `callout.body`·`title.textHtml`·`question.promptHtml`. `<script>`/`style`/`iframe`/`on*`/`javascript:`
+       등은 반려된다. 표 셀·choices 등 **중첩 id 는 정상**.
    에디터가 폴링으로 수신해 교사에게 diff 미리보기(다중이면 결합 뷰)를 보여주고, 적용·저장은 교사가 한다.

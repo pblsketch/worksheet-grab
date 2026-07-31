@@ -1,6 +1,7 @@
 # ADR — AI 생성 방식: 고정 ops 확장 유지 vs B′(제약 프래그먼트 저작 + `ValidateAiFragment`)
 
-- **상태**: Proposed — 사용자 승인 대기. **이 문서는 결정 태스크의 산출물(권고안)이며 기능 배포가 아니다.**
+- **상태**: **Accepted(2026-07-31, 사용자 승인)** — 권고대로 검증 계층을 라이브 적용 경로에 배선 완료
+  (feat/bspike). 상세는 §13. main 병합만 사용자 승인 대기. (원 결정 태스크 산출물은 §1~§12에 보존.)
 - **날짜**: 2026-07-31
 - **브랜치**: `feat/bspike` (격리 워크트리 `E:/github/worksheet-grab-bspike`)
 - **선행**: `docs/HANDOFF-grab-Bspike.md`(SSOT) · `docs/HANDOFF-grab-M4-M5-Bspike.md` · codex 적대 리뷰(ITERATE, §2·§5~§7)
@@ -205,5 +206,46 @@ op 프로토콜은 그대로 산다.
 node test/fixtures/spike-bprime/run-spike.mjs          # 계측 → spike-metrics.json (ALL-GATES-PASS)
 node --test test/unit/validate-ai-fragment.test.js \
             test/unit/html-allowlist.test.js \
-            test/unit/bprime-corpus.test.js          # 유닛 (거부 매트릭스·토큰검증·corpus 회귀)
+            test/unit/bprime-corpus.test.js \
+            test/unit/apply-ai-fragment.test.js       # 유닛 (거부 매트릭스·토큰검증·corpus·배선 e2e)
 ```
+
+---
+
+## 13. 배선 완료 (2026-07-31 — 채택 후 구현)
+
+권고(§9)대로 **검증 계층을 라이브 적용 경로에 배선**했다. "고정 ops"를 교체하지 않고, insert-section
+을 전송 계층으로 유지한 채 그 안으로 들어오는 **B′ 프래그먼트 저작을 게이트**한다. B′ 답안 미생성
+결정(§7)과 기존 answerKey 저작이 충돌하므로, B′ 는 기존 경로를 **대체하지 않고 별도 저작 모드로
+병존**한다(계층형).
+
+**추가/변경 파일**
+- `src/usecases/applyAiFragment.js`(신설) — `prepareAiFragment`: validateAiFragment(결정 게이트) →
+  compileFragmentToInsertSection(엔진 id·placement:'flow'·anchor 필수·pageVersions 바인딩) →
+  **validateObjectShape 구조 floor**(§10.1 malformed 방어). 산출은 단일 insert-section op. 순수·
+  Node 테스트 가능(objectFactory 미import — 적용은 호출부).
+- `src/usecases/aiBridge.js` — `validateResponse` 가 프래그먼트 봉투 `{schemaVersion,id,fragment:[…],
+  afterId?|beforeId?}` 수용(+`isFragmentResponse`). 전송 계층 형태만 검사(개체 결정 검증은 적용 경로).
+- `src/editor/ai.js` — `applyResponseAsVersion` 에 `response.fragment` **가산 분기**(기존 ops/echo 경로
+  무영향). `buildFragmentVersion` 이 prepareAiFragment 로 검증·컴파일 후 컴파일 op 를 **기존
+  `buildOpsVersion` 에 그대로 흘려보내** 미리보기·앵커·범위·충돌·단일 undo 파이프라인을 통째로 재사용.
+  실패 시 blockReason 을 보이는 blocked 버전(조용한 실패 금지).
+- `src/cli/index.js` — `ai respond <id> --fragment <file.json> [--after|--before <id>]`(전송) + 도움말.
+- `.claude/skills/worksheet-grab/SKILL.md`·`.claude/agents/worksheet-designer.md` — B′ 프래그먼트
+  저작 어휘/금지 규칙 계약 문서화.
+
+**검증**
+- 유닛 `test/unit/apply-ai-fragment.test.js`(신설, 10 케이스): prepareAiFragment 승인/좌표·답안·HTML
+  반려/anchor 필수/구조 floor + **prepareAiFragment→applyAiOps 실제 문서 적용 e2e**(anchor 뒤 순서
+  삽입·placement:flow·원본 불변) + aiBridge 프래그먼트 봉투.
+- 전체 유닛 **870 pass / 0 fail**(회귀 0). 렌더 `editor-ai.render.test.js` 무회귀(ai.js 가 신 모듈을
+  정상 로드·기존 경로 불변 — 새 분기는 fragment 응답에서만 트리거).
+
+**§10 후속 반영**: #1(applyAiOps 앞단 구조 게이트) = prepareAiFragment 의 shape floor 로 충족.
+#2(stale 바인딩) = 컴파일 봉투의 requestPageVersions 를 buildOpsVersion 의 pageVersions/detectConflict
+경로가 소비. #3(designer 계약) = 완료. #4(HTML allowlist 프로파일 확장) = 안전 최소집합 유지(제품 요구
+확인 시 데이터 기반 확장 — 후속).
+
+**미배선(의도적 범위 밖)**: 렌더 하네스에 fragment 전용 seed 시나리오 추가는 하지 않았다(기존
+insert-section 파이프라인 재사용이라 순수 유닛 e2e 로 대체 검증). 브라우저 UI 에 "새 섹션 저작" 전용
+진입 버튼은 별도 UX 과제.

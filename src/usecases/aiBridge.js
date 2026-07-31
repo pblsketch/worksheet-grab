@@ -52,6 +52,12 @@ export function isUnsupportedResponse(res) {
   return !!res && typeof res === 'object' && res.unsupported === true;
 }
 
+/** 응답이 B′ 프래그먼트 저작 봉투인가 — {fragment:[…scaffold 개체], afterId?|beforeId?}(id 없는 저작).
+ *  ops 봉투(1:1/계획)와 달리, 엔진이 validateAiFragment 게이트 후 단일 insert-section 으로 컴파일한다. */
+export function isFragmentResponse(res) {
+  return !!res && typeof res === 'object' && Array.isArray(res.fragment);
+}
+
 export function canTransition(from, to) {
   return TRANSITIONS[from]?.has(to) ?? false;
 }
@@ -185,6 +191,20 @@ export function validateRequest(req) {
   return Array.isArray(req.objects) && req.objects.length > 0 && req.objects.every(isValidObjectItem);
 }
 
+/**
+ * B′ 프래그먼트 봉투 형태 검증(프로토콜 최소 불변식만 — 개체 구조·좌표·HTML 의 결정 검증은
+ * 적용 경로의 validateAiFragment/prepareAiFragment 소관, isValidOpItem 이 타입별 완전성을
+ * applyAiOps 로 미루는 것과 같은 계층 규약). 여기서는 비어있지 않은 개체 배열 + anchor(afterId|beforeId
+ * 동시 금지)만 본다. 개체는 id 없는 저작(엔진이 발급)이라 op 봉투의 id 요구를 적용하지 않는다.
+ */
+function isValidFragmentEnvelope(res) {
+  if (!Array.isArray(res.fragment) || res.fragment.length === 0) return false;
+  if (!res.fragment.every((o) => !!o && typeof o === 'object' && !Array.isArray(o) && typeof o.type === 'string' && !!o.type)) return false;
+  const hasAfter = typeof res.afterId === 'string' && !!res.afterId;
+  const hasBefore = typeof res.beforeId === 'string' && !!res.beforeId;
+  return !(hasAfter && hasBefore);
+}
+
 export function validateResponse(res) {
   if (!res || typeof res !== 'object') return false;
   if (!AI_SCHEMA_VERSIONS.has(res.schemaVersion)) return false;
@@ -192,6 +212,8 @@ export function validateResponse(res) {
   // 열화 반려(M5): ops/objects 대신 unsupported:true + reason(사용자에게 보일 사유). ops 요구를 우회한다
   // — 구독 AI 가 "합칠 수 없는 지시"·"어휘 초과"를 조용히 무응답으로 두지 않고 명시적으로 돌려보낸다.
   if (res.unsupported === true) return typeof res.reason === 'string' && !!res.reason.trim();
+  // B′ 프래그먼트 저작 봉투(전송 계층) — 개체 결정 검증은 적용 경로가 한다(ADR-bspike-ai-fragment.md).
+  if (Array.isArray(res.fragment)) return isValidFragmentEnvelope(res);
   // v1 = 단일 html, v2 = blocks[{slot:정수≥0, html:비어있지 않음}], v3 = objects[{id,object}],
   // v4 = ops[{op,…}](개수·종류가 자유로운 계획).
   if (res.schemaVersion === 1) return typeof res.html === 'string' && !!res.html.trim();
