@@ -1801,6 +1801,18 @@ export async function runEditorTestSeed(seed, {
       .find((o) => o.type === 'passage-slot' && typeof o.bodyHtml === 'string' && o.bodyHtml.includes('지문 본문 예시'));
     document.body.dataset.pOnAppliedBody = String(!!passObj);
     document.body.dataset.pOnRendered = String(doc.body.textContent.includes('교사가 넣은 지문 본문 예시'));
+  } else if (seed === 'ai-ops-malformed-insert') {
+    // B4 — --ops 경로 구조 게이트: AI 가 insert 로 malformed 신규 개체(카탈로그 밖 qtype)를 계획하면
+    // 미리보기에서 차단된다(적용 버튼 비활성 + 사유). 유효 insert 회귀는 ai-ops-merge 가 지킨다.
+    doc.querySelector('[data-oid="q1"]').click();
+    document.getElementById('btn-ai').click();
+    document.getElementById('ai-preset-easier').click();
+    await pollUntil(() => document.getElementById('ai-panel')?.dataset.aiPhase === 'preview', { timeoutMs: 30000 });
+    const applyBtn = document.getElementById('ai-apply-ops');
+    document.body.dataset.mApplicable = String(!!applyBtn && !applyBtn.disabled);
+    document.body.dataset.mReason = document.getElementById('ai-error')?.textContent || ''; // showVersion 이 blockReason 을 실어둠
+    document.getElementById('ai-panel-close').click();
+    await wait(30);
   }
   document.body.dataset.seedDone = seed;
 }

@@ -34,7 +34,7 @@
 // prepareAiFragment→buildOpsVersion)은 그대로 재사용한다(진입만 추가).
 
 import { RenderObjectTree } from '/src/usecases/RenderObjectTree.js';
-import { QUESTION_TYPES, computePageVersion } from '/src/domain/schema/index.js';
+import { QUESTION_TYPES, computePageVersion, validateObjectShape } from '/src/domain/schema/index.js';
 import { QTYPE_LABELS } from './objectFactory.js';
 import { pageScopeTargets } from '/editor/pageScope.js';
 import { enforceAiLayout } from '/editor/aiLayoutGuard.js';
@@ -220,6 +220,24 @@ export function sanitizeObject(obj) {
  */
 export function sanitizeAiObject(obj, before = null) {
   return enforceAiLayout(sanitizeObject(obj), before);
+}
+
+/**
+ * 신규 저작 개체(insert/insert-section)의 **구조 게이트**(B4). --ops 경로는 applyAiOps 가 개체 스키마를
+ * 검증하지 않으므로(ADR §10.1 잔여분), malformed v4 개체가 미리보기·적용까지 새어 들어갈 수 있었다.
+ * 프래그먼트 경로의 구조 floor(prepareAiFragment→validateObjectShape)와 같은 방어를 --ops 신규 개체에도 건다.
+ *
+ * 게이트는 **buildOpsVersion 에만** 둔다 — applyAiOps 에 걸면 placement 없는 최소 개체를 넘기는 기존 유닛
+ * (editor-ai-ops.test.js)이 대거 깨진다(HANDOFF-bprime-followups §B4 함정). replace(기존 개체 수정)는
+ * 대상이 아니다 — 신규 저작분만 막는다. 삽입 개체는 flow 로 적용되므로 placement 를 flow 로 보아 검증한다
+ * (AI 는 placement 를 저작하지 않으며, 프래그먼트 컴파일러가 flow 를 주입하는 것과 동형).
+ * @returns {string|null} 문제 사유(있으면). 조용한 실패 금지 — 호출부가 problems 로 올려 적용을 막고 사유를 보인다.
+ */
+function newObjectShapeProblem(after) {
+  const s = validateObjectShape({ ...after, placement: after?.placement || 'flow' });
+  if (s.ok) return null;
+  const first = s.findings?.[0]?.message || '구조가 올바르지 않습니다.';
+  return `AI 가 만든 새 개체("${after?.type ?? '?'}")의 구조가 올바르지 않아 적용할 수 없습니다: ${first}`;
 }
 
 // ══════════════════════════ AI 패널 ══════════════════════════
@@ -560,6 +578,8 @@ export function createAiPanel(deps) {
           continue;
         }
         const after = sanitizeAiObject(raw.object, null);
+        const insShape = newObjectShapeProblem(after);
+        if (insShape) { problems.push(insShape); continue; }
         items.push({ key: `ins-${items.length}`, kind: 'insert', id: null, before: null, after });
         ops.push({
           op: 'insert',
@@ -585,6 +605,8 @@ export function createAiPanel(deps) {
         const badType = list.find((o) => o && excludedSet.has(o.type));
         if (badType) { problems.push(`"${badType.type}" 개체는 AI 가 생성할 수 없습니다 — 성취기준 원문은 보존됩니다(원칙 3).`); continue; }
         const cleaned = list.map((o) => sanitizeAiObject(o, null));
+        const secShape = cleaned.map(newObjectShapeProblem).find(Boolean);
+        if (secShape) { problems.push(secShape); continue; }
         for (const after of cleaned) items.push({ key: `sec-${items.length}`, kind: 'insert', id: null, before: null, after });
         ops.push({
           op: 'insert-section',

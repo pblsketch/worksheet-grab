@@ -761,3 +761,26 @@ test('B3 지문 권한: 토글 OFF → passage bodyHtml 차단(AI 응답 self-gr
     await new Promise((r) => server.close(r));
   }
 });
+
+// B4(비프래그먼트 --ops 경로 구조 게이트, HANDOFF-bprime-followups §1 B4) — AI 가 insert/insert-section 으로
+// malformed 신규 개체를 계획하면 미리보기에서 차단한다(적용 버튼 비활성 + 사유). applyAiOps 는 개체 스키마를
+// 검증하지 않으므로(ADR §10.1 잔여분) 프래그먼트 경로의 구조 floor 와 같은 방어를 --ops 신규 개체에도 건다.
+// 유효 insert 회귀는 위 ai-ops-merge(MERGE_PLAN 의 richtext insert 가 그대로 적용)가 계속 지킨다.
+test('B4 --ops 구조 게이트: malformed 신규 개체 insert 는 미리보기에서 차단(적용 비활성 + 사유)', { skip: !HAS_CHROME, timeout: 90000 }, async () => {
+  const { server, url, bridge } = await startEditServer({ document: opsDocument() });
+  try {
+    // insert 로 카탈로그 밖 qtype(구조 무효) 신규 개체를 계획한다. id·type 은 있어 브리지(isValidObjectPayload)
+    // 는 통과하지만(타입별 완전성 미검사), 구조 게이트(validateObjectShape)가 미리보기에서 막아야 한다 —
+    // 이게 B4 가 메우는 gap 이다(브리지 통과 · applyAiOps 미검증).
+    const watcher = watchAndRespondOps(bridge, () => ([
+      { op: 'insert', object: { id: 'bad-1', type: 'question', qtype: 'drag-drop', prompt: '틀린 유형(malformed)' }, afterId: 'q1' },
+    ]), { rounds: 1 });
+    const dom = await Promise.all([dumpDom(`${url}/?seed=ai-ops-malformed-insert`), watcher]).then(([d]) => d);
+    assertSeedDone(dom, 'ai-ops-malformed-insert');
+
+    assert.equal(ds(dom, 'm-applicable'), 'false', 'malformed 신규 개체는 적용 불가(구조 게이트)');
+    assert.match(ds(dom, 'm-reason') || '', /구조가 올바르지 않|qtype/, '차단 사유가 개체 구조 문제를 가리킨다');
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
