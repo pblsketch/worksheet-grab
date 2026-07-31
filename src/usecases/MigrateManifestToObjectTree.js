@@ -1,4 +1,5 @@
 import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
+import { ORGANIZER_KINDS } from '../domain/schema/ObjectCatalog.js';
 import { normalizeObjectives } from './AssembleWorksheet.js';
 
 // MigrateManifestToObjectTree — S1.3(M1) 마이그레이션 + 무손실·개체화율 게이트 산출물.
@@ -200,12 +201,25 @@ export const TABLE_ORGANIZER_TYPES = new Set([
   'kwl', 'frayer', 'w5h1', 'bme', 'prediction', 'glowgrow', 'perspectives', 'character', 'quotejournal', 'bookreview',
 ]);
 
-function buildObjectForEntry(id, srcType, html) {
+function buildObjectForEntry(id, srcType, html, entry = {}) {
   // 표형 시각 조직자: 정답(.answer) 없는 것만 편집 가능한 table 개체로 승격한다. 정답 있는 것은 null 을
   // 돌려 호출부가 richtext 로 남기고(BuildVariants 가 학생 빌드에서 셀 .answer 를 물리 제거), 표 인식
   // 실패나 텍스트 손실(캡션 등)은 buildTable(null)·#applyLosslessSafetyNet 이 richtext 로 되돌린다.
   if (TABLE_ORGANIZER_TYPES.has(srcType)) {
     return hasAnswerClass(html) ? null : buildTable(id, html);
+  }
+  // 그림형 시각 조직자(#2 P3): **파라메트릭 엔진 조직자**(entry.params 있음)를 편집 가능한 organizer
+  // 개체로 승격한다 — 엔진(OrganizerGen)이 kind·params 로 같은 SVG 를 재생성하므로 개수·라벨을
+  // 에디터에서 편집할 수 있고 무손실이다(파라메트릭 엔트리는 저작 텍스트를 담지 않는다). 파라메트릭이
+  // 아닌(정적 블록 file·렌더된 html) 그림형은 null 을 돌려 richtext 로 원본을 그대로 보존한다 —
+  // 라벨 텍스트 손실 방지(P1b 표형 승격의 보수성과 동형). entry.html 이 함께 있으면 아래
+  // applyLosslessSafetyNet 이 텍스트 불일치를 잡아 richtext 로 되돌린다(저작 라벨 보존).
+  if (ORGANIZER_KINDS.includes(srcType)) {
+    const params = (entry && entry.params && typeof entry.params === 'object' && !Array.isArray(entry.params)) ? entry.params : null;
+    if (!params) return null;
+    const obj = { id, type: 'organizer', placement: 'flow', kind: srcType, params: { ...params } };
+    if (entry.labels && typeof entry.labels === 'object' && !Array.isArray(entry.labels)) obj.labels = { ...entry.labels };
+    return obj;
   }
   switch (srcType) {
     case 'header':
@@ -335,7 +349,7 @@ async function migratePage(pageEntries, pageIdx, manifest, blockRepository) {
       }
       obj = applyLosslessSafetyNet(obj, html, id, srcType);
     } else {
-      obj = buildObjectForEntry(id, srcType, html) ?? { id, type: 'richtext', placement: 'flow', html, sourceType: srcType };
+      obj = buildObjectForEntry(id, srcType, html, entry) ?? { id, type: 'richtext', placement: 'flow', html, sourceType: srcType };
       obj = applyLosslessSafetyNet(obj, html, id, srcType);
     }
     items.push({ srcType, html, obj });

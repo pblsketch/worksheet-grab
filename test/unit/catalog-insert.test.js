@@ -46,3 +46,59 @@ test('강조상자는 flow 전용 — float 요청도 flow 로 접힌다', async
   assert.equal(obj.placement, 'flow');
   assert.equal(obj.rect, undefined);
 });
+
+// ── P3 스파이크: 편집 가능 그림형 조직자(organizer) 삽입·편집·검증 고정 ──────────────
+// 그림형 조직자는 잠금 richtext(내부 편집 불가)에서 편집 가능한 organizer 개체로 승격됐다(현재 venn).
+// 삽입 팩토리·개수/라벨 편집·정답 fail-closed·kind 닫힘을 스키마와 함께 못 박아 드리프트를 막는다.
+
+test('그림 조직자(venn)는 편집 가능한 organizer 개체로 삽입된다(P3 — 잠금 richtext 아님)', async () => {
+  const { createOrganizerObject } = await loadObjectFactory();
+  const obj = createOrganizerObject('venn');
+  assert.equal(obj.type, 'organizer');
+  assert.equal(obj.placement, 'flow');
+  assert.equal(obj.kind, 'venn');
+  assert.equal(obj.params.circles, 2, '기본 2원으로 삽입');
+  assert.equal(obj.rect, undefined, 'flow 개체는 좌표를 갖지 않는다(엔진이 SVG 소유 — 원칙 3)');
+  assert.ok(validateObjectShape(obj).ok);
+});
+
+test('createObject("organizer") 도 스키마 유효(기본 venn 2원)', async () => {
+  const { createObject } = await loadObjectFactory();
+  const obj = createObject('organizer');
+  assert.equal(obj.type, 'organizer');
+  assert.equal(obj.kind, 'venn');
+  assert.ok(validateObjectShape(obj).ok);
+});
+
+test('organizer 개수·라벨 편집 결과가 스키마를 통과한다(개수 3 + 라벨 슬롯)', async () => {
+  const { createOrganizerObject } = await loadObjectFactory();
+  const base = createOrganizerObject('venn');
+  const edited = { ...base, params: { circles: 3 }, labels: { a: '봄', b: '가을', c: '겨울', common: '공통' } };
+  assert.ok(validateObjectShape(edited).ok, '개수·라벨을 바꿔도 유효한 개체여야 한다');
+});
+
+test('organizer 는 정답(answer)을 실을 수 없다(중립·fail-closed — callout 과 동형)', async () => {
+  const { createOrganizerObject } = await loadObjectFactory();
+  const obj = { ...createOrganizerObject('venn'), answer: true };
+  const { ok, findings } = validateObjectShape(obj);
+  assert.equal(ok, false);
+  assert.ok(findings.some((f) => f.rule === 'unknown-field'), 'answer 위치 규칙 — organizer 는 answer 미허용');
+});
+
+test('organizer.kind 가 목록(ORGANIZER_KINDS) 밖이면 invalid-organizer-kind 로 거부', () => {
+  const obj = { id: 'x', type: 'organizer', placement: 'flow', kind: 'spiral' };
+  const { ok, findings } = validateObjectShape(obj);
+  assert.equal(ok, false);
+  assert.ok(findings.some((f) => f.rule === 'invalid-organizer-kind'));
+});
+
+test('그림형 조직자 6종 전부 편집 가능 organizer 로 삽입(venn·conceptmap·fishbone·flowchart·hierarchy·hexagon)', async () => {
+  const { createOrganizerObject, EDITABLE_ORGANIZER_KINDS } = await loadObjectFactory();
+  for (const kind of ['venn', 'conceptmap', 'fishbone', 'flowchart', 'hierarchy', 'hexagon']) {
+    assert.ok(EDITABLE_ORGANIZER_KINDS.includes(kind), `${kind}: 편집 가능 kind`);
+    const obj = createOrganizerObject(kind);
+    assert.equal(obj.type, 'organizer', `${kind}: organizer 개체`);
+    assert.equal(obj.kind, kind, `${kind}: kind 보존`);
+    assert.ok(validateObjectShape(obj).ok, `${kind}: 스키마 유효`);
+  }
+});
