@@ -15,19 +15,33 @@ worksheet-grab is a **local worksheet authoring, editing, and export tool for Ko
 
 > This README explains the GitHub project and installation. In the teacher distribution bundle, `CLAUDE.md` and `AGENTS.md` are the actual entry points for AI harnesses.
 
-## Clone the repository and create a teacher bundle
+## Easiest installation: teacher beta ZIP
 
-Opening the GitHub page alone does not provide the local engine, skills, or curriculum data required to run the workflow. Clone the repository, then create a teacher-facing folder with development files removed.
+1. Open the latest **Beta** on the [Releases page](https://github.com/pblsketch/worksheet-grab/releases).
+2. Download and extract `worksheet-grab-user-v0.6.0-beta.1.zip` from the assets list.
+3. Open the extracted folder in your AI harness, or verify it from that folder:
+
+```bash
+node bin/worksheet-grab.js help
+```
+
+The ZIP contains the runtime engine, curriculum data, and teacher-facing AI skills. Tests and development records are excluded.
+
+### Clone the repository
+
+Clone the repository if you want to inspect or modify the source. The root `CLAUDE.md` and `AGENTS.md` are teacher-facing entry points, so the cloned repository can also be used directly.
 
 ```bash
 git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
 cd worksheet-grab
-node scripts/build-user-bundle.mjs dist/worksheet-grab-user
-cd dist/worksheet-grab-user
 node bin/worksheet-grab.js help
 ```
 
-The cloned repository root is a source-development workspace and includes tests, development documentation, and development-only AI configuration. Teachers should open only `dist/worksheet-grab-user` in an AI harness. That folder contains the runtime engine and teacher-facing skills. Developers who intend to modify the source can work from the repository root.
+To create a folder without development files:
+
+```bash
+node scripts/build-user-bundle.mjs dist/worksheet-grab-user
+```
 
 ## Requirements
 
@@ -37,20 +51,18 @@ The cloned repository root is a source-development workspace and includes tests,
    - Antigravity
 2. **Node.js 24 or newer**
 3. **Google Chrome** — only for PDF and PNG output
-4. Git
 
 Check your installation:
 
 ```bash
 node --version
-git --version
 ```
 
 No `npm install` or build step is required.
 
 ## Three-minute start for teachers
 
-### 1. Open the generated teacher folder in your AI harness
+### 1. Open the downloaded or cloned folder in your AI harness
 
 - Claude Code reads `CLAUDE.md` and `.claude/skills/`.
 - Codex CLI and Antigravity use `AGENTS.md` as their entry point.
@@ -195,6 +207,6 @@ See [`docs/HARNESS-MAP.md`](docs/HARNESS-MAP.md) for harness boundaries and [`do
 
 ## License and inspiration
 
-MIT License.
+[MIT License](LICENSE).
 
 worksheet-grab was inspired by the plan → design → edit → export workflow and no-API philosophy of [slides-grab](https://github.com/NomaDamas/slides-grab). Worksheets are printable multi-page reflow documents rather than fixed slides, so this project uses an independent implementation rather than a code fork.

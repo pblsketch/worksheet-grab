@@ -38,7 +38,7 @@ import { FsAiBridgeRepository } from '../adapters/FsAiBridgeRepository.js';
 import { AI_SCHEMA_VERSION, validateResponse } from '../usecases/aiBridge.js';
 import { loadKnownSubjectHexes } from '../usecases/renderAssets.js';
 
-const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
+const USAGE = `worksheet-grab — 활동지 제작·편집 도구 (베타)
 
 사용법:
   worksheet-grab build-variants <in.html> --out <dir>
@@ -60,12 +60,12 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
         --show-standards                     근거 성취기준을 교사용에 함께 표기(기본 미표기)
       미지정 시 종전대로 성취기준 문장을 기계 변환해 목표 자리에 쓴다(하위호환).
   worksheet-grab pipeline <학년교과> <주제> [--out <dir>] [--no-render] [--standards <코드,..>] [--limit <N>]
-      종단 파이프라인: 조회→조립→2벌→검수 게이트→(통과 시) 렌더. 검수 실패 시 렌더 중단(fail-closed).
-      HITL: 산출 후 교사 검토를 거쳐 인쇄하도록 안내.
+      전체 제작: 성취기준 조회→조립→학생·교사용 생성→검수→(통과 시) 렌더.
+      검수에 실패하면 학생용 출력을 중단하고 수정할 항목을 안내한다.
   worksheet-grab compose <학년교과> <주제> [--archetype <id>] [--standards <코드,..>] [--out <dir>] [--render]
-      동적 조립: 주제에 맞는 아키타입(구조)을 골라 성취기준·제목을 채운 "저작 대기 스캐폴드" 매니페스트 +
-      블록별 저작 브리프를 만든다. 콘텐츠(교육적 본문)는 designer AI/교사가 인라인 html 을 저작해 채운다(무API).
-      --archetype 로 아키타입을 직접 지정(미지정 시 주제 키워드로 추천). --render 로 스캐폴드 자리표시 미리보기.
+      동적 조립: 주제에 맞는 활동 구조를 골라 성취기준·제목을 채운 초안과
+      블록별 작성 안내를 만든다. 교육 내용은 AI 또는 교사가 작성해 채운다.
+      --archetype 로 활동 구조를 직접 지정할 수 있고, --render 로 자리표시 미리보기를 만든다.
       예: compose 중2과학 광합성 --archetype experimental-inquiry
   worksheet-grab edit <manifest.json> "<지시>" [--out <dir>] [--no-render] [--in-place]
       대화형 편집 루프: 기존 매니페스트에 편집 지시를 반영해 매니페스트·HTML 을 왕복 갱신 후 재렌더.
@@ -74,22 +74,22 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
       지시 대신 플래그도 가능: --remove <N> (반복 가능) · --add reflection
   worksheet-grab doc <list|open|save|history|restore|regenerate-page|export> …
       문서 워크스페이스(worksheets/<문서명>/ — manifest·학생/교사 HTML·meta·히스토리).
-        doc list                            문서 목록(제목·교과·리비전·unsafe 배지)
+        doc list                            문서 목록(제목·교과·수정 번호·정답 누출 경고)
         doc open <문서명>                   문서 로드·상태 표시(편집은 edit-ui)
         doc save <문서명> --from <manifest.json>   manifest 를 문서로 저장(재렌더·누출검증·스냅샷)
         doc history <문서명>                히스토리 스냅샷 목록
         doc restore <문서명> <일련번호>     스냅샷 복원(비파괴 — 새 리비전으로 저장)
         doc regenerate-page <문서명> <N> --from <page.json>
                                             N(1-based) 페이지만 page.json(블록 배열)로 교체 후 SaveDocument 재저장.
-                                            성취기준·저작권 슬롯(제외-타입) 블록은 삭제·변조·위조 시 거부(fail-closed).
+                                            성취기준·저작권 보호 블록은 삭제·변조·위조 시 거부.
                                             타 페이지는 바이트 불변. 번호 불연속은 경고(에러 아님).
         doc export <문서명> [--canva]        저장본 → 학생/교사 PDF 2벌(worksheets/<문서명>/worksheet-*.pdf).
-                                            meta.unsafe(정답 누출) 시 학생용 차단·교사용만 산출·종료코드 1
+                                            정답 누출 위험이 있으면 학생용을 차단하고 교사용만 산출
                                             --canva 지정 시 worksheet-{student,teacher}-canva.html
-                                            부가 산출(Canva 반입용 페이지 주석). student 는 동일하게 fail-closed
+                                            부가 산출(Canva 반입용 페이지 주석). 학생용 안전검수는 동일하게 적용
       generate/pipeline/edit 에 --doc <문서명> 을 주면 out/ 대신 워크스페이스 문서로 산출.
       edit 는 경로 대신 --doc <문서명> 으로도 편집 가능. 정답 누출 시 student.html 은
-      보류되고 meta.unsafe 가 표시된다(작업은 저장됨 · export 는 차단).
+      보류되고 정답 누출 경고가 표시된다(작업은 저장되지만 학생용 내보내기는 차단).
   worksheet-grab workbook <create|add|remove|order|list|show|export|batch-plan|status|mark> …
       자료집(합본) 장부(workbooks/<명>/workbook.json). 멤버 문서(worksheets/)는 참조만
       하고 절대 쓰지 않는다(교차 저장 금지). 신규 --workbooks-dir <경로>(기본 <cwd>/workbooks).
@@ -101,21 +101,19 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
         workbook show <명>                                     멤버·status·본문상대 시작쪽 요약
         workbook batch-plan <명> --from <list.json|.jsonl|.csv> [--csv]
                                             무API — 콘텐츠는 생성하지 않고 장부만 등록한다(멱등).
-                                            batchList 로 행 파싱(JSON/JSONL 1차·CSV 2차, [--csv] 는
-                                            형식을 CSV 로 강제하는 불리언) → 각 행을 buildDocName
-                                            (<자료집명>-NN-<주제슬러그>)으로 upsert(status:pending).
+                                            JSON·JSONL·CSV 목록을 읽어 각 행을
+                                            <자료집명>-NN-<주제> 문서명으로 등록한다.
                                             재실행 시 기존 멤버 status 보존·스킵, 신규만 추가.
         workbook status <명>                                   pending/saved/failed 집계 + 재개 대상(≠saved) 목록
-        workbook mark <명> <문서명> <saved|failed>              하네스 저작 결과를 장부에 기록(상태 전이 검증)
+        workbook mark <명> <문서명> <saved|failed>              제작 결과를 자료집 장부에 기록
         workbook export <명> [--out <dir>] [--workspaces-dir <dir>] [--portable]
-                                            합본 조립(WorkbookAssemble) → PDF 2벌(WorkbookExport,
-                                            countPdfPages fail-closed 게이트). 기본 출력:
+                                            합본을 조립하고 실제 쪽수를 확인한 뒤 PDF 2벌을 만든다. 기본 출력:
                                             workbooks/<명>/workbook-{student,teacher}.pdf.
-                                            unsafe(정답 누출) 멤버가 있으면 student 미산출+멤버 지목
+                                            정답 누출 위험 문서가 있으면 학생용 미산출+문서명 안내
                                             +종료코드 1(teacher 는 항상 산출). --portable 은 멤버
                                             자산을 렌더용 임시 디렉터리에 복사해 상대경로로 참조.
   worksheet-grab edit-ui <문서명> [--port <n>] [--workspaces-dir <dir>]
-      브라우저 에디터(E3): 문서를 127.0.0.1 로컬 서버로 띄워 편집한다.
+      브라우저 에디터: 문서를 내 컴퓨터의 로컬 서버로 띄워 편집한다.
       인쇄정밀 캔버스(실제 paper.css·용지 치수) + 여백선/넘침 배지 + 학생/교사 토글(물리 2벌)
       + 공통 툴바(폰트·크기·B/I/U·색·정렬·목록·표·이미지·↶↷) + ⭐정답 표시·✏️답란 삽입
       + 라이브 검수 바. 저장(Ctrl+S)은 manifest 역동기화 → SaveDocument(누출 게이트·히스토리).
@@ -127,18 +125,17 @@ const USAGE = `worksheet-grab — 활동지 코어 엔진 (M1)
         preset restore <id>      숨긴 기본 제공 복원
       저장 위치: <워크스페이스>/.presets/presets.json (쓰기 시 .bak 백업·원자 교체).
   worksheet-grab ai <pending|respond|list|clear> …
-      AI 액션 브리지(E5, 무API): 에디터의 "AI 재작성/예시 채우기" 요청을 구독 AI
+      AI 요청 연결: 에디터의 "AI 재작성/예시 채우기" 요청을 현재 사용 중인 AI
       (이 CLI 를 모는 Claude/Codex 세션)가 파일 큐로 주고받는다.
         ai pending [--json] [--watch] [--once]   대기 요청 조회/감시(1s 폴링)
         ai respond <id> --ops <file.json>|--objects <file.json>|--blocks <file.json>|--from <file>|--html <…>
                                                   재작성 결과 회신(취소된 요청은 거부).
-                                                  --ops 는 [{op:'replace'|'insert'|'delete'|'insert-section',…}] JSON
-                                                  (개수·종류가 자유로운 계획, v4 — Phase 4. insert-section 은
-                                                   여러 개체를 한 번에·순서대로 생성: {op,objects:[…],afterId|beforeId})
-                                                  --objects 는 [{id,object}] JSON(개체 ID 에코, v3 — US-19)
+                                                  --ops 는 [{op:'replace'|'insert'|'delete'|'insert-section',…}] JSON.
+                                                  insert-section 은 여러 개체를 한 번에 순서대로 생성한다.
+                                                  --objects 는 [{id,object}] JSON
                                                   --fragment <file.json> [--after <id>|--before <id>] 는 id 없는
-                                                   scaffold 개체 배열(B′ 저작 — 좌표·조판·답안 금지). 에디터가
-                                                   validateAiFragment 게이트 후 단일 insert-section 으로 컴파일한다.
+                                                   새 구역 개체 배열이다. 좌표·조판·답안은 허용하지 않으며
+                                                   에디터가 구조와 안전 규칙을 검사한 뒤 삽입한다.
         ai list [--all] · ai clear [<id>]        상태 조회·terminal 정리
       큐 위치: <워크스페이스>/.ai-bridge/. 성취기준·저작권 지문 블록은 대상에서 제외.
   worksheet-grab list-blocks
@@ -259,7 +256,7 @@ async function emitToWorkspace(manifest, docName, flags, repo, { log }, { isNew 
   log(`  ${result.paths.manifestPath}`);
   log(`  ${result.paths.teacherPath}`);
   if (result.unsafe) {
-    log('  ⚠ 정답 누출 감지 → student.html 쓰기 보류(meta.unsafe=true). export 는 차단됩니다. 콘텐츠 수정 후 재저장하세요.');
+    log('  ⚠ 정답 누출 감지 → 학생용 HTML 저장과 내보내기를 보류합니다. 콘텐츠를 수정한 뒤 다시 저장하세요.');
     for (const f of result.leakFindings) log(`     ✗ [${f.rule}] ${f.message} (근거: ${f.evidence})`);
   } else {
     log(`  ${result.paths.studentPath}`);
@@ -528,14 +525,14 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
   }
 
   if (!gate) {
-    err('  ✗ 검수 게이트 실패(정답 누출 등) → 산출물 미생성(fail-closed). 콘텐츠 수정 후 재실행하세요.');
+    err('  ✗ 안전검수 실패(정답 누출 등) → 산출물을 만들지 않았습니다. 콘텐츠를 수정한 뒤 다시 실행하세요.');
     return 1;
   }
 
   // --doc: 게이트 통과분을 워크스페이스 문서로 저장(단일 SaveDocument 경유). 렌더는 E6.
   if (useDoc) {
     const result = await emitToWorkspace(manifest, flags.doc, flags, repo, { log }, { isNew: true });
-    log('  4) 렌더: 워크스페이스 문서의 PDF export 는 후속(E6). HITL: 교사 검토 후 인쇄하세요.');
+    log('  4) 렌더: 저장한 문서를 교사가 검토한 뒤 PDF로 내보내고 인쇄하세요.');
     return result.unsafe ? 1 : 0;
   }
 
@@ -546,12 +543,12 @@ async function cmdPipeline(gradeSubject, topic, flags, repo, { log, err }) {
 
   // 4) 렌더 (게이트 통과 시)
   if (flags['no-render']) {
-    log('  4) 렌더 생략(--no-render). HITL: 교사 검토 후 render 로 인쇄하세요.');
+    log('  4) 렌더 생략(--no-render). 교사가 검토한 뒤 render 명령으로 인쇄 파일을 만드세요.');
   } else {
     const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: true, paper: manifest.paper });
     for (const e of rendered) log(`  4) 렌더 → ${e.pdf}`);
   }
-  log('  ✔ HITL: 산출물을 교사가 검토한 뒤 인쇄/배포하세요(성취기준·정답 토글·저작권 지문 확인).');
+  log('  ✔ 산출물을 교사가 검토한 뒤 인쇄·배포하세요(성취기준·정답 표시·저작권 지문 확인).');
   return 0;
 }
 
@@ -577,7 +574,7 @@ async function cmdCompose(gradeSubject, topic, flags, repo, { log, err }) {
   log(`▶ compose: ${grade} ${subject} "${topic}"`);
   log(`  1) 성취기준: ${standards.map((s) => s.code).join(', ')}`);
   log(`  2) 아키타입: ${archetype} · ${brief.name} (${archetypeReason})`);
-  log(`  3) 스캐폴드: ${mPath} (${manifest.pages.length}쪽 · 인라인 저작 대기)`);
+  log(`  3) 초안 구조: ${mPath} (${manifest.pages.length}쪽 · 내용 작성 대기)`);
   // 학습목표는 인라인 html 이 아니라 매니페스트 필드라 브리프만 보면 놓치기 쉽다 — 상태를 명시한다.
   if (Array.isArray(manifest.objectives) && manifest.objectives.length > 0) {
     log(`     학습목표(저작됨, ${manifest.objectives.length}개): ${manifest.objectives.join(' / ')}`);
@@ -585,7 +582,7 @@ async function cmdCompose(gradeSubject, topic, flags, repo, { log, err }) {
     log('     학습목표: 미저작 — 성취기준 문장을 그대로 목표 자리에 씁니다.');
     log('       직접 저작: --objectives "…할 수 있다.|…할 수 있다." (매니페스트 objectives 필드를 고쳐도 됩니다)');
   }
-  log('  4) 저작 브리프 — designer AI/교사가 각 블록의 인라인 html 을 주제에 맞게 저작:');
+  log('  4) 작성 안내 — AI 또는 교사가 각 블록의 내용을 주제에 맞게 작성:');
   brief.pages.forEach((pg, i) => {
     log(`     · p${i + 1}`);
     for (const b of pg) {
@@ -593,15 +590,15 @@ async function cmdCompose(gradeSubject, topic, flags, repo, { log, err }) {
       log(`        [${b.role}] ${tag} — ${b.authoring}`);
     }
   });
-  log('  ── HITL: 스캐폴드를 designer 에이전트/교사가 저작한 뒤 pipeline/assemble 로 렌더하세요.');
-  log('     검수 게이트(fail-closed)가 정답 누출·미기입 슬롯을 점검합니다. 성취기준 원문·저작권 지문은 그대로 두세요.');
+  log('  ── 초안 내용을 작성한 뒤 pipeline 또는 assemble 명령으로 렌더하세요.');
+  log('     안전검사가 정답 누출과 미기입 항목을 점검합니다. 성취기준 원문과 저작권 지문은 그대로 두세요.');
 
   if (flags.render) {
     const asm = new AssembleWorksheet({ blockRepository: repo, curriculum });
     const { html } = await asm.execute(manifest);
     const { student, teacher } = new BuildVariants().execute(html);
     const { sPath, tPath } = await writeVariantTrio(outDir, base, { html, student, teacher });
-    log(`  5) 스캐폴드 미리보기(자리표시): ${sPath} / ${tPath}`);
+    log(`  5) 초안 미리보기(자리표시): ${sPath} / ${tPath}`);
     const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: false, png: true });
     for (const e of rendered) if (e.png) log(`     ✔ render(png) → ${e.png}`);
   }
@@ -659,7 +656,7 @@ async function cmdEdit(manifestPath, instruction, flags, repo, { log }) {
     log(`✔ edit(doc): ${docName}`);
     for (const a of applied) log(`  · ${a}`);
     const result = await emitToWorkspace(edited, docName, flags, repo, { log });
-    log('  ✔ HITL: 편집 결과를 교사가 검토한 뒤 인쇄/배포하세요. (PDF export 는 후속 E6)');
+    log('  ✔ 편집 결과를 교사가 검토한 뒤 PDF로 내보내 인쇄·배포하세요.');
     return result.unsafe ? 1 : 0;
   }
 
@@ -686,12 +683,12 @@ async function cmdEdit(manifestPath, instruction, flags, repo, { log }) {
   log(`  ${tPath}`);
 
   if (flags['no-render']) {
-    log('  렌더 생략(--no-render). HITL: 교사 검토 후 render 로 인쇄하세요.');
+    log('  렌더 생략(--no-render). 교사가 검토한 뒤 render 명령으로 인쇄 파일을 만드세요.');
   } else {
     const rendered = await renderVariantFiles(outDir, base, { sPath, tPath }, flags, { pdf: true, paper: edited.paper });
     for (const e of rendered) log(`  ✔ render → ${e.pdf}`);
   }
-  log('  ✔ HITL: 편집 결과를 교사가 검토한 뒤 인쇄/배포하세요.');
+  log('  ✔ 편집 결과를 교사가 검토한 뒤 인쇄·배포하세요.');
   return 0;
 }
 
@@ -833,7 +830,7 @@ async function cmdAi(args, flags, { log, err }) {
       await bridge.putResponse(response);
       // 양형 방어(v1~v4·반려): 없는 필드에 직접 접근하면 다른 형태 회신에서 크래시한다.
       const detail = response.unsupported ? `반려("${response.reason}")`
-        : response.fragment ? `프래그먼트 ${response.fragment.length}개체(B′ 저작)`
+        : response.fragment ? `새 구역 ${response.fragment.length}개체`
           : response.ops ? `${response.ops.length}계획(${response.ops.map((o) => o.op).join('·')})`
             : response.objects ? `${response.objects.length}개체`
               : response.blocks ? `${response.blocks.length}블록`
@@ -914,7 +911,7 @@ async function cmdDoc(args, flags, repo, { log, err }) {
       log(`문서 ${docs.length}개 (${ws.baseDir}):`);
       for (const d of docs) {
         if (d.meta) {
-          const unsafeTag = d.meta.unsafe ? ' · ⚠ UNSAFE(정답 누출 — student 보류)' : '';
+          const unsafeTag = d.meta.unsafe ? ' · ⚠ 정답 누출 위험(학생용 보류)' : '';
           log(`  ${d.name} — ${d.meta.title} · ${d.meta.subject} · rev ${d.meta.revision} · ${d.meta.updatedAt}${unsafeTag}`);
         } else {
           log(`  ${d.name} — (meta 없음 · 미완성/외부 생성 의심)`);
@@ -972,7 +969,7 @@ async function cmdDoc(args, flags, repo, { log, err }) {
       log(`✔ doc regenerate-page: ${result.name} 페이지 ${pageNum} 재생성 → rev ${result.meta.revision}`);
       if (result.continuityWarning) log(`  ⚠ ${result.continuityWarning}`);
       if (result.unsafe) {
-        log('  ⚠ 정답 누출 감지 → student.html 쓰기 보류(meta.unsafe=true). export 는 차단됩니다.');
+        log('  ⚠ 정답 누출 감지 → 학생용 HTML 저장과 내보내기를 보류합니다.');
         for (const f of result.leakFindings) log(`     ✗ [${f.rule}] ${f.message} (근거: ${f.evidence})`);
       }
       return result.unsafe ? 1 : 0;

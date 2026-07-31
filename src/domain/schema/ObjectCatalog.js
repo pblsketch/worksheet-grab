@@ -1,6 +1,6 @@
 // ObjectCatalog — editor-v4 개체 스키마의 닫힌 카탈로그(S1.1). 무빌드 바닐라 ESM, 의존성 0.
-// 스파이크 산출물(scratchpad/spike-editor-v4/candidate-schema.json)의 실사용 적합성 실증을
-// 반영해 동결한 프로덕션 타입 상수다. 상세 근거·판정은 docs/HANDOFF-object-schema.md 참조.
+// 실사용 적합성 검증을 반영해 동결한 프로덕션 타입 상수다.
+// 상세 계약은 docs/HANDOFF-object-schema.md 참조.
 //
 // TYPE_SPECS 는 schema/worksheet-object.schema.json 의 per-type properties 와 1:1 대응한다
 // (두 산출물이 갈라지면 즉시 회귀 — object-schema.test.js 가 카탈로그 12종 픽스처로 상시 단정).

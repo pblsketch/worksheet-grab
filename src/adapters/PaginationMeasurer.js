@@ -8,8 +8,8 @@ import { resolveChromePath } from './ChromeRenderer.js';
 
 // ChromePaginationMeasurer — PaginateObjectTree(S2.5) 의 Chrome 측정 어댑터(D-A).
 // Chrome DevTools Protocol(Page/Runtime 도메인)을 Node 내장 WebSocket/fetch 만으로 직접 구동한다
-// (신규 npm 의존성 0 — scratchpad/spike-editor-v4/verify-cdp-mouse.mjs 에서 검증된 CDP 클라이언트
-// 패턴을 재사용). Chrome 실행 파일 경로는 resolveChromePath(ChromeRenderer.js, 읽기전용 import)를
+// (신규 npm 의존성 0 — 실제 브라우저 입력 검증에 사용한 CDP 클라이언트 패턴을 재사용).
+// Chrome 실행 파일 경로는 resolveChromePath(ChromeRenderer.js, 읽기전용 import)를
 // 재사용해 중복 정의하지 않는다 — ChromeRenderer 본체는 이 스토리에서 수정하지 않는다.
 //
 // 게이팅(R2-1): document.fonts.ready + (KaTeX auto-render 스크립트가 있으면) 그 완료 이후에만

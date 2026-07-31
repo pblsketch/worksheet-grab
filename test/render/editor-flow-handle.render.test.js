@@ -12,7 +12,7 @@ import { openCdpSession } from '../helpers/cdp.js';
 
 // flow 개체 ⠿ 손잡이 실입력 회귀(2026-07-28 — DECISION-object-resize §7 선행 결함 1).
 //
-// 고치기 전 실측(scratchpad/probe-flow-body-drag.mjs 2.3 이 "깨진 동작"으로 고정해 두었던 것):
+// 고치기 전 실제 브라우저에서 확인한 동작:
 //   ① 손잡이 4개가 전부 같은 y(top=23)에 쌓였다 — 개체는 82/116/132/166 인데. attach() 가
 //      레이아웃 확정 전에 한 번 장식하고 다시 그리지 않아서다.
 //   ② 좌표를 고쳐도 ⠿ 중심에서 elementFromPoint 가 `+`(.wg-flow-insert)를 돌려줬다 —

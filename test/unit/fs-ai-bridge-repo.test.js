@@ -83,7 +83,10 @@ test('prune: terminal(applied·cancelled) 요청·응답 정리', async () => {
 
 test('경로 이탈 차단', async () => {
   const { repo } = await fresh();
-  await assert.rejects(() => repo.readRequest('..\\..\\evil'), /경로 이탈/);
+  for (const id of ['../../evil', '..\\..\\evil']) {
+    await assert.rejects(() => repo.readRequest(id), /경로 이탈/);
+    await assert.rejects(() => repo.readResponse(id), /경로 이탈/);
+  }
 });
 
 test('F4: v1 in-flight 요청 + v2 요청/응답 파일 공존·왕복(관용 스키마)', async () => {

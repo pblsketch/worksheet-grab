@@ -2,8 +2,8 @@
 //
 // 문서 전체 contenteditable(구 editor.js 의 doc.body.contentEditable='true')을 폐지하고,
 // 클릭=개체 선택 · 더블클릭=그 개체 하나만 contenteditable 진입 · Esc=편집종료→선택복귀→
-// (다시 Esc)선택해제 의 3단 상태기계로 대체한다(스파이크 scratchpad/spike-editor-v4/prototype.html
-// 실증 문법 그대로 — enterEditing/exitEditing/Esc 사다리·드래그 후 click 1회 삼키기 패턴).
+// (다시 Esc)선택해제 의 3단 상태기계로 대체한다(실제 마우스 입력으로 검증한
+// enterEditing/exitEditing/Esc 사다리·드래그 후 click 1회 삼키기 패턴).
 //
 // DOM 은 RenderObjectTree(editMode:true) 가 낸 data-oid 래퍼(.wg-obj = flow, .wg-float = float)를
 // 그대로 쓴다 — 클라이언트가 새로 마크업을 주입하지 않는다(개체↔DOM 동기화는 data-oid 매칭만).

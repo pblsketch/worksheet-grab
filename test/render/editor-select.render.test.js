@@ -16,8 +16,8 @@ import { autoTmpDir, makeTmpDirSync } from '../helpers/tmp.js';
 // 다중선택(Shift)·float 미선택 pointer-events 정책(z-order 완화, 스파이크 §4-5)·드래그 후
 // click 1회 삼키기·undo/redo·체크포인트 저장 왕복(rev 증가)을 editor.js:runSeed('core-ops')
 // 가 실 DOM 이벤트(click()/dispatchEvent)로 재현하고 dataset 에 기록한 결과를 단정한다.
-// 실제 마우스(CDP Input)로만 잡히는 드래그의 경계 버그는 scratchpad/ralph-reports/us16-evidence/
-// 의 별도 검증 스크립트 소관(MEMORY: synthetic-events-hide-drag-bugs) — 이 파일은 상태기계 자체의
+// 실제 마우스(CDP Input)로만 잡히는 드래그 경계는 별도 브라우저 검증의 소관이며,
+// 이 파일은 상태기계 자체의
 // 회귀 방어다.
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
