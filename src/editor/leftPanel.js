@@ -5,7 +5,7 @@
 // editor.js 가 core/history/reflow 와 묶어 호출).
 
 import { icon } from './icons.js';
-import { CATALOG_ITEMS, ORGANIZER_INSERTS, GRAPHIC_ORGANIZER_INSERTS } from './objectFactory.js';
+import { CATALOG_ITEMS, ORGANIZER_INSERTS, GRAPHIC_ORGANIZER_INSERTS, SPECIAL_ORGANIZER_INSERTS } from './objectFactory.js';
 import { settlePageReorder } from './pageReorder.js';
 import { collectStyles } from './thumbs.js';
 
@@ -448,6 +448,7 @@ export function createLeftPanel({
     };
     for (const desc of ORGANIZER_INSERTS) renderOrg(desc, 'table');
     for (const desc of GRAPHIC_ORGANIZER_INSERTS) renderOrg(desc, 'image');
+    for (const desc of SPECIAL_ORGANIZER_INSERTS) renderOrg(desc, 'square');
   }
 
   // ── ③ 내 블록(/presets 재배선) ──

@@ -157,6 +157,20 @@ export const GRAPHIC_ORGANIZER_INSERTS = Object.freeze([
   { key: 'hexagon', label: '육각형 연결 (헥사고날)' },
 ]);
 
+// 특수 레이아웃 시각 조직자 삽입(#2 P2b) — 신호등 색·쓰기줄·섹션 스택처럼 일반 table 로는 모양이 깨지는
+// 정적 블록을 원본 HTML 그대로 richtext 로 잠금 삽입한다. 인라인 HTML 이라 blocks.css(신호등 색 등)가
+// 그대로 적용된다. html 은 blocks/core/<key>.html 과 (공백 정규화 기준) 동일해야 한다 — organizer-insert
+// 테스트가 블록↔번들 parity 를 강제해 드리프트를 막는다(정적 블록이라 엔진 생성기가 없어 번들이 불가피).
+export const SPECIAL_ORGANIZER_INSERTS = Object.freeze([
+  { key: 'stoplight', label: '신호등 (자기 평가)', html: '<table class="stoplight keep"><tr><td class="sl sl-r">●</td><td>아직 어려운 것<div class="wr"></div></td></tr><tr><td class="sl sl-y">●</td><td>연습이 더 필요한 것<div class="wr"></div></td></tr><tr><td class="sl sl-g">●</td><td>잘 아는 것<div class="wr"></div></td></tr></table>' },
+  { key: 'exit321', label: '3-2-1 출구 (배운·연결·궁금)', html: '<table class="exit321 keep"><tr><td class="num">3</td><td>오늘 새로 <b>배운 것</b> 세 가지<div class="wr"></div><div class="wr"></div><div class="wr"></div></td></tr><tr><td class="num">2</td><td>이전 배움과 <b>연결되는 것</b> 두 가지<div class="wr"></div><div class="wr"></div></td></tr><tr><td class="num">1</td><td>아직 <b>궁금한 것</b> 한 가지<div class="wr"></div></td></tr></table>' },
+  { key: 'hamburger', label: '문단 햄버거 (주제·뒷받침·맺음)', html: '<table class="hamburger keep"><tr><th>주제문 (도입)</th></tr><tr><td class="hb"><div class="wr"></div></td></tr><tr><th>뒷받침 문장</th></tr><tr><td class="hb">①<div class="wr"></div>②<div class="wr"></div>③<div class="wr"></div></td></tr><tr><th>맺음문장 (정리)</th></tr><tr><td class="hb"><div class="wr"></div></td></tr></table>' },
+  { key: 'mainidea', label: '핵심 아이디어 + 뒷받침', html: '<table class="mainidea keep"><tr><th>핵심 아이디어</th></tr><tr><td class="mi-main"></td></tr><tr><th>뒷받침 근거</th></tr><tr><td class="mi-sup">①<div class="wr"></div>②<div class="wr"></div>③<div class="wr"></div></td></tr></table>' },
+  { key: 'notetaking', label: '코넬 노트 (핵심어·정리·요약)', html: '<table class="notetaking keep"><tr><th class="nt-cue">핵심어·질문</th><th>내용 정리</th></tr><tr><td class="nt-cue"></td><td class="nt-note"></td></tr><tr><td class="nt-sum" colspan="2"><b>요약</b><div class="wr"></div><div class="wr"></div></td></tr></table>' },
+  { key: 'plotdiagram', label: '플롯 다이어그램 (이야기 산)', html: '<div class="plotdiagram keep"><svg width="470" height="220" viewBox="0 0 470 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="플롯 다이어그램(이야기 산)"><polyline points="35,185 145,150 235,50 335,150 435,185" class="pd-line" stroke-width="1.8"/><circle cx="35" cy="185" r="3.2" class="pd-dot"/><circle cx="145" cy="150" r="3.2" class="pd-dot"/><circle cx="235" cy="50" r="3.2" class="pd-dot"/><circle cx="335" cy="150" r="3.2" class="pd-dot"/><circle cx="435" cy="185" r="3.2" class="pd-dot"/><text x="35" y="205" font-size="9.5" text-anchor="middle" class="pd-lab">발단</text><text x="145" y="205" font-size="9.5" text-anchor="middle" class="pd-lab">전개</text><text x="235" y="42" font-size="9.5" text-anchor="middle" class="pd-lab">절정</text><text x="335" y="205" font-size="9.5" text-anchor="middle" class="pd-lab">하강</text><text x="435" y="205" font-size="9.5" text-anchor="middle" class="pd-lab">결말</text></svg><div class="org-cap">이야기의 흐름을 다섯 단계로 나누어 각 사건을 적자.</div></div>' },
+  { key: 'essayplan', label: '5문단 에세이 설계', html: '<div class="essayplan"><div class="ep-sec keep"><div class="ep-h">서론 — 도입 · 주제문</div><div class="ep-b"></div></div><div class="ep-sec keep"><div class="ep-h">본론 1</div><div class="ep-b"></div></div><div class="ep-sec keep"><div class="ep-h">본론 2</div><div class="ep-b"></div></div><div class="ep-sec keep"><div class="ep-h">본론 3</div><div class="ep-b"></div></div><div class="ep-sec keep"><div class="ep-h">결론 — 요약 · 마무리</div><div class="ep-b"></div></div></div>' },
+]);
+
 export const QTYPE_LABELS = Object.freeze({
   'multiple-choice': '객관식', 'short-answer': '단답형', essay: '서술형', 'fill-blank': '빈칸',
   'true-false': '참/거짓', matching: '연결형', ordering: '순서배열',
@@ -227,6 +241,10 @@ export function createObject(type, { placement = 'flow', qtype, rect } = {}) {
 export function createOrganizerObject(key) {
   if (ORGANIZER_GENERATORS[key]) {
     return { id: generateId(key), type: 'richtext', placement: 'flow', html: ORGANIZER_GENERATORS[key]({}) };
+  }
+  const special = SPECIAL_ORGANIZER_INSERTS.find((o) => o.key === key);
+  if (special) {
+    return { id: generateId(key), type: 'richtext', placement: 'flow', html: special.html };
   }
   const desc = ORGANIZER_INSERTS.find((o) => o.key === key);
   if (!desc) throw new Error(`objectFactory: 알 수 없는 조직자 삽입 키: ${key}`);

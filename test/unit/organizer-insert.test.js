@@ -104,3 +104,35 @@ test('그림형 조직자 삽입: html 이 엔진 생성기(OrganizerGen) 기본
       `${desc.key}: 삽입 SVG 가 compose 와 같은 엔진 기본 출력이어야(이중 출처 금지)`);
   }
 });
+
+// ── #2 P2b: 특수 레이아웃 조직자 잠금 삽입(richtext, 블록 HTML 번들) ──────────────
+
+test('특수 조직자 삽입: 7종이 스키마 유효한 flow richtext(블록 HTML) 개체를 만든다(새 타입 없이)', async () => {
+  const { SPECIAL_ORGANIZER_INSERTS, createOrganizerObject } = await loadObjectFactory();
+  assert.ok(SPECIAL_ORGANIZER_INSERTS.length >= 7, `특수 조직자 ≥7종(실제 ${SPECIAL_ORGANIZER_INSERTS.length})`);
+  for (const desc of SPECIAL_ORGANIZER_INSERTS) {
+    const obj = createOrganizerObject(desc.key);
+    assert.equal(obj.type, 'richtext', `${desc.key}: richtext 잠금 삽입(새 개체 타입 아님)`);
+    assert.equal(obj.placement, 'flow', `${desc.key}: flow`);
+    assert.equal(obj.rect, undefined, `${desc.key}: flow 는 좌표 없음`);
+    assert.match(obj.html, new RegExp(`class="[^"]*\\b${desc.key}\\b`), `${desc.key}: 블록 cssClass 포함(blocks.css 스타일 적용)`);
+    assert.notEqual(obj.answer, true, `${desc.key}: 정답 플래그 없음`);
+    const { ok, findings } = validateObjectShape(obj);
+    assert.ok(ok, `${desc.key} 스키마 위반: ${findings.map((f) => f.rule).join(',')}`);
+  }
+});
+
+// 태그 사이 서식용 공백(개행·들여쓰기)은 렌더에 무의미 — 구조 비교에서 무시하고 텍스트 공백만 1칸으로.
+const normHtml = (s) => String(s ?? '').replace(/>\s+</g, '><').replace(/\s+/g, ' ').trim();
+
+test('특수 조직자 삽입: 번들 html 이 블록 파일과 동일(구조 정규화 — 단일 출처, 드리프트 감시)', async () => {
+  const { SPECIAL_ORGANIZER_INSERTS, createOrganizerObject } = await loadObjectFactory();
+  const v = await repo.readVocabulary();
+  for (const desc of SPECIAL_ORGANIZER_INSERTS) {
+    const file = v.types[desc.key]?.file;
+    assert.ok(file, `${desc.key}: vocabulary 에 블록 파일 등록`);
+    const blockHtml = await repo.loadBlockHtml(file);
+    assert.equal(normHtml(createOrganizerObject(desc.key).html), normHtml(blockHtml),
+      `${desc.key}: 번들 html 이 블록 파일과 어긋남 — 블록이 바뀌면 SPECIAL_ORGANIZER_INSERTS 도 갱신하라`);
+  }
+});
