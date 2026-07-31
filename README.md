@@ -16,15 +16,19 @@ Claude Code, Codex CLI 같은 AI 하네스가 교사의 요청을 해석하고, 
 
 > 이 README는 GitHub에서 설치하고 기능을 파악하기 위한 문서입니다. 교사용 배포 번들에서는 `CLAUDE.md`와 `AGENTS.md`가 AI 하네스의 실제 진입 문서입니다.
 
-## 먼저 저장소를 클론하세요
+## 먼저 저장소를 클론하고 교사용 폴더를 만드세요
 
-현재 공식 사용 경로는 GitHub 저장소를 로컬 컴퓨터에 클론한 뒤, 그 폴더를 AI 하네스에서 여는 방식입니다. GitHub 웹페이지만 열어 둔 상태에서는 엔진·스킬·성취기준 데이터를 실행할 수 없습니다.
+GitHub 웹페이지만 열어 둔 상태에서는 엔진·스킬·성취기준 데이터를 실행할 수 없습니다. 먼저 저장소를 클론한 뒤, 개발 파일이 빠진 교사용 폴더를 한 번 만드세요.
 
 ```bash
 git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
 cd worksheet-grab
+node scripts/build-user-bundle.mjs dist/worksheet-grab-user
+cd dist/worksheet-grab-user
 node bin/worksheet-grab.js help
 ```
+
+클론한 저장소 루트는 소스 개발 공간이라 `test/`, 개발 문서, 개발용 AI 설정을 포함합니다. 교사는 `dist/worksheet-grab-user`만 AI 하네스에서 여세요. 이 폴더에는 실행 엔진과 교사용 스킬만 들어갑니다. 소스 코드를 고치려는 개발자는 저장소 루트를 그대로 사용하면 됩니다.
 
 ## 준비물
 
@@ -47,7 +51,7 @@ git --version
 
 ## 교사용 3분 시작
 
-### 1. 클론한 폴더를 AI 하네스에서 열기
+### 1. 생성한 교사용 폴더를 AI 하네스에서 열기
 
 - Claude Code는 `CLAUDE.md`와 `.claude/skills/`를 읽습니다.
 - Codex CLI와 Antigravity는 `AGENTS.md`를 시작점으로 사용합니다.
@@ -81,13 +85,20 @@ git --version
 
 ## 실제 생성 예시
 
-아래 이미지는 목업이 아니라 현재 베타 엔진으로 **성취기준 조회 → 활동지 조립 → 학생용·교사용 분리 → 정답 누출 검수 → Chrome 렌더**를 실행해 만든 학생용 첫 페이지입니다. 교사용에는 같은 문서 구조에 예시 답안이 추가됩니다.
+아래 이미지는 목업이 아니라 현재 베타 엔진으로 **성취기준 조회 → 활동지 조립 → 학생용·교사용 분리 → 정답 누출 검수 → Chrome 렌더**를 실행해 만든 학생용 첫 페이지입니다. 과학 탐구형은 3쪽, 사회 자료 분석형과 시각 조직자형은 각각 2쪽으로 이어집니다.
 
-| 과학 탐구형 · 광합성 | 사회 자료 분석형 · 인구 변화 |
+| 과학 탐구형 · 광합성 (3쪽) | 사회 자료 분석형 · 인구 변화 (2쪽) |
 |---|---|
 | ![광합성 실험을 설계하는 과학 탐구 활동지](docs/images/readme/science-inquiry.png) | ![인구 변화를 지도에 표시하는 사회 자료 분석 활동지](docs/images/readme/social-data-map.png) |
-| **국어 독서·토론형 · 주장과 근거** | **영어 어휘·의사소통형 · 감정 표현** |
-| ![주장과 근거를 읽고 토론하는 국어 활동지](docs/images/readme/korean-argument-reading.png) | ![감정 표현 어휘를 정리하는 영어 활동지](docs/images/readme/english-emotion-vocab.png) |
+
+- 과학: 탐구 문제 → 가설 → 변인 설계 → 측정표·그래프 → 결과 해석
+- 사회: 실제 세계지도와 공개 인구 자료 → 변화율 계산 → 지도 범례 → 원인 피시본
+
+### 시각 조직자형 · 물질의 상태 (2쪽)
+
+![고체 액체 기체를 3원 벤다이어그램으로 비교하는 시각 조직자 활동지](docs/images/readme/visual-organizer-states.png)
+
+첫 페이지의 3원 벤다이어그램에 이어 둘째 페이지에서 6갈래 개념지도와 4단계 흐름도로 상태 변화를 구조화합니다. 조직자의 도형과 좌표는 엔진이 만들고, 주제 라벨과 활동 지시는 교사 또는 AI 하네스가 채웁니다.
 
 ## AI 하네스 지원 상태
 

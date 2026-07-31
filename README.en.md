@@ -15,15 +15,19 @@ worksheet-grab is a **local worksheet authoring, editing, and export tool for Ko
 
 > This README explains the GitHub project and installation. In the teacher distribution bundle, `CLAUDE.md` and `AGENTS.md` are the actual entry points for AI harnesses.
 
-## Clone the repository first
+## Clone the repository and create a teacher bundle
 
-The current supported installation path is to clone the GitHub repository to your computer and open that folder in an AI harness. Opening the GitHub page alone does not provide the local engine, skills, or curriculum data required to run the workflow.
+Opening the GitHub page alone does not provide the local engine, skills, or curriculum data required to run the workflow. Clone the repository, then create a teacher-facing folder with development files removed.
 
 ```bash
 git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
 cd worksheet-grab
+node scripts/build-user-bundle.mjs dist/worksheet-grab-user
+cd dist/worksheet-grab-user
 node bin/worksheet-grab.js help
 ```
+
+The cloned repository root is a source-development workspace and includes tests, development documentation, and development-only AI configuration. Teachers should open only `dist/worksheet-grab-user` in an AI harness. That folder contains the runtime engine and teacher-facing skills. Developers who intend to modify the source can work from the repository root.
 
 ## Requirements
 
@@ -46,7 +50,7 @@ No `npm install` or build step is required.
 
 ## Three-minute start for teachers
 
-### 1. Open the cloned folder in your AI harness
+### 1. Open the generated teacher folder in your AI harness
 
 - Claude Code reads `CLAUDE.md` and `.claude/skills/`.
 - Codex CLI and Antigravity use `AGENTS.md` as their entry point.
@@ -80,13 +84,20 @@ The AI and teacher author the educational content. The engine assembles it withi
 
 ## Generated examples
 
-These are not mockups. Each image is the first page of a student worksheet produced by the current beta engine through **curriculum lookup → worksheet assembly → student/teacher split → answer-leak validation → Chrome rendering**. The corresponding teacher version uses the same structure with example answers added.
+These are not mockups. Each image is the first page of a student worksheet produced by the current beta engine through **curriculum lookup → worksheet assembly → student/teacher split → answer-leak validation → Chrome rendering**. The science inquiry continues for three pages; the social data-analysis and graphic-organizer worksheets each continue for two pages.
 
-| Science inquiry · Photosynthesis | Social data analysis · Population change |
+| Science inquiry · Photosynthesis (3 pages) | Social data analysis · Population change (2 pages) |
 |---|---|
 | ![Science inquiry worksheet for designing a photosynthesis experiment](docs/images/readme/science-inquiry.png) | ![Social studies data-analysis worksheet for mapping population change](docs/images/readme/social-data-map.png) |
-| **Korean reading and discussion · Claims and evidence** | **English vocabulary and communication · Expressing emotions** |
-| ![Korean language arts worksheet for reading and discussing claims and evidence](docs/images/readme/korean-argument-reading.png) | ![English worksheet for organizing vocabulary about emotions](docs/images/readme/english-emotion-vocab.png) |
+
+- Science: inquiry question → hypothesis → variable design → data table and graph → interpretation
+- Social studies: real world map and public population data → rate calculation → map legend → causal fishbone
+
+### Graphic organizer · States of matter (2 pages)
+
+![Graphic-organizer worksheet comparing solids liquids and gases in a three-circle Venn diagram](docs/images/readme/visual-organizer-states.png)
+
+The three-circle Venn diagram on page one is followed by a six-node concept map and a four-step flowchart on page two. The engine owns shape geometry and coordinates; the teacher or AI harness supplies topic labels and activity instructions.
 
 ## AI harness status
 
