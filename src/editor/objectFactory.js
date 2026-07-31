@@ -159,19 +159,42 @@ export const GRAPHIC_ORGANIZER_INSERTS = Object.freeze([
 
 // ── P3 스파이크(2026-07-31): 편집 가능 그림형 조직자 ────────────────────────────
 // 아래 kind 는 잠금 richtext 가 아니라 **편집 가능한 `organizer` 개체**로 삽입한다(개수·라벨을
-// 인스펙터에서 편집). 현재 venn 만 — 슬롯화가 검증된 종류부터 점진 확대(나머지 5종은 위 잠금 삽입 유지).
-export const EDITABLE_ORGANIZER_KINDS = Object.freeze(['venn']);
+// 인스펙터에서 편집). 그림형 6종 전부 편집 가능(개수는 params, 라벨은 슬롯 이름 키 labels).
+export const EDITABLE_ORGANIZER_KINDS = Object.freeze(['venn', 'conceptmap', 'fishbone', 'flowchart', 'hierarchy', 'hexagon']);
 
-// 조직자 kind 별 편집 스펙 — 인스펙터(개수 select·라벨 입력)와 defaultFieldsFor 의 단일 출처.
+const range = (a, b) => { const r = []; for (let i = a; i <= b; i += 1) r.push(i); return r; };
+
+// 조직자 kind 별 편집 스펙 — 인스펙터(개수 select·라벨 입력)와 삽입 기본값의 단일 출처.
 //  - param/min/max/defaultCount: 개수 파라미터와 엔진 clamp 범위(OrganizerGen 과 일치).
-//  - slotLabels(count): 그 개수에서 각 슬롯이 "무엇을 적는 칸인지"(교사 안내용). 슬롯의 순서·좌표는
-//    엔진(OrganizerGen)이 소유한다 — 여기엔 '글자 슬롯의 뜻'만 있고 좌표는 없다(원칙 3).
+//  - slots(count): 그 개수에서의 슬롯 목록 [{key, label, def}]. key 는 OrganizerGen 이 읽는 슬롯
+//    **이름**(배열 index 아님 — 개수를 바꿔도 슬롯 뜻이 밀리지 않게, ADR §6-1). label 은 교사 안내,
+//    def 는 빈칸일 때 화면에 보일 기본 글자(''이면 자유 기입 칸). 슬롯의 순서·좌표는 엔진이 소유(원칙 3).
 export const ORGANIZER_EDIT_SPECS = Object.freeze({
   venn: Object.freeze({
     param: 'circles', min: 2, max: 3, defaultCount: 2, countLabel: '원 개수',
-    slotLabels: (n) => (Number(n) === 3
-      ? ['왼쪽 위 원', '오른쪽 위 원', '아래 원', '가운데(공통)']
-      : ['왼쪽 원', '오른쪽 원', '가운데(공통)']),
+    slots: (n) => (Number(n) === 3
+      ? [{ key: 'a', label: '왼쪽 위 원', def: 'A' }, { key: 'b', label: '오른쪽 위 원', def: 'B' }, { key: 'c', label: '아래 원', def: 'C' }, { key: 'common', label: '가운데(공통)', def: '공통' }]
+      : [{ key: 'left', label: '왼쪽 원', def: 'A' }, { key: 'right', label: '오른쪽 원', def: 'B' }, { key: 'common', label: '가운데(공통)', def: '공통점' }]),
+  }),
+  conceptmap: Object.freeze({
+    param: 'nodes', min: 3, max: 6, defaultCount: 4, countLabel: '가지 수',
+    slots: (n) => [{ key: 'center', label: '가운데 핵심', def: '핵심 개념' }, ...range(1, Math.max(3, Math.min(6, Number(n) || 4))).map((i) => ({ key: `node${i}`, label: `${i}번 칸`, def: '' }))],
+  }),
+  fishbone: Object.freeze({
+    param: 'branches', min: 2, max: 6, defaultCount: 4, countLabel: '원인 가지 수',
+    slots: (n) => [{ key: 'result', label: '결과(머리)', def: '결과' }, ...range(1, Math.max(2, Math.min(6, Number(n) || 4))).map((i) => ({ key: `cause${i}`, label: `${i}번 원인`, def: '원인' }))],
+  }),
+  flowchart: Object.freeze({
+    param: 'steps', min: 2, max: 6, defaultCount: 4, countLabel: '단계 수',
+    slots: (n) => range(1, Math.max(2, Math.min(6, Number(n) || 4))).map((i) => ({ key: `step${i}`, label: `${i}단계`, def: String(i) })),
+  }),
+  hierarchy: Object.freeze({
+    param: 'children', min: 2, max: 5, defaultCount: 3, countLabel: '하위 개수',
+    slots: (n) => [{ key: 'top', label: '맨 위 개념', def: '상위 개념' }, ...range(1, Math.max(2, Math.min(5, Number(n) || 3))).map((i) => ({ key: `child${i}`, label: `${i}번 하위`, def: '' }))],
+  }),
+  hexagon: Object.freeze({
+    param: 'count', min: 3, max: 7, defaultCount: 5, countLabel: '육각형 수',
+    slots: (n) => range(1, Math.max(3, Math.min(7, Number(n) || 5))).map((i) => ({ key: `hex${i}`, label: `${i}번 육각형`, def: '' })),
   }),
 });
 

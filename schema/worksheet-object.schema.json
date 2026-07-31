@@ -161,7 +161,7 @@
         "placement": { "const": "flow" },
         "kind": { "type": "string", "enum": ["venn", "conceptmap", "fishbone", "flowchart", "hierarchy", "hexagon"], "description": "조직자 종류(OrganizerGen.ORGANIZER_GENERATORS 키). 엔진이 이 종류의 고정비율 SVG 뼈대를 결정적으로 그린다." },
         "params": { "type": "object", "description": "개수 파라미터(예 벤다이어그램 {circles:2|3}). 키는 kind 별로 다르며 엔진(OrganizerGen)이 범위 clamp·해석한다 — 스키마·validator 는 내부를 검사하지 않는다(table rows 와 동일 경계)." },
-        "labels": { "type": "array", "items": { "type": "string" }, "description": "슬롯 텍스트 배열(교사 저작·선택). 슬롯의 순서·좌표는 엔진 소유(원칙 3) — 교사는 각 슬롯에 들어갈 '글자'만 지정한다. 비거나 짧으면 엔진 기본 라벨로 채운다." },
+        "labels": { "type": "object", "description": "슬롯 이름→글자 맵(교사 저작·선택). 키는 kind 별 슬롯 이름(예 venn 2원: left/right/common · 3원: a/b/c/common), 값은 그 슬롯 텍스트. 배열 index 가 아니라 이름이라 개수를 바꿔도 슬롯이 밀리지 않는다(ADR §6-1). 슬롯의 순서·좌표는 엔진(OrganizerGen) 소유(원칙 3). 비거나 없으면 엔진 기본 라벨." },
         "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
         "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
         "align": { "$ref": "#/$defs/commonProps/align" }

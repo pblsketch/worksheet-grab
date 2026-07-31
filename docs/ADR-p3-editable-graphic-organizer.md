@@ -3,6 +3,11 @@
 > **상태: GO (A안 채택) — 작동 프로토타입으로 실증.** 2026-07-31.
 > 대상: `E:/github/worksheet-grab` · 브랜치: `feat/p3-editable-organizer` · 스파이크 커밋 `67da4cd`.
 > 근거 문서: `docs/HANDOFF-P3-editable-graphic-object.md`, `docs/PLAN-graphic-organizers.md`(§74·136·178).
+>
+> **업데이트(2026-07-31, 확장):** 스파이크 GO 후 형 승인으로 **그림형 6종 전부**(venn·conceptmap·
+> fishbone·flowchart·hierarchy·hexagon)를 편집 가능 organizer 로 확장하고, **라벨을 슬롯 이름 키**로
+> 저장(§6-1 remap 해소)했다. test:unit 891 pass, 조직자/에디터 렌더 12 pass. 기본 라벨 미지정 시 생성기
+> 출력은 바이트 동일이라 compose/인쇄 경로 회귀 0.
 
 ---
 
@@ -74,20 +79,19 @@ A/B 를 가르지 못한다. 실제 갈림길은 **라벨**이다: A안은 label
 
 ## 6. 스파이크가 드러낸 주의점 (생산화 전 처리)
 
-1. **라벨 index remap** — labels 를 슬롯 index 로 저장한다. venn 2원 슬롯 `[좌,우,공통]`, 3원 슬롯
-   `[A,B,C,공통]` 이라 개수를 2→3 으로 바꾸면 "가운데" 슬롯이 index 2→3 으로 밀려 라벨 뜻이 어긋난다.
-   프로토타입은 index 기반(단순). **생산화 시 슬롯을 이름 키로 저장** 권고(예 `{outer:[...], common:'…'}`).
+1. **라벨 슬롯 키화 — 해소됨(2026-07-31 확장).** 처음엔 labels 를 배열 index 로 저장해 개수를 2→3 으로
+   바꾸면 "가운데" 라벨이 밀렸다. 이를 **슬롯 이름 키**(venn 2원 left/right/common · 3원 a/b/c/common —
+   공통은 둘 다 common)로 바꿔 개수를 바꿔도 공통 라벨이 유지되게 했다. 6종 전부 같은 이름-키 모델
+   (`ORGANIZER_EDIT_SPECS[kind].slots(count)` 가 `{key,label,def}` 단일 출처).
 2. **PDF 쪽수 파리티** — 에디터 organizer 경로의 "인쇄 PDF 쪽수 == 편집 쪽수"는 이번엔 구조 동치
    (venn 블록 문자 동일)와 A4 한 쪽 육안 확인으로 갈음했다. `editor-print-parity.render` 에 organizer
    픽스처를 넣어 PDF 쪽수까지 못 박는 것을 후속으로 권고.
 
 ## 7. 후속 (Follow-ups) — 승인 후 별도 작업
 
-- **나머지 5종 슬롯화**(conceptmap·fishbone·flowchart·hierarchy·hexagon) — 각 generator 의 하드코딩
-  `<text>` 를 labels 슬롯으로. 스키마·렌더·팩토리·인스펙터 배선은 이미 6종 열림(`EDITABLE_ORGANIZER_KINDS`
-  에 추가 + `ORGANIZER_EDIT_SPECS` 채우기).
-- **라벨 슬롯 이름 키화**(§6-1).
-- **마이그레이션 대칭**(P1b 선례) — compose/기존 문서의 richtext venn 을 organizer 로 승격.
+- ~~나머지 5종 슬롯화~~ · ~~라벨 슬롯 이름 키화~~ — **완료(2026-07-31 확장).** 6종 전부 개수·라벨 편집.
+- **마이그레이션 대칭**(P1b 선례) — compose/기존 문서의 richtext 조직자를 organizer 로 승격.
+- **에디터 organizer PDF 쪽수 파리티 테스트**(§6-2) — `editor-print-parity.render` 에 organizer 픽스처 추가.
 - **designer 저작 어휘** — AI 가 kind·개수·슬롯 텍스트를 저작(좌표 아님). editorqa(worksheet-design) 와
   겹치므로 그 세션 병합 후 별도 승인.
 

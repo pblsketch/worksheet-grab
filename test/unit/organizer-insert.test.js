@@ -77,53 +77,54 @@ test('조직자 삽입: 프레이어 개념=병합 헤더(colspan2·중앙) · c
   }
 });
 
-// ── #2 P2 / P3: 그림형(SVG) 조직자 — venn 은 편집 가능 organizer, 나머지는 잠금 richtext ──
+// ── P3: 그림형(SVG) 조직자 6종 전부 편집 가능 organizer(개수·라벨) ──────────────
 
-test('그림형 조직자 삽입: venn 은 편집 가능 organizer, 나머지는 잠금 richtext — 전부 스키마 유효(P3)', async () => {
-  const { GRAPHIC_ORGANIZER_INSERTS, EDITABLE_ORGANIZER_KINDS, createOrganizerObject } = await loadObjectFactory();
+test('그림형 조직자 삽입: 6종 전부 편집 가능 organizer 개체(P3 — 개수·라벨, 잠금 richtext 아님)', async () => {
+  const { GRAPHIC_ORGANIZER_INSERTS, EDITABLE_ORGANIZER_KINDS, ORGANIZER_EDIT_SPECS, createOrganizerObject } = await loadObjectFactory();
   assert.ok(GRAPHIC_ORGANIZER_INSERTS.length >= 6, `그림형 조직자 ≥6종(실제 ${GRAPHIC_ORGANIZER_INSERTS.length})`);
   for (const desc of GRAPHIC_ORGANIZER_INSERTS) {
+    assert.ok(EDITABLE_ORGANIZER_KINDS.includes(desc.key), `${desc.key}: 편집 가능 kind 목록에 있음`);
+    assert.ok(ORGANIZER_EDIT_SPECS[desc.key], `${desc.key}: 편집 스펙(개수·슬롯) 존재`);
     const obj = createOrganizerObject(desc.key);
+    assert.equal(obj.type, 'organizer', `${desc.key}: organizer 개체`);
+    assert.equal(obj.kind, desc.key, `${desc.key}: kind 보존`);
     assert.equal(obj.placement, 'flow', `${desc.key}: flow`);
     assert.equal(obj.rect, undefined, `${desc.key}: flow 는 좌표 없음(원칙 3)`);
+    assert.equal(obj.html, undefined, `${desc.key}: organizer 는 굽힌 html 없음(렌더가 엔진 호출)`);
     assert.notEqual(obj.answer, true, `${desc.key}: 정답 플래그 없음`);
-    if (EDITABLE_ORGANIZER_KINDS.includes(desc.key)) {
-      // P3 승격: 편집 가능 그림형(현재 venn) — organizer 개체(개수·라벨 편집). 렌더는 같은 엔진.
-      assert.equal(obj.type, 'organizer', `${desc.key}: 편집 가능 organizer 개체(P3 승격)`);
-      assert.equal(obj.kind, desc.key, `${desc.key}: kind 보존`);
-      assert.equal(obj.html, undefined, `${desc.key}: organizer 는 굽힌 html 을 갖지 않는다(렌더가 엔진 호출)`);
-    } else {
-      assert.equal(obj.type, 'richtext', `${desc.key}: 아직 잠금 richtext 삽입`);
-      assert.match(obj.html, /<svg/, `${desc.key}: 인라인 SVG 포함(색은 blocks.css)`);
-      assert.doesNotMatch(obj.html, /#[0-9a-fA-F]{3,6}\b/, `${desc.key}: HTML 에 hex 색 리터럴 없음(색은 CSS — 범교과)`);
-    }
     const { ok, findings } = validateObjectShape(obj);
     assert.ok(ok, `${desc.key} 스키마 위반: ${findings.map((f) => f.rule).join(',')}`);
   }
 });
 
-test('그림형 조직자 삽입: 잠금 richtext 종류의 html 은 엔진 생성기 기본 출력과 동일(단일 출처 — 드리프트 0)', async () => {
-  const { GRAPHIC_ORGANIZER_INSERTS, EDITABLE_ORGANIZER_KINDS, createOrganizerObject } = await loadObjectFactory();
-  for (const desc of GRAPHIC_ORGANIZER_INSERTS) {
-    if (EDITABLE_ORGANIZER_KINDS.includes(desc.key)) continue; // organizer 로 승격된 종류는 굽힌 html 이 없다(렌더가 엔진 호출)
-    const gen = ORGANIZER_GENERATORS[desc.key];
-    assert.ok(typeof gen === 'function', `${desc.key}: OrganizerGen 생성기 존재`);
-    assert.equal(createOrganizerObject(desc.key).html, gen({}),
-      `${desc.key}: 삽입 SVG 가 compose 와 같은 엔진 기본 출력이어야(이중 출처 금지)`);
+test('그림형 generator 6종: (params) 만이면 기본 출력(하위호환) · labels(슬롯 키)로 글자 채움', () => {
+  for (const kind of Object.keys(ORGANIZER_GENERATORS)) {
+    const base = ORGANIZER_GENERATORS[kind]({});
+    assert.ok(base.includes(`class="${kind} keep"`), `${kind}: cssClass 방출`);
+    assert.match(base, /<svg/, `${kind}: SVG`);
   }
+  // labels(슬롯 이름 키)가 실제로 글자를 넣는다 — 대표로 fishbone(result/cause)·conceptmap(center).
+  const fb = ORGANIZER_GENERATORS.fishbone({ branches: 2 }, { result: '성적 하락', cause1: '수면 부족' });
+  assert.match(fb, /성적 하락/);
+  assert.match(fb, /수면 부족/);
+  const cm = ORGANIZER_GENERATORS.conceptmap({ nodes: 3 }, { center: '광합성', node1: '빛' });
+  assert.match(cm, /광합성/);
+  assert.match(cm, /빛/);
 });
 
-test('vennSvg: labels 가 슬롯 텍스트만 채운다 — 엔진 소유 좌표·도형은 불변(원칙 3)', async () => {
+test('vennSvg: labels(슬롯 키)가 슬롯 글자만 채운다 — 좌표·도형 불변(원칙 3) · 개수 바꿔도 공통 유지', async () => {
   const { vennSvg } = await import('../../src/usecases/OrganizerGen.js');
   const base = vennSvg({ circles: 2 });
-  const labeled = vennSvg({ circles: 2 }, ['식물', '동물', '공통점']);
+  const labeled = vennSvg({ circles: 2 }, { left: '식물', right: '동물', common: '공통점' });
   assert.match(labeled, /식물/);
   assert.match(labeled, /동물/);
-  assert.match(labeled, /viewBox="0 0 440 240"/, '뷰박스(엔진 소유 좌표계) 불변');
+  assert.match(labeled, /viewBox="0 0 440 240"/, '뷰박스(엔진 좌표계) 불변');
   assert.equal(base.match(/<circle/g).length, labeled.match(/<circle/g).length, '도형 개수 불변');
-  assert.match(vennSvg({ circles: 2 }, ['식물']), />B<\/text>/, '누락 슬롯은 기본 라벨(B)로 폴백');
-  assert.match(vennSvg({ circles: 2 }, ['<b>x</b>']), /&lt;b&gt;x&lt;\/b&gt;/, '라벨은 이스케이프되어 주입 불가');
-  assert.equal(vennSvg({ circles: 2 }), base, '라벨 미지정 출력은 기존과 바이트 동일(하위호환)');
+  assert.match(vennSvg({ circles: 2 }, { left: '식물' }), />B<\/text>/, '지정 안 한 슬롯은 기본 라벨(B)');
+  assert.match(vennSvg({ circles: 2 }, { common: '<b>x</b>' }), /&lt;b&gt;x&lt;\/b&gt;/, '라벨 이스케이프(주입 불가)');
+  assert.equal(vennSvg({ circles: 2 }, {}), base, '라벨 미지정 출력은 기존과 바이트 동일(하위호환)');
+  // common 슬롯은 2원·3원 공통 이름이라 개수를 바꿔도 유지된다(index 였다면 밀렸다).
+  assert.match(vennSvg({ circles: 3 }, { common: '셋의 공통' }), /셋의 공통/);
 });
 
 // ── #2 P2b: 특수 레이아웃 조직자 잠금 삽입(richtext, 블록 HTML 번들) ──────────────

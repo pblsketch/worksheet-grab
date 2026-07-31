@@ -586,7 +586,7 @@ function renderOrganizer(obj) {
   const gen = kind ? ORGANIZER_GENERATORS[kind] : null;
   if (typeof gen !== 'function') return '';
   const params = (obj.params && typeof obj.params === 'object' && !Array.isArray(obj.params)) ? obj.params : {};
-  const labels = Array.isArray(obj.labels) ? obj.labels : [];
+  const labels = (obj.labels && typeof obj.labels === 'object' && !Array.isArray(obj.labels)) ? obj.labels : {};
   return gen(params, labels);
 }
 

@@ -512,20 +512,20 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         countSel.addEventListener('change', () => patch({ params: { ...params, [spec.param]: Number(countSel.value) } }));
         root.appendChild(field(spec.countLabel || '개수', countSel));
 
-        const slotNames = spec.slotLabels(count);
-        const labels = Array.isArray(obj.labels) ? obj.labels : [];
-        slotNames.forEach((slotName, i) => {
-          const inp = el('input', { type: 'text', id: `insp-organizer-label-${i}`, value: labels[i] || '', placeholder: '(기본 안내 글자)' });
+        const slots = spec.slots(count);
+        const labelsOf = (o) => ((o.labels && typeof o.labels === 'object' && !Array.isArray(o.labels)) ? o.labels : {});
+        const labels = labelsOf(obj);
+        slots.forEach((slot) => {
+          const inp = el('input', { type: 'text', id: `insp-organizer-label-${slot.key}`, value: labels[slot.key] || '', placeholder: slot.def ? `기본: ${slot.def}` : '(빈칸)' });
           inp.addEventListener('change', () => {
-            const next = (Array.isArray(obj.labels) ? [...obj.labels] : []);
-            while (next.length < slotNames.length) next.push('');
-            next[i] = inp.value.trim();
-            const trimmed = next.slice(0, slotNames.length);
-            patch({ labels: trimmed.every((s) => !s) ? [] : trimmed });
+            const next = { ...labelsOf(obj) };
+            const v = inp.value.trim();
+            if (v) next[slot.key] = v; else delete next[slot.key];
+            patch({ labels: next });
           });
-          root.appendChild(field(`${slotName} 글자`, inp));
+          root.appendChild(field(`${slot.label} 글자`, inp));
         });
-        root.appendChild(el('p', { class: 'insp-note', text: '각 칸에 들어갈 글자만 적으면 됩니다(비우면 기본 안내 글자가 나옵니다). 그림의 원·선은 프로그램이 정확히 그립니다.' }));
+        root.appendChild(el('p', { class: 'insp-note', text: '각 칸에 들어갈 글자만 적으면 됩니다(비우면 기본 안내 글자가 나옵니다). 그림의 원·선은 프로그램이 정확히 그립니다. 개수를 바꿔도 이름표는 슬롯 이름으로 유지됩니다.' }));
         break;
       }
       default: break;

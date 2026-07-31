@@ -73,7 +73,7 @@ test('createObject("organizer") 도 스키마 유효(기본 venn 2원)', async (
 test('organizer 개수·라벨 편집 결과가 스키마를 통과한다(개수 3 + 라벨 슬롯)', async () => {
   const { createOrganizerObject } = await loadObjectFactory();
   const base = createOrganizerObject('venn');
-  const edited = { ...base, params: { circles: 3 }, labels: ['봄', '가을', '겨울', '공통'] };
+  const edited = { ...base, params: { circles: 3 }, labels: { a: '봄', b: '가을', c: '겨울', common: '공통' } };
   assert.ok(validateObjectShape(edited).ok, '개수·라벨을 바꿔도 유효한 개체여야 한다');
 });
 
@@ -92,9 +92,13 @@ test('organizer.kind 가 목록(ORGANIZER_KINDS) 밖이면 invalid-organizer-kin
   assert.ok(findings.some((f) => f.rule === 'invalid-organizer-kind'));
 });
 
-test('나머지 그림형(conceptmap 등)은 아직 잠금 richtext 삽입(점진 확대)', async () => {
-  const { createOrganizerObject } = await loadObjectFactory();
-  const obj = createOrganizerObject('conceptmap');
-  assert.equal(obj.type, 'richtext');
-  assert.ok(validateObjectShape(obj).ok);
+test('그림형 조직자 6종 전부 편집 가능 organizer 로 삽입(venn·conceptmap·fishbone·flowchart·hierarchy·hexagon)', async () => {
+  const { createOrganizerObject, EDITABLE_ORGANIZER_KINDS } = await loadObjectFactory();
+  for (const kind of ['venn', 'conceptmap', 'fishbone', 'flowchart', 'hierarchy', 'hexagon']) {
+    assert.ok(EDITABLE_ORGANIZER_KINDS.includes(kind), `${kind}: 편집 가능 kind`);
+    const obj = createOrganizerObject(kind);
+    assert.equal(obj.type, 'organizer', `${kind}: organizer 개체`);
+    assert.equal(obj.kind, kind, `${kind}: kind 보존`);
+    assert.ok(validateObjectShape(obj).ok, `${kind}: 스키마 유효`);
+  }
 });
