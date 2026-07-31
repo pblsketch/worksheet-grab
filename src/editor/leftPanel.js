@@ -5,7 +5,7 @@
 // editor.js 가 core/history/reflow 와 묶어 호출).
 
 import { icon } from './icons.js';
-import { CATALOG_ITEMS, ORGANIZER_INSERTS } from './objectFactory.js';
+import { CATALOG_ITEMS, ORGANIZER_INSERTS, GRAPHIC_ORGANIZER_INSERTS, SPECIAL_ORGANIZER_INSERTS } from './objectFactory.js';
 import { settlePageReorder } from './pageReorder.js';
 import { collectStyles } from './thumbs.js';
 
@@ -433,19 +433,22 @@ export function createLeftPanel({
       richtext: 'type', shape: 'square', divider: 'minus', 'passage-slot': 'file', 'std-box': 'files', callout: 'highlighter' }[type] || 'plus';
   }
 
-  // ── ②' 시각 조직자(표형) 삽입 — 미리 채운 table 개체(새 개체 타입 없이·스키마 무변경).
-  //      그림형(SVG)·특수 레이아웃(신호등 색·쓰기줄)은 여기 없다(후속 P2 잠금 삽입). ──
+  // ── ②' 시각 조직자 삽입 — 표형은 미리 채운 table 개체(P1a), 그림형(SVG)은 richtext 잠금 삽입(P2).
+  //      새 개체 타입 없이·스키마 무변경. 클릭 → onInsertOrganizer(key) → 엔진이 개체를 구성한다. ──
   if (organizerGrid) {
-    for (const desc of ORGANIZER_INSERTS) {
+    const renderOrg = (desc, iconName) => {
       const btn = document.createElement('button');
       btn.className = 'insert-card';
       btn.type = 'button';
       btn.dataset.organizerKey = desc.key;
-      btn.innerHTML = `${icon('table')}<span>${desc.label}</span>`;
+      btn.innerHTML = `${icon(iconName)}<span>${desc.label}</span>`;
       btn.title = desc.label;
       btn.addEventListener('click', () => onInsertOrganizer(desc.key));
       organizerGrid.appendChild(btn);
-    }
+    };
+    for (const desc of ORGANIZER_INSERTS) renderOrg(desc, 'table');
+    for (const desc of GRAPHIC_ORGANIZER_INSERTS) renderOrg(desc, 'image');
+    for (const desc of SPECIAL_ORGANIZER_INSERTS) renderOrg(desc, 'square');
   }
 
   // ── ③ 내 블록(/presets 재배선) ──

@@ -19,6 +19,9 @@ import {
   WIDTH_PCT_MAX,
   createUniquePageId,
 } from '/src/domain/schema/index.js';
+// 그림형 조직자 삽입(#2 P2)은 엔진의 파라메트릭 SVG 생성기를 그대로 재사용한다(단일 출처 —
+// compose 와 같은 OrganizerGen). 순수 모듈이라 브라우저/노드 양쪽에서 그대로 import 된다.
+import { ORGANIZER_GENERATORS } from '/src/usecases/OrganizerGen.js';
 
 /** 자유 배치 기본 rect — 실측을 못 얻었을 때만 쓰는 폴백(삽입·승격 공통 단일 출처). */
 const DEFAULT_FLOAT_RECT = Object.freeze({ xMm: 20, yMm: 20, wMm: 60, hMm: 30 });
@@ -77,23 +80,95 @@ export const CATALOG_ITEMS = Object.freeze([
 ]);
 
 // 시각 조직자 삽입(#2) — 표형 조직자를 "새 개체 타입 없이" 미리 채운 `table` 개체로 삽입한다.
-// 스키마 무변경(닫힌 카탈로그의 table 재사용). 각 rows 는 blocks/core/<key>.html 의 <table> 을
-// parseTableRows(MigrateManifestToObjectTree)로 파생한 값과 동일해야 한다(단일 출처 — organizer-insert
-// 테스트가 블록↔서술자 parity 를 강제해 드리프트를 막는다). 그림형(SVG)·특수 레이아웃(신호등 색·쓰기줄)은
-// 여기 없다 — 잠금 richtext 삽입(후속 P2)으로 원본 HTML 을 그대로 보존한다.
-// 셀은 parseTableRows 규약과 정합: 헤더 셀은 {text, header:true}, 일반 셀은 {text}. 정답은 비운다
+// 스키마 무변경(닫힌 카탈로그의 table 재사용). 서술자는 blocks/core/<key>.html 의 디자인을 반영한다:
+//  - 헤더·라벨 텍스트(정의/특징·누가/언제…)는 블록과 동일(organizer-insert 테스트가 라벨 커버리지로 드리프트 감시)
+//  - 열 너비(w, %)는 첫 행 셀에 실어 colgroup 으로 등폭/의도폭을 만든다(RenderObjectTree 규약, #10)
+//  - 필기 높이(h, mm)·라벨 중앙정렬(header:true→th)로 원본 블록의 셀 높이·라벨 스타일을 재현
+//  - 프레이어의 중심 개념은 colspan:2 병합 헤더(중앙정렬)로 상단에 둔다(caption 대신)
+// 셀 내부 필드(w/h/colspan/header)는 스키마 미검증이라 개체 유효성에 영향 없다. 정답은 비운다
 // (빈 조직자 삽입 — 교사 예시는 삽입 후 개체 answer 토글/저작으로, #4 fail-closed 불변식과 독립).
+// 그림형(SVG)·특수 레이아웃(신호등 색·쓰기줄)은 여기 없다 — 잠금 richtext 삽입(후속 P2).
 export const ORGANIZER_INSERTS = Object.freeze([
-  { key: 'kwl', label: 'KWL (아는·알고싶은·배운 것)', rows: [[{ text: 'K 아는 것', header: true }, { text: 'W 알고 싶은 것', header: true }, { text: 'L 배운 것', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'frayer', label: '프레이어 모형 (정의·특징·예·비예)', caption: '개념:', rows: [[{ text: '정의', header: true }, { text: '특징', header: true }], [{ text: '' }, { text: '' }], [{ text: '예', header: true }, { text: '예가 아닌 것', header: true }], [{ text: '' }, { text: '' }]] },
-  { key: 'w5h1', label: '5W1H (누가·언제·어디서·무엇·어떻게·왜)', rows: [[{ text: '누가 (Who)' }, { text: '' }], [{ text: '언제 (When)' }, { text: '' }], [{ text: '어디서 (Where)' }, { text: '' }], [{ text: '무엇을 (What)' }, { text: '' }], [{ text: '어떻게 (How)' }, { text: '' }], [{ text: '왜 (Why)' }, { text: '' }]] },
-  { key: 'bme', label: '처음·중간·끝', rows: [[{ text: '처음', header: true }, { text: '중간', header: true }, { text: '끝', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'prediction', label: '예측하기 (예상·관찰·비교)', rows: [[{ text: '내 예상', header: true }, { text: '실제 관찰 · 결과', header: true }, { text: '비교 · 까닭', header: true }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'glowgrow', label: 'Glow & Grow (잘한 점·기를 점)', rows: [[{ text: '잘한 점 (Glow)', header: true }, { text: '더 기를 점 (Grow)', header: true }], [{ text: '' }, { text: '' }]] },
-  { key: 'perspectives', label: '관점 비교 (입장·근거·내 생각)', rows: [[{ text: '관점 · 입장', header: true }, { text: '근거 · 이유', header: true }, { text: '내 생각', header: true }], [{ text: '' }, { text: '' }, { text: '' }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'character', label: '인물 분석 (인물·특성·근거·변화)', rows: [[{ text: '인물' }, { text: '' }], [{ text: '성격 · 특성' }, { text: '' }], [{ text: '근거 (말 · 행동)' }, { text: '' }], [{ text: '변화 · 성장' }, { text: '' }]] },
-  { key: 'quotejournal', label: '인용 저널 (인용문·쪽·내 생각)', rows: [[{ text: '인용한 문장', header: true }, { text: '쪽', header: true }, { text: '왜 골랐나 · 내 생각', header: true }], [{ text: '' }, { text: '' }, { text: '' }], [{ text: '' }, { text: '' }, { text: '' }]] },
-  { key: 'bookreview', label: '북 리뷰 (제목·줄거리·평가)', rows: [[{ text: '책 제목 · 지은이' }, { text: '' }], [{ text: '줄거리 요약' }, { text: '' }], [{ text: '인상 깊은 부분' }, { text: '' }], [{ text: '느낀 점 · 평가' }, { text: '' }], [{ text: '별점 · 추천' }, { text: '' }]] },
+  { key: 'kwl', label: 'KWL (아는·알고싶은·배운 것)', rows: [
+    [{ text: 'K 아는 것', header: true, w: 33.34 }, { text: 'W 알고 싶은 것', header: true, w: 33.33 }, { text: 'L 배운 것', header: true, w: 33.33 }],
+    [{ text: '', h: 25 }, { text: '', h: 25 }, { text: '', h: 25 }],
+  ] },
+  { key: 'frayer', label: '프레이어 모형 (정의·특징·예·비예)', rows: [
+    [{ text: '개념:', header: true, colspan: 2, w: 100 }],
+    [{ text: '정의', header: true }, { text: '특징', header: true }],
+    [{ text: '', h: 19 }, { text: '', h: 19 }],
+    [{ text: '예', header: true }, { text: '예가 아닌 것', header: true }],
+    [{ text: '', h: 19 }, { text: '', h: 19 }],
+  ] },
+  { key: 'w5h1', label: '5W1H (누가·언제·어디서·무엇·어떻게·왜)', rows: [
+    [{ text: '누가 (Who)', header: true, w: 28 }, { text: '', w: 72, h: 10 }],
+    [{ text: '언제 (When)', header: true }, { text: '', h: 10 }],
+    [{ text: '어디서 (Where)', header: true }, { text: '', h: 10 }],
+    [{ text: '무엇을 (What)', header: true }, { text: '', h: 10 }],
+    [{ text: '어떻게 (How)', header: true }, { text: '', h: 10 }],
+    [{ text: '왜 (Why)', header: true }, { text: '', h: 10 }],
+  ] },
+  { key: 'bme', label: '처음·중간·끝', rows: [
+    [{ text: '처음', header: true, w: 33.34 }, { text: '중간', header: true, w: 33.33 }, { text: '끝', header: true, w: 33.33 }],
+    [{ text: '', h: 30 }, { text: '', h: 30 }, { text: '', h: 30 }],
+  ] },
+  { key: 'prediction', label: '예측하기 (예상·관찰·비교)', rows: [
+    [{ text: '내 예상', header: true, w: 33.34 }, { text: '실제 관찰 · 결과', header: true, w: 33.33 }, { text: '비교 · 까닭', header: true, w: 33.33 }],
+    [{ text: '', h: 18 }, { text: '', h: 18 }, { text: '', h: 18 }],
+  ] },
+  { key: 'glowgrow', label: 'Glow & Grow (잘한 점·기를 점)', rows: [
+    [{ text: '잘한 점 (Glow)', header: true, w: 50 }, { text: '더 기를 점 (Grow)', header: true, w: 50 }],
+    [{ text: '', h: 25 }, { text: '', h: 25 }],
+  ] },
+  { key: 'perspectives', label: '관점 비교 (입장·근거·내 생각)', rows: [
+    [{ text: '관점 · 입장', header: true, w: 24 }, { text: '근거 · 이유', header: true, w: 38 }, { text: '내 생각', header: true, w: 38 }],
+    [{ text: '', h: 16 }, { text: '', h: 16 }, { text: '', h: 16 }],
+    [{ text: '', h: 16 }, { text: '', h: 16 }, { text: '', h: 16 }],
+  ] },
+  { key: 'character', label: '인물 분석 (인물·특성·근거·변화)', rows: [
+    [{ text: '인물', header: true, w: 26 }, { text: '', w: 74, h: 12 }],
+    [{ text: '성격 · 특성', header: true }, { text: '', h: 12 }],
+    [{ text: '근거 (말 · 행동)', header: true }, { text: '', h: 12 }],
+    [{ text: '변화 · 성장', header: true }, { text: '', h: 12 }],
+  ] },
+  { key: 'quotejournal', label: '인용 저널 (인용문·쪽·내 생각)', rows: [
+    [{ text: '인용한 문장', header: true, w: 44 }, { text: '쪽', header: true, w: 12 }, { text: '왜 골랐나 · 내 생각', header: true, w: 44 }],
+    [{ text: '', h: 18 }, { text: '', h: 18 }, { text: '', h: 18 }],
+    [{ text: '', h: 18 }, { text: '', h: 18 }, { text: '', h: 18 }],
+  ] },
+  { key: 'bookreview', label: '북 리뷰 (제목·줄거리·평가)', rows: [
+    [{ text: '책 제목 · 지은이', header: true, w: 26 }, { text: '', w: 74, h: 10 }],
+    [{ text: '줄거리 요약', header: true }, { text: '', h: 16 }],
+    [{ text: '인상 깊은 부분', header: true }, { text: '', h: 10 }],
+    [{ text: '느낀 점 · 평가', header: true }, { text: '', h: 16 }],
+    [{ text: '별점 · 추천', header: true }, { text: '', h: 10 }],
+  ] },
+]);
+
+// 그림형 시각 조직자 삽입(#2 P2) — SVG 조직자를 richtext 개체로 "잠금 삽입"한다. 원본 블록과 동일한
+// 인라인 SVG 라 blocks.css 색/인쇄안전(.keep)이 그대로 적용된다(이미지로 넣으면 색이 빠진다). 표형과
+// 달리 편집 가능한 표가 아니라 이동·삭제 가능한 그림 블록이다(개수는 엔진 기본값 = 정적 블록과 동일).
+export const GRAPHIC_ORGANIZER_INSERTS = Object.freeze([
+  { key: 'venn', label: '벤다이어그램 (공통점·차이점)' },
+  { key: 'conceptmap', label: '개념 지도 (핵심·가지)' },
+  { key: 'fishbone', label: '피시본 (원인·결과)' },
+  { key: 'flowchart', label: '순서 흐름도' },
+  { key: 'hierarchy', label: '위계 트리 (상위·하위)' },
+  { key: 'hexagon', label: '육각형 연결 (헥사고날)' },
+]);
+
+// 특수 레이아웃 시각 조직자 삽입(#2 P2b) — 신호등 색·쓰기줄·섹션 스택처럼 일반 table 로는 모양이 깨지는
+// 정적 블록을 원본 HTML 그대로 richtext 로 잠금 삽입한다. 인라인 HTML 이라 blocks.css(신호등 색 등)가
+// 그대로 적용된다. html 은 blocks/core/<key>.html 과 (공백 정규화 기준) 동일해야 한다 — organizer-insert
+// 테스트가 블록↔번들 parity 를 강제해 드리프트를 막는다(정적 블록이라 엔진 생성기가 없어 번들이 불가피).
+export const SPECIAL_ORGANIZER_INSERTS = Object.freeze([
+  { key: 'stoplight', label: '신호등 (자기 평가)', html: '<table class="stoplight keep"><tr><td class="sl sl-r">●</td><td>아직 어려운 것<div class="wr"></div></td></tr><tr><td class="sl sl-y">●</td><td>연습이 더 필요한 것<div class="wr"></div></td></tr><tr><td class="sl sl-g">●</td><td>잘 아는 것<div class="wr"></div></td></tr></table>' },
+  { key: 'exit321', label: '3-2-1 출구 (배운·연결·궁금)', html: '<table class="exit321 keep"><tr><td class="num">3</td><td>오늘 새로 <b>배운 것</b> 세 가지<div class="wr"></div><div class="wr"></div><div class="wr"></div></td></tr><tr><td class="num">2</td><td>이전 배움과 <b>연결되는 것</b> 두 가지<div class="wr"></div><div class="wr"></div></td></tr><tr><td class="num">1</td><td>아직 <b>궁금한 것</b> 한 가지<div class="wr"></div></td></tr></table>' },
+  { key: 'hamburger', label: '문단 햄버거 (주제·뒷받침·맺음)', html: '<table class="hamburger keep"><tr><th>주제문 (도입)</th></tr><tr><td class="hb"><div class="wr"></div></td></tr><tr><th>뒷받침 문장</th></tr><tr><td class="hb">①<div class="wr"></div>②<div class="wr"></div>③<div class="wr"></div></td></tr><tr><th>맺음문장 (정리)</th></tr><tr><td class="hb"><div class="wr"></div></td></tr></table>' },
+  { key: 'mainidea', label: '핵심 아이디어 + 뒷받침', html: '<table class="mainidea keep"><tr><th>핵심 아이디어</th></tr><tr><td class="mi-main"></td></tr><tr><th>뒷받침 근거</th></tr><tr><td class="mi-sup">①<div class="wr"></div>②<div class="wr"></div>③<div class="wr"></div></td></tr></table>' },
+  { key: 'notetaking', label: '코넬 노트 (핵심어·정리·요약)', html: '<table class="notetaking keep"><tr><th class="nt-cue">핵심어·질문</th><th>내용 정리</th></tr><tr><td class="nt-cue"></td><td class="nt-note"></td></tr><tr><td class="nt-sum" colspan="2"><b>요약</b><div class="wr"></div><div class="wr"></div></td></tr></table>' },
+  { key: 'plotdiagram', label: '플롯 다이어그램 (이야기 산)', html: '<div class="plotdiagram keep"><svg width="470" height="220" viewBox="0 0 470 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="플롯 다이어그램(이야기 산)"><polyline points="35,185 145,150 235,50 335,150 435,185" class="pd-line" stroke-width="1.8"/><circle cx="35" cy="185" r="3.2" class="pd-dot"/><circle cx="145" cy="150" r="3.2" class="pd-dot"/><circle cx="235" cy="50" r="3.2" class="pd-dot"/><circle cx="335" cy="150" r="3.2" class="pd-dot"/><circle cx="435" cy="185" r="3.2" class="pd-dot"/><text x="35" y="205" font-size="9.5" text-anchor="middle" class="pd-lab">발단</text><text x="145" y="205" font-size="9.5" text-anchor="middle" class="pd-lab">전개</text><text x="235" y="42" font-size="9.5" text-anchor="middle" class="pd-lab">절정</text><text x="335" y="205" font-size="9.5" text-anchor="middle" class="pd-lab">하강</text><text x="435" y="205" font-size="9.5" text-anchor="middle" class="pd-lab">결말</text></svg><div class="org-cap">이야기의 흐름을 다섯 단계로 나누어 각 사건을 적자.</div></div>' },
+  { key: 'essayplan', label: '5문단 에세이 설계', html: '<div class="essayplan"><div class="ep-sec keep"><div class="ep-h">서론 — 도입 · 주제문</div><div class="ep-b"></div></div><div class="ep-sec keep"><div class="ep-h">본론 1</div><div class="ep-b"></div></div><div class="ep-sec keep"><div class="ep-h">본론 2</div><div class="ep-b"></div></div><div class="ep-sec keep"><div class="ep-h">본론 3</div><div class="ep-b"></div></div><div class="ep-sec keep"><div class="ep-h">결론 — 요약 · 마무리</div><div class="ep-b"></div></div></div>' },
 ]);
 
 export const QTYPE_LABELS = Object.freeze({
@@ -158,10 +233,19 @@ export function createObject(type, { placement = 'flow', qtype, rect } = {}) {
   return obj;
 }
 
-/** 시각 조직자 삽입(#2) — ORGANIZER_INSERTS 서술자로 미리 채운 flow `table` 개체를 만든다.
- *  새 개체 타입이 아니라 기존 table 개체다(스키마 무변경 — 닫힌 카탈로그 재사용). 조직자는 구조
- *  콘텐츠라 flow 전용(float 없음). rows 는 깊은 복사해 서술자 원본이 공유·변형되지 않게 한다. */
+/** 시각 조직자 삽입(#2) — 새 개체 타입 없이 기존 개체로 만든다(스키마 무변경). 조직자는 구조 콘텐츠라
+ *  flow 전용(float 없음).
+ *  - 표형(ORGANIZER_INSERTS): 미리 채운 `table` 개체(등폭 w·필기높이 h·병합 개념). rows 는 깊은 복사.
+ *  - 그림형(GRAPHIC_ORGANIZER_INSERTS, P2): 엔진 생성기(OrganizerGen)로 기본 개수 SVG 를 만들어 `richtext`
+ *    로 잠금 삽입한다. 인라인 SVG 라 blocks.css 색/인쇄안전이 그대로 적용된다(이미지로는 색이 빠진다). */
 export function createOrganizerObject(key) {
+  if (ORGANIZER_GENERATORS[key]) {
+    return { id: generateId(key), type: 'richtext', placement: 'flow', html: ORGANIZER_GENERATORS[key]({}) };
+  }
+  const special = SPECIAL_ORGANIZER_INSERTS.find((o) => o.key === key);
+  if (special) {
+    return { id: generateId(key), type: 'richtext', placement: 'flow', html: special.html };
+  }
   const desc = ORGANIZER_INSERTS.find((o) => o.key === key);
   if (!desc) throw new Error(`objectFactory: 알 수 없는 조직자 삽입 키: ${key}`);
   const obj = {

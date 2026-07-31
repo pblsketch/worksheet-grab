@@ -65,6 +65,25 @@ test('표: break-inside:avoid(분할 금지)', () => {
   assert.match(html, /<table[^>]*style="[^"]*break-inside:avoid;[^"]*"/, '표는 break-inside:avoid 를 방출해야 함');
 });
 
+test('표 셀 h/align: 셀에 h(mm)·align 있으면 height/text-align 방출(시각 조직자 필기공간·중앙정렬)', () => {
+  const document = docWith([{
+    id: 'tb1', type: 'table', placement: 'flow', splittable: false,
+    rows: [[{ text: '개념', header: true, colspan: 2, align: 'center' }], [{ text: '', h: 20 }, { text: '' }]],
+  }]);
+  const { html } = new RenderObjectTree().execute(document, ASSETS);
+  assert.match(html, /style="[^"]*height:20mm/, '셀 h → height:20mm(필기 공간)');
+  assert.match(html, /style="[^"]*text-align:center/, '셀 align → text-align:center');
+});
+
+test('표 셀 h/align: 힌트 없는 셀은 style 을 방출하지 않는다(기존 산출 바이트 불변)', () => {
+  const document = docWith([{
+    id: 'tb2', type: 'table', placement: 'flow', splittable: false,
+    rows: [[{ text: 'a', header: true }, { text: 'b' }], [{ text: 'c' }, { text: 'd' }]],
+  }]);
+  const { html } = new RenderObjectTree().execute(document, ASSETS);
+  assert.ok(!/<t[dh][^>]*style=/.test(html), 'h/align 없는 셀은 style 속성을 붙이지 않는다(하위호환)');
+});
+
 test('answer:true 개체 → .answer 클래스 방출(타입 무관, BuildVariants 자연 승계)', () => {
   for (const type of ['title', 'question', 'table', 'richtext']) {
     const base = MIN_FIXTURES[type];
