@@ -3,6 +3,12 @@ import { existsSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { canTransition, validateRequest, validateResponse, isUnsupportedResponse } from '../usecases/aiBridge.js';
 
+function assertPortablePathComponent(id) {
+  if (typeof id !== 'string' || id.length === 0 || id === '.' || id === '..' || /[\/\\\0]/.test(id)) {
+    throw new Error(`경로 이탈을 차단했습니다: ${id}`);
+  }
+}
+
 // FsAiBridgeRepository — AI 브리지 파일 큐(<baseDir>/.ai-bridge/{requests,responses}/)의 IO.
 // 에디터 서버(요청 생성·cancelled/applied 기록)와 구독 AI CLI(응답 생성)는 별도
 // 프로세스라 파일이 유일한 채널이다. 쓰기는 tmp→rename 원자 교체(부분 파일이
@@ -22,12 +28,14 @@ export class FsAiBridgeRepository {
   }
 
   #requestPath(id) {
+    assertPortablePathComponent(id);
     const p = resolve(this.requestsDir, `${id}.json`);
     if (!p.startsWith(this.requestsDir + sep)) throw new Error(`경로 이탈이 차단되었습니다: ${id}`);
     return p;
   }
 
   #responsePath(id) {
+    assertPortablePathComponent(id);
     const p = resolve(this.responsesDir, `${id}.json`);
     if (!p.startsWith(this.responsesDir + sep)) throw new Error(`경로 이탈이 차단되었습니다: ${id}`);
     return p;
