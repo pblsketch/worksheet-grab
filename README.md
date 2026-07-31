@@ -10,7 +10,21 @@ Claude Code, Codex CLI 같은 AI 하네스가 교사의 요청을 해석하고, 
 - 학생용에서는 정답을 물리적으로 제거하고, 누출이 감지되면 학생용 출력을 중단합니다.
 - HTML 초안은 Chrome 없이 만들 수 있습니다. PDF·PNG 출력에는 Google Chrome이 필요합니다.
 
+> **현재 상태: 베타(Beta)**
+>
+> 주요 생성·편집·검수·내보내기 흐름은 구현되어 있고 자동 테스트로 검증합니다. 다만 안정 버전 전까지 명령 인터페이스와 출력 형식이 바뀔 수 있으므로, 실제 수업에 배포하기 전 교사가 결과물을 검토하고 원본을 보관하세요.
+
 > 이 README는 GitHub에서 설치하고 기능을 파악하기 위한 문서입니다. 교사용 배포 번들에서는 `CLAUDE.md`와 `AGENTS.md`가 AI 하네스의 실제 진입 문서입니다.
+
+## 먼저 저장소를 클론하세요
+
+현재 공식 사용 경로는 GitHub 저장소를 로컬 컴퓨터에 클론한 뒤, 그 폴더를 AI 하네스에서 여는 방식입니다. GitHub 웹페이지만 열어 둔 상태에서는 엔진·스킬·성취기준 데이터를 실행할 수 없습니다.
+
+```bash
+git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
+cd worksheet-grab
+node bin/worksheet-grab.js help
+```
 
 ## 준비물
 
@@ -33,20 +47,12 @@ git --version
 
 ## 교사용 3분 시작
 
-### 1. 저장소 받기
-
-```bash
-git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
-cd worksheet-grab
-node bin/worksheet-grab.js help
-```
-
-### 2. AI 하네스에서 폴더 열기
+### 1. 클론한 폴더를 AI 하네스에서 열기
 
 - Claude Code는 `CLAUDE.md`와 `.claude/skills/`를 읽습니다.
 - Codex CLI와 Antigravity는 `AGENTS.md`를 시작점으로 사용합니다.
 
-### 3. 평소 말로 요청하기
+### 2. 평소 말로 요청하기
 
 ```text
 중2 과학 광합성 활동지를 만들어줘.

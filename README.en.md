@@ -9,7 +9,21 @@ worksheet-grab is a **local worksheet authoring, editing, and export tool for Ko
 - Answers are physically removed from student copies. Student export stops if an answer leak is detected.
 - HTML drafts can be created without Chrome. PDF and PNG export require Google Chrome.
 
+> **Current status: Beta**
+>
+> The main generation, editing, validation, and export flows are implemented and covered by automated tests. Command interfaces and output formats may still change before a stable release. Review every worksheet before classroom distribution and keep the original files.
+
 > This README explains the GitHub project and installation. In the teacher distribution bundle, `CLAUDE.md` and `AGENTS.md` are the actual entry points for AI harnesses.
+
+## Clone the repository first
+
+The current supported installation path is to clone the GitHub repository to your computer and open that folder in an AI harness. Opening the GitHub page alone does not provide the local engine, skills, or curriculum data required to run the workflow.
+
+```bash
+git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
+cd worksheet-grab
+node bin/worksheet-grab.js help
+```
 
 ## Requirements
 
@@ -32,20 +46,12 @@ No `npm install` or build step is required.
 
 ## Three-minute start for teachers
 
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
-cd worksheet-grab
-node bin/worksheet-grab.js help
-```
-
-### 2. Open the folder in your AI harness
+### 1. Open the cloned folder in your AI harness
 
 - Claude Code reads `CLAUDE.md` and `.claude/skills/`.
 - Codex CLI and Antigravity use `AGENTS.md` as their entry point.
 
-### 3. Ask in ordinary language
+### 2. Ask in ordinary language
 
 ```text
 Create a worksheet on photosynthesis for Korean middle-school grade 8 science.
