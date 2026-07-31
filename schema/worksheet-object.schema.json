@@ -35,7 +35,7 @@
       "type": { "type": "string", "enum": [
         "title", "passage-slot", "question", "table", "image-slot",
         "answer-area", "divider", "shape", "richtext", "std-box",
-        "callout", "spacer", "page-break"
+        "callout", "organizer", "spacer", "page-break"
       ]},
       "answer": {
         "type": "boolean",
@@ -93,6 +93,7 @@
         { "$ref": "#/$defs/richtextObject" },
         { "$ref": "#/$defs/stdBoxObject" },
         { "$ref": "#/$defs/calloutObject" },
+        { "$ref": "#/$defs/organizerObject" },
         { "$ref": "#/$defs/spacerObject" },
         { "$ref": "#/$defs/pageBreakObject" }
       ]
@@ -143,6 +144,24 @@
         "body": { "type": "string", "description": "강조상자 본문(살균 HTML)." },
         "title": { "type": "string", "description": "강조상자 제목(선택, 평문)." },
         "titleHtml": { "type": "string", "description": "제목 인라인 서식 살균 HTML(선택)." },
+        "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
+        "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
+        "align": { "$ref": "#/$defs/commonProps/align" }
+      },
+      "additionalProperties": false
+    },
+
+    "organizerObject": {
+      "type": "object",
+      "description": "편집 가능 그림형 조직자(P3 스파이크, 2026-07-31) — 벤다이어그램 등 파라메트릭 SVG. flow 전용(엔진이 소유한 고정비율 SVG — 좌표·도형은 교사/AI 가 만들지 않는다·원칙 3). kind=조직자 종류, params=개수(예 {circles:3}), labels=슬롯 텍스트 배열(교사 저작·선택, 없으면 엔진 기본 라벨). answer 미포함(그림형은 중립 — callout 과 동형). 렌더는 OrganizerGen 이 단일 출처로 SVG 를 그린다(편집==인쇄 — 잠금 richtext 가 굽던 것과 같은 생성기 출력).",
+      "required": ["id", "type", "placement", "kind"],
+      "properties": {
+        "id": { "$ref": "#/$defs/commonProps/id" },
+        "type": { "const": "organizer" },
+        "placement": { "const": "flow" },
+        "kind": { "type": "string", "enum": ["venn", "conceptmap", "fishbone", "flowchart", "hierarchy", "hexagon"], "description": "조직자 종류(OrganizerGen.ORGANIZER_GENERATORS 키). 엔진이 이 종류의 고정비율 SVG 뼈대를 결정적으로 그린다." },
+        "params": { "type": "object", "description": "개수 파라미터(예 벤다이어그램 {circles:2|3}). 키는 kind 별로 다르며 엔진(OrganizerGen)이 범위 clamp·해석한다 — 스키마·validator 는 내부를 검사하지 않는다(table rows 와 동일 경계)." },
+        "labels": { "type": "array", "items": { "type": "string" }, "description": "슬롯 텍스트 배열(교사 저작·선택). 슬롯의 순서·좌표는 엔진 소유(원칙 3) — 교사는 각 슬롯에 들어갈 '글자'만 지정한다. 비거나 짧으면 엔진 기본 라벨로 채운다." },
         "widthPct": { "$ref": "#/$defs/commonProps/widthPct" },
         "minHeightMm": { "$ref": "#/$defs/commonProps/minHeightMm" },
         "align": { "$ref": "#/$defs/commonProps/align" }

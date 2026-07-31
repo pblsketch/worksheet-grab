@@ -45,6 +45,14 @@ export const ALIGN_VALUES = Object.freeze(['left', 'center', 'right']);
 /** 강조상자(callout) variant 4종(2026-07-30 신설 — M4). 팁/주의/노트/핵심정리. */
 export const CALLOUT_VARIANTS = Object.freeze(['tip', 'warning', 'note', 'summary']);
 
+/**
+ * 편집 가능 그림형 조직자(organizer) 종류(P3 스파이크, 2026-07-31). OrganizerGen.ORGANIZER_GENERATORS
+ * 키와 1:1 대응 — 엔진이 개수(params)로 SVG 를 결정적으로 그리고, 교사/AI 는 개수와 슬롯 텍스트(labels)
+ * 만 지정한다(원칙 3: 좌표·도형은 엔진 소유). renderOrganizer·validateObjectShape 가 이 목록으로
+ * kind 를 닫는다(미지의 kind → 스타일 없는 빈 SVG 로 새는 것 방지, callout variant 접기와 동형).
+ */
+export const ORGANIZER_KINDS = Object.freeze(['venn', 'conceptmap', 'fishbone', 'flowchart', 'hierarchy', 'hexagon']);
+
 /** widthPct 범위 — 5% 미만은 내용이 뭉개져 실용적이지 않고, 100% 초과는 열을 넘긴다. */
 export const WIDTH_PCT_MIN = 5;
 export const WIDTH_PCT_MAX = 100;
@@ -143,6 +151,18 @@ export const TYPE_SPECS = Object.freeze({
     required: Object.freeze(['variant', 'body']),
     optional: Object.freeze(['title', 'titleHtml', ...SIZE_FIELDS]),
   }),
+  // ── 편집 가능 그림형 조직자(P3 스파이크, 2026-07-31 신설) ─────────────────────
+  // 벤다이어그램 등 파라메트릭 SVG 조직자. flow 전용(엔진이 소유한 고정비율 SVG — 좌표·도형을
+  // 교사/AI 가 만들지 않는다, 원칙 3). kind=조직자 종류(ORGANIZER_KINDS), params=개수(예 {circles:3}),
+  // labels=슬롯 텍스트 배열(교사 저작, 없으면 엔진 기본 라벨). **answer 없음**(그림형은 중립 —
+  // callout 과 동형, fail-closed 확장 불필요). 렌더는 OrganizerGen 이 단일 출처로 SVG 를 그린다
+  // (편집==인쇄: 잠금 richtext 가 굽던 것과 문자 그대로 같은 생성기 출력). params/labels 내부는
+  // validator 가 검사하지 않는다(table rows 와 동일 — 엔진이 clamp·해석). kind 만 닫힌 집합으로 검증.
+  'organizer': Object.freeze({
+    placements: Object.freeze(['flow']),
+    required: Object.freeze(['kind']),
+    optional: Object.freeze(['params', 'labels', ...SIZE_FIELDS]),
+  }),
   // ── 레이아웃 전용 2종(2026-07-28 신설) ─────────────────────────────────────
   // 둘 다 "내용"이 아니라 **조판 의도**를 담는다. flow 전용인 이유가 각각 있다(아래 주석).
   // 교사가 편집기에서 삽입하는 도구이며, designer AI 의 저작 어휘에는 넣지 않는다
@@ -161,7 +181,7 @@ export const TYPE_SPECS = Object.freeze({
   }),
 });
 
-/** 닫힌 카탈로그(12종 — 콘텐츠 10 + 레이아웃 2). TYPE_SPECS 키 순서를 그대로 노출. */
+/** 닫힌 카탈로그(14종 — 콘텐츠 12[+callout M4·+organizer P3] + 레이아웃 2). TYPE_SPECS 키 순서를 그대로 노출. */
 export const OBJECT_TYPES = Object.freeze(Object.keys(TYPE_SPECS));
 
 /**

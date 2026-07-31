@@ -157,6 +157,24 @@ export const GRAPHIC_ORGANIZER_INSERTS = Object.freeze([
   { key: 'hexagon', label: '육각형 연결 (헥사고날)' },
 ]);
 
+// ── P3 스파이크(2026-07-31): 편집 가능 그림형 조직자 ────────────────────────────
+// 아래 kind 는 잠금 richtext 가 아니라 **편집 가능한 `organizer` 개체**로 삽입한다(개수·라벨을
+// 인스펙터에서 편집). 현재 venn 만 — 슬롯화가 검증된 종류부터 점진 확대(나머지 5종은 위 잠금 삽입 유지).
+export const EDITABLE_ORGANIZER_KINDS = Object.freeze(['venn']);
+
+// 조직자 kind 별 편집 스펙 — 인스펙터(개수 select·라벨 입력)와 defaultFieldsFor 의 단일 출처.
+//  - param/min/max/defaultCount: 개수 파라미터와 엔진 clamp 범위(OrganizerGen 과 일치).
+//  - slotLabels(count): 그 개수에서 각 슬롯이 "무엇을 적는 칸인지"(교사 안내용). 슬롯의 순서·좌표는
+//    엔진(OrganizerGen)이 소유한다 — 여기엔 '글자 슬롯의 뜻'만 있고 좌표는 없다(원칙 3).
+export const ORGANIZER_EDIT_SPECS = Object.freeze({
+  venn: Object.freeze({
+    param: 'circles', min: 2, max: 3, defaultCount: 2, countLabel: '원 개수',
+    slotLabels: (n) => (Number(n) === 3
+      ? ['왼쪽 위 원', '오른쪽 위 원', '아래 원', '가운데(공통)']
+      : ['왼쪽 원', '오른쪽 원', '가운데(공통)']),
+  }),
+});
+
 // 특수 레이아웃 시각 조직자 삽입(#2 P2b) — 신호등 색·쓰기줄·섹션 스택처럼 일반 table 로는 모양이 깨지는
 // 정적 블록을 원본 HTML 그대로 richtext 로 잠금 삽입한다. 인라인 HTML 이라 blocks.css(신호등 색 등)가
 // 그대로 적용된다. html 은 blocks/core/<key>.html 과 (공백 정규화 기준) 동일해야 한다 — organizer-insert
@@ -214,6 +232,9 @@ export function defaultFieldsFor(type, { qtype = 'short-answer' } = {}) {
     // callout(M4): 중립 '참고'(note) 박스로 시작 — 삽입 즉시 유효한 헤더밴드 박스로 보인다. variant/
     // title/body 는 인스펙터에서 바꾼다(body 는 렌더가 raw 방출하는 살균 HTML — 입력 시 정제한다).
     case 'callout': return { variant: 'note', body: '<p>강조할 내용을 입력하세요.</p>' };
+    // organizer(P3): 편집 가능 그림형 조직자. 기본은 venn 2원(엔진 기본 라벨 A/B/공통점). kind/params 는
+    // 인스펙터에서 바꾼다(개수·라벨). labels 는 생략 → 엔진 기본 라벨(교사가 채우기 전 상태).
+    case 'organizer': return { kind: 'venn', params: { circles: ORGANIZER_EDIT_SPECS.venn.defaultCount } };
     // 20mm — 한 문단(약 2줄)에 해당하는 눈에 보이는 크기. 인스펙터에서 바로 조절한다.
     case 'spacer': return { heightMm: 20 };
     case 'page-break': return {};
@@ -239,6 +260,12 @@ export function createObject(type, { placement = 'flow', qtype, rect } = {}) {
  *  - 그림형(GRAPHIC_ORGANIZER_INSERTS, P2): 엔진 생성기(OrganizerGen)로 기본 개수 SVG 를 만들어 `richtext`
  *    로 잠금 삽입한다. 인라인 SVG 라 blocks.css 색/인쇄안전이 그대로 적용된다(이미지로는 색이 빠진다). */
 export function createOrganizerObject(key) {
+  // P3: 편집 가능 그림형(현재 venn)은 잠금 richtext 가 아니라 편집 가능한 `organizer` 개체로 삽입한다
+  // (개수·라벨을 인스펙터에서 편집). 렌더는 같은 OrganizerGen 이 그리므로 편집==인쇄가 그대로 성립한다.
+  if (EDITABLE_ORGANIZER_KINDS.includes(key)) {
+    const spec = ORGANIZER_EDIT_SPECS[key];
+    return { id: generateId(key), type: 'organizer', placement: 'flow', kind: key, params: { [spec.param]: spec.defaultCount } };
+  }
   if (ORGANIZER_GENERATORS[key]) {
     return { id: generateId(key), type: 'richtext', placement: 'flow', html: ORGANIZER_GENERATORS[key]({}) };
   }

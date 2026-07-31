@@ -77,32 +77,53 @@ test('조직자 삽입: 프레이어 개념=병합 헤더(colspan2·중앙) · c
   }
 });
 
-// ── #2 P2: 그림형(SVG) 조직자 잠금 삽입(richtext) ──────────────────────────────
+// ── #2 P2 / P3: 그림형(SVG) 조직자 — venn 은 편집 가능 organizer, 나머지는 잠금 richtext ──
 
-test('그림형 조직자 삽입: 6종이 스키마 유효한 flow richtext(인라인 SVG) 개체를 만든다(새 타입 없이)', async () => {
-  const { GRAPHIC_ORGANIZER_INSERTS, createOrganizerObject } = await loadObjectFactory();
+test('그림형 조직자 삽입: venn 은 편집 가능 organizer, 나머지는 잠금 richtext — 전부 스키마 유효(P3)', async () => {
+  const { GRAPHIC_ORGANIZER_INSERTS, EDITABLE_ORGANIZER_KINDS, createOrganizerObject } = await loadObjectFactory();
   assert.ok(GRAPHIC_ORGANIZER_INSERTS.length >= 6, `그림형 조직자 ≥6종(실제 ${GRAPHIC_ORGANIZER_INSERTS.length})`);
   for (const desc of GRAPHIC_ORGANIZER_INSERTS) {
     const obj = createOrganizerObject(desc.key);
-    assert.equal(obj.type, 'richtext', `${desc.key}: richtext 잠금 삽입(새 개체 타입 아님)`);
     assert.equal(obj.placement, 'flow', `${desc.key}: flow`);
-    assert.equal(obj.rect, undefined, `${desc.key}: flow 는 좌표 없음`);
-    assert.match(obj.html, /<svg/, `${desc.key}: 인라인 SVG 포함(색은 blocks.css)`);
-    assert.doesNotMatch(obj.html, /#[0-9a-fA-F]{3,6}\b/, `${desc.key}: HTML 에 hex 색 리터럴 없음(색은 CSS — 범교과)`);
+    assert.equal(obj.rect, undefined, `${desc.key}: flow 는 좌표 없음(원칙 3)`);
     assert.notEqual(obj.answer, true, `${desc.key}: 정답 플래그 없음`);
+    if (EDITABLE_ORGANIZER_KINDS.includes(desc.key)) {
+      // P3 승격: 편집 가능 그림형(현재 venn) — organizer 개체(개수·라벨 편집). 렌더는 같은 엔진.
+      assert.equal(obj.type, 'organizer', `${desc.key}: 편집 가능 organizer 개체(P3 승격)`);
+      assert.equal(obj.kind, desc.key, `${desc.key}: kind 보존`);
+      assert.equal(obj.html, undefined, `${desc.key}: organizer 는 굽힌 html 을 갖지 않는다(렌더가 엔진 호출)`);
+    } else {
+      assert.equal(obj.type, 'richtext', `${desc.key}: 아직 잠금 richtext 삽입`);
+      assert.match(obj.html, /<svg/, `${desc.key}: 인라인 SVG 포함(색은 blocks.css)`);
+      assert.doesNotMatch(obj.html, /#[0-9a-fA-F]{3,6}\b/, `${desc.key}: HTML 에 hex 색 리터럴 없음(색은 CSS — 범교과)`);
+    }
     const { ok, findings } = validateObjectShape(obj);
     assert.ok(ok, `${desc.key} 스키마 위반: ${findings.map((f) => f.rule).join(',')}`);
   }
 });
 
-test('그림형 조직자 삽입: html 이 엔진 생성기(OrganizerGen) 기본 출력과 동일(단일 출처 — 드리프트 0)', async () => {
-  const { GRAPHIC_ORGANIZER_INSERTS, createOrganizerObject } = await loadObjectFactory();
+test('그림형 조직자 삽입: 잠금 richtext 종류의 html 은 엔진 생성기 기본 출력과 동일(단일 출처 — 드리프트 0)', async () => {
+  const { GRAPHIC_ORGANIZER_INSERTS, EDITABLE_ORGANIZER_KINDS, createOrganizerObject } = await loadObjectFactory();
   for (const desc of GRAPHIC_ORGANIZER_INSERTS) {
+    if (EDITABLE_ORGANIZER_KINDS.includes(desc.key)) continue; // organizer 로 승격된 종류는 굽힌 html 이 없다(렌더가 엔진 호출)
     const gen = ORGANIZER_GENERATORS[desc.key];
     assert.ok(typeof gen === 'function', `${desc.key}: OrganizerGen 생성기 존재`);
     assert.equal(createOrganizerObject(desc.key).html, gen({}),
       `${desc.key}: 삽입 SVG 가 compose 와 같은 엔진 기본 출력이어야(이중 출처 금지)`);
   }
+});
+
+test('vennSvg: labels 가 슬롯 텍스트만 채운다 — 엔진 소유 좌표·도형은 불변(원칙 3)', async () => {
+  const { vennSvg } = await import('../../src/usecases/OrganizerGen.js');
+  const base = vennSvg({ circles: 2 });
+  const labeled = vennSvg({ circles: 2 }, ['식물', '동물', '공통점']);
+  assert.match(labeled, /식물/);
+  assert.match(labeled, /동물/);
+  assert.match(labeled, /viewBox="0 0 440 240"/, '뷰박스(엔진 소유 좌표계) 불변');
+  assert.equal(base.match(/<circle/g).length, labeled.match(/<circle/g).length, '도형 개수 불변');
+  assert.match(vennSvg({ circles: 2 }, ['식물']), />B<\/text>/, '누락 슬롯은 기본 라벨(B)로 폴백');
+  assert.match(vennSvg({ circles: 2 }, ['<b>x</b>']), /&lt;b&gt;x&lt;\/b&gt;/, '라벨은 이스케이프되어 주입 불가');
+  assert.equal(vennSvg({ circles: 2 }), base, '라벨 미지정 출력은 기존과 바이트 동일(하위호환)');
 });
 
 // ── #2 P2b: 특수 레이아웃 조직자 잠금 삽입(richtext, 블록 HTML 번들) ──────────────

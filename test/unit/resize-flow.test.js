@@ -134,6 +134,7 @@ test('허용 타입 전체에서 동작한다', async () => {
     'richtext': { type: 'richtext', html: '<p>x</p>' },
     'std-box': { type: 'std-box', codes: ['[9과14-02]'] },
     'callout': { type: 'callout', variant: 'tip', body: '<p>x</p>' },
+    'organizer': { type: 'organizer', kind: 'venn', params: { circles: 2 } },
   };
   for (const type of SIZEABLE_TYPES) {
     const obj = { id: 'o1', placement: 'flow', ...MIN[type] };

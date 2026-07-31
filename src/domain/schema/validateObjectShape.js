@@ -1,6 +1,6 @@
 import {
   OBJECT_TYPES, QUESTION_TYPES, PLACEMENTS, TYPE_SPECS, AI_EXCLUDED_TYPES,
-  SIZE_FIELDS, ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX,
+  SIZE_FIELDS, ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX, ORGANIZER_KINDS,
 } from './ObjectCatalog.js';
 
 // validateObjectShape — 개체 하나의 구조 유효성(닫힌 카탈로그 + 공통 불변식)을 순수 검사한다.
@@ -21,6 +21,7 @@ import {
 //                                타입에 answer:true 를 실으면 카탈로그 밖 필드로 잡힌다)
 //   invalid-qtype             — question.qtype 이 7종 밖
 //   table-splittable-violation — table.splittable !== false(표는 분할 금지)
+//   invalid-organizer-kind    — organizer.kind 가 ORGANIZER_KINDS(조직자 종류) 밖
 //   size-forbidden-in-float   — placement:'float' 인데 크기 필드(SIZE_FIELDS) 존재. float 은 rect 가 이미
 //                                크기를 가지므로 한 가지 일에 수단을 둘 두지 않는다(rect-forbidden-in-flow 의 짝).
 //   invalid-size-value        — widthPct/minHeightMm/align 값이 허용 범위 밖
@@ -48,7 +49,7 @@ export function validateObjectShape(obj) {
   const { type, placement } = obj;
 
   if (!OBJECT_TYPES.includes(type)) {
-    findings.push({ rule: 'unknown-type', message: `닫힌 카탈로그(13종) 밖의 타입입니다: ${type}`, objectId: obj.id ?? null });
+    findings.push({ rule: 'unknown-type', message: `닫힌 카탈로그(14종) 밖의 타입입니다: ${type}`, objectId: obj.id ?? null });
     return { ok: false, findings }; // 타입 미상이면 이후 필드별 검사가 무의미하다.
   }
 
@@ -137,6 +138,13 @@ export function validateObjectShape(obj) {
 
   if (type === 'table' && obj.splittable !== undefined && obj.splittable !== false) {
     findings.push({ rule: 'table-splittable-violation', message: '표는 분할할 수 없습니다(splittable 은 항상 false).', objectId: obj.id });
+  }
+
+  // organizer.kind 는 닫힌 집합(ORGANIZER_KINDS) 안이어야 한다(question.qtype·table.splittable 과 동형
+  // per-type 의미 규칙). params/labels 내부는 검사하지 않는다 — 엔진(OrganizerGen)이 clamp·해석하고,
+  // table rows/cell 을 검사하지 않는 것과 같은 경계다(validator 는 top-level 계약만 본다).
+  if (type === 'organizer' && obj.kind !== undefined && !ORGANIZER_KINDS.includes(obj.kind)) {
+    findings.push({ rule: 'invalid-organizer-kind', message: `organizer.kind 이 알려진 조직자 종류 밖입니다: ${obj.kind}`, objectId: obj.id });
   }
 
   return { ok: findings.length === 0, findings };

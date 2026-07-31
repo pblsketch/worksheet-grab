@@ -31,6 +31,7 @@ const FIXTURES = {
   'spacer': { type: 'spacer', placement: 'flow', heightMm: 12, label: '여백' },
   'page-break': { type: 'page-break', placement: 'flow' },
   'callout': { type: 'callout', placement: 'flow', variant: 'tip', title: '핵심 정리', body: '<p>옴의 법칙 V=IR</p>' },
+  'organizer': { type: 'organizer', placement: 'flow', kind: 'venn', params: { circles: 2 }, labels: ['식물', '동물', '공통점'] },
 };
 
 const withId = (type, extra = {}) => ({ id: `o-${type}`, ...FIXTURES[type], ...extra });

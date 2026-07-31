@@ -2,7 +2,10 @@ import { escapeHtml, wrapSheetBody, buildSheetSection, buildDocumentHtml } from 
 import { resolvePaper, paperCss as paperCssOverride } from './paper.js';
 // 크기 필드 범위(2026-07-28) — 렌더가 방어적으로 재확인한다(아래 flowBoxStyle 주석). ObjectCatalog 는
 // browserGraph 화이트리스트에 이미 있으므로 편집기 ESM 그래프에서도 404 나지 않는다(실측 확인).
-import { WIDTH_PCT_MIN, WIDTH_PCT_MAX, CALLOUT_VARIANTS } from '../domain/schema/ObjectCatalog.js';
+import { WIDTH_PCT_MIN, WIDTH_PCT_MAX, CALLOUT_VARIANTS, ORGANIZER_KINDS } from '../domain/schema/ObjectCatalog.js';
+// 편집 가능 그림형 조직자(P3) — 렌더는 엔진(OrganizerGen)이 SVG 를 그리는 단일 출처를 그대로 호출한다.
+// 잠금 richtext 가 삽입 시점에 굽던 것과 같은 생성기라 편집==인쇄가 구조적으로 성립한다(원칙 3·R2-1).
+import { ORGANIZER_GENERATORS } from './OrganizerGen.js';
 
 // RenderObjectTree — S2.1(M2) 순수 render-core(06_plan_final.md 150~152행, C-5/GAP-2).
 //
@@ -260,10 +263,11 @@ function renderByType(obj, ctx) {
     case 'richtext': return renderRichtext(obj);
     case 'std-box': return renderStdBox(obj, ctx);
     case 'callout': return renderCallout(obj);
+    case 'organizer': return renderOrganizer(obj);
     case 'spacer': return renderSpacer(obj);
     case 'page-break': return renderPageBreak();
     default:
-      throw new Error(`RenderObjectTree: 닫힌 카탈로그(12종) 밖의 타입입니다: ${obj?.type}`);
+      throw new Error(`RenderObjectTree: 닫힌 카탈로그(14종) 밖의 타입입니다: ${obj?.type}`);
   }
 }
 
@@ -569,6 +573,21 @@ function renderShape(obj) {
 /** richtext = 탈출구 — 보존 HTML 그대로 방출(무손실, S1.3 마이그레이션 계약과 정합). */
 function renderRichtext(obj) {
   return typeof obj.html === 'string' ? obj.html : '';
+}
+
+/**
+ * organizer(편집 가능 그림형 조직자, P3) — 엔진(OrganizerGen)이 kind·params·labels 로 SVG 를 결정적으로
+ * 그린다. 좌표·도형은 엔진 소유(원칙 3); 교사/AI 는 kind·개수(params)·슬롯 텍스트(labels)만 지정한다.
+ * 편집==인쇄: editMode 분기가 없어 편집 렌더와 인쇄 렌더가 문자 그대로 같은 SVG 를 방출한다(R2-1).
+ * kind 를 닫힌 집합으로 접는다(미지의 kind → 빈 출력, callout 의 variant 접기와 동형 fail-safe).
+ */
+function renderOrganizer(obj) {
+  const kind = ORGANIZER_KINDS.includes(obj.kind) ? obj.kind : null;
+  const gen = kind ? ORGANIZER_GENERATORS[kind] : null;
+  if (typeof gen !== 'function') return '';
+  const params = (obj.params && typeof obj.params === 'object' && !Array.isArray(obj.params)) ? obj.params : {};
+  const labels = Array.isArray(obj.labels) ? obj.labels : [];
+  return gen(params, labels);
 }
 
 /** codes[] → `<li><b>[코드]</b> 원문</li>` 목록(std-box 공용 — 미해석 코드는 코드만 표기). */

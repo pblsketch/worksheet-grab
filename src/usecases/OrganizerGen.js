@@ -14,17 +14,28 @@ function escText(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-/** 벤다이어그램 — circles: 2(기본) 또는 3. */
-export function vennSvg({ circles = 2 } = {}) {
+/**
+ * 벤다이어그램 — params.circles: 2(기본) 또는 3. labels: 슬롯 텍스트 배열.
+ *  - 2원 슬롯 순서: [왼쪽 원(A), 오른쪽 원(B), 가운데 공통]
+ *  - 3원 슬롯 순서: [A, B, C, 가운데 공통]
+ * 좌표·도형·글자 크기는 **엔진이 소유**한다(원칙 3) — labels 는 각 텍스트 슬롯에 들어갈 '글자'만 바꾼다.
+ * 비거나(빈 문자열) 슬롯 수보다 짧으면 그 자리는 엔진 기본 라벨(A/B/C/공통…)로 채운다. 라벨은
+ * escText 로 이스케이프되어 주입되므로 교사 입력이 SVG 를 깨거나 주입 벡터가 되지 않는다.
+ * 시그니처는 (params, labels) — 기존 호출 `vennSvg({circles})`(labels 미지정)와 하위호환된다.
+ */
+export function vennSvg(params = {}, labels = []) {
+  const { circles = 2 } = (params && typeof params === 'object' && !Array.isArray(params)) ? params : {};
   const n = Number(circles) === 3 ? 3 : 2;
+  const L = Array.isArray(labels) ? labels : [];
+  const lab = (i, d) => escText(L[i] != null && String(L[i]).trim() !== '' ? L[i] : d);
   if (n === 2) {
     return `<div class="venn keep">
     <svg width="440" height="240" viewBox="0 0 440 240" ${NS} role="img" aria-label="벤다이어그램(2원)">
       <circle cx="165" cy="125" r="100" stroke-width="1.6"/>
       <circle cx="275" cy="125" r="100" stroke-width="1.6"/>
-      <text x="95" y="130" font-size="13" text-anchor="middle">A</text>
-      <text x="345" y="130" font-size="13" text-anchor="middle">B</text>
-      <text x="220" y="28" font-size="11" text-anchor="middle" class="v-mid">공통점</text>
+      <text x="95" y="130" font-size="13" text-anchor="middle">${lab(0, 'A')}</text>
+      <text x="345" y="130" font-size="13" text-anchor="middle">${lab(1, 'B')}</text>
+      <text x="220" y="28" font-size="11" text-anchor="middle" class="v-mid">${lab(2, '공통점')}</text>
     </svg>
     ${cap('양쪽 바깥에는 차이점, 가운데 겹치는 곳에는 공통점을 쓰자.')}
   </div>`;
@@ -35,10 +46,10 @@ export function vennSvg({ circles = 2 } = {}) {
       <circle cx="185" cy="132" r="105" stroke-width="1.6"/>
       <circle cx="275" cy="132" r="105" stroke-width="1.6"/>
       <circle cx="230" cy="212" r="105" stroke-width="1.6"/>
-      <text x="118" y="92" font-size="13" text-anchor="middle">A</text>
-      <text x="342" y="92" font-size="13" text-anchor="middle">B</text>
-      <text x="230" y="300" font-size="13" text-anchor="middle">C</text>
-      <text x="230" y="150" font-size="10" text-anchor="middle" class="v-mid">공통</text>
+      <text x="118" y="92" font-size="13" text-anchor="middle">${lab(0, 'A')}</text>
+      <text x="342" y="92" font-size="13" text-anchor="middle">${lab(1, 'B')}</text>
+      <text x="230" y="300" font-size="13" text-anchor="middle">${lab(2, 'C')}</text>
+      <text x="230" y="150" font-size="10" text-anchor="middle" class="v-mid">${lab(3, '공통')}</text>
     </svg>
     ${cap('세 원이 겹치는 부분에는 공통점, 바깥에는 각 대상의 특징을 쓰자.')}
   </div>`;

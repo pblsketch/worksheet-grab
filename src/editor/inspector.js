@@ -8,7 +8,7 @@
 // 관례와 동형).
 
 import { icon } from './icons.js';
-import { QTYPE_LABELS, SHAPE_KINDS, DASH_STYLES, ANSWER_AREA_STYLES } from './objectFactory.js';
+import { QTYPE_LABELS, SHAPE_KINDS, DASH_STYLES, ANSWER_AREA_STYLES, ORGANIZER_EDIT_SPECS } from './objectFactory.js';
 import {
   ANSWERABLE_TYPES, QUESTION_TYPES, SIZEABLE_TYPES, PLACEMENT_TOGGLEABLE_TYPES,
   ALIGN_VALUES, WIDTH_PCT_MIN, WIDTH_PCT_MAX, CALLOUT_VARIANTS,
@@ -36,7 +36,7 @@ const ALIGN_BUTTONS = [
 const TYPE_LABELS = Object.freeze({
   title: '제목', question: '문항', table: '표', 'image-slot': '이미지', 'answer-area': '답란',
   richtext: '자유 텍스트', shape: '도형', divider: '구분선', 'passage-slot': '지문 슬롯', 'std-box': '학습목표 박스',
-  callout: '강조상자', spacer: '빈 공간', 'page-break': '페이지 나누기',
+  callout: '강조상자', organizer: '그림 조직자', spacer: '빈 공간', 'page-break': '페이지 나누기',
 });
 // placement(flow/float) → 사용자용 한국어(#9): float=자유 배치, flow=본문 배치(교사 친화 표현, US-E4).
 const PLACEMENT_LABEL = Object.freeze({ float: '자유 배치', flow: '본문 배치' });
@@ -490,6 +490,42 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
         body.addEventListener('change', () => patch({ body: body.value }));
         root.appendChild(field('본문', body));
         root.appendChild(el('p', { class: 'insp-note', text: '본문에는 HTML 을 그대로 쓸 수 있습니다(예: <b>굵게</b>). 제목을 비우면 종류 이름(도움말·주의·참고·핵심 정리)이 머리띠에 표시됩니다.' }));
+        break;
+      }
+      case 'organizer': {
+        // 편집 가능 그림형 조직자(P3) — 개수(params)와 슬롯 라벨(labels)만 편집한다. 그림의 모양·좌표·
+        // 글자 크기는 엔진(OrganizerGen)이 그리므로 여기서 만지지 않는다(원칙 3). 크기·정렬은 위 공통
+        // 크기 섹션(SIZEABLE)이 처리한다.
+        const KIND_LABELS = { venn: '벤다이어그램', conceptmap: '개념 지도', fishbone: '피시본', flowchart: '순서 흐름도', hierarchy: '위계 트리', hexagon: '헥사고날' };
+        root.appendChild(el('p', { class: 'insp-note', text: `종류: ${KIND_LABELS[obj.kind] || obj.kind} · 그림의 모양·위치는 자동으로 그려집니다. 개수와 칸 글자만 정하면 됩니다.` }));
+        const spec = ORGANIZER_EDIT_SPECS[obj.kind];
+        if (!spec) {
+          root.appendChild(el('p', { class: 'insp-note', text: '이 조직자는 아직 개수·라벨 편집을 지원하지 않습니다(이동·삭제만 가능).' }));
+          break;
+        }
+        const params = (obj.params && typeof obj.params === 'object') ? obj.params : {};
+        const count = Number(params[spec.param]) || spec.defaultCount;
+        const countSel = el('select', { id: 'insp-organizer-count' });
+        for (let c = spec.min; c <= spec.max; c += 1) {
+          countSel.appendChild(el('option', { value: String(c), text: `${c}개`, selected: c === count ? 'selected' : null }));
+        }
+        countSel.addEventListener('change', () => patch({ params: { ...params, [spec.param]: Number(countSel.value) } }));
+        root.appendChild(field(spec.countLabel || '개수', countSel));
+
+        const slotNames = spec.slotLabels(count);
+        const labels = Array.isArray(obj.labels) ? obj.labels : [];
+        slotNames.forEach((slotName, i) => {
+          const inp = el('input', { type: 'text', id: `insp-organizer-label-${i}`, value: labels[i] || '', placeholder: '(기본 안내 글자)' });
+          inp.addEventListener('change', () => {
+            const next = (Array.isArray(obj.labels) ? [...obj.labels] : []);
+            while (next.length < slotNames.length) next.push('');
+            next[i] = inp.value.trim();
+            const trimmed = next.slice(0, slotNames.length);
+            patch({ labels: trimmed.every((s) => !s) ? [] : trimmed });
+          });
+          root.appendChild(field(`${slotName} 글자`, inp));
+        });
+        root.appendChild(el('p', { class: 'insp-note', text: '각 칸에 들어갈 글자만 적으면 됩니다(비우면 기본 안내 글자가 나옵니다). 그림의 원·선은 프로그램이 정확히 그립니다.' }));
         break;
       }
       default: break;
