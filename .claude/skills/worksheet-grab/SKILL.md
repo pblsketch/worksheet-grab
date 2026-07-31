@@ -193,3 +193,8 @@ designer가 사진/일러스트가 필요하다고 판단하면:
      grant 가 권위** — 에디터가 적용 시 이 값으로 검증하므로, 응답이 스스로 `allowPassageContent` 를 실어도
      권한을 만들 수 없다(self-grant 차단). 토글 OFF 면 bodyHtml 은 반려되고 빈 슬롯 안내만 남는다. 어느
      경우든 실존 저작물 원문을 그대로 재현하지 않는다(교사 책임·로컬 처리).
+   - **답안 포함 섹션(B5, 2단계)**: 프래그먼트는 답안을 저작하지 않는다(결정 (a)) — "연습문제를 정답까지
+     한 번에"는 **2단계**로 이룬다. ① B1 저작으로 **답 없는 scaffold 섹션**을 만들어 적용하고, ② 적용된 새
+     `question` 을 선택해 **기존 rewrite(`--ops` replace)** 로 `question.answerKey` 를 부착한다. answerKey 는
+     question 의 정식 필드라 rewrite 경로는 허용하되(프래그먼트 경로에서만 금지), 정답은 교사 벌에만 보이고
+     학생 벌은 BuildVariants 가 물리 제거한다(누출 방어 상존). answerKey 를 프래그먼트에 직접 실으면 반려된다.
