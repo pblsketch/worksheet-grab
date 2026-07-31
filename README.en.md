@@ -78,6 +78,16 @@ If subject, grade, or topic is missing, the harness asks only for the missing in
 
 The AI and teacher author the educational content. The engine assembles it within a constrained document and print model. A teacher should review content, difficulty, and suitability before distribution.
 
+## Generated examples
+
+These are not mockups. Each image is the first page of a student worksheet produced by the current beta engine through **curriculum lookup → worksheet assembly → student/teacher split → answer-leak validation → Chrome rendering**. The corresponding teacher version uses the same structure with example answers added.
+
+| Science inquiry · Photosynthesis | Social data analysis · Population change |
+|---|---|
+| ![Science inquiry worksheet for designing a photosynthesis experiment](docs/images/readme/science-inquiry.png) | ![Social studies data-analysis worksheet for mapping population change](docs/images/readme/social-data-map.png) |
+| **Korean reading and discussion · Claims and evidence** | **English vocabulary and communication · Expressing emotions** |
+| ![Korean language arts worksheet for reading and discussing claims and evidence](docs/images/readme/korean-argument-reading.png) | ![English worksheet for organizing vocabulary about emotions](docs/images/readme/english-emotion-vocab.png) |
+
 ## AI harness status
 
 | Environment | Entry point | Current verification scope |
