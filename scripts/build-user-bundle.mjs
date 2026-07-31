@@ -54,11 +54,11 @@ const INCLUDE = [
   // 1층 엔진 (package.json 은 아래서 교사용으로 정제 생성; README/tools 는 개발 자산이라 제외)
   'bin', 'src', 'assets', 'themes', 'templates', 'data', 'blocks', 'manifests', 'schema',
   // 2층 제품 하네스
-  '.claude/skills', '.claude/agents',
+  '.claude/skills', '.claude/agents', 'AGENTS.md',
 ];
 
 // 필수 자산 — 없으면 fail-closed(완성 위장 금지)
-const ESSENTIAL = new Set(['bin', 'src', 'schema', '.claude/skills', '.claude/agents']);
+const ESSENTIAL = new Set(['bin', 'src', 'schema', '.claude/skills', '.claude/agents', 'AGENTS.md']);
 
 // 선택 포함 — 있으면 담되 없어도 정상(gepai MCP 설정; CSV 폴백이 있어 optional)
 const INCLUDE_OPTIONAL = ['.mcp.json'];

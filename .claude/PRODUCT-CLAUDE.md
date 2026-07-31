@@ -17,3 +17,4 @@
 ## 자세히
 
 명령·옵션·팀 구성은 함께 배포된 `.claude/skills/worksheet-grab/SKILL.md` 를 참고하세요.
+Codex·Antigravity 등 다른 AI 도구에서는 함께 배포된 `AGENTS.md` 를 참고하세요.
