@@ -52,6 +52,22 @@ export const CORPUS = [
       { type: 'passage-slot', slotLabel: '［지문 삽입 슬롯］' },
     ],
   },
+  {
+    id: 'valid-glossary-code-caption', kind: 'valid',
+    label: 'B2 확장: 용어 정의목록(dl)+인라인 code(평문 정합)+표 캡션',
+    fragment: [
+      { type: 'richtext', html: '<dl><dt>분자</dt><dd>분수의 위쪽 수</dd><dt>분모</dt><dd>분수의 아래쪽 수</dd></dl>' },
+      { type: 'question', qtype: 'short-answer', prompt: '명령 reduce 는 무엇을 하는가?', promptHtml: '명령 <code>reduce</code> 는 무엇을 하는가?' },
+      { type: 'table', splittable: false, caption: '표 1. 분수 예시', rows: [[{ text: '분수', header: true }, { text: '값', header: true }], [{ text: '3/2' }, { text: '1과 1/2' }]] },
+    ],
+  },
+  {
+    id: 'valid-pre-callout', kind: 'valid',
+    label: 'B2 확장: callout 본문에 pre 서식보존 블록',
+    fragment: [
+      { type: 'callout', variant: 'tip', body: '<p>다음 절차를 따르자.</p><pre>1) 통분\n2) 분자끼리 더하기\n3) 약분</pre>' },
+    ],
+  },
 
   // ── 좌표/조판 공격 ──────────────────────────────────────────────────────────
   { id: 'atk-rect', kind: 'attack', attackClass: 'coordinate', label: 'rect 좌표 주입', fragment: [{ type: 'title', text: 'x', rect: { xMm: 10, yMm: 20, wMm: 50, hMm: 30 } }] },

@@ -15,14 +15,25 @@
 //
 // 반환: { ok:true, plaintext } | { ok:false, rule, message, offset, detail }.
 
-/** 인라인 서식 태그(제목/발문 등 한 줄 서식). */
-export const INLINE_TAGS = Object.freeze(['strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'mark', 'span', 'br', 'a']);
+// **허용 범위는 "AI 저작 프로파일" — 엔진 방출 마크업이 아니다(B2 감사 결론).**
+// allowlist 는 AI 가 5개 위치(passage.bodyHtml·richtext.html·callout.body·title.textHtml·
+// question.promptHtml)에 **저작**하는 자유 HTML 만 규율한다. 표·qbox·조직자 같은 구조 마크업은
+// 개체 타입(structured field)에서 엔진(RenderObjectTree)이 방출하므로 이 목록과 무관하다 — 즉
+// blocks.css 의 .qbox/.db/.slot 같은 class 어휘를 여기 허용하는 것은 범주 오류다. 마이그레이션
+// richtext 는 원문 HTML 을 그대로 담아(검증 우회) 렌더하므로 이 목록이 그 다양성을 떠받칠 필요도 없다.
+// 그래서 목록은 **깨끗한 시맨틱 저작 집합**으로 좁게 유지하고, 속성/class 봉쇄(아래 ALLOWED_ATTRS)를
+// 보안 경계로 삼는다. 새 태그는 "속성 없이도 안전하고, 실제 저작에 쓰이며, 제품이 렌더하는" 것만.
 
-/** 블록 태그(지문/richtext/callout 본문 — 문단·목록·인용·표). 인라인을 포함한다. */
+/** 인라인 서식 태그(제목/발문 등 한 줄 서식). code=인라인 등폭(코드·기호·수식 조각). */
+export const INLINE_TAGS = Object.freeze(['strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'mark', 'code', 'span', 'br', 'a']);
+
+/** 블록 태그(지문/richtext/callout 본문 — 문단·목록·인용·정의목록·표). 인라인을 포함한다.
+ *  caption 은 표 캡션(blocks.css `.obj-table caption` 이 이미 스타일 — 마이그레이션도 <caption> 추출),
+ *  pre=서식보존 블록, dl/dt/dd=정의(용어) 목록(어휘·용어 정리에 시맨틱하게 맞다). */
 export const BLOCK_TAGS = Object.freeze([
   ...INLINE_TAGS,
-  'p', 'ul', 'ol', 'li', 'blockquote', 'h3', 'h4', 'hr',
-  'table', 'thead', 'tbody', 'tr', 'th', 'td',
+  'p', 'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'blockquote', 'h3', 'h4', 'pre', 'hr',
+  'table', 'caption', 'thead', 'tbody', 'tr', 'th', 'td',
 ]);
 
 /** 닫는 태그가 없는 void 요소(우리 집합에서). */
@@ -30,8 +41,8 @@ const VOID_TAGS = new Set(['br', 'hr']);
 
 /** 평문 추출 시 앞뒤에 단어 경계(공백)를 넣을 블록/개행 태그 — "문단1</p><li>가" 가 붙지 않도록. */
 const BLOCK_SEPARATORS = new Set([
-  'p', 'ul', 'ol', 'li', 'blockquote', 'h3', 'h4', 'hr', 'br',
-  'table', 'thead', 'tbody', 'tr', 'th', 'td',
+  'p', 'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'blockquote', 'h3', 'h4', 'pre', 'hr', 'br',
+  'table', 'caption', 'thead', 'tbody', 'tr', 'th', 'td',
 ]);
 
 /** 유일하게 허용되는 속성: a 요소의 href. 그 외 모든 속성(style·class·id·data-*·on*·srcdoc…)은 거부. */

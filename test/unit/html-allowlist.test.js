@@ -94,6 +94,38 @@ test('문자열이 아니면 거부', () => {
   assert.equal(validateHtmlField(null, 'block').ok, false);
 });
 
+// ── B2: 시맨틱 저작 프로파일 확장(code/pre/dl·dt·dd/caption) — 속성/class 봉쇄는 그대로 ──
+
+test('B2 확장: 시맨틱 저작 태그(code/pre/dl·dt·dd/caption)는 통과하고 평문을 낸다', () => {
+  const codeInline = validateHtmlField('명령은 <code>git commit</code> 이다', 'inline');
+  assert.equal(codeInline.ok, true);
+  assert.equal(codeInline.plaintext, '명령은 git commit 이다');
+
+  const defList = validateHtmlField('<dl><dt>분자</dt><dd>분수의 위쪽 수</dd></dl>', 'block');
+  assert.equal(defList.ok, true);
+  assert.equal(defList.plaintext, '분자 분수의 위쪽 수');
+
+  assert.equal(validateHtmlField('<pre>line1\nline2</pre>', 'block').ok, true);
+  assert.equal(validateHtmlField('<table><caption>표 1</caption><tr><td>a</td></tr></table>', 'block').ok, true);
+});
+
+test('B2 경계: code 는 inline 허용, 신규 블록 태그(pre/dl/dt/dd/caption)는 inline 프로파일에서 거부', () => {
+  assert.equal(validateHtmlField('<code>x</code>', 'inline').ok, true);
+  for (const tag of ['pre', 'dl', 'dt', 'dd', 'caption']) {
+    const r = validateHtmlField(`<${tag}>x</${tag}>`, 'inline');
+    assert.equal(r.ok, false, `<${tag}> 는 inline 에서 거부되어야 함`);
+    assert.equal(r.rule, 'disallowed-tag');
+  }
+});
+
+test('B2 보안 경계 유지: 신규 태그에도 속성은 전면 거부(class="answer" 정답 위장 포함)', () => {
+  for (const html of ['<code class="answer">42</code>', '<dt id="x">y</dt>', '<pre style="color:red">z</pre>', '<caption class="answer">t</caption>']) {
+    const r = validateHtmlField(html, 'block');
+    assert.equal(r.ok, false, `${html} 는 속성 때문에 거부되어야 함`);
+    assert.equal(r.rule, 'disallowed-attr');
+  }
+});
+
 test('프로파일 상수 정합 — 인라인 ⊆ 블록', () => {
   assert.ok(INLINE_TAGS.every((t) => BLOCK_TAGS.includes(t)));
 });

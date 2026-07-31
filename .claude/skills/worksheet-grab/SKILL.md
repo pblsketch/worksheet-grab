@@ -176,8 +176,12 @@ designer가 사진/일러스트가 필요하다고 판단하면:
        (`borderColor`/`bgColor`…)·`image-slot.src`·**답안(`answer`/`answerKey`)**. (id·자리·조판·정답은
        엔진/교사 몫 — 답안은 이 경로로 만들지 않는다.)
      - HTML 은 5위치만 허용(정제 allowlist 통과분만): `passage-slot.bodyHtml`(권한 필요)·`richtext.html`·
-       `callout.body`·`title.textHtml`·`question.promptHtml`. `<script>`/`style`/`iframe`/`on*`/`javascript:`
-       등은 반려된다. 표 셀·choices 등 **중첩 id 는 정상**.
+       `callout.body`(=block)·`title.textHtml`·`question.promptHtml`(=inline). 허용 태그는 **깨끗한 시맨틱
+       집합**뿐 — inline: `strong`/`em`/`b`/`i`/`u`/`s`/`sub`/`sup`/`mark`/`code`/`span`/`br`/`a`; block: 위 인라인 +
+       `p`/`ul`/`ol`/`li`/`dl`/`dt`/`dd`/`blockquote`/`h3`/`h4`/`pre`/`hr`/`table`(+`caption`/`thead`/`tbody`/`tr`/`th`/`td`).
+       **속성은 `a.href`(http/https/mailto)만** 허용 — `class`/`id`/`style`/`data-*` 는 전부 반려(정답 위장
+       `class="answer"` 포함). `<script>`/`iframe`/`div`/`img`/`on*`/`javascript:` 등도 반려. 구조(표·조직자·qbox)는
+       자유 HTML 이 아니라 **개체 타입**으로 저작한다(엔진이 class 마크업을 방출). 표 셀·choices 등 **중첩 id 는 정상**.
    에디터가 폴링으로 수신해 교사에게 diff 미리보기(다중이면 결합 뷰)를 보여주고, 적용·저장은 교사가 한다.
    - **에디터 진입(B1)**: 교사가 "새 섹션 AI 저작"(앱 바 `＋섹션` · 우클릭/슬래시)을 누르면 요청에
      `context.intent:'author-section'` 신호가 실린다 — 이 신호를 받으면 구독 AI 는 rewrite(`--ops`/`--objects`)가

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-07-30T23:09:12.219Z",
-  "corpusSize": 42,
+  "generatedAt": "2026-07-31T02:50:00.288Z",
+  "corpusSize": 44,
   "thresholds": {
     "structural_validity_rate": 1,
     "attack_rejection_rate": 1,
@@ -46,12 +46,12 @@
   },
   "counts": {
     "valid": {
-      "total": 5,
-      "structuralPass": 5,
-      "orderOk": 5,
-      "driftFree": 5,
-      "v4Ok": 5,
-      "shapeOk": 5
+      "total": 7,
+      "structuralPass": 7,
+      "orderOk": 7,
+      "driftFree": 7,
+      "v4Ok": 7,
+      "shapeOk": 7
     },
     "attack": {
       "total": 34,
@@ -165,6 +165,28 @@
       "rules": [],
       "compiled": {
         "count": 2,
+        "orderOk": true
+      }
+    },
+    {
+      "id": "valid-glossary-code-caption",
+      "kind": "valid",
+      "label": "B2 확장: 용어 정의목록(dl)+인라인 code(평문 정합)+표 캡션",
+      "ok": true,
+      "rules": [],
+      "compiled": {
+        "count": 3,
+        "orderOk": true
+      }
+    },
+    {
+      "id": "valid-pre-callout",
+      "kind": "valid",
+      "label": "B2 확장: callout 본문에 pre 서식보존 블록",
+      "ok": true,
+      "rules": [],
+      "compiled": {
+        "count": 1,
         "orderOk": true
       }
     },
