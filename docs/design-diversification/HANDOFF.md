@@ -1,0 +1,108 @@
+# Handoff — 활동지 디자인 다양화 (P1 완료 → P2 착수)
+
+> 이 폴더만 읽어도 이어갈 수 있게 자기완결로 정리. 상세는 같은 폴더의 `PLAN.md`,
+> `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md` 참조.
+> 최종 커밋: `673b684` (2026-08-05).
+
+## 새 세션 시작 프롬프트 (복붙용)
+```
+worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 이어서 한다.
+먼저 docs/design-diversification/HANDOFF.md 와 PLAN.md 를 정독하라.
+- P1(디자인 토큰화) 완료: blocks.css 전 디자인 축을 var(--wg-*, 현행리터럴) 13토큰으로
+  파라미터화 + L0 무회귀 게이트, 5커밋(eb828a3→673b684), 바이트 무회귀 확인.
+- 다음 = P2-a: 무드 팩 데이터(themes/moods/) + AssembleWorksheet.buildDocumentHtml 이
+  문서 optional `mood` 를 읽어 <style> 에 mood :root 한 겹 주입(미지정=현행 무회귀)
+  + 스키마 optional `mood` 필드. 개체 카탈로그 무변경.
+- 불변식 절대 준수: 편집==인쇄 · 의존성0·빌드0 · 단일진실원천(applyDocOp) · fail-closed ·
+  htmlAllowlist·닫힌 카탈로그 무변경 · AI 좌표 미생성.
+- git: add -A/브랜치/reset/clean 금지, 경로 명시 스테이징. 착수 전 `git status --porcelain`.
+  렌더 테스트는 `--test-concurrency=1`, 병합 전 전체 렌더 1회.
+- 무회귀 검증(전부 그린 유지):
+  node --test test/unit/blocks-token-equivalence.test.js
+  npm run test:unit
+  node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js
+  새 토큰/무드 추가 시 L0-1 sanity 토큰집합 + 축별 카운트 단정을 갱신할 것.
+P2-a 계획을 확인한 뒤 착수하라.
+```
+
+## 목표
+과목=강조색 6개에 용접된 **recolor-only** 디자인을, **"사용자의 목적/상황이 디자인을 고르는"**
+무드(레지스터) 축으로 확장한다. 내용(과목·성취기준)과 디자인(목적→무드)을 직교 분리.
+
+## 지금까지 (DONE · 전부 커밋됨)
+| 커밋 | 내용 |
+|---|---|
+| `7bc8f75` | 기존 stale test 수정 (venn 조직자 P3 organizer 타입 반영, 제품코드 불변) |
+| `eb828a3` | P1-a 괘선 색 `#cbd5c0`→`var(--wg-rule-color)` (29) + **L0 무회귀 게이트 구축** |
+| `1035d32` | P1-b 모서리 `border-radius 4/6/8px`→`var(--wg-radius-sm/md/lg)` (24) |
+| `74b399d` | P1-c 괘선폭 `border-width 1px`→`var(--wg-rule-w)` (43) |
+| `16b0d97` | P1-d 블록리듬 `margin-top 3mm/2mm`→`var(--wg-space-block/-sm)` (23) |
+| `673b684` | P1-e 타이포 `font-size 6클러스터`→`var(--wg-fs-*)` (62) |
+
+**총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
+→ 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
+
+### 토큰 어휘 (13)
+| 축 | 토큰 | 현행 폴백 | 치환수 |
+|---|---|---|---|
+| 괘선 색 | `--wg-rule-color` | `#cbd5c0` | 29 |
+| 괘선 폭 | `--wg-rule-w` | `1px` | 43 |
+| 모서리 | `--wg-radius-sm/md/lg` | `4/6/8px` | 24 |
+| 블록 리듬 | `--wg-space-block/-sm` | `3mm/2mm` | 23 |
+| 타이포 | `--wg-fs-title/heading/pill/label/body/caption` | `20/12/10.5/9/9.5/8.7pt` | 62 |
+
+### 무회귀 게이트 (핵심 — "바이트 무회귀"의 실제 의미)
+- `blocksCss` 는 `<style>` 에 **raw 삽입**되어 리터럴→`var()` 치환 시 **HTML 텍스트는 반드시 바뀐다**
+  → "raw HTML diff=0" 은 불가능. 무회귀는 아래 3계층으로 정의(설계: `01-baseline-and-regression-gate.md`).
+  - **L0** `test/unit/blocks-token-equivalence.test.js` (+ `test/fixtures/golden/blocks-css-baseline.json`):
+    선언 개수·순서 불변 + 각 값이 (리터럴 동일) 또는 (`var(token,리터럴)` 로 리터럴==원본) +
+    토큰이 어디에도 정의 안 됨 + **자기검증(사보타주)**. 스윕마다 **도입 토큰집합 sanity + 축별 카운트 단정**을 누적 갱신.
+  - **L1** 실 Chrome computed-style 골든 — **설계만, 미구현**(원하면 추가). 지금은 L0+L2로 충분히 방어.
+  - **L2** 기존 인쇄-진실 렌더(신규 아님, 통과 유지가 게이트): `acceptance`·`paper`·`editor-print-parity`.
+- 검증 커맨드:
+  ```
+  node --test test/unit/blocks-token-equivalence.test.js          # L0 (현재 11 tests)
+  npm run test:unit                                               # 943 그린
+  node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js  # L2 13 그린
+  ```
+
+### 시연 (엔진 밖, 참고)
+- (workspace) `wsdemo/mood-demo/build.mjs` — 실제 `blocks.css`+`paper.css`+`themes/sci.css` 에
+  mood `:root` 오버라이드만 얹어 같은 활동지가 기본/각진실무형/둥근파스텔로 바뀜을 렌더로 확인.
+  P2 렌더 주입이 실제로 해야 할 일의 프로토타입.
+
+## 남은 작업 (TODO)
+### P2 — 진짜 무드 기능 (엔진, 다음 착수)
+- **P2-a (첫 증분)**:
+  1. `themes/moods/` 신설 — 무드 2~3종 `:root{ --wg-* }` 값 세트(예: soft/angular/exam).
+  2. `src/usecases/AssembleWorksheet.js` `buildDocumentHtml()` — CSS concat 순서(`paper → blocks → theme`)
+     **뒤에** 문서/manifest 의 optional `mood` 에 해당하는 mood css 를 한 겹 append. **미지정=미주입=현행(무회귀).**
+  3. 스키마 — `manifest.mood` optional 필드(개체 카탈로그·개체 트리 스키마 **무변경**). 단일 진실원천(manifest에만, `applyDocOp` 경유).
+  4. 게이트 — mood 미지정 문서 L0/L2 그린 유지 + mood 지정 렌더 스냅샷 1종 추가.
+- **P2-b**: 편집기 무드 선택(applyDocOp 단일 관문) + **"디자인 방향 서랍"** 정식 무드 팩:
+  차분한기본 · 시험지형 · 넓은필기 · 모던(에디토리얼/카드) · (삽화형은 P5). 리서치 근거는 대화기록/PLAN 참조.
+- **P3**: 용지 방향 — **단일 방향(문서 전체 가로/세로) 먼저**, 페이지별 혼합(복합 세트)은 **후속·flow 전용**
+  (최고 위험: 실측 페이지네이션 + `.sheet` float rect 원점 전제. `paper.css` 주석 경고 참조).
+- **P4**: `worksheet-designer` 파이프라인에 "교사 자연어 목적 → **닫힌 무드 이름** 선택"(AI는 이름만, CSS/좌표 미저작).
+- **P5 (후속 PRD)**: 삽화 필요 무드(저학년/컬러링) — 안전한 장식 자산 통로(SVG/이미지 슬롯 + allowlist/카탈로그 확장). 별도.
+- **P1 잔여(선택)**: 셀 padding/gap(`--wg-space-box-y/x`, `--wg-space-gap-*`) — 값 편차 커서 보류(01 인벤토리 4-b 주석).
+  헤더 구조 변형(색스트립↔밑줄↔없음)은 스칼라 토큰이 아니라 **레이아웃 변형**(P2-b class 단위).
+
+## 핵심 접점 파일
+- `assets/blocks.css` (토큰 소비), `assets/paper.css` (용지 `--sheet-*` 파라미터·orientation 여지),
+  `themes/*.css` (+신규 `themes/moods/`), `src/usecases/AssembleWorksheet.js`(`buildDocumentHtml` = **mood 주입 지점**),
+  `src/usecases/RenderObjectTree.js`, `src/domain/Theme.js`(`THEME_TOKENS`), 스키마(manifest mood/orientation optional),
+  `.claude/agents/worksheet-designer.md`.
+
+## 불변식·규칙 (반드시)
+- 편집==인쇄(R2-1) · 의존성0·빌드0(외부 라이브러리 도입은 정책결정) · 단일 진실원천(`applyDocOp`) ·
+  fail-closed(정답 누출 시 산출 차단) · htmlAllowlist·닫힌 개체 카탈로그(12종) 무변경 · AI 좌표(rect) 미생성.
+- **병행 세션**: 이 저장소는 여러 세션이 한 작업트리를 공유. 착수 전 `git status --porcelain` — 내가 만질 파일이
+  남의 손에 `M` 이면 멈추고 알린다. **금지**: `git add -A`/`commit -a`, 브랜치 생성·전환, `stash`/`reset --hard`/`checkout --`/`clean`.
+  스테이징은 경로 명시. (상세: `docs/CONCURRENT-SESSIONS.md`)
+- 렌더 스위트 직렬 `--test-concurrency=1`, 병합 전 전체 렌더 1회.
+
+## 이 하네스 특유의 운영 노트
+- 백그라운드 서브에이전트/셸은 세션 종료 시 중단되고 결과 회수가 불안정할 수 있음 →
+  위임 워커에는 **파일 산출물**을 지시(파일로 회수), 렌더 테스트는 **포그라운드(timeout 크게)** 권장.
+- 기존 known-red(`editor-objects.render.test.js:173`)는 `7bc8f75` 에서 해결됨(stale test).
