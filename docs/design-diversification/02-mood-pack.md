@@ -81,9 +81,26 @@ node --test --test-concurrency=1 test/render/acceptance.render.test.js test/rend
 (`manifest.mood`) · fail-closed(미지 무드 차단) · htmlAllowlist·닫힌 개체 카탈로그 무변경 ·
 AI 좌표 미생성(무드는 엔진 방출 토큰값 세트일 뿐).
 
-## 다음(P2-b, 미착수)
-- 개체트리/편집기 무드 선택 — `document.mood` + `applyDocOp` 단일 관문 + `loadRenderAssets`→
-  `RenderObjectTree`에 `assets.moodCss` 배선(현재 optional 기본 `''` 이라 하위호환). manifest→개체트리
-  마이그레이션의 mood carry-through도 여기서.
-- "디자인 방향 서랍" 정식 팩 확장(차분한기본·시험지형·넓은필기·모던) + 무드별 골든(선택적으로 L1
-  Chrome computed-style 무드 골든 추가).
+## P2-b — 개체트리/편집기 무드 (3단계)
+무드는 색만 바꾸는 테마(`/theme` 라우트: reload-only)와 달리 **타이포·간격을 바꿔 리플로우가 필요**하다
+(`/paper` 라우트와 동류). 위험을 분리해 3단계로 진행한다.
+
+- **P2-b1 — ✅ 완료(엔진 렌더 경로)**:
+  - `loadRenderAssets(repo, document)` 가 `document.mood` 를 themeCss 와 동형으로 해석 → `moodCss`/
+    `moodName` 반환(닫힌 카탈로그 fail-closed 검증). 미지정=repo 무드 메서드 미호출=현행.
+  - `RenderObjectTree.execute` 가 optional `assets.moodCss`/`moodName` 를 `buildDocumentHtml` 로 전달
+    (기본 `''`=미주입). `loadRenderAssets` 를 쓰는 개체트리 소비자(RenderEditorShell·SaveDocument.checkpoint)가
+    자동으로 무드를 존중; 직접 assets 를 짜는 호출부(acceptance·BuildVariants·PaginateObjectTree·reflow)는
+    `moodCss` 미설정이라 완전 하위호환.
+  - 게이트 `test/unit/mood-object-tree.test.js`(5) — 미지정=무주입 · 지정=레이어 한 겹만 · 미지 무드 throw
+    · **manifest 경로와 동일 무드 레이어 방출(두 경로 일관성)**.
+- **P2-b2 — 다음(문서 구성 + 서버 라우트)**:
+  - `documentRoutes.buildLegacyDocument` 가 `manifest.mood → document.mood` carry(themeName 옆에 한 줄).
+  - `/mood` POST 라우트 = `/theme` 동형(listMoods 화이트리스트·fail-closed·no-op 가드) → `checkpoint`/
+    `execute` 단일 게이트. **단, 무드는 레이아웃 변경이라 클라이언트는 reload 가 아니라 리플로우해야 함**
+    (`/paper` 관례). `SaveDocument.checkpoint` 가 문서 전체를 저장하므로 `document.mood` 는 왕복 보존됨(검증 필요).
+- **P2-b3 — 이후(브라우저 편집기)**:
+  - 브라우저 `applyDocOp(next={...doc, mood}, { reflow:true })` 무드 op(단일 변이 관문) + 툴바/인스펙터
+    무드 선택 UI. Chrome 렌더/파리티 게이트.
+- 이어서 "디자인 방향 서랍" 정식 팩 확장(차분한기본·시험지형·넓은필기·모던) + 무드별 골든(선택적으로 L1
+  Chrome computed-style 무드 골든 추가) + **무드 레이아웃 변형**(class 단위, 새 개체 타입 없이 — PLAN 71행).

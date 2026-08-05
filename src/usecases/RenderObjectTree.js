@@ -124,6 +124,11 @@ export class RenderObjectTree {
       themeName: meta.themeName || '',
       dataSubject: meta.dataSubject || '',
       pagesHtml,
+      // 무드(P2-b): 호출부(loadRenderAssets)가 document.mood 를 해석해 넘긴 값 세트. 미지정이면
+      // 빈 문자열이라 theme 뒤에 아무것도 붙지 않음 = 현행 산출 그대로(무회귀). RenderObjectTree 는
+      // FS 무지 순수 함수이므로 무드 파일 로드는 하지 않고 이미 해석된 문자열만 방출한다.
+      moodCss: assets.moodCss || '',
+      moodName: assets.moodName || '',
     });
 
     return { html };

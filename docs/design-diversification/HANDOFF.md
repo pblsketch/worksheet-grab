@@ -1,33 +1,34 @@
-# Handoff — 활동지 디자인 다양화 (P2-a 완료 → P2-b 착수)
+# Handoff — 활동지 디자인 다양화 (P2-b1 완료 → P2-b2 착수)
 
 > 이 폴더만 읽어도 이어갈 수 있게 자기완결로 정리. 상세는 같은 폴더의 `PLAN.md`,
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
-> `02-mood-pack.md`(P2-a) 참조.
-> 최종 검증: unit 951 · L0 11 · 무드팩 8 · L2 렌더 13 · 전체 렌더 sweep fail 0 그린 (2026-08-05).
-> P2-a 커밋 `4f2b97f`(전체 렌더 sweep 의 D14 paste todo 는 기존·무관).
+> `02-mood-pack.md`(P2-a + P2-b 3단계 계획) 참조.
+> 최종 검증: unit 956 · L0 11 · 무드팩 8 · 개체트리무드 5 · L2 렌더 13 그린 (2026-08-05).
+> P2-a 커밋 `4f2b97f` + P2-a 문서 `2ca275f`. **P2-b1 아직 미커밋**.
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
 worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 이어서 한다.
 먼저 docs/design-diversification/HANDOFF.md · PLAN.md · 02-mood-pack.md 를 정독하라.
-- P1(토큰화 13토큰·181곳) + P2-a(무드 팩 데이터 + 매니페스트 경로 주입) 완료.
-  P2-a: themes/moods/{exam,soft,angular}.css + buildDocumentHtml 이 optional moodCss 를
-  theme 뒤에 한 겹 주입(미지정=바이트 무회귀) + AssembleWorksheet 가 manifest.mood 를
-  fail-closed 검증(listMoods 닫힌 카탈로그)·로드 + FsBlockRepository.loadMoodCss/listMoods.
-  게이트: test/unit/mood-pack.test.js(카탈로그 정합 + 주입 무회귀 8건). blocks.css 무변경.
-- 다음 = P2-b: 개체트리/편집기 무드. document.mood + applyDocOp 단일 관문 +
-  loadRenderAssets→RenderObjectTree 에 assets.moodCss 배선(현재 optional 기본 '' 하위호환) +
-  manifest→개체트리 마이그레이션 mood carry-through. 이어서 "디자인 방향 서랍" 정식 팩 확장.
+- P1(토큰화 13토큰·181곳) + P2-a(매니페스트 경로 무드 주입) + P2-b1(개체트리 렌더 경로 무드) 완료.
+  P2-a: themes/moods/{exam,soft,angular}.css + buildDocumentHtml optional moodCss(theme 뒤 한 겹,
+  미지정=바이트 무회귀) + AssembleWorksheet manifest.mood fail-closed + FsBlockRepository.loadMoodCss/listMoods.
+  P2-b1: loadRenderAssets 가 document.mood 읽어(fail-closed) assets.moodCss/moodName 반환 +
+  RenderObjectTree 가 buildDocumentHtml 로 전달. 게이트 mood-pack.test.js(8)·mood-object-tree.test.js(5).
+- 다음 = P2-b2: (1) documentRoutes.buildLegacyDocument 가 manifest.mood → document.mood carry(themeName 옆),
+  (2) /mood POST 라우트 = /theme 동형(listMoods 화이트리스트·fail-closed·no-op) → checkpoint/execute 단일
+  게이트. **단 무드는 레이아웃 변경이라 클라이언트 reload 아닌 리플로우 필요(/paper 관례)**. SaveDocument.checkpoint
+  왕복 보존 검증. 그다음 P2-b3(브라우저 applyDocOp 무드 op + 편집기 UI, Chrome 게이트).
 - 불변식 절대 준수: 편집==인쇄 · 의존성0·빌드0 · 단일진실원천(applyDocOp) · fail-closed ·
   htmlAllowlist·닫힌 카탈로그 무변경 · AI 좌표 미생성.
 - git: add -A/브랜치/reset/clean 금지, 경로 명시 스테이징. 착수 전 `git status --porcelain`.
   렌더 테스트는 `--test-concurrency=1`, 병합 전 전체 렌더 1회.
 - 무회귀 검증(전부 그린 유지):
-  node --test test/unit/blocks-token-equivalence.test.js test/unit/mood-pack.test.js
+  node --test test/unit/blocks-token-equivalence.test.js test/unit/mood-pack.test.js test/unit/mood-object-tree.test.js
   npm run test:unit
   node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js
   새 토큰/무드 추가 시 L0-1 sanity 토큰집합 + 축별 카운트 단정 + mood-pack 13토큰 어휘를 갱신할 것.
-P2-b 계획을 확인한 뒤 착수하라.
+P2-b2 계획을 확인한 뒤 착수하라.
 ```
 
 ## 목표
@@ -45,6 +46,8 @@ P2-b 계획을 확인한 뒤 착수하라.
 | `673b684` | P1-e 타이포 `font-size 6클러스터`→`var(--wg-fs-*)` (62) |
 | `0286ac2` | P1 완료 핸드오프 + 토큰/게이트 설계 문서 |
 | `4f2b97f` | P2-a 무드 팩 — `themes/moods/{exam,soft,angular}.css` + `buildDocumentHtml` moodCss 주입 + `AssembleWorksheet` manifest.mood(fail-closed) + `FsBlockRepository.loadMoodCss/listMoods` + `test/unit/mood-pack.test.js`(8) + `02-mood-pack.md`. 상세: `02-mood-pack.md` |
+| `2ca275f` | P2-a 커밋 해시·전체 렌더 결과 문서 반영 |
+| **미커밋** | **P2-b1 개체트리 렌더 경로 무드 — `loadRenderAssets` 가 `document.mood` 읽어(fail-closed) `assets.moodCss/moodName` 반환 + `RenderObjectTree`→`buildDocumentHtml` 전달 + `test/unit/mood-object-tree.test.js`(5, 두 경로 일관성 포함). blocks.css·AssembleWorksheet 무변경** |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
@@ -86,9 +89,12 @@ P2-b 계획을 확인한 뒤 착수하라.
   3. ✅ `AssembleWorksheet.#serialize` 가 `manifest.mood` 를 `listMoods()`(닫힌 카탈로그)로 **fail-closed** 검증 후
      `loadMoodCss` 로드. `FsBlockRepository.loadMoodCss/listMoods` + 포트 스텁. 개체 카탈로그·트리 스키마 무변경.
   4. ✅ 게이트 `test/unit/mood-pack.test.js`(8) — 카탈로그 정합 + 주입 무회귀(레이어 한 겹 제거=미지정 동일). L0/L2 그린 유지.
-- **P2-b (다음 착수)**: 개체트리/편집기 무드 — `document.mood` + `applyDocOp` 단일 관문 +
-  `loadRenderAssets`→`RenderObjectTree`에 `assets.moodCss` 배선(현재 optional 기본 `''` 하위호환) +
-  manifest→개체트리 마이그레이션 mood carry-through. 이어서 **"디자인 방향 서랍"** 정식 무드 팩:
+- **P2-b1 — ✅ 완료(미커밋)**: 개체트리 렌더 경로 — `loadRenderAssets` 가 `document.mood` 를 fail-closed
+  해석 → `assets.moodCss/moodName` → `RenderObjectTree`→`buildDocumentHtml`. `test/unit/mood-object-tree.test.js`(5).
+- **P2-b2 (다음 착수)**: `documentRoutes.buildLegacyDocument` 의 `manifest.mood → document.mood` carry +
+  `/mood` POST 라우트(`/theme` 동형·listMoods·fail-closed, **단 리플로우 유발 = `/paper` 관례**) +
+  `SaveDocument.checkpoint` 왕복 보존 검증. 그다음 P2-b3(브라우저 `applyDocOp` 무드 op + 편집기 UI, Chrome).
+  이어서 **"디자인 방향 서랍"** 정식 무드 팩:
   차분한기본 · 시험지형 · 넓은필기 · 모던(에디토리얼/카드) · (삽화형은 P5). 리서치 근거는 대화기록/PLAN 참조.
 - **P3**: 용지 방향 — **단일 방향(문서 전체 가로/세로) 먼저**, 페이지별 혼합(복합 세트)은 **후속·flow 전용**
   (최고 위험: 실측 페이지네이션 + `.sheet` float rect 원점 전제. `paper.css` 주석 경고 참조).
