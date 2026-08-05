@@ -4,7 +4,7 @@
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
 > `02-mood-pack.md`(P2-a + P2-b 3단계 계획) 참조.
 > 최종 검증: unit 956 · L0 11 · 무드팩 8 · 개체트리무드 5 · L2 렌더 13 그린 (2026-08-05).
-> P2-a 커밋 `4f2b97f` + P2-a 문서 `2ca275f`. **P2-b1 아직 미커밋**.
+> P2-a 커밋 `4f2b97f`/`2ca275f` · P2-b1 커밋 `4ba4de8`.
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
@@ -47,7 +47,7 @@ P2-b2 계획을 확인한 뒤 착수하라.
 | `0286ac2` | P1 완료 핸드오프 + 토큰/게이트 설계 문서 |
 | `4f2b97f` | P2-a 무드 팩 — `themes/moods/{exam,soft,angular}.css` + `buildDocumentHtml` moodCss 주입 + `AssembleWorksheet` manifest.mood(fail-closed) + `FsBlockRepository.loadMoodCss/listMoods` + `test/unit/mood-pack.test.js`(8) + `02-mood-pack.md`. 상세: `02-mood-pack.md` |
 | `2ca275f` | P2-a 커밋 해시·전체 렌더 결과 문서 반영 |
-| **미커밋** | **P2-b1 개체트리 렌더 경로 무드 — `loadRenderAssets` 가 `document.mood` 읽어(fail-closed) `assets.moodCss/moodName` 반환 + `RenderObjectTree`→`buildDocumentHtml` 전달 + `test/unit/mood-object-tree.test.js`(5, 두 경로 일관성 포함). blocks.css·AssembleWorksheet 무변경** |
+| `4ba4de8` | P2-b1 개체트리 렌더 경로 무드 — `loadRenderAssets` 가 `document.mood` 읽어(fail-closed) `assets.moodCss/moodName` 반환 + `RenderObjectTree`→`buildDocumentHtml` 전달 + `test/unit/mood-object-tree.test.js`(5, 두 경로 일관성 포함). blocks.css·AssembleWorksheet 무변경 |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
