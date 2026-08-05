@@ -4,7 +4,7 @@
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
 > `02-mood-pack.md`(P2-a + P2-b 3단계 계획) 참조.
 > 최종 검증: unit 964 · L0 11 · 무드팩 8 · 개체트리무드 5 · 편집기생명주기 3 · /mood라우트 5 · L2 렌더 13 그린 (2026-08-05).
-> P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`/`cb7ab26`. **P2-b3-server 아직 미커밋**.
+> P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`/`cb7ab26` · P2-b3-server `22ca4b0`.
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
@@ -55,7 +55,7 @@ P2-b3-client 계획을 확인한 뒤 착수하라.
 | `fd682b3` | P2-b1 커밋 해시 문서 반영 |
 | `f3f071f` | P2-b2 문서 생명주기 — `documentRoutes.buildLegacyDocument` 의 `manifest.mood→document.mood` 조건부 carry(비침습) + `SaveDocument.checkpoint` 왕복 보존(whole-document, JSDoc) + `test/unit/mood-editor-lifecycle.test.js`(3, 실 편집기 서버 carry/persist/무회귀). `ValidateObjectTree` 가 mood 문서메타 수용 증명 |
 | `cb7ab26` | P2-b2 커밋 해시 문서 반영 |
-| **미커밋** | **P2-b3-server 무드 변경 서버 게이트 — `/mood` POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→delete) + GET /shell.json `availableMoods` 노출 + `test/unit/mood-route.test.js`(5). 클라이언트 리플로우는 b3-client** |
+| `22ca4b0` | P2-b3-server 무드 변경 서버 게이트 — `/mood` POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→delete) + GET /shell.json `availableMoods` 노출 + `test/unit/mood-route.test.js`(5). 클라이언트 리플로우는 b3-client |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
