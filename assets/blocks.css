@@ -22,12 +22,12 @@
 .unit-line .unit { flex: 1; }
 .unit-line .unit b { color: var(--cink); }
 .namefield { color: #555; white-space: nowrap; }
-.namefield span { display: inline-block; border-bottom: 1px solid #999; width: 46px; margin: 0 2px; }
+.namefield span { display: inline-block; border-bottom: var(--wg-rule-w, 1px) solid #999; width: 46px; margin: 0 2px; }
 
 /* ---- standard-label (성취기준 라벨) ---- */
-.std-box { margin: 4mm 0 0; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px); overflow: hidden; }
+.std-box { margin: 4mm 0 0; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px); overflow: hidden; }
 .std-box .std-head { background: var(--clite); color: var(--cink); font-weight: 700; font-size: 9pt;
-  padding: 4px 12px; border-bottom: 1px solid var(--wg-rule-color, #cbd5c0); }
+  padding: 4px 12px; border-bottom: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); }
 .std-box ul { margin: 0; padding: 7px 14px 7px 30px; }
 .std-box li { font-size: 9pt; margin: 2px 0; color: #333; }
 .std-box li b { color: var(--c); margin-right: 4px; }
@@ -60,7 +60,7 @@
 code { font-family: "D2Coding", Consolas, "Courier New", monospace; font-size: .92em;
   background: #f2f3f5; border-radius: 3px; padding: 1px 4px; color: #2b2b2b; }
 pre { font-family: "D2Coding", Consolas, "Courier New", monospace; font-size: 9pt; line-height: 1.5;
-  background: #f7f8fa; border: 1px solid #e2e5ea; border-radius: var(--wg-radius-md, 6px); padding: 8px 12px;
+  background: #f7f8fa; border: var(--wg-rule-w, 1px) solid #e2e5ea; border-radius: var(--wg-radius-md, 6px); padding: 8px 12px;
   margin: 6px 0; white-space: pre-wrap; overflow-wrap: break-word; }
 pre code { background: none; padding: 0; }
 dl { margin: 6px 0; }
@@ -78,7 +78,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .subq { margin: 2mm 0 1mm; font-weight: 600; }
 
 /* ---- label-value table (국어) ---- */
-.lv-table td { border: 1px solid var(--wg-rule-color, #cbd5c0); vertical-align: top; padding: 8px 10px; font-size: 9.5pt; }
+.lv-table td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); vertical-align: top; padding: 8px 10px; font-size: 9.5pt; }
 .lv-table td.label { background: var(--clabel); font-weight: 700; text-align: center; width: 26%; color: var(--cink); }
 .lv-table td.label.gray { background: #ededed; color: #444; }
 .lv-table td.blank { height: 42px; }
@@ -92,7 +92,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .dash-box .db { min-height: 46px; padding: 8px 12px 12px; }
 
 /* ---- example strip (공통) ---- */
-.strip { margin-top: 3mm; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); overflow: hidden; }
+.strip { margin-top: 3mm; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); overflow: hidden; }
 .strip .sh { background: var(--cstrip); color: #fff; font-weight: 700; text-align: center;
   padding: 4px 10px; font-size: 9.5pt; }
 .strip .sb { padding: 8px 12px; font-size: 9pt; background: #fbfcfb; }
@@ -100,9 +100,9 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 
 /* ---- comparison table (국어) ---- */
 .cmp { margin-top: 3mm; }
-.cmp th { background: #ededed; font-weight: 700; padding: 6px; font-size: 9.5pt; border: 1px solid #ccc; }
+.cmp th { background: #ededed; font-weight: 700; padding: 6px; font-size: 9.5pt; border: var(--wg-rule-w, 1px) solid #ccc; }
 .cmp th.c { background: var(--clabel); color: var(--cink); }
-.cmp td { border: 1px solid #ccc; padding: 8px 10px; vertical-align: top; height: 44px; font-size: 9.5pt; }
+.cmp td { border: var(--wg-rule-w, 1px) solid #ccc; padding: 8px 10px; vertical-align: top; height: 44px; font-size: 9.5pt; }
 .cmp .hl { background: #efe6f7; padding: 2px 4px; border-radius: 3px; }
 .cmp td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 18%; }
 
@@ -113,17 +113,17 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
   padding: 14px 18px; margin-top: 3mm; background: var(--wg-ps-bg, #fcfcfa); }
 .passage h3 { text-align: center; margin: 0 0 8px; font-size: 12pt; }
 .passage p { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
-.passage .slot { color: #b06a00; background: #fff5e6; border: 1px dashed #e0a94f;
+.passage .slot { color: #b06a00; background: #fff5e6; border: var(--wg-rule-w, 1px) dashed #e0a94f;
   border-radius: 5px; padding: 6px 10px; font-size: 8.7pt; margin: 6px 0; }
 .passage .passage-body { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
 .passage .src { text-align: right; font-size: 8.7pt; color: #555; margin-top: 6px; }
-.passage .fn { border-top: 1px dotted #ccc; margin-top: 8px; padding-top: 5px; font-size: 8.3pt; color: #555; }
+.passage .fn { border-top: var(--wg-rule-w, 1px) dotted #ccc; margin-top: 8px; padding-top: 5px; font-size: 8.3pt; color: #555; }
 .passage .fn p { margin: 1px 0; text-indent: 0; }
 
 /* ---- 개체 트리 표(공통) — 테두리 색/두께는 --wg-tb-color/--wg-tb-width 로 조절(#5) ---- */
 .obj-table { border-collapse: collapse; width: 100%; margin: 2mm 0; }
 .obj-table th, .obj-table td {
-  border: var(--wg-tb-width, 1px) solid var(--wg-tb-color, var(--wg-rule-color, #cbd5c0));
+  border: var(--wg-tb-width, var(--wg-rule-w, 1px)) solid var(--wg-tb-color, var(--wg-rule-color, #cbd5c0));
   padding: 6px 9px; font-size: 9.5pt; vertical-align: top; min-height: 24px;
 }
 .obj-table th { background: var(--clite); color: var(--cink); font-weight: 700; }
@@ -151,9 +151,9 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 
 /* ---- question + answer slot (공통) ---- */
 .q { margin: 2.5mm 0 1.5mm; font-weight: 600; }
-.ans-line { border-bottom: 1px solid #ccc; height: 20px; margin: 8px 0; }
+.ans-line { border-bottom: var(--wg-rule-w, 1px) solid #ccc; height: 20px; margin: 8px 0; }
 .ans-line.tall { height: 34px; }
-.ansbox { border: 1px solid #ccc; border-radius: var(--wg-radius-md, 6px); min-height: 50px; margin-top: 5px; padding: 8px 10px; }
+.ansbox { border: var(--wg-rule-w, 1px) solid #ccc; border-radius: var(--wg-radius-md, 6px); min-height: 50px; margin-top: 5px; padding: 8px 10px; }
 
 /* ---- 문항 유형별 보조 렌더(#12) — qtype 마다 시각적으로 구분된다 ---- */
 .q-choices { list-style: none; margin: 3px 0 0; padding: 0; }
@@ -169,8 +169,8 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .q-tf-list .q-tf-ox { flex: none; color: #555; white-space: nowrap; letter-spacing: 1px; }
 .q-match { border-collapse: collapse; margin: 4px 0 2px; width: 100%; }
 .q-match td { padding: 4px 8px; font-size: 9.5pt; vertical-align: middle; }
-.q-match .q-match-l { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); width: 40%; background: #fbfcfb; }
-.q-match .q-match-r { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); width: 40%; background: #fbfcfb; }
+.q-match .q-match-l { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); width: 40%; background: #fbfcfb; }
+.q-match .q-match-r { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); width: 40%; background: #fbfcfb; }
 /* 연결점(#4): 두 점을 가운데 칸의 **좌우 끝**으로 벌려 각각 자기 항목 바로 옆에 붙인다.
    전엔 `· · ` 두 글자가 칸 한가운데 붙어 있어 어느 항목의 점인지 알아보기 어려웠다.
    td 자체에 display:flex 를 주면 table-cell 이 아니게 되어 열 너비가 깨지므로 안쪽 span 으로 편다. */
@@ -181,12 +181,12 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .q-order li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 8px; align-items: center; }
 .q-order-box { display: inline-block; width: 22px; height: 20px; border: 1.2px solid #999; border-radius: var(--wg-radius-sm, 4px); flex: none; }
 .q-short { margin: 6px 0 2px; }
-.q-short-line { display: block; border-bottom: 1px solid #bbb; height: 20px; }
+.q-short-line { display: block; border-bottom: var(--wg-rule-w, 1px) solid #bbb; height: 20px; }
 .q-essay { margin: 5px 0 2px; }
 .q-bank { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 5px 0 2px;
   border: 1.2px dashed var(--c2); border-radius: var(--wg-radius-md, 6px); padding: 6px 10px; background: #fbfcfb; }
 .q-bank-label { font-weight: 700; color: var(--cink); font-size: 8.7pt; margin-right: 4px; }
-.q-bank-chip { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 12px; padding: 2px 10px; font-size: 9pt; background: #fff; }
+.q-bank-chip { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: 12px; padding: 2px 10px; font-size: 9pt; background: #fff; }
 
 /* ---- teacher answer (교과 무관 고정 블루) ---- */
 .answer { display: none; }
@@ -196,16 +196,16 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 
 /* ---- pro/con table (국어) — 찬반 의미색 고정 허용 ---- */
 .pc { margin-top: 3mm; }
-.pc th { padding: 5px; border: 1px solid var(--wg-rule-color, #cbd5c0); font-size: 10pt; }
+.pc th { padding: 5px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 10pt; }
 .pc th.pro { background: #f7d9df; color: #a03a52; }
 .pc th.con { background: #dfe6f2; color: #35507e; }
-.pc td { border: 1px solid var(--wg-rule-color, #cbd5c0); width: 50%; vertical-align: top; padding: 8px 10px; height: 70px; }
+.pc td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); width: 50%; vertical-align: top; padding: 8px 10px; height: 70px; }
 .pc td .rc { color: #777; font-weight: 700; font-size: 8.7pt; }
-.pc td .dv { border-top: 1px dashed #c9c9c9; margin: 10px 0; }
+.pc td .dv { border-top: var(--wg-rule-w, 1px) dashed #c9c9c9; margin: 10px 0; }
 
 /* ---- memo table (국어) ---- */
-.memo th { background: var(--cstrip); color: #fff; padding: 4px; border: 1px solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
-.memo td { border: 1px solid var(--wg-rule-color, #cbd5c0); padding: 5px 9px; vertical-align: top; font-size: 9pt; }
+.memo th { background: var(--cstrip); color: #fff; padding: 4px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
+.memo td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 5px 9px; vertical-align: top; font-size: 9pt; }
 .memo td.k { background: #f2f2f2; font-weight: 700; text-align: center; width: 12%; }
 .memo td.blank { height: 30px; }
 
@@ -216,10 +216,10 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 
 /* ---- rubric checklist (공통) ---- */
 .rubric { margin-top: 3mm; }
-.rubric th { background: var(--cstrip); color: #fff; padding: 5px; border: 1px solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
-.rubric td { border: 1px solid var(--wg-rule-color, #cbd5c0); padding: 5px 10px; font-size: 9.3pt; }
+.rubric th { background: var(--cstrip); color: #fff; padding: 5px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
+.rubric td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 5px 10px; font-size: 9.3pt; }
 .rubric td.stars { text-align: center; width: 22%; color: #f0a500; font-size: 12pt; letter-spacing: 2px; }
-.note-under { border-bottom: 1px solid #ccc; height: 14px; margin-top: 4px; }
+.note-under { border-bottom: var(--wg-rule-w, 1px) solid #ccc; height: 14px; margin-top: 4px; }
 
 /* ---- 도형 개체 (공통) ----
    .wg-shape-layer 는 블록 흐름 안에 놓인 높이 0 의 위치 기준점이다. 블록이 리플로우로
@@ -271,19 +271,19 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .hbox { border: 1.6px dashed var(--c2); border-radius: var(--wg-radius-lg, 8px); min-height: 40px; margin-top: 2mm; padding: 8px 12px; }
 
 /* ===== 과학 특수 블록 ① 변인 통제표 ===== */
-.vartable td { border: 1px solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+.vartable td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
 .vartable td.k { background: var(--clabel); font-weight: 700; text-align: center; width: 24%; color: var(--cink); }
 .vartable td.blank { height: 34px; }
 
 /* ===== 과학 특수 블록 ② 데이터 기록표 ===== */
 .data { margin-top: 2mm; }
-.data th { background: var(--cstrip); color: #fff; padding: 6px; border: 1px solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
-.data td { border: 1px solid var(--wg-rule-color, #cbd5c0); text-align: center; height: 30px; font-size: 9.5pt; }
+.data th { background: var(--cstrip); color: #fff; padding: 6px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
+.data td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; height: 30px; font-size: 9.5pt; }
 .data td.n { background: #fbfcfb; font-weight: 700; }
 .data td .a { color: #1a5fb4; font-weight: 600; }
 
 /* ===== 과학 특수 블록 ③ 수식 박스 (KaTeX) ===== */
-.formula { text-align: center; background: #fbfcfb; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px);
+.formula { text-align: center; background: #fbfcfb; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px);
   padding: 10px; margin-top: 2mm; font-size: 12pt; }
 
 /* ===== 과학/수학 특수 블록 ④ SVG 모눈 그래프 ===== */
@@ -297,7 +297,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   padding: 10px 14px; margin-top: 2mm; }
 .mapbox .maphead { display: inline-block; background: var(--c); color: #fff; font-weight: 700;
   font-size: 9pt; padding: 2px 12px; border-radius: var(--wg-radius-sm, 4px); margin-bottom: 6px; }
-.mapbox .mapcanvas { background: #fff; border: 1px dashed #b9b9b9; border-radius: var(--wg-radius-md, 6px);
+.mapbox .mapcanvas { background: #fff; border: var(--wg-rule-w, 1px) dashed #b9b9b9; border-radius: var(--wg-radius-md, 6px);
   min-height: 128px; display: flex; align-items: center; justify-content: center; }
 .mapbox .mapcanvas svg { display: block; width: 100%; height: auto; max-height: 72mm; }
 .mapbox .map-ocean { fill: #fff; stroke: #aaa; }
@@ -313,13 +313,13 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .timeline .tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c);
   margin: -11px auto 6px; border: 2px solid #fff; }
 .timeline .tl-year { font-weight: 700; color: var(--cink); font-size: 9.3pt; }
-.timeline .tl-box { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); min-height: 44px;
+.timeline .tl-box { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); min-height: 44px;
   margin-top: 4px; padding: 5px 7px; font-size: 8.7pt; background: #fbfcfb; }
 
 /* ===== 영어 특수 블록 ① 어휘 표 ===== */
 .vocab { margin-top: 3mm; }
-.vocab th { background: var(--cstrip); color: #fff; padding: 5px; border: 1px solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
-.vocab td { border: 1px solid var(--wg-rule-color, #cbd5c0); padding: 6px 9px; vertical-align: top; font-size: 9.3pt; }
+.vocab th { background: var(--cstrip); color: #fff; padding: 5px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
+.vocab td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 6px 9px; vertical-align: top; font-size: 9.3pt; }
 .vocab td.w { background: var(--clabel); font-weight: 700; color: var(--cink); width: 26%; }
 .vocab td.blank { height: 26px; }
 
@@ -328,7 +328,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   background: var(--clite); padding: 10px 14px; }
 .dialogue .turn { display: flex; gap: 8px; margin: 5px 0; font-size: 9.5pt; }
 .dialogue .spk { font-weight: 700; color: var(--cink); min-width: 34px; }
-.dialogue .blank { border-bottom: 1px solid #bbb; flex: 1; min-height: 16px; }
+.dialogue .blank { border-bottom: var(--wg-rule-w, 1px) solid #bbb; flex: 1; min-height: 16px; }
 
 /* ===== 시각 조직자(graphic organizers) — Track A 표형 (범교과 코어) ===== */
 /* 인쇄안전은 .keep(page-break-inside:avoid, paper.css)로 보장. 색은 테마 토큰(var(--*))만. */
@@ -336,9 +336,9 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   margin-top: 3mm; width: 100%; border-collapse: collapse; }
 .kwl th, .frayer th, .bme th, .mainidea th {
   background: var(--clabel); color: var(--cink); font-weight: 700;
-  padding: 6px; font-size: 9.5pt; border: 1px solid var(--wg-rule-color, #cbd5c0); text-align: center; }
+  padding: 6px; font-size: 9.5pt; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; }
 .kwl td, .frayer td, .bme td, .w5h1 td, .exit321 td, .mainidea td {
-  border: 1px solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
 
 /* KWL — 아는 것 / 알고 싶은 것 / 배운 것 (3열) */
 .kwl th span { display: block; font-weight: 400; font-size: 8pt; color: #555; margin-top: 2px; }
@@ -361,23 +361,23 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 /* 3-2-1 성찰(엑시트 티켓) */
 .exit321 td.num { background: var(--clabel); color: var(--cink); font-weight: 700;
   text-align: center; width: 12%; font-size: 12pt; }
-.exit321 .wr { border-bottom: 1px solid #bbb; margin: 8px 0 2px; min-height: 15px; }
+.exit321 .wr { border-bottom: var(--wg-rule-w, 1px) solid #bbb; margin: 8px 0 2px; min-height: 15px; }
 
 /* 핵심 아이디어 + 뒷받침 근거 */
 .mainidea td.mi-main { height: 46px; }
 .mainidea td.mi-sup { height: 20px; }
-.mainidea .wr { border-bottom: 1px solid #bbb; margin: 6px 0 10px; min-height: 15px; }
+.mainidea .wr { border-bottom: var(--wg-rule-w, 1px) solid #bbb; margin: 6px 0 10px; min-height: 15px; }
 
 /* ===== 시각 조직자 배치2 (범교과 코어) ===== */
 .notetaking, .hamburger, .perspectives, .prediction, .glowgrow, .stoplight {
   margin-top: 3mm; width: 100%; border-collapse: collapse; }
 .notetaking th, .hamburger th, .perspectives th, .prediction th, .glowgrow th {
   background: var(--clabel); color: var(--cink); font-weight: 700; padding: 6px;
-  font-size: 9.5pt; border: 1px solid var(--wg-rule-color, #cbd5c0); text-align: center; }
+  font-size: 9.5pt; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; }
 .notetaking td, .hamburger td, .perspectives td, .prediction td, .glowgrow td, .stoplight td {
-  border: 1px solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
 .notetaking .wr, .hamburger .wr, .stoplight .wr {
-  border-bottom: 1px solid #bbb; margin: 6px 0 8px; min-height: 15px; }
+  border-bottom: var(--wg-rule-w, 1px) solid #bbb; margin: 6px 0 8px; min-height: 15px; }
 
 /* 노트 정리(코넬식) — 핵심어 / 내용 / 요약 */
 .notetaking th.nt-cue, .notetaking td.nt-cue { width: 30%; }
@@ -458,7 +458,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 /* ===== 시각 조직자 배치3 — 독서·문학·글쓰기 (범교과 코어) ===== */
 .character, .bookreview, .quotejournal { margin-top: 3mm; width: 100%; border-collapse: collapse; }
 .character td, .bookreview td, .quotejournal td, .quotejournal th {
-  border: 1px solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
 .character td.lab, .bookreview td.lab {
   background: #f6f6f6; font-weight: 700; text-align: center; width: 26%; }
 .character td { height: 40px; }
@@ -474,7 +474,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 
 /* 5문단 에세이 설계 — 섹션 스택(각 섹션 keep, 섹션 사이 페이지 넘김 허용) */
 .essayplan { margin-top: 3mm; }
-.essayplan .ep-sec { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); margin-bottom: 6px; overflow: hidden; }
+.essayplan .ep-sec { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); margin-bottom: 6px; overflow: hidden; }
 .essayplan .ep-h { background: var(--clabel); color: var(--cink); font-weight: 700;
   padding: 5px 10px; font-size: 9.5pt; }
 .essayplan .ep-b { min-height: 44px; padding: 8px 10px; }
