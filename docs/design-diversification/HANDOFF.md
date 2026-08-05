@@ -4,7 +4,7 @@
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
 > `02-mood-pack.md`(P2-a + P2-b 3단계 계획) 참조.
 > 최종 검증: unit 959 · L0 11 · 무드팩 8 · 개체트리무드 5 · 편집기생명주기 3 · L2 렌더 13 그린 (2026-08-05).
-> P2-a 커밋 `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3`. **P2-b2 아직 미커밋**.
+> P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`.
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
@@ -50,7 +50,7 @@ P2-b3 계획을 확인한 뒤 착수하라.
 | `2ca275f` | P2-a 커밋 해시·전체 렌더 결과 문서 반영 |
 | `4ba4de8` | P2-b1 개체트리 렌더 경로 무드 — `loadRenderAssets` 가 `document.mood` 읽어(fail-closed) `assets.moodCss/moodName` 반환 + `RenderObjectTree`→`buildDocumentHtml` 전달 + `test/unit/mood-object-tree.test.js`(5, 두 경로 일관성 포함). blocks.css·AssembleWorksheet 무변경 |
 | `fd682b3` | P2-b1 커밋 해시 문서 반영 |
-| **미커밋** | **P2-b2 문서 생명주기 — `documentRoutes.buildLegacyDocument` 의 `manifest.mood→document.mood` 조건부 carry(비침습) + `SaveDocument.checkpoint` 왕복 보존(whole-document, JSDoc) + `test/unit/mood-editor-lifecycle.test.js`(3, 실 편집기 서버 carry/persist/무회귀). `ValidateObjectTree` 가 mood 문서메타 수용 증명** |
+| `f3f071f` | P2-b2 문서 생명주기 — `documentRoutes.buildLegacyDocument` 의 `manifest.mood→document.mood` 조건부 carry(비침습) + `SaveDocument.checkpoint` 왕복 보존(whole-document, JSDoc) + `test/unit/mood-editor-lifecycle.test.js`(3, 실 편집기 서버 carry/persist/무회귀). `ValidateObjectTree` 가 mood 문서메타 수용 증명 |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
