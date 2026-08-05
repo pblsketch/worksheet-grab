@@ -94,13 +94,19 @@ AI 좌표 미생성(무드는 엔진 방출 토큰값 세트일 뿐).
     `moodCss` 미설정이라 완전 하위호환.
   - 게이트 `test/unit/mood-object-tree.test.js`(5) — 미지정=무주입 · 지정=레이어 한 겹만 · 미지 무드 throw
     · **manifest 경로와 동일 무드 레이어 방출(두 경로 일관성)**.
-- **P2-b2 — 다음(문서 구성 + 서버 라우트)**:
-  - `documentRoutes.buildLegacyDocument` 가 `manifest.mood → document.mood` carry(themeName 옆에 한 줄).
-  - `/mood` POST 라우트 = `/theme` 동형(listMoods 화이트리스트·fail-closed·no-op 가드) → `checkpoint`/
-    `execute` 단일 게이트. **단, 무드는 레이아웃 변경이라 클라이언트는 reload 가 아니라 리플로우해야 함**
-    (`/paper` 관례). `SaveDocument.checkpoint` 가 문서 전체를 저장하므로 `document.mood` 는 왕복 보존됨(검증 필요).
-- **P2-b3 — 이후(브라우저 편집기)**:
+- **P2-b2 — ✅ 완료(문서 생명주기: carry + persist)**:
+  - `documentRoutes.buildLegacyDocument` 가 `manifest.mood → document.mood` 를 조건부 승계(없으면 필드
+    미부여=비침습). 저작된 레거시 manifest 가 편집기(GET /shell.json)에서 무드로 렌더된다.
+  - `SaveDocument.checkpoint` 는 문서 전체를 `writeManifest`/`writeSnapshot` 하므로 `document.mood` 가 **왕복
+    자동 보존**(JSDoc 명시). `ValidateObjectTree`(POST /save 검증)는 `paper`/`themeName` 처럼 mood 문서
+    메타를 그대로 통과(테스트로 증명).
+  - 게이트 `test/unit/mood-editor-lifecycle.test.js`(3) — 실 편집기 서버 왕복: carry(GET /shell.json →
+    document.mood) · persist(POST /save → readManifest·재GET 보존) · 무드미저작=필드 부재(무회귀).
+- **P2-b3 — 다음(편집기 무드 변경 UI + /mood 라우트)**:
+  - `/mood` POST 라우트 = `/theme` 동형(listMoods 화이트리스트·fail-closed·no-op) → `checkpoint`/`execute`
+    단일 게이트. **단, 무드는 레이아웃 변경이라 클라이언트는 reload 가 아니라 리플로우(`/paper` 관례)** —
+    라우트는 클라이언트가 리플로우로 소비할 때 완결되므로 브라우저와 한 증분으로 묶는다.
   - 브라우저 `applyDocOp(next={...doc, mood}, { reflow:true })` 무드 op(단일 변이 관문) + 툴바/인스펙터
-    무드 선택 UI. Chrome 렌더/파리티 게이트.
+    무드 선택 UI(GET /shell.json 에 `availableMoods` 노출은 여기서 — `availableThemes` 동형). Chrome 파리티 게이트.
 - 이어서 "디자인 방향 서랍" 정식 팩 확장(차분한기본·시험지형·넓은필기·모던) + 무드별 골든(선택적으로 L1
   Chrome computed-style 무드 골든 추가) + **무드 레이아웃 변형**(class 단위, 새 개체 타입 없이 — PLAN 71행).

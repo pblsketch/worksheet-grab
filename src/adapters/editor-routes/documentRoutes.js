@@ -35,6 +35,10 @@ async function buildLegacyDocument(manifest, { blockRepository, curriculum }) {
     runFoot: manifest.runFoot || {},
     head: manifest.head || { katex: false },
     paper: manifest.paper ?? null,
+    // 무드(P2-b): 저작된 manifest.mood 를 document.mood 로 승계(themeName·paper 옆 디자인 메타).
+    // 없으면 필드 자체를 두지 않아 기존 문서와 형태 동일(비침습). 렌더는 loadRenderAssets 가
+    // 닫힌 카탈로그로 fail-closed 해석한다(개체 카탈로그·개체 트리 노드 스키마 무변경 — 문서 메타일 뿐).
+    ...(manifest.mood ? { mood: String(manifest.mood) } : {}),
     standards,
   };
 }

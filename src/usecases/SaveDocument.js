@@ -123,7 +123,9 @@ export class SaveDocument {
    *
    * @param {{name:string, document:object, checkpointName?:string|null, now?:Date}} args
    *   document: {pagination, pages, docTitle?, subject?, dataSubject?, themeName?, lang?, runHead?,
-   *   runFoot?, head?:{katex?}, paper?, standards?:Array<{code,text}>} — pagination/pages 는
+   *   runFoot?, head?:{katex?}, paper?, mood?, standards?:Array<{code,text}>} — mood(P2-b 무드 이름)를
+   *   포함한 문서 전체가 whole-document 로 writeManifest/writeSnapshot 되어 왕복 보존된다(렌더는
+   *   loadRenderAssets 가 닫힌 카탈로그로 fail-closed 해석). pagination/pages 는
    *   ValidateObjectTree/RenderObjectTree 스키마 그대로, 나머지는 렌더·meta.json 부가정보(legacy
    *   manifest 와 동형으로 메타데이터+pages 를 한 봉투에 담는다). standards 는 이미 해석된 원문이어야
    *   한다(RenderObjectTree 계약 — 여기서 CSV/MCP 를 조회하지 않는다, 원칙 3).

@@ -1,34 +1,35 @@
-# Handoff — 활동지 디자인 다양화 (P2-b1 완료 → P2-b2 착수)
+# Handoff — 활동지 디자인 다양화 (P2-b2 완료 → P2-b3 착수)
 
 > 이 폴더만 읽어도 이어갈 수 있게 자기완결로 정리. 상세는 같은 폴더의 `PLAN.md`,
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
 > `02-mood-pack.md`(P2-a + P2-b 3단계 계획) 참조.
-> 최종 검증: unit 956 · L0 11 · 무드팩 8 · 개체트리무드 5 · L2 렌더 13 그린 (2026-08-05).
-> P2-a 커밋 `4f2b97f`/`2ca275f` · P2-b1 커밋 `4ba4de8`.
+> 최종 검증: unit 959 · L0 11 · 무드팩 8 · 개체트리무드 5 · 편집기생명주기 3 · L2 렌더 13 그린 (2026-08-05).
+> P2-a 커밋 `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3`. **P2-b2 아직 미커밋**.
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
 worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 이어서 한다.
 먼저 docs/design-diversification/HANDOFF.md · PLAN.md · 02-mood-pack.md 를 정독하라.
-- P1(토큰화 13토큰·181곳) + P2-a(매니페스트 경로 무드 주입) + P2-b1(개체트리 렌더 경로 무드) 완료.
+- P1(토큰화 13토큰·181곳) + P2-a(매니페스트 경로) + P2-b1(개체트리 렌더 경로) + P2-b2(문서 생명주기) 완료.
   P2-a: themes/moods/{exam,soft,angular}.css + buildDocumentHtml optional moodCss(theme 뒤 한 겹,
   미지정=바이트 무회귀) + AssembleWorksheet manifest.mood fail-closed + FsBlockRepository.loadMoodCss/listMoods.
-  P2-b1: loadRenderAssets 가 document.mood 읽어(fail-closed) assets.moodCss/moodName 반환 +
-  RenderObjectTree 가 buildDocumentHtml 로 전달. 게이트 mood-pack.test.js(8)·mood-object-tree.test.js(5).
-- 다음 = P2-b2: (1) documentRoutes.buildLegacyDocument 가 manifest.mood → document.mood carry(themeName 옆),
-  (2) /mood POST 라우트 = /theme 동형(listMoods 화이트리스트·fail-closed·no-op) → checkpoint/execute 단일
-  게이트. **단 무드는 레이아웃 변경이라 클라이언트 reload 아닌 리플로우 필요(/paper 관례)**. SaveDocument.checkpoint
-  왕복 보존 검증. 그다음 P2-b3(브라우저 applyDocOp 무드 op + 편집기 UI, Chrome 게이트).
+  P2-b1: loadRenderAssets 가 document.mood 읽어(fail-closed) assets.moodCss/moodName 반환 + RenderObjectTree 전달.
+  P2-b2: documentRoutes.buildLegacyDocument 가 manifest.mood→document.mood 조건부 carry(비침습) + checkpoint
+  왕복 보존(whole-document, JSDoc). 게이트 mood-pack(8)·mood-object-tree(5)·mood-editor-lifecycle(3).
+- 다음 = P2-b3(편집기 무드 변경 UI + /mood 라우트): (1) /mood POST 라우트 = /theme 동형(listMoods·fail-closed·
+  no-op) → checkpoint/execute. **단 무드는 레이아웃 변경 → 클라이언트 reload 아닌 리플로우(/paper 관례)라
+  라우트+브라우저를 한 증분으로**. (2) 브라우저 applyDocOp(next={...doc,mood},{reflow:true}) 무드 op(단일 관문)
+  + 툴바/인스펙터 무드 선택 UI + GET /shell.json 에 availableMoods 노출(availableThemes 동형) + Chrome 파리티 게이트.
 - 불변식 절대 준수: 편집==인쇄 · 의존성0·빌드0 · 단일진실원천(applyDocOp) · fail-closed ·
   htmlAllowlist·닫힌 카탈로그 무변경 · AI 좌표 미생성.
 - git: add -A/브랜치/reset/clean 금지, 경로 명시 스테이징. 착수 전 `git status --porcelain`.
   렌더 테스트는 `--test-concurrency=1`, 병합 전 전체 렌더 1회.
 - 무회귀 검증(전부 그린 유지):
-  node --test test/unit/blocks-token-equivalence.test.js test/unit/mood-pack.test.js test/unit/mood-object-tree.test.js
+  node --test test/unit/blocks-token-equivalence.test.js test/unit/mood-pack.test.js test/unit/mood-object-tree.test.js test/unit/mood-editor-lifecycle.test.js
   npm run test:unit
   node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js
   새 토큰/무드 추가 시 L0-1 sanity 토큰집합 + 축별 카운트 단정 + mood-pack 13토큰 어휘를 갱신할 것.
-P2-b2 계획을 확인한 뒤 착수하라.
+P2-b3 계획을 확인한 뒤 착수하라.
 ```
 
 ## 목표
@@ -48,6 +49,8 @@ P2-b2 계획을 확인한 뒤 착수하라.
 | `4f2b97f` | P2-a 무드 팩 — `themes/moods/{exam,soft,angular}.css` + `buildDocumentHtml` moodCss 주입 + `AssembleWorksheet` manifest.mood(fail-closed) + `FsBlockRepository.loadMoodCss/listMoods` + `test/unit/mood-pack.test.js`(8) + `02-mood-pack.md`. 상세: `02-mood-pack.md` |
 | `2ca275f` | P2-a 커밋 해시·전체 렌더 결과 문서 반영 |
 | `4ba4de8` | P2-b1 개체트리 렌더 경로 무드 — `loadRenderAssets` 가 `document.mood` 읽어(fail-closed) `assets.moodCss/moodName` 반환 + `RenderObjectTree`→`buildDocumentHtml` 전달 + `test/unit/mood-object-tree.test.js`(5, 두 경로 일관성 포함). blocks.css·AssembleWorksheet 무변경 |
+| `fd682b3` | P2-b1 커밋 해시 문서 반영 |
+| **미커밋** | **P2-b2 문서 생명주기 — `documentRoutes.buildLegacyDocument` 의 `manifest.mood→document.mood` 조건부 carry(비침습) + `SaveDocument.checkpoint` 왕복 보존(whole-document, JSDoc) + `test/unit/mood-editor-lifecycle.test.js`(3, 실 편집기 서버 carry/persist/무회귀). `ValidateObjectTree` 가 mood 문서메타 수용 증명** |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
@@ -89,12 +92,13 @@ P2-b2 계획을 확인한 뒤 착수하라.
   3. ✅ `AssembleWorksheet.#serialize` 가 `manifest.mood` 를 `listMoods()`(닫힌 카탈로그)로 **fail-closed** 검증 후
      `loadMoodCss` 로드. `FsBlockRepository.loadMoodCss/listMoods` + 포트 스텁. 개체 카탈로그·트리 스키마 무변경.
   4. ✅ 게이트 `test/unit/mood-pack.test.js`(8) — 카탈로그 정합 + 주입 무회귀(레이어 한 겹 제거=미지정 동일). L0/L2 그린 유지.
-- **P2-b1 — ✅ 완료(미커밋)**: 개체트리 렌더 경로 — `loadRenderAssets` 가 `document.mood` 를 fail-closed
+- **P2-b1 — ✅ 완료(`4ba4de8`)**: 개체트리 렌더 경로 — `loadRenderAssets` 가 `document.mood` 를 fail-closed
   해석 → `assets.moodCss/moodName` → `RenderObjectTree`→`buildDocumentHtml`. `test/unit/mood-object-tree.test.js`(5).
-- **P2-b2 (다음 착수)**: `documentRoutes.buildLegacyDocument` 의 `manifest.mood → document.mood` carry +
-  `/mood` POST 라우트(`/theme` 동형·listMoods·fail-closed, **단 리플로우 유발 = `/paper` 관례**) +
-  `SaveDocument.checkpoint` 왕복 보존 검증. 그다음 P2-b3(브라우저 `applyDocOp` 무드 op + 편집기 UI, Chrome).
-  이어서 **"디자인 방향 서랍"** 정식 무드 팩:
+- **P2-b2 — ✅ 완료(미커밋)**: 문서 생명주기 — `buildLegacyDocument` 의 `manifest.mood→document.mood` 조건부
+  carry(비침습) + `checkpoint` 왕복 보존(whole-document, JSDoc). `test/unit/mood-editor-lifecycle.test.js`(3).
+- **P2-b3 (다음 착수)**: `/mood` POST 라우트(`/theme` 동형·listMoods·fail-closed, **단 리플로우 유발 = `/paper`
+  관례라 라우트+브라우저 한 증분**) + 브라우저 `applyDocOp` 무드 op + 툴바/인스펙터 무드 UI +
+  `availableMoods`(GET /shell.json) + Chrome 파리티 게이트. 그다음 **"디자인 방향 서랍"** 정식 무드 팩:
   차분한기본 · 시험지형 · 넓은필기 · 모던(에디토리얼/카드) · (삽화형은 P5). 리서치 근거는 대화기록/PLAN 참조.
 - **P3**: 용지 방향 — **단일 방향(문서 전체 가로/세로) 먼저**, 페이지별 혼합(복합 세트)은 **후속·flow 전용**
   (최고 위험: 실측 페이지네이션 + `.sheet` float rect 원점 전제. `paper.css` 주석 경고 참조).
