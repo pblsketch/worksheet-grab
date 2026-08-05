@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { THEME_TOKENS } from '../../src/domain/index.js';
 
-// P1 L0 게이트: blocks.css 토큰화 무회귀 (P1-a 괘선색 --wg-rule-color, P1-b 모서리 --wg-radius-*, P1-c 괘선폭 --wg-rule-w).
+// P1 L0 게이트: blocks.css 토큰화 무회귀 (괘선색·모서리·괘선폭·블록리듬 — --wg-rule-color/--wg-radius-*/--wg-rule-w/--wg-space-block*).
 // 설계 문서: wsdemo/design-tokens/02-baseline-and-regression-gate.md §3.2.
 // `theme-purity.test.js`/`paper-fallback-equivalence.test.js`의 파서 스타일을 재사용한다.
 //
@@ -150,10 +150,10 @@ function collidesWithKnownOverride(token) {
 test('L0-1: blocks.css baseline ↔ 현행 — 선언 개수·순서·값 등가성(리터럴==원본 또는 var(token,원본))', () => {
   const { newTokens } = assertTokenEquivalence(baseline.records, currentRecords);
   // 문서화용 sanity: 지금까지 도입된 토큰은 정확히 이 집합이어야 한다(예기치 않은 신규 토큰 방지).
-  // P1-a 괘선색(--wg-rule-color) + P1-b 모서리(--wg-radius-sm/md/lg) + P1-c 괘선폭(--wg-rule-w).
+  // P1-a 괘선색 + P1-b 모서리 + P1-c 괘선폭 + P1-d 블록 리듬(--wg-space-block/-sm).
   assert.deepEqual(
     newTokens.slice().sort(),
-    ['--wg-radius-lg', '--wg-radius-md', '--wg-radius-sm', '--wg-rule-color', '--wg-rule-w'],
+    ['--wg-radius-lg', '--wg-radius-md', '--wg-radius-sm', '--wg-rule-color', '--wg-rule-w', '--wg-space-block', '--wg-space-block-sm'],
     `도입 토큰 집합이 예상과 다름(발견: ${JSON.stringify(newTokens.slice().sort())})`
   );
 });
@@ -180,6 +180,14 @@ test('L0-1d: 괘선폭 토큰(--wg-rule-w)은 정확히 43건, 전부 border 계
   assert.equal(replaced.length, 43, `var(--wg-rule-w, ...) 를 포함하는 선언은 43건이어야 함(발견: ${replaced.length})`);
   for (const r of replaced) {
     assert.match(r.prop, /^border(-top|-bottom)?$/, `--wg-rule-w 는 border 계열에만 등장해야 함(발견: prop="${r.prop}" selector="${r.selector}")`);
+  }
+});
+
+test('L0-1e: 블록 리듬 토큰(--wg-space-block*)은 정확히 23건, 전부 margin-top 속성', () => {
+  const replaced = currentRecords.filter((r) => /var\(\s*--wg-space-block/.test(r.value));
+  assert.equal(replaced.length, 23, `var(--wg-space-block*, ...) 를 포함하는 선언은 23건이어야 함(발견: ${replaced.length})`);
+  for (const r of replaced) {
+    assert.equal(r.prop, 'margin-top', `--wg-space-block* 는 margin-top 에만 등장해야 함(발견: prop="${r.prop}" selector="${r.selector}")`);
   }
 });
 
