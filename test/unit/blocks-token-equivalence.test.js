@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { THEME_TOKENS } from '../../src/domain/index.js';
 
-// P1-a L0 게이트: blocks.css 괘선 색 토큰화(#cbd5c0 → var(--wg-rule-color, #cbd5c0)) 무회귀.
+// P1 L0 게이트: blocks.css 토큰화 무회귀 (P1-a 괘선색 --wg-rule-color, P1-b 모서리 --wg-radius-sm/md/lg).
 // 설계 문서: wsdemo/design-tokens/02-baseline-and-regression-gate.md §3.2.
 // `theme-purity.test.js`/`paper-fallback-equivalence.test.js`의 파서 스타일을 재사용한다.
 //
@@ -149,8 +149,13 @@ function collidesWithKnownOverride(token) {
 
 test('L0-1: blocks.css baseline ↔ 현행 — 선언 개수·순서·값 등가성(리터럴==원본 또는 var(token,원본))', () => {
   const { newTokens } = assertTokenEquivalence(baseline.records, currentRecords);
-  // 문서화용 sanity: 이번 스윕은 정확히 --wg-rule-color 1개 토큰만 새로 등장시켜야 한다.
-  assert.deepEqual(newTokens.sort(), ['--wg-rule-color'], `이번 스윕에서 새로 등장한 토큰은 --wg-rule-color 하나여야 함(발견: ${JSON.stringify(newTokens)})`);
+  // 문서화용 sanity: 지금까지 도입된 토큰은 정확히 이 집합이어야 한다(예기치 않은 신규 토큰 방지).
+  // P1-a 괘선색(--wg-rule-color) + P1-b 모서리(--wg-radius-sm/md/lg).
+  assert.deepEqual(
+    newTokens.slice().sort(),
+    ['--wg-radius-lg', '--wg-radius-md', '--wg-radius-sm', '--wg-rule-color'],
+    `도입 토큰 집합이 예상과 다름(발견: ${JSON.stringify(newTokens.slice().sort())})`
+  );
 });
 
 test('L0-1b: 치환된 선언 수는 정확히 29건(01 인벤토리 실측과 일치)', () => {
@@ -159,6 +164,14 @@ test('L0-1b: 치환된 선언 수는 정확히 29건(01 인벤토리 실측과 �
   // 01 분석대로 전부 border 계열 속성이어야 한다.
   for (const r of replaced) {
     assert.match(r.prop, /^border(-bottom)?$/, `--wg-rule-color 는 border 계열에만 등장해야 함(발견: prop="${r.prop}" selector="${r.selector}")`);
+  }
+});
+
+test('L0-1c: 모서리 토큰(--wg-radius-*)은 정확히 24건, 전부 border-radius 속성', () => {
+  const replaced = currentRecords.filter((r) => /var\(\s*--wg-radius-(sm|md|lg)\s*,/.test(r.value));
+  assert.equal(replaced.length, 24, `var(--wg-radius-*, ...) 를 포함하는 선언은 24건이어야 함(발견: ${replaced.length})`);
+  for (const r of replaced) {
+    assert.equal(r.prop, 'border-radius', `--wg-radius-* 는 border-radius 에만 등장해야 함(발견: prop="${r.prop}" selector="${r.selector}")`);
   }
 });
 
@@ -191,7 +204,7 @@ function isTokenDefined(css, token) {
   return re.test(noComments);
 }
 
-test('L0-3: 신규 토큰(--wg-rule-color)은 blocks.css/paper.css/themes/*.css 어느 :root/선택자에도 정의되지 않음(폴백만 존재)', () => {
+test('L0-3: 신규 토큰(--wg-*)은 blocks.css/paper.css/themes/*.css 어느 :root/선택자에도 정의되지 않음(폴백만 존재)', () => {
   const { newTokens } = assertTokenEquivalence(baseline.records, currentRecords);
 
   const definedIn = (label, css) => {

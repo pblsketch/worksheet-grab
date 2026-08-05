@@ -11,7 +11,7 @@
 .pill { display: inline-block; background: var(--c); color: #fff; font-weight: 700;
   font-size: 10.5pt; padding: 3px 16px; border-radius: 20px; margin-bottom: 5px; }
 .corner-ref { position: absolute; top: 2px; right: 0; font-size: 8.5pt; color: #555;
-  background: var(--clite); padding: 2px 8px; border-radius: 4px; }
+  background: var(--clite); padding: 2px 8px; border-radius: var(--wg-radius-sm, 4px); }
 .title-box { border: 2.2px solid var(--c2); border-radius: 14px; padding: 12px 18px;
   text-align: center; background: var(--clite); }
 .title-box h1 { margin: 0; font-size: 20pt; font-weight: 800; letter-spacing: -.5px; color: var(--cink); }
@@ -25,7 +25,7 @@
 .namefield span { display: inline-block; border-bottom: 1px solid #999; width: 46px; margin: 0 2px; }
 
 /* ---- standard-label (성취기준 라벨) ---- */
-.std-box { margin: 4mm 0 0; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 8px; overflow: hidden; }
+.std-box { margin: 4mm 0 0; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px); overflow: hidden; }
 .std-box .std-head { background: var(--clite); color: var(--cink); font-weight: 700; font-size: 9pt;
   padding: 4px 12px; border-bottom: 1px solid var(--wg-rule-color, #cbd5c0); }
 .std-box ul { margin: 0; padding: 7px 14px 7px 30px; }
@@ -36,7 +36,7 @@
 /* 강조상자(callout, M4) — flow 개체. 상단 색 헤더밴드 + 본문 박스(이 활동지의 .std-box/.strip 과
  * 동형 디자인 — 왼쪽 세로띠 같은 제네릭 룩 배제). note 는 교과색(var), 나머지는 교과 팔레트와 무관한
  * 무채색 계열 고정색(hardcoded-subject-color 회피). 편집==인쇄 동일 선언. */
-.callout { border: 1.4px solid var(--c2); border-radius: 8px; overflow: hidden; margin-top: 3mm; background: #fff; }
+.callout { border: 1.4px solid var(--c2); border-radius: var(--wg-radius-lg, 8px); overflow: hidden; margin-top: 3mm; background: #fff; }
 .callout-head { font-weight: 700; font-size: 9pt; padding: 5px 12px; letter-spacing: -.2px; }
 .callout-body { padding: 8px 13px; font-size: 9.5pt; line-height: 1.6; color: #2f2f2f; }
 .callout-body p { margin: 4px 0; }
@@ -60,7 +60,7 @@
 code { font-family: "D2Coding", Consolas, "Courier New", monospace; font-size: .92em;
   background: #f2f3f5; border-radius: 3px; padding: 1px 4px; color: #2b2b2b; }
 pre { font-family: "D2Coding", Consolas, "Courier New", monospace; font-size: 9pt; line-height: 1.5;
-  background: #f7f8fa; border: 1px solid #e2e5ea; border-radius: 6px; padding: 8px 12px;
+  background: #f7f8fa; border: 1px solid #e2e5ea; border-radius: var(--wg-radius-md, 6px); padding: 8px 12px;
   margin: 6px 0; white-space: pre-wrap; overflow-wrap: break-word; }
 pre code { background: none; padding: 0; }
 dl { margin: 6px 0; }
@@ -86,13 +86,13 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .lv-table ul li { margin: 4px 0; }
 
 /* ---- dashed emphasis box (국어) ---- */
-.dash-box { border: 1.6px dashed var(--c2); border-radius: 8px; margin-top: 3mm; }
+.dash-box { border: 1.6px dashed var(--c2); border-radius: var(--wg-radius-lg, 8px); margin-top: 3mm; }
 .dash-box .dh { background: var(--clite); display: inline-block; margin: 8px 0 0 10px;
-  padding: 2px 10px; border-radius: 4px; font-weight: 700; color: var(--cink); font-size: 9.5pt; }
+  padding: 2px 10px; border-radius: var(--wg-radius-sm, 4px); font-weight: 700; color: var(--cink); font-size: 9.5pt; }
 .dash-box .db { min-height: 46px; padding: 8px 12px 12px; }
 
 /* ---- example strip (공통) ---- */
-.strip { margin-top: 3mm; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 6px; overflow: hidden; }
+.strip { margin-top: 3mm; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); overflow: hidden; }
 .strip .sh { background: var(--cstrip); color: #fff; font-weight: 700; text-align: center;
   padding: 4px 10px; font-size: 9.5pt; }
 .strip .sb { padding: 8px 12px; font-size: 9pt; background: #fbfcfb; }
@@ -109,7 +109,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 /* ---- reading passage box (국어) — 저작권 지문은 .slot 유지 ----
    테두리 색/두께·배경은 개체 필드(borderColor/borderWidth/bgColor)가 인라인 커스텀 프로퍼티로
    덮어쓴다(#3). 미지정 개체는 var() 기본값이 그대로 적용돼 종전과 완전히 동일하다. */
-.passage { border: var(--wg-ps-bw, 1.5px) solid var(--wg-ps-border, #bbb); border-radius: 8px;
+.passage { border: var(--wg-ps-bw, 1.5px) solid var(--wg-ps-border, #bbb); border-radius: var(--wg-radius-lg, 8px);
   padding: 14px 18px; margin-top: 3mm; background: var(--wg-ps-bg, #fcfcfa); }
 .passage h3 { text-align: center; margin: 0 0 8px; font-size: 12pt; }
 .passage p { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
@@ -135,7 +135,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
    여기(blocks.css)에 두는 이유는 도형·텍스트 상자와 같다 — 편집 화면·저장본·인쇄본이 같은 선언을
    써야 편집==인쇄가 성립한다. 편집기 안내 문구는 넣지 않는다(학생 배포본에 찍힌다). */
 .image-slot { margin: 2mm 0; text-align: center; }
-.image-slot img { max-width: 100%; height: auto; border-radius: 6px; }
+.image-slot img { max-width: 100%; height: auto; border-radius: var(--wg-radius-md, 6px); }
 .image-slot figcaption { margin-top: 4px; font-size: 8.7pt; color: #555; }
 .image-slot.placeholder {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
@@ -153,7 +153,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .q { margin: 2.5mm 0 1.5mm; font-weight: 600; }
 .ans-line { border-bottom: 1px solid #ccc; height: 20px; margin: 8px 0; }
 .ans-line.tall { height: 34px; }
-.ansbox { border: 1px solid #ccc; border-radius: 6px; min-height: 50px; margin-top: 5px; padding: 8px 10px; }
+.ansbox { border: 1px solid #ccc; border-radius: var(--wg-radius-md, 6px); min-height: 50px; margin-top: 5px; padding: 8px 10px; }
 
 /* ---- 문항 유형별 보조 렌더(#12) — qtype 마다 시각적으로 구분된다 ---- */
 .q-choices { list-style: none; margin: 3px 0 0; padding: 0; }
@@ -169,8 +169,8 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .q-tf-list .q-tf-ox { flex: none; color: #555; white-space: nowrap; letter-spacing: 1px; }
 .q-match { border-collapse: collapse; margin: 4px 0 2px; width: 100%; }
 .q-match td { padding: 4px 8px; font-size: 9.5pt; vertical-align: middle; }
-.q-match .q-match-l { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 6px; width: 40%; background: #fbfcfb; }
-.q-match .q-match-r { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 6px; width: 40%; background: #fbfcfb; }
+.q-match .q-match-l { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); width: 40%; background: #fbfcfb; }
+.q-match .q-match-r { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); width: 40%; background: #fbfcfb; }
 /* 연결점(#4): 두 점을 가운데 칸의 **좌우 끝**으로 벌려 각각 자기 항목 바로 옆에 붙인다.
    전엔 `· · ` 두 글자가 칸 한가운데 붙어 있어 어느 항목의 점인지 알아보기 어려웠다.
    td 자체에 display:flex 를 주면 table-cell 이 아니게 되어 열 너비가 깨지므로 안쪽 span 으로 편다. */
@@ -179,12 +179,12 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .q-match .q-match-dot { display: block; width: 6px; height: 6px; border-radius: 50%; background: #777; flex: none; }
 .q-order { list-style: none; margin: 3px 0 0; padding: 0; }
 .q-order li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 8px; align-items: center; }
-.q-order-box { display: inline-block; width: 22px; height: 20px; border: 1.2px solid #999; border-radius: 4px; flex: none; }
+.q-order-box { display: inline-block; width: 22px; height: 20px; border: 1.2px solid #999; border-radius: var(--wg-radius-sm, 4px); flex: none; }
 .q-short { margin: 6px 0 2px; }
 .q-short-line { display: block; border-bottom: 1px solid #bbb; height: 20px; }
 .q-essay { margin: 5px 0 2px; }
 .q-bank { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 5px 0 2px;
-  border: 1.2px dashed var(--c2); border-radius: 6px; padding: 6px 10px; background: #fbfcfb; }
+  border: 1.2px dashed var(--c2); border-radius: var(--wg-radius-md, 6px); padding: 6px 10px; background: #fbfcfb; }
 .q-bank-label { font-weight: 700; color: var(--cink); font-size: 8.7pt; margin-right: 4px; }
 .q-bank-chip { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 12px; padding: 2px 10px; font-size: 9pt; background: #fff; }
 
@@ -265,10 +265,10 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   display: inline-flex; align-items: center; justify-content: center; font-size: 10pt; }
 
 /* ===== 자료 제시 박스 (과학·공통) ===== */
-.qbox { border: 1.5px solid var(--wg-rule-color, #cbd5c0); border-radius: 8px; background: #fbfcfb; padding: 10px 14px; margin-top: 2mm; }
+.qbox { border: 1.5px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px); background: #fbfcfb; padding: 10px 14px; margin-top: 2mm; }
 .qbox .lab { display: inline-block; background: var(--clite); color: var(--cink); font-weight: 700;
-  padding: 2px 10px; border-radius: 4px; font-size: 9pt; margin-bottom: 4px; }
-.hbox { border: 1.6px dashed var(--c2); border-radius: 8px; min-height: 40px; margin-top: 2mm; padding: 8px 12px; }
+  padding: 2px 10px; border-radius: var(--wg-radius-sm, 4px); font-size: 9pt; margin-bottom: 4px; }
+.hbox { border: 1.6px dashed var(--c2); border-radius: var(--wg-radius-lg, 8px); min-height: 40px; margin-top: 2mm; padding: 8px 12px; }
 
 /* ===== 과학 특수 블록 ① 변인 통제표 ===== */
 .vartable td { border: 1px solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
@@ -283,7 +283,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .data td .a { color: #1a5fb4; font-weight: 600; }
 
 /* ===== 과학 특수 블록 ③ 수식 박스 (KaTeX) ===== */
-.formula { text-align: center; background: #fbfcfb; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 8px;
+.formula { text-align: center; background: #fbfcfb; border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px);
   padding: 10px; margin-top: 2mm; font-size: 12pt; }
 
 /* ===== 과학/수학 특수 블록 ④ SVG 모눈 그래프 ===== */
@@ -293,11 +293,11 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 [data-mode="teacher"] .plot-ans { display: inline; }
 
 /* ===== 사회 특수 블록 ① 지도 활동(백지도/주석) ===== */
-.mapbox { border: 1.5px solid var(--c2); border-radius: 8px; background: var(--clite);
+.mapbox { border: 1.5px solid var(--c2); border-radius: var(--wg-radius-lg, 8px); background: var(--clite);
   padding: 10px 14px; margin-top: 2mm; }
 .mapbox .maphead { display: inline-block; background: var(--c); color: #fff; font-weight: 700;
-  font-size: 9pt; padding: 2px 12px; border-radius: 4px; margin-bottom: 6px; }
-.mapbox .mapcanvas { background: #fff; border: 1px dashed #b9b9b9; border-radius: 6px;
+  font-size: 9pt; padding: 2px 12px; border-radius: var(--wg-radius-sm, 4px); margin-bottom: 6px; }
+.mapbox .mapcanvas { background: #fff; border: 1px dashed #b9b9b9; border-radius: var(--wg-radius-md, 6px);
   min-height: 128px; display: flex; align-items: center; justify-content: center; }
 .mapbox .mapcanvas svg { display: block; width: 100%; height: auto; max-height: 72mm; }
 .mapbox .map-ocean { fill: #fff; stroke: #aaa; }
@@ -313,7 +313,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .timeline .tl-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--c);
   margin: -11px auto 6px; border: 2px solid #fff; }
 .timeline .tl-year { font-weight: 700; color: var(--cink); font-size: 9.3pt; }
-.timeline .tl-box { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 6px; min-height: 44px;
+.timeline .tl-box { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); min-height: 44px;
   margin-top: 4px; padding: 5px 7px; font-size: 8.7pt; background: #fbfcfb; }
 
 /* ===== 영어 특수 블록 ① 어휘 표 ===== */
@@ -324,7 +324,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .vocab td.blank { height: 26px; }
 
 /* ===== 영어 특수 블록 ② 대화문(다이얼로그) ===== */
-.dialogue { margin-top: 3mm; border: 1.4px solid var(--c2); border-radius: 8px;
+.dialogue { margin-top: 3mm; border: 1.4px solid var(--c2); border-radius: var(--wg-radius-lg, 8px);
   background: var(--clite); padding: 10px 14px; }
 .dialogue .turn { display: flex; gap: 8px; margin: 5px 0; font-size: 9.5pt; }
 .dialogue .spk { font-weight: 700; color: var(--cink); min-width: 34px; }
@@ -474,7 +474,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 
 /* 5문단 에세이 설계 — 섹션 스택(각 섹션 keep, 섹션 사이 페이지 넘김 허용) */
 .essayplan { margin-top: 3mm; }
-.essayplan .ep-sec { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: 6px; margin-bottom: 6px; overflow: hidden; }
+.essayplan .ep-sec { border: 1px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); margin-bottom: 6px; overflow: hidden; }
 .essayplan .ep-h { background: var(--clabel); color: var(--cink); font-weight: 700;
   padding: 5px 10px; font-size: 9.5pt; }
 .essayplan .ep-b { min-height: 44px; padding: 8px 10px; }
