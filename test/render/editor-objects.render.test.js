@@ -186,8 +186,8 @@ test('시각 조직자 삽입(#2 P1a): "시각 조직자" 그리드 버튼 → �
       assert.equal(ds(dom, 'ins-has-headers'), 'true', '프레이어 헤더(정의·예가 아닌 것) 렌더');
       assert.equal(ds(dom, 'ins-has-colgroup'), 'true', '등폭/의도폭 열(colgroup) 방출');
       assert.equal(ds(dom, 'ins-has-cell-height'), 'true', '필기 높이(h→mm) 방출');
-      // 그림형(P2) — 벤다이어그램 잠금 삽입(richtext 인라인 SVG)
-      assert.equal(ds(dom, 'gins-type'), 'richtext', '그림형은 richtext 잠금 삽입(새 타입 아님)');
+      // 그림형(P3) — 벤다이어그램은 편집 가능 organizer 개체로 삽입(카탈로그 내 기존 타입, 새 타입 아님)
+      assert.equal(ds(dom, 'gins-type'), 'organizer', '그림형은 편집 가능 organizer 개체 삽입(P3 — 카탈로그 내 기존 타입)');
       assert.equal(ds(dom, 'gins-renders-svg'), 'true', '벤다이어그램 SVG 렌더');
       // 특수 레이아웃(P2b) — 신호등 잠금 삽입(richtext 블록 HTML, 색이 의미)
       assert.equal(ds(dom, 'sins-type'), 'richtext', '특수 조직자는 richtext 잠금 삽입');

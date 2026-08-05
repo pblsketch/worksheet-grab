@@ -1294,7 +1294,7 @@ export async function runEditorTestSeed(seed, {
     document.body.dataset.insHasHeaders = String(/정의/.test(rendered) && /예가 아닌 것/.test(rendered));
     document.body.dataset.insHasColgroup = String(/<colgroup>/.test(rendered)); // 등폭/의도폭 열(colgroup)
     document.body.dataset.insHasCellHeight = String(/height:\d+mm/.test(rendered)); // 필기 높이(h→mm)
-    // 그림형(P2) — 벤다이어그램 잠금 삽입(richtext 인라인 SVG). 아래 save() 가 SVG 보존까지 함께 검증한다.
+    // 그림형(P3) — 벤다이어그램은 편집 가능 organizer 개체로 삽입. 아래 save() 가 SVG 보존까지 함께 검증한다.
     document.querySelector('#organizer-grid [data-organizer-key="venn"]').click();
     await wait(150);
     cancelScheduledReflow();
