@@ -167,6 +167,39 @@ export function createDocumentRoutes({
         return sendJson(res, 200, { noop: false, unsafe: result.unsafe, meta: result.meta });
       },
     },
+    // 무드(레지스터) 변경 — /theme 와 동형(manifest 한 필드만 치환 후 SaveDocument 단일 게이트 재저장).
+    // 단, 무드는 타이포·간격을 바꿔 flow 경계(가용 높이)를 흔든다 → 클라이언트는 /paper 처럼 재로드 후
+    // 1회 리플로우해야 한다(reload-only 인 /theme 와 다름). 무드는 해제(기본 복귀) 가능하므로 빈 값이면
+    // document.mood 를 제거한다(/paper 의 null → delete 관례). moodName 은 listMoods 화이트리스트로 검증.
+    {
+      method: 'POST',
+      path: '/mood',
+      async handler({ req, res }) {
+        let body;
+        try {
+          body = await readJsonBody(req);
+        } catch (e) {
+          return sendJson(res, 400, { error: e.message });
+        }
+        const moodName = typeof body?.mood === 'string' ? body.mood.trim() : '';
+        if (moodName) {
+          const available = await blockRepository.listMoods();
+          if (!available.includes(moodName)) return sendJson(res, 400, { error: `알 수 없는 무드: ${moodName}` });
+        }
+        const { manifest } = await opener.execute({ name: docName });
+        const objectTree = isObjectTreeManifest(manifest);
+        // 무드는 개체 트리·레거시 manifest 양쪽에서 같은 필드명(.mood)을 쓴다(loadRenderAssets/AssembleWorksheet 공통).
+        const currentMood = manifest.mood || '';
+        if (currentMood === moodName) return sendJson(res, 200, { noop: true });
+        const next = { ...manifest };
+        if (moodName) next.mood = moodName;
+        else delete next.mood;
+        const result = objectTree
+          ? await saver.checkpoint({ name: docName, document: next })
+          : await saver.execute({ name: docName, manifest: next });
+        return sendJson(res, 200, { noop: false, unsafe: result.unsafe, meta: result.meta });
+      },
+    },
     {
       method: 'GET',
       path: '/shell.json',
@@ -183,10 +216,12 @@ export function createDocumentRoutes({
         const shell = await shellRenderer.executeObjectTree({ document, meta, knownSubjectHexes, docName });
         // 사용 가능한 교과 테마 목록(인스펙터 테마 드롭다운용) — themes/*.css 단일 원천.
         const availableThemes = (await blockRepository.listThemes()).map((t) => t.name);
+        // 사용 가능한 무드 목록(인스펙터 무드 드롭다운용) — themes/moods/*.css 단일 원천(P2-b3, availableThemes 동형).
+        const availableMoods = await blockRepository.listMoods();
         // document 동봉: 개체 트리 왕복의 원본(클라이언트가 편집 후 그대로 POST /save 한다).
         // excludedAiTypes: AI 버튼 비활성용(타입 가드 3중의 클라이언트 층 — §7·§10).
         const payload = {
-          ...shell, document, warnings, excludedAiTypes: [...excludedTypes()], migrated: !objectTree, availableThemes,
+          ...shell, document, warnings, excludedAiTypes: [...excludedTypes()], migrated: !objectTree, availableThemes, availableMoods,
         };
         return sendJson(res, 200, testSeed ? { ...payload, testSeed: true } : payload);
       },

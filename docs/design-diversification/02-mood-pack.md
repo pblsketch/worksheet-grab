@@ -102,11 +102,18 @@ AI 좌표 미생성(무드는 엔진 방출 토큰값 세트일 뿐).
     메타를 그대로 통과(테스트로 증명).
   - 게이트 `test/unit/mood-editor-lifecycle.test.js`(3) — 실 편집기 서버 왕복: carry(GET /shell.json →
     document.mood) · persist(POST /save → readManifest·재GET 보존) · 무드미저작=필드 부재(무회귀).
-- **P2-b3 — 다음(편집기 무드 변경 UI + /mood 라우트)**:
-  - `/mood` POST 라우트 = `/theme` 동형(listMoods 화이트리스트·fail-closed·no-op) → `checkpoint`/`execute`
-    단일 게이트. **단, 무드는 레이아웃 변경이라 클라이언트는 reload 가 아니라 리플로우(`/paper` 관례)** —
-    라우트는 클라이언트가 리플로우로 소비할 때 완결되므로 브라우저와 한 증분으로 묶는다.
-  - 브라우저 `applyDocOp(next={...doc, mood}, { reflow:true })` 무드 op(단일 변이 관문) + 툴바/인스펙터
-    무드 선택 UI(GET /shell.json 에 `availableMoods` 노출은 여기서 — `availableThemes` 동형). Chrome 파리티 게이트.
+- **P2-b3-server — ✅ 완료(서버 게이트)**:
+  - `/mood` POST 라우트 = `/theme` 동형(`listMoods` 화이트리스트·fail-closed 400·no-op 가드) →
+    `checkpoint`/`execute` 단일 게이트. 무드는 **해제 가능** — 빈 값이면 `delete next.mood`(기본 복귀,
+    `/paper` 의 null→delete 관례). 무드/레거시 양쪽 같은 `.mood` 필드.
+  - GET /shell.json 페이로드에 `availableMoods`(=`listMoods()`) 노출 — 인스펙터 무드 드롭다운용
+    (`availableThemes` 동형).
+  - 게이트 `test/unit/mood-route.test.js`(5) — set/persist · no-op · 미지 400 · 해제(제거) · 카탈로그 노출.
+- **P2-b3-client — 다음(브라우저 UI)**:
+  - **무드 변경은 `/theme` 처럼 서버 라우트 경유(applyDocOp 아님)** — `changeMood(moodName)` = `changePaper`
+    미러(dirty 면 먼저 `save()` → POST `/mood` → **리플로우 플래그 + `location.reload()`**). 무드는 flow 경계
+    (가용 높이)를 바꾸므로 reload-only 인 `/theme` 가 아니라 `/paper` 처럼 재로드 후 1회 리플로우한다
+    (`sessionStorage['wgReflowAfterPaperChange']` 소비 지점 재사용/일반화).
+  - 인스펙터 문서 모드에 무드 드롭다운(`availableMoods` 소비, 테마 드롭다운 동형) + Chrome 파리티 게이트.
 - 이어서 "디자인 방향 서랍" 정식 팩 확장(차분한기본·시험지형·넓은필기·모던) + 무드별 골든(선택적으로 L1
   Chrome computed-style 무드 골든 추가) + **무드 레이아웃 변형**(class 단위, 새 개체 타입 없이 — PLAN 71행).
