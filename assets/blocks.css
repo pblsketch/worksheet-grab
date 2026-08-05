@@ -9,16 +9,16 @@
 /* ---- header (단원 헤더) ---- */
 .wsheet-title-wrap, .title-wrap { position: relative; margin-bottom: 6mm; }
 .pill { display: inline-block; background: var(--c); color: #fff; font-weight: 700;
-  font-size: 10.5pt; padding: 3px 16px; border-radius: 20px; margin-bottom: 5px; }
+  font-size: var(--wg-fs-pill, 10.5pt); padding: 3px 16px; border-radius: 20px; margin-bottom: 5px; }
 .corner-ref { position: absolute; top: 2px; right: 0; font-size: 8.5pt; color: #555;
   background: var(--clite); padding: 2px 8px; border-radius: var(--wg-radius-sm, 4px); }
 .title-box { border: 2.2px solid var(--c2); border-radius: 14px; padding: 12px 18px;
   text-align: center; background: var(--clite); }
-.title-box h1 { margin: 0; font-size: 20pt; font-weight: 800; letter-spacing: -.5px; color: var(--cink); }
+.title-box h1 { margin: 0; font-size: var(--wg-fs-title, 20pt); font-weight: 800; letter-spacing: -.5px; color: var(--cink); }
 /* 출처 표기 — 렌더는 계속 방출하는데 스타일이 없어 본문과 같은 크기의 맨 글자로 붙어 있었다
    (실 Chrome 관측). 제목 아래 보조 정보로 읽히도록 작게·흐리게·오른쪽에 둔다. */
-.title-src { margin-top: 3px; font-size: 8.7pt; color: #666; text-align: right; }
-.unit-line { display: flex; align-items: center; gap: 10px; margin-top: 5mm; font-size: 9.5pt; }
+.title-src { margin-top: 3px; font-size: var(--wg-fs-caption, 8.7pt); color: #666; text-align: right; }
+.unit-line { display: flex; align-items: center; gap: 10px; margin-top: 5mm; font-size: var(--wg-fs-body, 9.5pt); }
 .unit-line .unit { flex: 1; }
 .unit-line .unit b { color: var(--cink); }
 .namefield { color: #555; white-space: nowrap; }
@@ -26,10 +26,10 @@
 
 /* ---- standard-label (성취기준 라벨) ---- */
 .std-box { margin: 4mm 0 0; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px); overflow: hidden; }
-.std-box .std-head { background: var(--clite); color: var(--cink); font-weight: 700; font-size: 9pt;
+.std-box .std-head { background: var(--clite); color: var(--cink); font-weight: 700; font-size: var(--wg-fs-label, 9pt);
   padding: 4px 12px; border-bottom: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); }
 .std-box ul { margin: 0; padding: 7px 14px 7px 30px; }
-.std-box li { font-size: 9pt; margin: 2px 0; color: #333; }
+.std-box li { font-size: var(--wg-fs-label, 9pt); margin: 2px 0; color: #333; }
 .std-box li b { color: var(--c); margin-right: 4px; }
 .std-box + .std-box { margin-top: var(--wg-space-block-sm, 2mm); }
 
@@ -37,8 +37,8 @@
  * 동형 디자인 — 왼쪽 세로띠 같은 제네릭 룩 배제). note 는 교과색(var), 나머지는 교과 팔레트와 무관한
  * 무채색 계열 고정색(hardcoded-subject-color 회피). 편집==인쇄 동일 선언. */
 .callout { border: 1.4px solid var(--c2); border-radius: var(--wg-radius-lg, 8px); overflow: hidden; margin-top: var(--wg-space-block, 3mm); background: #fff; }
-.callout-head { font-weight: 700; font-size: 9pt; padding: 5px 12px; letter-spacing: -.2px; }
-.callout-body { padding: 8px 13px; font-size: 9.5pt; line-height: 1.6; color: #2f2f2f; }
+.callout-head { font-weight: 700; font-size: var(--wg-fs-label, 9pt); padding: 5px 12px; letter-spacing: -.2px; }
+.callout-body { padding: 8px 13px; font-size: var(--wg-fs-body, 9.5pt); line-height: 1.6; color: #2f2f2f; }
 .callout-body p { margin: 4px 0; }
 .callout-note { border-color: var(--c2); }
 .callout-note .callout-head { background: var(--clite); color: var(--cink); }
@@ -59,26 +59,26 @@
  * 위 `.obj-table caption` 이 이미 스타일한다. 이 태그들은 자유 HTML 위치에만 등장한다. */
 code { font-family: "D2Coding", Consolas, "Courier New", monospace; font-size: .92em;
   background: #f2f3f5; border-radius: 3px; padding: 1px 4px; color: #2b2b2b; }
-pre { font-family: "D2Coding", Consolas, "Courier New", monospace; font-size: 9pt; line-height: 1.5;
+pre { font-family: "D2Coding", Consolas, "Courier New", monospace; font-size: var(--wg-fs-label, 9pt); line-height: 1.5;
   background: #f7f8fa; border: var(--wg-rule-w, 1px) solid #e2e5ea; border-radius: var(--wg-radius-md, 6px); padding: 8px 12px;
   margin: 6px 0; white-space: pre-wrap; overflow-wrap: break-word; }
 pre code { background: none; padding: 0; }
 dl { margin: 6px 0; }
-dt { font-weight: 700; color: var(--cink); font-size: 9.5pt; margin-top: 5px; }
-dd { margin: 2px 0 0 14px; font-size: 9.5pt; color: #333; line-height: 1.55; }
+dt { font-weight: 700; color: var(--cink); font-size: var(--wg-fs-body, 9.5pt); margin-top: 5px; }
+dd { margin: 2px 0 0 14px; font-size: var(--wg-fs-body, 9.5pt); color: #333; line-height: 1.55; }
 
 /* ---- directive (활동 지시문) ---- 교과별 글리프는 data-subject 분기 ---- */
 .direct { display: flex; gap: 8px; align-items: flex-start; margin: 7mm 0 3mm; font-weight: 700; font-size: 11pt; }
 .direct::before { content: "◐"; color: var(--c); font-size: 13pt; line-height: 1; margin-top: 1px; }
 body[data-subject="science"] .direct::before,
-body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font-size: 12pt; margin-top: 0; }
+body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font-size: var(--wg-fs-heading, 12pt); margin-top: 0; }
 .qnum { display: inline-flex; align-items: center; justify-content: center;
   min-width: 17px; height: 17px; background: var(--c); color: #fff; border-radius: 50%;
-  font-size: 9pt; font-weight: 700; margin-right: 6px; }
+  font-size: var(--wg-fs-label, 9pt); font-weight: 700; margin-right: 6px; }
 .subq { margin: 2mm 0 1mm; font-weight: 600; }
 
 /* ---- label-value table (국어) ---- */
-.lv-table td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); vertical-align: top; padding: 8px 10px; font-size: 9.5pt; }
+.lv-table td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); vertical-align: top; padding: 8px 10px; font-size: var(--wg-fs-body, 9.5pt); }
 .lv-table td.label { background: var(--clabel); font-weight: 700; text-align: center; width: 26%; color: var(--cink); }
 .lv-table td.label.gray { background: #ededed; color: #444; }
 .lv-table td.blank { height: 42px; }
@@ -88,21 +88,21 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 /* ---- dashed emphasis box (국어) ---- */
 .dash-box { border: 1.6px dashed var(--c2); border-radius: var(--wg-radius-lg, 8px); margin-top: var(--wg-space-block, 3mm); }
 .dash-box .dh { background: var(--clite); display: inline-block; margin: 8px 0 0 10px;
-  padding: 2px 10px; border-radius: var(--wg-radius-sm, 4px); font-weight: 700; color: var(--cink); font-size: 9.5pt; }
+  padding: 2px 10px; border-radius: var(--wg-radius-sm, 4px); font-weight: 700; color: var(--cink); font-size: var(--wg-fs-body, 9.5pt); }
 .dash-box .db { min-height: 46px; padding: 8px 12px 12px; }
 
 /* ---- example strip (공통) ---- */
 .strip { margin-top: var(--wg-space-block, 3mm); border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); overflow: hidden; }
 .strip .sh { background: var(--cstrip); color: #fff; font-weight: 700; text-align: center;
-  padding: 4px 10px; font-size: 9.5pt; }
-.strip .sb { padding: 8px 12px; font-size: 9pt; background: #fbfcfb; }
+  padding: 4px 10px; font-size: var(--wg-fs-body, 9.5pt); }
+.strip .sb { padding: 8px 12px; font-size: var(--wg-fs-label, 9pt); background: #fbfcfb; }
 .strip .sb p { margin: 3px 0; }
 
 /* ---- comparison table (국어) ---- */
 .cmp { margin-top: var(--wg-space-block, 3mm); }
-.cmp th { background: #ededed; font-weight: 700; padding: 6px; font-size: 9.5pt; border: var(--wg-rule-w, 1px) solid #ccc; }
+.cmp th { background: #ededed; font-weight: 700; padding: 6px; font-size: var(--wg-fs-body, 9.5pt); border: var(--wg-rule-w, 1px) solid #ccc; }
 .cmp th.c { background: var(--clabel); color: var(--cink); }
-.cmp td { border: var(--wg-rule-w, 1px) solid #ccc; padding: 8px 10px; vertical-align: top; height: 44px; font-size: 9.5pt; }
+.cmp td { border: var(--wg-rule-w, 1px) solid #ccc; padding: 8px 10px; vertical-align: top; height: 44px; font-size: var(--wg-fs-body, 9.5pt); }
 .cmp .hl { background: #efe6f7; padding: 2px 4px; border-radius: 3px; }
 .cmp td.lab { background: #f6f6f6; font-weight: 700; text-align: center; width: 18%; }
 
@@ -111,12 +111,12 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
    덮어쓴다(#3). 미지정 개체는 var() 기본값이 그대로 적용돼 종전과 완전히 동일하다. */
 .passage { border: var(--wg-ps-bw, 1.5px) solid var(--wg-ps-border, #bbb); border-radius: var(--wg-radius-lg, 8px);
   padding: 14px 18px; margin-top: var(--wg-space-block, 3mm); background: var(--wg-ps-bg, #fcfcfa); }
-.passage h3 { text-align: center; margin: 0 0 8px; font-size: 12pt; }
-.passage p { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
+.passage h3 { text-align: center; margin: 0 0 8px; font-size: var(--wg-fs-heading, 12pt); }
+.passage p { margin: 6px 0; font-size: var(--wg-fs-body, 9.5pt); text-indent: 8px; line-height: 1.6; }
 .passage .slot { color: #b06a00; background: #fff5e6; border: var(--wg-rule-w, 1px) dashed #e0a94f;
-  border-radius: 5px; padding: 6px 10px; font-size: 8.7pt; margin: 6px 0; }
-.passage .passage-body { margin: 6px 0; font-size: 9.5pt; text-indent: 8px; line-height: 1.6; }
-.passage .src { text-align: right; font-size: 8.7pt; color: #555; margin-top: 6px; }
+  border-radius: 5px; padding: 6px 10px; font-size: var(--wg-fs-caption, 8.7pt); margin: 6px 0; }
+.passage .passage-body { margin: 6px 0; font-size: var(--wg-fs-body, 9.5pt); text-indent: 8px; line-height: 1.6; }
+.passage .src { text-align: right; font-size: var(--wg-fs-caption, 8.7pt); color: #555; margin-top: 6px; }
 .passage .fn { border-top: var(--wg-rule-w, 1px) dotted #ccc; margin-top: 8px; padding-top: 5px; font-size: 8.3pt; color: #555; }
 .passage .fn p { margin: 1px 0; text-indent: 0; }
 
@@ -124,10 +124,10 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .obj-table { border-collapse: collapse; width: 100%; margin: 2mm 0; }
 .obj-table th, .obj-table td {
   border: var(--wg-tb-width, var(--wg-rule-w, 1px)) solid var(--wg-tb-color, var(--wg-rule-color, #cbd5c0));
-  padding: 6px 9px; font-size: 9.5pt; vertical-align: top; min-height: 24px;
+  padding: 6px 9px; font-size: var(--wg-fs-body, 9.5pt); vertical-align: top; min-height: 24px;
 }
 .obj-table th { background: var(--clite); color: var(--cink); font-weight: 700; }
-.obj-table caption { font-size: 9pt; color: #555; margin-bottom: 3px; caption-side: top; }
+.obj-table caption { font-size: var(--wg-fs-label, 9pt); color: #555; margin-bottom: 3px; caption-side: top; }
 
 /* ---- 이미지 개체 (공통) ----
    `.image-slot` 규칙이 이 파일에 아예 없어서, 채운 이미지는 원본 크기 그대로 지면을 넘칠 수 있었고
@@ -136,7 +136,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
    써야 편집==인쇄가 성립한다. 편집기 안내 문구는 넣지 않는다(학생 배포본에 찍힌다). */
 .image-slot { margin: 2mm 0; text-align: center; }
 .image-slot img { max-width: 100%; height: auto; border-radius: var(--wg-radius-md, 6px); }
-.image-slot figcaption { margin-top: 4px; font-size: 8.7pt; color: #555; }
+.image-slot figcaption { margin-top: 4px; font-size: var(--wg-fs-caption, 8.7pt); color: #555; }
 .image-slot.placeholder {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
   min-height: 30mm; padding: 10px 14px; border: 1.6px dashed var(--c2, #b9b9b9); border-radius: 10px;
@@ -146,7 +146,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .image-slot .is-icon { width: 30px; height: 30px; fill: none; stroke: var(--c2, #9aa0a6);
   stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: .85; }
 .image-slot .is-icon circle { fill: var(--c2, #9aa0a6); stroke: none; }
-.image-slot .is-label { font-size: 9pt; font-weight: 700; color: var(--cink, #6b7280); letter-spacing: -.2px; }
+.image-slot .is-label { font-size: var(--wg-fs-label, 9pt); font-weight: 700; color: var(--cink, #6b7280); letter-spacing: -.2px; }
 .image-slot .is-alt { font-size: 8.5pt; color: #8a8a8a; }
 
 /* ---- question + answer slot (공통) ---- */
@@ -157,18 +157,18 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 
 /* ---- 문항 유형별 보조 렌더(#12) — qtype 마다 시각적으로 구분된다 ---- */
 .q-choices { list-style: none; margin: 3px 0 0; padding: 0; }
-.q-choices li { margin: 3px 0; font-size: 9.5pt; display: flex; gap: 6px; align-items: baseline; }
+.q-choices li { margin: 3px 0; font-size: var(--wg-fs-body, 9.5pt); display: flex; gap: 6px; align-items: baseline; }
 .q-choices .q-mark { color: var(--c); font-weight: 700; flex: none; }
-.q-tf { display: flex; gap: 24px; margin: 4px 0 2px; font-size: 9.5pt; }
+.q-tf { display: flex; gap: 24px; margin: 4px 0 2px; font-size: var(--wg-fs-body, 9.5pt); }
 .q-tf label { display: inline-flex; align-items: center; gap: 6px; }
 .q-box { display: inline-block; width: 13px; height: 13px; border: 1.4px solid #888; border-radius: 3px; }
 .q-tf-list { list-style: none; margin: 3px 0 0; padding: 0; }
-.q-tf-list li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 6px; align-items: baseline; }
+.q-tf-list li { margin: 4px 0; font-size: var(--wg-fs-body, 9.5pt); display: flex; gap: 6px; align-items: baseline; }
 .q-tf-list .q-mark { color: var(--c); font-weight: 700; flex: none; }
 .q-tf-list .q-tf-stmt { flex: 1; }
 .q-tf-list .q-tf-ox { flex: none; color: #555; white-space: nowrap; letter-spacing: 1px; }
 .q-match { border-collapse: collapse; margin: 4px 0 2px; width: 100%; }
-.q-match td { padding: 4px 8px; font-size: 9.5pt; vertical-align: middle; }
+.q-match td { padding: 4px 8px; font-size: var(--wg-fs-body, 9.5pt); vertical-align: middle; }
 .q-match .q-match-l { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); width: 40%; background: #fbfcfb; }
 .q-match .q-match-r { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); width: 40%; background: #fbfcfb; }
 /* 연결점(#4): 두 점을 가운데 칸의 **좌우 끝**으로 벌려 각각 자기 항목 바로 옆에 붙인다.
@@ -178,15 +178,15 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .q-match .q-match-dots { display: flex; align-items: center; justify-content: space-between; padding: 0 3px; }
 .q-match .q-match-dot { display: block; width: 6px; height: 6px; border-radius: 50%; background: #777; flex: none; }
 .q-order { list-style: none; margin: 3px 0 0; padding: 0; }
-.q-order li { margin: 4px 0; font-size: 9.5pt; display: flex; gap: 8px; align-items: center; }
+.q-order li { margin: 4px 0; font-size: var(--wg-fs-body, 9.5pt); display: flex; gap: 8px; align-items: center; }
 .q-order-box { display: inline-block; width: 22px; height: 20px; border: 1.2px solid #999; border-radius: var(--wg-radius-sm, 4px); flex: none; }
 .q-short { margin: 6px 0 2px; }
 .q-short-line { display: block; border-bottom: var(--wg-rule-w, 1px) solid #bbb; height: 20px; }
 .q-essay { margin: 5px 0 2px; }
 .q-bank { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 5px 0 2px;
   border: 1.2px dashed var(--c2); border-radius: var(--wg-radius-md, 6px); padding: 6px 10px; background: #fbfcfb; }
-.q-bank-label { font-weight: 700; color: var(--cink); font-size: 8.7pt; margin-right: 4px; }
-.q-bank-chip { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: 12px; padding: 2px 10px; font-size: 9pt; background: #fff; }
+.q-bank-label { font-weight: 700; color: var(--cink); font-size: var(--wg-fs-caption, 8.7pt); margin-right: 4px; }
+.q-bank-chip { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: 12px; padding: 2px 10px; font-size: var(--wg-fs-label, 9pt); background: #fff; }
 
 /* ---- teacher answer (교과 무관 고정 블루) ---- */
 .answer { display: none; }
@@ -200,12 +200,12 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 .pc th.pro { background: #f7d9df; color: #a03a52; }
 .pc th.con { background: #dfe6f2; color: #35507e; }
 .pc td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); width: 50%; vertical-align: top; padding: 8px 10px; height: 70px; }
-.pc td .rc { color: #777; font-weight: 700; font-size: 8.7pt; }
+.pc td .rc { color: #777; font-weight: 700; font-size: var(--wg-fs-caption, 8.7pt); }
 .pc td .dv { border-top: var(--wg-rule-w, 1px) dashed #c9c9c9; margin: 10px 0; }
 
 /* ---- memo table (국어) ---- */
-.memo th { background: var(--cstrip); color: #fff; padding: 4px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
-.memo td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 5px 9px; vertical-align: top; font-size: 9pt; }
+.memo th { background: var(--cstrip); color: #fff; padding: 4px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: var(--wg-fs-body, 9.5pt); }
+.memo td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 5px 9px; vertical-align: top; font-size: var(--wg-fs-label, 9pt); }
 .memo td.k { background: #f2f2f2; font-weight: 700; text-align: center; width: 12%; }
 .memo td.blank { height: 30px; }
 
@@ -216,9 +216,9 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 
 /* ---- rubric checklist (공통) ---- */
 .rubric { margin-top: var(--wg-space-block, 3mm); }
-.rubric th { background: var(--cstrip); color: #fff; padding: 5px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
+.rubric th { background: var(--cstrip); color: #fff; padding: 5px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: var(--wg-fs-body, 9.5pt); }
 .rubric td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 5px 10px; font-size: 9.3pt; }
-.rubric td.stars { text-align: center; width: 22%; color: #f0a500; font-size: 12pt; letter-spacing: 2px; }
+.rubric td.stars { text-align: center; width: 22%; color: #f0a500; font-size: var(--wg-fs-heading, 12pt); letter-spacing: 2px; }
 .note-under { border-bottom: var(--wg-rule-w, 1px) solid #ccc; height: 14px; margin-top: 4px; }
 
 /* ---- 도형 개체 (공통) ----
@@ -259,7 +259,7 @@ body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font
 }
 
 /* ---- numbered section heading (공통) ---- */
-h2.sec { display: flex; align-items: center; gap: 8px; font-size: 12pt; margin: 3mm 0 1.5mm; }
+h2.sec { display: flex; align-items: center; gap: 8px; font-size: var(--wg-fs-heading, 12pt); margin: 3mm 0 1.5mm; }
 /* 원형 — 문서 내 다른 번호 표기(.qnum)와 같은 형태로 통일한다. */
 h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center; font-size: 10pt; }
@@ -267,28 +267,28 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 /* ===== 자료 제시 박스 (과학·공통) ===== */
 .qbox { border: 1.5px solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px); background: #fbfcfb; padding: 10px 14px; margin-top: var(--wg-space-block-sm, 2mm); }
 .qbox .lab { display: inline-block; background: var(--clite); color: var(--cink); font-weight: 700;
-  padding: 2px 10px; border-radius: var(--wg-radius-sm, 4px); font-size: 9pt; margin-bottom: 4px; }
+  padding: 2px 10px; border-radius: var(--wg-radius-sm, 4px); font-size: var(--wg-fs-label, 9pt); margin-bottom: 4px; }
 .hbox { border: 1.6px dashed var(--c2); border-radius: var(--wg-radius-lg, 8px); min-height: 40px; margin-top: var(--wg-space-block-sm, 2mm); padding: 8px 12px; }
 
 /* ===== 과학 특수 블록 ① 변인 통제표 ===== */
-.vartable td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+.vartable td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: var(--wg-fs-body, 9.5pt); }
 .vartable td.k { background: var(--clabel); font-weight: 700; text-align: center; width: 24%; color: var(--cink); }
 .vartable td.blank { height: 34px; }
 
 /* ===== 과학 특수 블록 ② 데이터 기록표 ===== */
 .data { margin-top: var(--wg-space-block-sm, 2mm); }
-.data th { background: var(--cstrip); color: #fff; padding: 6px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
-.data td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; height: 30px; font-size: 9.5pt; }
+.data th { background: var(--cstrip); color: #fff; padding: 6px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: var(--wg-fs-body, 9.5pt); }
+.data td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; height: 30px; font-size: var(--wg-fs-body, 9.5pt); }
 .data td.n { background: #fbfcfb; font-weight: 700; }
 .data td .a { color: #1a5fb4; font-weight: 600; }
 
 /* ===== 과학 특수 블록 ③ 수식 박스 (KaTeX) ===== */
 .formula { text-align: center; background: #fbfcfb; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-lg, 8px);
-  padding: 10px; margin-top: var(--wg-space-block-sm, 2mm); font-size: 12pt; }
+  padding: 10px; margin-top: var(--wg-space-block-sm, 2mm); font-size: var(--wg-fs-heading, 12pt); }
 
 /* ===== 과학/수학 특수 블록 ④ SVG 모눈 그래프 ===== */
 .graphwrap { text-align: center; margin-top: var(--wg-space-block-sm, 2mm); }
-.gcap { font-size: 9pt; color: #555; margin-top: 3px; }
+.gcap { font-size: var(--wg-fs-label, 9pt); color: #555; margin-top: 3px; }
 .plot-ans { display: none; }
 [data-mode="teacher"] .plot-ans { display: inline; }
 
@@ -296,14 +296,14 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .mapbox { border: 1.5px solid var(--c2); border-radius: var(--wg-radius-lg, 8px); background: var(--clite);
   padding: 10px 14px; margin-top: var(--wg-space-block-sm, 2mm); }
 .mapbox .maphead { display: inline-block; background: var(--c); color: #fff; font-weight: 700;
-  font-size: 9pt; padding: 2px 12px; border-radius: var(--wg-radius-sm, 4px); margin-bottom: 6px; }
+  font-size: var(--wg-fs-label, 9pt); padding: 2px 12px; border-radius: var(--wg-radius-sm, 4px); margin-bottom: 6px; }
 .mapbox .mapcanvas { background: #fff; border: var(--wg-rule-w, 1px) dashed #b9b9b9; border-radius: var(--wg-radius-md, 6px);
   min-height: 128px; display: flex; align-items: center; justify-content: center; }
 .mapbox .mapcanvas svg { display: block; width: 100%; height: auto; max-height: 72mm; }
 .mapbox .map-ocean { fill: #fff; stroke: #aaa; }
 .mapbox .map-graticule { fill: none; stroke: #d7d7d7; stroke-width: .65; }
 .mapbox .map-land { fill: #f2f0e9; stroke: #686868; stroke-width: .55; vector-effect: non-scaling-stroke; }
-.mapbox .mapcap { font-size: 9pt; color: #555; margin-top: 4px; }
+.mapbox .mapcap { font-size: var(--wg-fs-label, 9pt); color: #555; margin-top: 4px; }
 .mapbox .map-source { float: right; color: #777; font-size: 8pt; }
 
 /* ===== 사회 특수 블록 ② 연표(타임라인) ===== */
@@ -314,11 +314,11 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   margin: -11px auto 6px; border: 2px solid #fff; }
 .timeline .tl-year { font-weight: 700; color: var(--cink); font-size: 9.3pt; }
 .timeline .tl-box { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); min-height: 44px;
-  margin-top: 4px; padding: 5px 7px; font-size: 8.7pt; background: #fbfcfb; }
+  margin-top: 4px; padding: 5px 7px; font-size: var(--wg-fs-caption, 8.7pt); background: #fbfcfb; }
 
 /* ===== 영어 특수 블록 ① 어휘 표 ===== */
 .vocab { margin-top: var(--wg-space-block, 3mm); }
-.vocab th { background: var(--cstrip); color: #fff; padding: 5px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: 9.5pt; }
+.vocab th { background: var(--cstrip); color: #fff; padding: 5px; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); font-size: var(--wg-fs-body, 9.5pt); }
 .vocab td { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 6px 9px; vertical-align: top; font-size: 9.3pt; }
 .vocab td.w { background: var(--clabel); font-weight: 700; color: var(--cink); width: 26%; }
 .vocab td.blank { height: 26px; }
@@ -326,7 +326,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 /* ===== 영어 특수 블록 ② 대화문(다이얼로그) ===== */
 .dialogue { margin-top: var(--wg-space-block, 3mm); border: 1.4px solid var(--c2); border-radius: var(--wg-radius-lg, 8px);
   background: var(--clite); padding: 10px 14px; }
-.dialogue .turn { display: flex; gap: 8px; margin: 5px 0; font-size: 9.5pt; }
+.dialogue .turn { display: flex; gap: 8px; margin: 5px 0; font-size: var(--wg-fs-body, 9.5pt); }
 .dialogue .spk { font-weight: 700; color: var(--cink); min-width: 34px; }
 .dialogue .blank { border-bottom: var(--wg-rule-w, 1px) solid #bbb; flex: 1; min-height: 16px; }
 
@@ -336,9 +336,9 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   margin-top: var(--wg-space-block, 3mm); width: 100%; border-collapse: collapse; }
 .kwl th, .frayer th, .bme th, .mainidea th {
   background: var(--clabel); color: var(--cink); font-weight: 700;
-  padding: 6px; font-size: 9.5pt; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; }
+  padding: 6px; font-size: var(--wg-fs-body, 9.5pt); border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; }
 .kwl td, .frayer td, .bme td, .w5h1 td, .exit321 td, .mainidea td {
-  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: var(--wg-fs-body, 9.5pt); }
 
 /* KWL — 아는 것 / 알고 싶은 것 / 배운 것 (3열) */
 .kwl th span { display: block; font-weight: 400; font-size: 8pt; color: #555; margin-top: 2px; }
@@ -346,7 +346,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 
 /* 프레이어 모형 — 정의·특징·예·비예 (2×2) + 중심 개념 */
 .frayer { caption-side: top; }
-.frayer caption { font-weight: 700; color: var(--cink); font-size: 9.5pt;
+.frayer caption { font-weight: 700; color: var(--cink); font-size: var(--wg-fs-body, 9.5pt);
   margin-bottom: 3px; text-align: center; }
 .frayer th { width: 50%; }
 .frayer td.fq { height: 72px; width: 50%; }
@@ -360,7 +360,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 
 /* 3-2-1 성찰(엑시트 티켓) */
 .exit321 td.num { background: var(--clabel); color: var(--cink); font-weight: 700;
-  text-align: center; width: 12%; font-size: 12pt; }
+  text-align: center; width: 12%; font-size: var(--wg-fs-heading, 12pt); }
 .exit321 .wr { border-bottom: var(--wg-rule-w, 1px) solid #bbb; margin: 8px 0 2px; min-height: 15px; }
 
 /* 핵심 아이디어 + 뒷받침 근거 */
@@ -373,9 +373,9 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   margin-top: var(--wg-space-block, 3mm); width: 100%; border-collapse: collapse; }
 .notetaking th, .hamburger th, .perspectives th, .prediction th, .glowgrow th {
   background: var(--clabel); color: var(--cink); font-weight: 700; padding: 6px;
-  font-size: 9.5pt; border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; }
+  font-size: var(--wg-fs-body, 9.5pt); border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); text-align: center; }
 .notetaking td, .hamburger td, .perspectives td, .prediction td, .glowgrow td, .stoplight td {
-  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: var(--wg-fs-body, 9.5pt); }
 .notetaking .wr, .hamburger .wr, .stoplight .wr {
   border-bottom: var(--wg-rule-w, 1px) solid #bbb; margin: 6px 0 8px; min-height: 15px; }
 
@@ -410,7 +410,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
   max-width: 100%; height: auto; display: block; margin: 0 auto; }
 .venn text, .conceptmap text, .fishbone text, .plotdiagram text {
   fill: #333; font-family: Pretendard, "Malgun Gothic", sans-serif; font-weight: 700; }
-.org-cap { font-size: 8.7pt; color: #666; margin-top: 4px; text-align: center; }
+.org-cap { font-size: var(--wg-fs-caption, 8.7pt); color: #666; margin-top: 4px; text-align: center; }
 
 /* 벤다이어그램 — 두 원 + 겹침(공통점) */
 .venn svg circle { fill: none; stroke: #7a7a7a; }
@@ -458,7 +458,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 /* ===== 시각 조직자 배치3 — 독서·문학·글쓰기 (범교과 코어) ===== */
 .character, .bookreview, .quotejournal { margin-top: var(--wg-space-block, 3mm); width: 100%; border-collapse: collapse; }
 .character td, .bookreview td, .quotejournal td, .quotejournal th {
-  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: 9.5pt; }
+  border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); padding: 8px 10px; vertical-align: top; font-size: var(--wg-fs-body, 9.5pt); }
 .character td.lab, .bookreview td.lab {
   background: #f6f6f6; font-weight: 700; text-align: center; width: 26%; }
 .character td { height: 40px; }
@@ -467,7 +467,7 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 
 /* 인용 저널 */
 .quotejournal th { background: var(--clabel); color: var(--cink); font-weight: 700;
-  padding: 6px; text-align: center; font-size: 9.5pt; }
+  padding: 6px; text-align: center; font-size: var(--wg-fs-body, 9.5pt); }
 .quotejournal .q-p { width: 12%; text-align: center; }
 .quotejournal td.q-quote { height: 58px; width: 44%; }
 .quotejournal td.q-think { height: 58px; }
@@ -476,5 +476,5 @@ h2.sec .n { background: var(--c); color: #fff; width: 20px; height: 20px; border
 .essayplan { margin-top: var(--wg-space-block, 3mm); }
 .essayplan .ep-sec { border: var(--wg-rule-w, 1px) solid var(--wg-rule-color, #cbd5c0); border-radius: var(--wg-radius-md, 6px); margin-bottom: 6px; overflow: hidden; }
 .essayplan .ep-h { background: var(--clabel); color: var(--cink); font-weight: 700;
-  padding: 5px 10px; font-size: 9.5pt; }
+  padding: 5px 10px; font-size: var(--wg-fs-body, 9.5pt); }
 .essayplan .ep-b { min-height: 44px; padding: 8px 10px; }
