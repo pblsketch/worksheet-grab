@@ -3,7 +3,8 @@
 > 이 폴더만 읽어도 이어갈 수 있게 자기완결로 정리. 상세는 같은 폴더의 `PLAN.md`,
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
 > `02-mood-pack.md`(P2-a) 참조.
-> 최종 검증: unit 951 · L0 11 · 무드팩 8 · L2 렌더 13 그린 (2026-08-05). **P2-a 아직 미커밋**.
+> 최종 검증: unit 951 · L0 11 · 무드팩 8 · L2 렌더 13 · 전체 렌더 sweep fail 0 그린 (2026-08-05).
+> P2-a 커밋 `4f2b97f`(전체 렌더 sweep 의 D14 paste todo 는 기존·무관).
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
@@ -43,7 +44,7 @@ P2-b 계획을 확인한 뒤 착수하라.
 | `16b0d97` | P1-d 블록리듬 `margin-top 3mm/2mm`→`var(--wg-space-block/-sm)` (23) |
 | `673b684` | P1-e 타이포 `font-size 6클러스터`→`var(--wg-fs-*)` (62) |
 | `0286ac2` | P1 완료 핸드오프 + 토큰/게이트 설계 문서 |
-| **미커밋** | **P2-a 무드 팩 — `themes/moods/{exam,soft,angular}.css` + `buildDocumentHtml` moodCss 주입 + `AssembleWorksheet` manifest.mood(fail-closed) + `FsBlockRepository.loadMoodCss/listMoods` + `test/unit/mood-pack.test.js`(8) + `02-mood-pack.md`. 상세: `02-mood-pack.md`** |
+| `4f2b97f` | P2-a 무드 팩 — `themes/moods/{exam,soft,angular}.css` + `buildDocumentHtml` moodCss 주입 + `AssembleWorksheet` manifest.mood(fail-closed) + `FsBlockRepository.loadMoodCss/listMoods` + `test/unit/mood-pack.test.js`(8) + `02-mood-pack.md`. 상세: `02-mood-pack.md` |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
