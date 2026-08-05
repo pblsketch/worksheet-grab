@@ -55,20 +55,22 @@ const HEX6 = /^#[0-9a-f]{6}$/i;
  *   onImageUpload: (id:string, file:File)=>void,
  * }} opts
  */
-export function createInspector({ root, onPaperChange, onPatchObject, onToggleFlowFloat, onToggleAnswer, onAlign, onImageUpload, onThemeChange = () => {}, onResize = () => {} }) {
+export function createInspector({ root, onPaperChange, onPatchObject, onToggleFlowFloat, onToggleAnswer, onAlign, onImageUpload, onThemeChange = () => {}, onMoodChange = () => {}, onResize = () => {} }) {
   function render(state) {
     root.dataset.inspMode = state.mode;
     root.replaceChildren();
     if (state.mode === 'object') renderSingle(state.obj, state.paper ?? null);
     else if (state.mode === 'multi') renderMulti(state.ids, state.allFloat);
-    else renderDocument(state.paper, state.findings || [], state.themeName || '', state.themes || []);
+    else renderDocument(state.paper, state.findings || [], state.themeName || '', state.themes || [], state.moodName || '', state.moods || []);
   }
 
   // 교과 테마 → 사용자용 한국어 라벨(색상 힌트 포함). themes/*.css 파일명이 곧 themeName 이다.
   const THEME_LABELS = Object.freeze({ ko: '국어 (초록)', sci: '과학 (청록)', social: '사회 (주황)', english: '영어 (남색)' });
+  // 무드(디자인 레지스터) → 사용자용 한국어 라벨. themes/moods/*.css 파일명이 곧 무드 이름이다.
+  const MOOD_LABELS = Object.freeze({ exam: '시험지형', soft: '둥근 파스텔', angular: '각진 실무형' });
 
   // ── 선택 없음: 문서 설정 + 검수 상세 ──
-  function renderDocument(paper, findings, themeName, themes) {
+  function renderDocument(paper, findings, themeName, themes, moodName, moods) {
     const resolved = resolvePaper(paper) ?? resolvePaper({ size: 'A4' });
     const presetId = matchPreset(paper);
     root.appendChild(el('h3', { text: '문서 설정' }));
@@ -102,6 +104,16 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
       for (const t of themes) themeSel.appendChild(el('option', { value: t, text: THEME_LABELS[t] || t, selected: t === themeName ? 'selected' : null }));
       themeSel.addEventListener('change', () => onThemeChange(themeSel.value));
       root.appendChild(field('테마(색상)', themeSel));
+    }
+
+    // 무드(디자인 레지스터) 전환 — 타이포·간격·괘선·모서리 값 세트 교체(themes/moods/*.css). 색(테마)과 직교.
+    // '기본'(빈 값)은 무드 해제. 무드는 레이아웃을 바꾸므로 change 시 재저장 + 리플로우(색-only 인 테마와 다름 — changeMood).
+    if (moods.length) {
+      const moodSel = el('select', { id: 'insp-mood' });
+      moodSel.appendChild(el('option', { value: '', text: '기본 (무드 없음)', selected: !moodName ? 'selected' : null }));
+      for (const m of moods) moodSel.appendChild(el('option', { value: m, text: MOOD_LABELS[m] || m, selected: m === moodName ? 'selected' : null }));
+      moodSel.addEventListener('change', () => onMoodChange(moodSel.value));
+      root.appendChild(field('무드(디자인)', moodSel));
     }
 
     root.appendChild(el('h3', { text: '검수 상세', style: 'margin-top:16px' }));

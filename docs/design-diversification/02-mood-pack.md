@@ -109,11 +109,28 @@ AI 좌표 미생성(무드는 엔진 방출 토큰값 세트일 뿐).
   - GET /shell.json 페이로드에 `availableMoods`(=`listMoods()`) 노출 — 인스펙터 무드 드롭다운용
     (`availableThemes` 동형).
   - 게이트 `test/unit/mood-route.test.js`(5) — set/persist · no-op · 미지 400 · 해제(제거) · 카탈로그 노출.
-- **P2-b3-client — 다음(브라우저 UI)**:
-  - **무드 변경은 `/theme` 처럼 서버 라우트 경유(applyDocOp 아님)** — `changeMood(moodName)` = `changePaper`
-    미러(dirty 면 먼저 `save()` → POST `/mood` → **리플로우 플래그 + `location.reload()`**). 무드는 flow 경계
-    (가용 높이)를 바꾸므로 reload-only 인 `/theme` 가 아니라 `/paper` 처럼 재로드 후 1회 리플로우한다
-    (`sessionStorage['wgReflowAfterPaperChange']` 소비 지점 재사용/일반화).
-  - 인스펙터 문서 모드에 무드 드롭다운(`availableMoods` 소비, 테마 드롭다운 동형) + Chrome 파리티 게이트.
+- **P2-b3-client — ✅ 완료(브라우저 UI) → 무드 축 end-to-end 완성**:
+  - `editor.js changeMood(moodName)` = `changePaper` 미러 — dirty 면 먼저 `save()` → POST `/mood` →
+    `noop` 아니면 **리플로우 플래그 + `location.reload()`**. 무드 변경은 `/theme`(색-only, reload) 이 아니라
+    `/paper`(레이아웃, reload+리플로우) 계열이라, 재로드 후 1회 리플로우로 flow 경계를 재계산한다.
+  - 리플로우 플래그를 `wgReflowAfterPaperChange` → **`wgReflowAfterReload`** 로 일반화(용지·무드 공용, editor.js
+    3곳 + 소비부 editor.js:1165).
+  - 인스펙터 문서 모드에 무드 드롭다운(`insp-mood`, `availableMoods` 소비, 테마 드롭다운 동형). **'기본 (무드
+    없음)'(빈 값)=무드 해제** 옵션 포함. `createInspector` 에 `onMoodChange` 콜백 + `MOOD_LABELS`(시험지형/둥근
+    파스텔/각진 실무형).
+  - 게이트: browser-purity(editor.js/inspector.js FS-순수 유지) + 전체 렌더 스위트 fail 0(에디터가 실 Chrome 에
+    로드·렌더·파리티 통과). 테마/용지 인스펙터 컨트롤도 전용 e2e 없이 이 방어선을 쓰므로 무드도 동일 기준.
+
+## 무드 축 완성 요약
+`themes/moods/*.css`(데이터) → `buildDocumentHtml` 주입 → 매니페스트(`AssembleWorksheet`)·개체트리
+(`loadRenderAssets`) 두 렌더 경로 → 문서 승계(`buildLegacyDocument`)·저장 왕복(`checkpoint`) → 서버 변경
+게이트(`/mood`)·카탈로그 노출(`availableMoods`) → 편집기 UI(인스펙터 무드 드롭다운 + `changeMood` 리플로우).
+전 구간 fail-closed·닫힌 카탈로그·무드 미지정 바이트 무회귀. 게이트 5종:
+`mood-pack`(8)·`mood-object-tree`(5)·`mood-editor-lifecycle`(3)·`mood-route`(5) + L0(11)·browser-purity·전체 렌더.
+
+## 다음 (무드 축 밖)
+- "디자인 방향 서랍" 정식 무드 팩 확장(차분한기본·시험지형·넓은필기·모던) + **무드 레이아웃 변형**(class 단위,
+  새 개체 타입 없이 — PLAN 71행) + (선택) L1 Chrome computed-style 무드 골든 + 전용 무드-변경 e2e(테마/용지와 공통 개선).
+- 무드 삽화 통로(P5, 별도 PRD) · 용지 방향 단일화(P3, PLAN 참조).
 - 이어서 "디자인 방향 서랍" 정식 팩 확장(차분한기본·시험지형·넓은필기·모던) + 무드별 골든(선택적으로 L1
   Chrome computed-style 무드 골든 추가) + **무드 레이아웃 변형**(class 단위, 새 개체 타입 없이 — PLAN 71행).

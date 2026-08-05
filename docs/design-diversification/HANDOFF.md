@@ -1,10 +1,12 @@
-# Handoff — 활동지 디자인 다양화 (P2-b3-server 완료 → P2-b3-client 착수)
+# Handoff — 활동지 디자인 다양화 (P2 무드 축 end-to-end 완성 → 후속)
 
 > 이 폴더만 읽어도 이어갈 수 있게 자기완결로 정리. 상세는 같은 폴더의 `PLAN.md`,
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
-> `02-mood-pack.md`(P2-a + P2-b 3단계 계획) 참조.
-> 최종 검증: unit 964 · L0 11 · 무드팩 8 · 개체트리무드 5 · 편집기생명주기 3 · /mood라우트 5 · L2 렌더 13 그린 (2026-08-05).
-> P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`/`cb7ab26` · P2-b3-server `22ca4b0`.
+> `02-mood-pack.md`(P2-a + P2-b 전 단계) 참조.
+> 최종 검증: unit 964 · L0 11 · 무드팩 8 · 개체트리무드 5 · 편집기생명주기 3 · /mood라우트 5 · browser-purity 4 ·
+> L2 렌더 13 · 전체 렌더 스위트 fail 0(D14 paste todo 기존·무관) 그린 (2026-08-05).
+> P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`/`cb7ab26` · P2-b3-server `22ca4b0`/`aaec9b5`.
+> **P2-b3-client 아직 미커밋**.
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
@@ -16,23 +18,24 @@ worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 �
   P2-b1: loadRenderAssets 가 document.mood 읽어(fail-closed) assets.moodCss/moodName 반환 + RenderObjectTree 전달.
   P2-b2: documentRoutes.buildLegacyDocument 가 manifest.mood→document.mood 조건부 carry(비침습) + checkpoint
   왕복 보존(whole-document, JSDoc).
-  P2-b3-server: /mood POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→delete) +
-  GET /shell.json availableMoods 노출. 게이트 mood-pack(8)·mood-object-tree(5)·mood-editor-lifecycle(3)·mood-route(5).
-- 다음 = P2-b3-client(브라우저 UI): 무드 변경은 /theme 처럼 서버 라우트 경유(applyDocOp 아님).
-  (1) editor.js changeMood(moodName) = changePaper 미러(dirty 면 save() → POST /mood → 리플로우 플래그
-  + location.reload()). 무드는 flow 경계를 바꾸므로 reload-only 인 /theme 아니라 /paper 처럼 재로드 후 1회
-  리플로우(sessionStorage['wgReflowAfterPaperChange'] 소비 지점 editor.js:1165 재사용/일반화).
-  (2) 인스펙터 문서 모드 무드 드롭다운(availableMoods 소비, 테마 드롭다운 동형) + Chrome 파리티 게이트.
+  P2-b3-server: /mood POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→delete) + availableMoods.
+  P2-b3-client: editor.js changeMood(=changePaper 미러: dirty→save→POST /mood→리플로우 플래그+reload) +
+  인스펙터 무드 드롭다운(insp-mood, '기본(무드 없음)'=해제) + wgReflowAfterReload 일반화. 무드 축 end-to-end 완성.
+  게이트: mood-pack(8)·mood-object-tree(5)·mood-editor-lifecycle(3)·mood-route(5) + browser-purity + 전체 렌더 fail 0.
+- 다음(무드 축 밖, 택1): (A) "디자인 방향 서랍" 무드 팩 확장(차분한기본·시험지형·넓은필기·모던) +
+  무드 레이아웃 변형(class 단위·새 개체 타입 없이, PLAN 71행) + (선택)L1 Chrome computed-style 무드 골든 +
+  전용 무드-변경 e2e(테마/용지와 공통). (B) P3 용지 방향 단일화(가로/세로). (C) P5 삽화 무드(별도 PRD).
 - 불변식 절대 준수: 편집==인쇄 · 의존성0·빌드0 · 단일진실원천(applyDocOp) · fail-closed ·
   htmlAllowlist·닫힌 카탈로그 무변경 · AI 좌표 미생성.
 - git: add -A/브랜치/reset/clean 금지, 경로 명시 스테이징. 착수 전 `git status --porcelain`.
   렌더 테스트는 `--test-concurrency=1`, 병합 전 전체 렌더 1회.
 - 무회귀 검증(전부 그린 유지):
-  node --test test/unit/blocks-token-equivalence.test.js test/unit/mood-pack.test.js test/unit/mood-object-tree.test.js test/unit/mood-editor-lifecycle.test.js
+  node --test test/unit/blocks-token-equivalence.test.js test/unit/mood-pack.test.js test/unit/mood-object-tree.test.js test/unit/mood-editor-lifecycle.test.js test/unit/mood-route.test.js
   npm run test:unit
   node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js
+  브라우저 배선 변경 시 node --check + browser-purity + 전체 렌더 스위트로 편집기 로드 무결성 확인.
   새 토큰/무드 추가 시 L0-1 sanity 토큰집합 + 축별 카운트 단정 + mood-pack 13토큰 어휘를 갱신할 것.
-P2-b3-client 계획을 확인한 뒤 착수하라.
+다음 단계(A/B/C) 중 하나를 사용자와 정한 뒤 계획을 확인하고 착수하라.
 ```
 
 ## 목표
@@ -56,6 +59,8 @@ P2-b3-client 계획을 확인한 뒤 착수하라.
 | `f3f071f` | P2-b2 문서 생명주기 — `documentRoutes.buildLegacyDocument` 의 `manifest.mood→document.mood` 조건부 carry(비침습) + `SaveDocument.checkpoint` 왕복 보존(whole-document, JSDoc) + `test/unit/mood-editor-lifecycle.test.js`(3, 실 편집기 서버 carry/persist/무회귀). `ValidateObjectTree` 가 mood 문서메타 수용 증명 |
 | `cb7ab26` | P2-b2 커밋 해시 문서 반영 |
 | `22ca4b0` | P2-b3-server 무드 변경 서버 게이트 — `/mood` POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→delete) + GET /shell.json `availableMoods` 노출 + `test/unit/mood-route.test.js`(5). 클라이언트 리플로우는 b3-client |
+| `aaec9b5` | P2-b3-server 커밋 해시 문서 반영 |
+| **미커밋** | **P2-b3-client 편집기 무드 UI — `editor.js changeMood`(=changePaper 미러: dirty→save→POST /mood→리플로우+reload) + 인스펙터 무드 드롭다운(insp-mood, '기본(무드 없음)'=해제) + `wgReflowAfterReload` 일반화. browser-purity + 전체 렌더 fail 0. 무드 축 end-to-end 완성** |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
@@ -103,9 +108,9 @@ P2-b3-client 계획을 확인한 뒤 착수하라.
   carry(비침습) + `checkpoint` 왕복 보존(whole-document, JSDoc). `test/unit/mood-editor-lifecycle.test.js`(3).
 - **P2-b3-server — ✅ 완료(미커밋)**: `/mood` POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→
   delete) + GET /shell.json `availableMoods` 노출. `test/unit/mood-route.test.js`(5).
-- **P2-b3-client (다음 착수)**: `editor.js changeMood` = `changePaper` 미러(dirty→save→POST /mood→리플로우 플래그
-  +reload, 무드는 레이아웃 변경) + 인스펙터 무드 드롭다운(`availableMoods`, 테마 드롭다운 동형) + Chrome 파리티 게이트.
-  그다음 **"디자인 방향 서랍"** 정식 무드 팩:
+- **P2-b3-client — ✅ 완료(미커밋)**: `editor.js changeMood`(=changePaper 미러) + 인스펙터 무드 드롭다운
+  (`insp-mood`, '기본(무드 없음)'=해제) + `wgReflowAfterReload` 일반화. **무드 축 end-to-end 완성.**
+- **다음(무드 축 밖)** — **"디자인 방향 서랍"** 정식 무드 팩:
   차분한기본 · 시험지형 · 넓은필기 · 모던(에디토리얼/카드) · (삽화형은 P5). 리서치 근거는 대화기록/PLAN 참조.
 - **P3**: 용지 방향 — **단일 방향(문서 전체 가로/세로) 먼저**, 페이지별 혼합(복합 세트)은 **후속·flow 전용**
   (최고 위험: 실측 페이지네이션 + `.sheet` float rect 원점 전제. `paper.css` 주석 경고 참조).

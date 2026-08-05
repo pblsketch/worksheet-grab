@@ -530,7 +530,7 @@ function updateAll() {
   });
 
   if (sel.mode === 'none') {
-    inspector.render({ mode: 'document', paper: core.getDocument().paper, findings: reviewChip.getFindings(), themeName: core.getDocument().themeName || '', themes: availableThemes });
+    inspector.render({ mode: 'document', paper: core.getDocument().paper, findings: reviewChip.getFindings(), themeName: core.getDocument().themeName || '', themes: availableThemes, moodName: core.getDocument().mood || '', moods: availableMoods });
   } else if (sel.mode === 'multi') {
     const allFloat = sel.ids.every((id) => core.findObject(id)?.obj.placement === 'float');
     inspector.render({ mode: 'multi', ids: sel.ids, allFloat });
@@ -809,7 +809,7 @@ async function changePaper(paper) {
     // 용지 변경은 flow 경계의 전제(가용 높이)를 바꾼다 — 저장본 pages[] 는 이전 용지 기준이라
     // 재로드 직후 1회 리플로우로 경계를 재계산한다(플래그는 이 경로 한정 — 수동 빈 페이지 보존
     // 설계(handlePageAction 주석)는 건드리지 않는다).
-    try { sessionStorage.setItem('wgReflowAfterPaperChange', '1'); } catch { /* 저장 불가 환경 무시 */ }
+    try { sessionStorage.setItem('wgReflowAfterReload', '1'); } catch { /* 저장 불가 환경 무시 */ }
     location.reload();
   }
 }
@@ -829,6 +829,29 @@ async function changeTheme(themeName) {
   const result = await res.json().catch(() => ({}));
   if (!res.ok) { showBanner('error', `테마 변경 실패: ${result.error ?? res.status}`); return; }
   if (!result.noop) location.reload();
+}
+
+/** 무드(디자인 레지스터) 변경 — /mood 로 mood 만 치환 재저장 후 재로드. 무드는 타이포·간격·괘선·모서리
+ *  값 세트를 바꿔 flow 경계(가용 높이)를 흔들므로, 색-only 인 changeTheme(reload) 와 달리 changePaper 처럼
+ *  재로드 직후 1회 리플로우한다. 빈 moodName 은 무드 해제(기본 복귀 — /mood 라우트가 document.mood 제거).
+ *  dirty 면 먼저 저장(저장본 기준 재조립이라 최신 편집이 서버에 없으면 통째로 사라진다 — changePaper 와 동형). */
+async function changeMood(moodName) {
+  if (isDirty() && !(await save())) return;
+
+  let res;
+  try {
+    res = await fetch('/mood', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mood: moodName }) });
+  } catch (e) {
+    showBanner('error', `무드 변경 실패: ${e.message}`);
+    return;
+  }
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) { showBanner('error', `무드 변경 실패: ${result.error ?? res.status}`); return; }
+  if (!result.noop) {
+    // 무드는 flow 경계 전제(가용 높이)를 바꾼다 — 재로드 직후 1회 리플로우로 경계를 재계산(changePaper 와 동형).
+    try { sessionStorage.setItem('wgReflowAfterReload', '1'); } catch { /* 저장 불가 환경 무시 */ }
+    location.reload();
+  }
 }
 
 function scrollToPage(pageId) {
@@ -910,6 +933,7 @@ docTitleEl.addEventListener('keydown', (e) => {
 // 명시적으로 요청하면 AI 로 지문을 창작·재구성할 수 있다(ai.js 의 지문 전용 프리셋 참조).
 const excludedAiTypes = new Set(shell.excludedAiTypes || []);
 const availableThemes = shell.availableThemes || []; // 인스펙터 테마 드롭다운 옵션(themes/*.css)
+const availableMoods = shell.availableMoods || []; // 인스펙터 무드 드롭다운 옵션(themes/moods/*.css)
 
 // M2(여러 페이지 grab): leftPanel 썸네일에서 Ctrl/Cmd-다중선택된 페이지 id 들. 앱바 AI 진입이 소비한다.
 let multiSelectedPageIds = [];
@@ -1038,6 +1062,7 @@ const inspector = createInspector({
   },
   onImageUpload: (id, file) => uploadImage(id, file),
   onThemeChange: (name) => changeTheme(name),
+  onMoodChange: (name) => changeMood(name),
 });
 
 const leftPanel = createLeftPanel({
@@ -1162,9 +1187,9 @@ await setMode(location.hash === '#student' ? 'student' : 'teacher');
 requestAnimationFrame(() => renderPageThumbs());
 applyPanelState(); // 저장된 좌/우 패널 접힘 상태를 복원(localStorage, 문서 아님)
 try {
-  if (sessionStorage.getItem('wgReflowAfterPaperChange') === '1') {
-    sessionStorage.removeItem('wgReflowAfterPaperChange');
-    scheduleReflow(); // 용지 변경 재로드 — 새 가용 높이로 flow 경계 재계산(changePaper 주석 참조)
+  if (sessionStorage.getItem('wgReflowAfterReload') === '1') {
+    sessionStorage.removeItem('wgReflowAfterReload');
+    scheduleReflow(); // 레이아웃 변경 재로드(용지·무드) — 새 가용 높이로 flow 경계 재계산(changePaper/changeMood 주석 참조)
   }
 } catch { /* 저장 불가 환경 무시 */ }
 document.body.dataset.ready = 'true'; // 검증 스크립트가 폴링해 초기 렌더 완료를 확인
