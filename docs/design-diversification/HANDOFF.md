@@ -5,8 +5,8 @@
 > `02-mood-pack.md`(P2-a + P2-b 전 단계) 참조.
 > 최종 검증: unit 964 · L0 11 · 무드팩 8 · 개체트리무드 5 · 편집기생명주기 3 · /mood라우트 5 · browser-purity 4 ·
 > L2 렌더 13 · 전체 렌더 스위트 fail 0(D14 paste todo 기존·무관) 그린 (2026-08-05).
-> P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`/`cb7ab26` · P2-b3-server `22ca4b0`/`aaec9b5`.
-> **P2-b3-client 아직 미커밋**.
+> P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`/`cb7ab26` · P2-b3-server `22ca4b0`/`aaec9b5`
+> · P2-b3-client `596996a`. **무드 축(P2-a~P2-b3) 완결.**
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
@@ -60,7 +60,7 @@ worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 �
 | `cb7ab26` | P2-b2 커밋 해시 문서 반영 |
 | `22ca4b0` | P2-b3-server 무드 변경 서버 게이트 — `/mood` POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→delete) + GET /shell.json `availableMoods` 노출 + `test/unit/mood-route.test.js`(5). 클라이언트 리플로우는 b3-client |
 | `aaec9b5` | P2-b3-server 커밋 해시 문서 반영 |
-| **미커밋** | **P2-b3-client 편집기 무드 UI — `editor.js changeMood`(=changePaper 미러: dirty→save→POST /mood→리플로우+reload) + 인스펙터 무드 드롭다운(insp-mood, '기본(무드 없음)'=해제) + `wgReflowAfterReload` 일반화. browser-purity + 전체 렌더 fail 0. 무드 축 end-to-end 완성** |
+| `596996a` | P2-b3-client 편집기 무드 UI — `editor.js changeMood`(=changePaper 미러: dirty→save→POST /mood→리플로우+reload) + 인스펙터 무드 드롭다운(insp-mood, '기본(무드 없음)'=해제) + `wgReflowAfterReload` 일반화. browser-purity + 전체 렌더 fail 0. 무드 축 end-to-end 완성 |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
