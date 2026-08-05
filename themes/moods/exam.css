@@ -1,0 +1,20 @@
+/* 무드: 시험지형(exam) — 격식 있는 시험지 레지스터.
+ * 중립 회색 헤어라인 · 거의 각진 모서리 · 조밀한 세로 리듬 · 절제된 타이포.
+ * 과목색(--c*)과 직교: 여기서는 blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
+ * 이 :root 는 AssembleWorksheet 가 theme 레이어 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+ */
+:root {
+  --wg-rule-color: #9aa3ad;
+  --wg-rule-w: 1px;
+  --wg-radius-sm: 2px;
+  --wg-radius-md: 2px;
+  --wg-radius-lg: 3px;
+  --wg-space-block: 2.4mm;
+  --wg-space-block-sm: 1.6mm;
+  --wg-fs-title: 18pt;
+  --wg-fs-heading: 11.5pt;
+  --wg-fs-pill: 10pt;
+  --wg-fs-label: 9pt;
+  --wg-fs-body: 9.5pt;
+  --wg-fs-caption: 8.5pt;
+}

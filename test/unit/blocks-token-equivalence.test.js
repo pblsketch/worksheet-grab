@@ -243,6 +243,10 @@ test('L0-3: 신규 토큰(--wg-*)은 blocks.css/paper.css/themes/*.css 어느 :r
 
   definedIn('assets/blocks.css(현행)', blocksCssCurrent);
   definedIn('assets/paper.css', readFileSync(PAPER_CSS_PATH, 'utf8'));
+  // themes/*.css 는 "항상 로드되는" 캐스케이드(과목 테마) — 여기에 토큰이 정의되면 폴백 무회귀가 깨진다.
+  // readdirSync 는 비재귀라 themes/moods/ 하위폴더(P2-a 무드 팩)는 자연히 제외된다. 무드 파일은 의도적으로
+  // 이 13토큰을 "정의"하는 옵트인 오버라이드 계층(무드 지정 시에만 로드)이므로 여기서 검사하면 안 되며,
+  // 무드 파일의 정합/직교는 test/unit/mood-pack.test.js 가 별도로 지킨다.
   for (const file of readdirSync(THEMES_DIR).filter((f) => f.endsWith('.css'))) {
     definedIn(`themes/${file}`, readFileSync(resolve(THEMES_DIR, file), 'utf8'));
   }

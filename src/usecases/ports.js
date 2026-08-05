@@ -35,6 +35,10 @@ export class BlockRepository {
   async listBlocks() { throw new Error('BlockRepository.listBlocks 미구현'); }
   async loadThemeCss(/* name */) { throw new Error('BlockRepository.loadThemeCss 미구현'); }
   async listThemes() { throw new Error('BlockRepository.listThemes 미구현'); }
+  /** 무드 팩 CSS(themes/moods/{name}.css) — 디자인 토큰(--wg-*) 값 세트. 무드 지정 시에만 호출된다. */
+  async loadMoodCss(/* name */) { throw new Error('BlockRepository.loadMoodCss 미구현'); }
+  /** 등록된 무드 이름의 닫힌 목록(themes/moods/*.css). 없으면 []. 무드 fail-closed 검증에 쓴다. */
+  async listMoods() { throw new Error('BlockRepository.listMoods 미구현'); }
   async readManifest(/* nameOrPath */) { throw new Error('BlockRepository.readManifest 미구현'); }
   /** 블록 타입 어휘 + 계약 레지스트리(blocks/vocabulary.json). 없으면 null. */
   async readVocabulary() { throw new Error('BlockRepository.readVocabulary 미구현'); }

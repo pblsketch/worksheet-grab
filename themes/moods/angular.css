@@ -1,0 +1,22 @@
+/* 무드: 각진 실무형(angular) — 모던하고 또렷한 레지스터(실무·중등 이상).
+ * 슬레이트 헤어라인 · 각진 모서리(카드도 0) · 현행 리듬 유지 · 절제된 타이포.
+ * "같은 내용, 더 날카로운 틀" — soft/exam 대비 최소 편차로 프레임 성격만 바꾼다.
+ * 원형·알약 형태(50%/20px/12px)는 토큰화 대상이 아니므로 무드와 무관하게 형태를 유지한다.
+ * 과목색(--c*)과 직교: 여기서는 blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
+ * 이 :root 는 AssembleWorksheet 가 theme 레이어 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+ */
+:root {
+  --wg-rule-color: #7b8794;
+  --wg-rule-w: 1px;
+  --wg-radius-sm: 0;
+  --wg-radius-md: 0;
+  --wg-radius-lg: 2px;
+  --wg-space-block: 3mm;
+  --wg-space-block-sm: 2mm;
+  --wg-fs-title: 19pt;
+  --wg-fs-heading: 12pt;
+  --wg-fs-pill: 10.5pt;
+  --wg-fs-label: 9pt;
+  --wg-fs-body: 9.5pt;
+  --wg-fs-caption: 8.7pt;
+}

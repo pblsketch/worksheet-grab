@@ -14,6 +14,7 @@ export class FsBlockRepository extends BlockRepository {
     this.assetsDir = join(this.root, 'assets');
     this.blocksDir = join(this.root, 'blocks');
     this.themesDir = join(this.root, 'themes');
+    this.moodsDir = join(this.themesDir, 'moods');
     this.manifestsDir = join(this.root, 'manifests');
     this.templatesDir = join(this.root, 'templates');
   }
@@ -57,6 +58,24 @@ export class FsBlockRepository extends BlockRepository {
   async loadThemeCss(name) {
     const file = name.endsWith('.css') ? name : `${name}.css`;
     return readFile(this.#safe(this.themesDir, file), 'utf8');
+  }
+
+  /**
+   * 무드 팩 CSS(themes/moods/{name}.css) 로드. 디자인 토큰(--wg-*)의 값 세트만 담은 :root 블록으로,
+   * AssembleWorksheet 가 theme 레이어 뒤에 한 겹 주입한다(무드 지정 시에만 호출). 경로 이탈 차단.
+   */
+  async loadMoodCss(name) {
+    const file = name.endsWith('.css') ? name : `${name}.css`;
+    return readFile(this.#safe(this.moodsDir, file), 'utf8');
+  }
+
+  /** 등록된 무드 이름의 닫힌 목록(themes/moods/*.css → 확장자 제거). 폴더가 없으면 [](하위호환). */
+  async listMoods() {
+    if (!existsSync(this.moodsDir)) return [];
+    return (await readdir(this.moodsDir))
+      .filter((f) => f.endsWith('.css'))
+      .map((f) => f.replace(/\.css$/, ''))
+      .sort();
   }
 
   async listThemes() {

@@ -195,6 +195,19 @@ ${goalLis}
     const columns = resolvedPaper?.columns ?? 1;
     const blocksCss = await this.repo.readAsset('blocks.css');
     const themeCss = await this.repo.loadThemeCss(worksheet.themeName);
+    // 무드(P2-a): manifest.mood 가 지정되면 닫힌 카탈로그(themes/moods/*.css) 검증 후 로드해 theme
+    // 레이어 뒤에 한 겹 주입한다. 미지정이면 repo 무드 메서드를 호출조차 하지 않아 현행 산출 그대로(무회귀).
+    // 미지 무드는 조용히 무시하지 않고 차단한다(fail-closed) — 단일 진실원천은 manifest.mood 뿐이다.
+    let moodCss = '';
+    let moodName = '';
+    if (manifest.mood != null && manifest.mood !== '') {
+      moodName = String(manifest.mood);
+      const known = await this.repo.listMoods();
+      if (!known.includes(moodName)) {
+        throw new Error(`알 수 없는 무드 '${moodName}' 입니다(등록된 무드: ${known.join(', ') || '없음'}). 무드는 닫힌 목록에서만 선택합니다(fail-closed).`);
+      }
+      moodCss = await this.repo.loadMoodCss(moodName);
+    }
     const lang = manifest.lang || 'ko';
     const dataSubject = manifest.dataSubject || worksheet.subject;
 
@@ -223,6 +236,8 @@ ${goalLis}
       themeName: worksheet.themeName,
       dataSubject,
       pagesHtml,
+      moodCss,
+      moodName,
     });
   }
 }
@@ -269,11 +284,23 @@ export function buildSheetSection({ pageNo, pageId = null, runHead, bodyOut, foo
 </section>`;
 }
 
-/** 문서 전체(`<!DOCTYPE html>`…`</html>`) — head(폰트/KaTeX/CSS) + body(data-mode="MODE_TOKEN" + pagesHtml). */
+/**
+ * 문서 전체(`<!DOCTYPE html>`…`</html>`) — head(폰트/KaTeX/CSS) + body(data-mode="MODE_TOKEN" + pagesHtml).
+ *
+ * **무드 주입(P2-a)**: `moodCss` 가 비어 있지 않으면 CSS concat 순서(paper → blocks → theme) **뒤에**
+ * 무드 :root 오버라이드를 한 겹 append 한다(디자인 토큰 --wg-* 값 세트, 과목색 --c* 와 직교).
+ * `moodCss` 가 빈 문자열(기본)이면 아무것도 붙지 않아 **산출 바이트가 현행과 동일**하다(무드 미지정=무회귀).
+ * 무드 이름은 코드 로드가 아니라 이미 문자열로 해석되어 주입된다(themeCss 와 동일한 계층 규약 —
+ * repo 접근은 호출부 책임, 이 함수는 순수 문자열 조립).
+ */
 export function buildDocumentHtml({
   lang, docTitle, katexEnabled, paperCss: paperCssText, blocksCss, themeCss, themeName, dataSubject, pagesHtml,
+  moodCss = '', moodName = '',
 }) {
   const katex = katexEnabled ? '\n' + KATEX_HEAD : '';
+  const mood = moodCss
+    ? `\n\n/* ===== 무드 오버라이드 (themes/moods/${moodName}.css) ===== */\n${moodCss}`
+    : '';
   return `<!DOCTYPE html>
 <html lang="${lang}" data-mode="MODE_TOKEN">
 <head>
@@ -288,7 +315,7 @@ ${paperCssText}
 ${blocksCss}
 
 /* ===== 교과 테마 토큰 (themes/${themeName}.css) ===== */
-${themeCss}
+${themeCss}${mood}
 </style>
 </head>
 <body data-mode="MODE_TOKEN" data-subject="${escapeHtml(dataSubject)}">

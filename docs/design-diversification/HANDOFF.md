@@ -1,35 +1,39 @@
-# Handoff — 활동지 디자인 다양화 (P1 완료 → P2 착수)
+# Handoff — 활동지 디자인 다양화 (P2-a 완료 → P2-b 착수)
 
 > 이 폴더만 읽어도 이어갈 수 있게 자기완결로 정리. 상세는 같은 폴더의 `PLAN.md`,
-> `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md` 참조.
-> 최종 커밋: `673b684` (2026-08-05).
+> `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
+> `02-mood-pack.md`(P2-a) 참조.
+> 최종 검증: unit 951 · L0 11 · 무드팩 8 · L2 렌더 13 그린 (2026-08-05). **P2-a 아직 미커밋**.
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
 worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 이어서 한다.
-먼저 docs/design-diversification/HANDOFF.md 와 PLAN.md 를 정독하라.
-- P1(디자인 토큰화) 완료: blocks.css 전 디자인 축을 var(--wg-*, 현행리터럴) 13토큰으로
-  파라미터화 + L0 무회귀 게이트, 5커밋(eb828a3→673b684), 바이트 무회귀 확인.
-- 다음 = P2-a: 무드 팩 데이터(themes/moods/) + AssembleWorksheet.buildDocumentHtml 이
-  문서 optional `mood` 를 읽어 <style> 에 mood :root 한 겹 주입(미지정=현행 무회귀)
-  + 스키마 optional `mood` 필드. 개체 카탈로그 무변경.
+먼저 docs/design-diversification/HANDOFF.md · PLAN.md · 02-mood-pack.md 를 정독하라.
+- P1(토큰화 13토큰·181곳) + P2-a(무드 팩 데이터 + 매니페스트 경로 주입) 완료.
+  P2-a: themes/moods/{exam,soft,angular}.css + buildDocumentHtml 이 optional moodCss 를
+  theme 뒤에 한 겹 주입(미지정=바이트 무회귀) + AssembleWorksheet 가 manifest.mood 를
+  fail-closed 검증(listMoods 닫힌 카탈로그)·로드 + FsBlockRepository.loadMoodCss/listMoods.
+  게이트: test/unit/mood-pack.test.js(카탈로그 정합 + 주입 무회귀 8건). blocks.css 무변경.
+- 다음 = P2-b: 개체트리/편집기 무드. document.mood + applyDocOp 단일 관문 +
+  loadRenderAssets→RenderObjectTree 에 assets.moodCss 배선(현재 optional 기본 '' 하위호환) +
+  manifest→개체트리 마이그레이션 mood carry-through. 이어서 "디자인 방향 서랍" 정식 팩 확장.
 - 불변식 절대 준수: 편집==인쇄 · 의존성0·빌드0 · 단일진실원천(applyDocOp) · fail-closed ·
   htmlAllowlist·닫힌 카탈로그 무변경 · AI 좌표 미생성.
 - git: add -A/브랜치/reset/clean 금지, 경로 명시 스테이징. 착수 전 `git status --porcelain`.
   렌더 테스트는 `--test-concurrency=1`, 병합 전 전체 렌더 1회.
 - 무회귀 검증(전부 그린 유지):
-  node --test test/unit/blocks-token-equivalence.test.js
+  node --test test/unit/blocks-token-equivalence.test.js test/unit/mood-pack.test.js
   npm run test:unit
   node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js
-  새 토큰/무드 추가 시 L0-1 sanity 토큰집합 + 축별 카운트 단정을 갱신할 것.
-P2-a 계획을 확인한 뒤 착수하라.
+  새 토큰/무드 추가 시 L0-1 sanity 토큰집합 + 축별 카운트 단정 + mood-pack 13토큰 어휘를 갱신할 것.
+P2-b 계획을 확인한 뒤 착수하라.
 ```
 
 ## 목표
 과목=강조색 6개에 용접된 **recolor-only** 디자인을, **"사용자의 목적/상황이 디자인을 고르는"**
 무드(레지스터) 축으로 확장한다. 내용(과목·성취기준)과 디자인(목적→무드)을 직교 분리.
 
-## 지금까지 (DONE · 전부 커밋됨)
+## 지금까지 (DONE)
 | 커밋 | 내용 |
 |---|---|
 | `7bc8f75` | 기존 stale test 수정 (venn 조직자 P3 organizer 타입 반영, 제품코드 불변) |
@@ -38,6 +42,8 @@ P2-a 계획을 확인한 뒤 착수하라.
 | `74b399d` | P1-c 괘선폭 `border-width 1px`→`var(--wg-rule-w)` (43) |
 | `16b0d97` | P1-d 블록리듬 `margin-top 3mm/2mm`→`var(--wg-space-block/-sm)` (23) |
 | `673b684` | P1-e 타이포 `font-size 6클러스터`→`var(--wg-fs-*)` (62) |
+| `0286ac2` | P1 완료 핸드오프 + 토큰/게이트 설계 문서 |
+| **미커밋** | **P2-a 무드 팩 — `themes/moods/{exam,soft,angular}.css` + `buildDocumentHtml` moodCss 주입 + `AssembleWorksheet` manifest.mood(fail-closed) + `FsBlockRepository.loadMoodCss/listMoods` + `test/unit/mood-pack.test.js`(8) + `02-mood-pack.md`. 상세: `02-mood-pack.md`** |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
@@ -72,14 +78,16 @@ P2-a 계획을 확인한 뒤 착수하라.
   P2 렌더 주입이 실제로 해야 할 일의 프로토타입.
 
 ## 남은 작업 (TODO)
-### P2 — 진짜 무드 기능 (엔진, 다음 착수)
-- **P2-a (첫 증분)**:
-  1. `themes/moods/` 신설 — 무드 2~3종 `:root{ --wg-* }` 값 세트(예: soft/angular/exam).
-  2. `src/usecases/AssembleWorksheet.js` `buildDocumentHtml()` — CSS concat 순서(`paper → blocks → theme`)
-     **뒤에** 문서/manifest 의 optional `mood` 에 해당하는 mood css 를 한 겹 append. **미지정=미주입=현행(무회귀).**
-  3. 스키마 — `manifest.mood` optional 필드(개체 카탈로그·개체 트리 스키마 **무변경**). 단일 진실원천(manifest에만, `applyDocOp` 경유).
-  4. 게이트 — mood 미지정 문서 L0/L2 그린 유지 + mood 지정 렌더 스냅샷 1종 추가.
-- **P2-b**: 편집기 무드 선택(applyDocOp 단일 관문) + **"디자인 방향 서랍"** 정식 무드 팩:
+### P2 — 진짜 무드 기능 (엔진)
+- **P2-a (첫 증분) — ✅ 완료(미커밋)**. 상세: `02-mood-pack.md`.
+  1. ✅ `themes/moods/{exam,soft,angular}.css` — `:root{ --wg-* }` 닫힌 13토큰 값 세트.
+  2. ✅ `buildDocumentHtml()` optional `moodCss`/`moodName` — `theme` **뒤에** 한 겹 append(빈값=바이트 무회귀).
+  3. ✅ `AssembleWorksheet.#serialize` 가 `manifest.mood` 를 `listMoods()`(닫힌 카탈로그)로 **fail-closed** 검증 후
+     `loadMoodCss` 로드. `FsBlockRepository.loadMoodCss/listMoods` + 포트 스텁. 개체 카탈로그·트리 스키마 무변경.
+  4. ✅ 게이트 `test/unit/mood-pack.test.js`(8) — 카탈로그 정합 + 주입 무회귀(레이어 한 겹 제거=미지정 동일). L0/L2 그린 유지.
+- **P2-b (다음 착수)**: 개체트리/편집기 무드 — `document.mood` + `applyDocOp` 단일 관문 +
+  `loadRenderAssets`→`RenderObjectTree`에 `assets.moodCss` 배선(현재 optional 기본 `''` 하위호환) +
+  manifest→개체트리 마이그레이션 mood carry-through. 이어서 **"디자인 방향 서랍"** 정식 무드 팩:
   차분한기본 · 시험지형 · 넓은필기 · 모던(에디토리얼/카드) · (삽화형은 P5). 리서치 근거는 대화기록/PLAN 참조.
 - **P3**: 용지 방향 — **단일 방향(문서 전체 가로/세로) 먼저**, 페이지별 혼합(복합 세트)은 **후속·flow 전용**
   (최고 위험: 실측 페이지네이션 + `.sheet` float rect 원점 전제. `paper.css` 주석 경고 참조).

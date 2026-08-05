@@ -1,0 +1,20 @@
+/* 무드: 둥근 파스텔(soft) — 부드럽고 여유로운 레지스터(저학년·활동 중심).
+ * 따뜻한 헤어라인 · 큰 라운드 모서리 · 넉넉한 세로 리듬 · 큼직한 타이포.
+ * 과목색(--c*)과 직교: 여기서는 blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
+ * 이 :root 는 AssembleWorksheet 가 theme 레이어 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+ */
+:root {
+  --wg-rule-color: #d8c9b0;
+  --wg-rule-w: 1.2px;
+  --wg-radius-sm: 8px;
+  --wg-radius-md: 12px;
+  --wg-radius-lg: 16px;
+  --wg-space-block: 4mm;
+  --wg-space-block-sm: 3mm;
+  --wg-fs-title: 22pt;
+  --wg-fs-heading: 13pt;
+  --wg-fs-pill: 11pt;
+  --wg-fs-label: 10pt;
+  --wg-fs-body: 10.5pt;
+  --wg-fs-caption: 9pt;
+}
