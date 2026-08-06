@@ -1,4 +1,10 @@
-# Handoff — 활동지 디자인 다양화 (P2-c-1 무드 레이아웃 변형 완성 → 후속)
+# Handoff — 활동지 디자인 다양화 (무드 축 P2 완료·origin 푸시 → P3·P4)
+
+> ▶ **다음 단계(P3 용지 방향 · P4 목적→무드 자동선택)는 `03-P3-P4-handoff.md` 로 이전** — `/ultragoal` 착수용 자기완결 핸드오프.
+> 무드 축(P2-a~P2-c-7)은 완료되어 origin/main 에 푸시됨(머지 `a0bd13f`, 메인테이너 beta 릴리스 통합). 아래는 그 무드 축 이력.
+
+---
+
 
 > 이 폴더만 읽어도 이어갈 수 있게 자기완결로 정리. 상세는 같은 폴더의 `PLAN.md`,
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
