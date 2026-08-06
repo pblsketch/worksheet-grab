@@ -34,3 +34,5 @@ h2.sec { border-bottom: 1.2px solid var(--c2); padding-bottom: 2px; }
 .callout-body { line-height: 1.9; }
 /* 강조상자 헤더: 밑줄 모티프(의미색은 밑줄 색으로 보존)·본문은 넉넉한 행간(위 규칙). */
 .callout .callout-head { background: none; border-bottom: 1.2px solid currentColor; padding: 4px 2px 5px; }
+/* 강한 색 표 헤더(루브릭·데이터·어휘·메모)를 옅은 톤으로 — 절제된 필기 성격 강화. */
+.rubric th, .memo th, .data th, .vocab th { background: var(--clite); color: var(--cink); }
