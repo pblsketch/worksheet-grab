@@ -165,8 +165,11 @@ AI 좌표 미생성(무드는 엔진 방출 토큰값 세트일 뿐).
   `calm`(차분한 기본·일반수업) · `exam`(시험지형·평가) · `wide`(넓은 필기·서술탐구) · `angular`(각진 실무·발표) ·
   `soft`(둥근 파스텔·저학년). wide/calm 도 헤더·표·섹션헤딩 레이아웃 변형 보유. 인스펙터 MOOD_LABELS +
   `mood.render` 5무드. `availableMoods` 단정은 정확집합→포함 검사로(확장 견고).
-- **다음(P2-c-6+)**: callout 톤, 조직자(kwl/frayer 등) 배경, 답란 스타일 등 추가 변형(답란은 `.answer`
-  fail-closed 인접 — `answer-area` 만 신중히). 문항 1단↔2단은 `paper.columns` 충돌로 후순위. 변형마다 렌더 골든.
+- **P2-c-6 — ✅ 완료(`fabbb47`, 강조상자 헤더 모티프)**: callout(note/tip/warning/summary) 헤더를 무드
+  모티프로(exam·wide=밑줄 / angular=좌측바 / soft·calm=둥근밴드), **의미색은 currentColor 로 밑줄·강조바
+  색에 보존**(`.callout .callout-head` 명시도로 배경만 덮음). 합성 콜아웃 미리보기로 4색 보존 확인.
+- **다음(P2-c-7+)**: 조직자(kwl/frayer 등) 배경, 답란 스타일 등 추가 변형(답란은 `.answer` fail-closed
+  인접 — `answer-area` 만 신중히). 문항 1단↔2단은 `paper.columns` 충돌로 후순위. 변형마다 렌더 골든.
 
 ## 다음 (무드 축 밖)
 - "디자인 방향 서랍" 정식 무드 팩 확장(차분한기본·시험지형·넓은필기·모던) + (선택) L1 Chrome
