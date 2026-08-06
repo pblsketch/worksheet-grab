@@ -27,3 +27,7 @@
 .qbox .lab { border-radius: 12px; padding: 5px 16px; }
 .strip .sh { border-radius: 14px 14px 0 0; padding: 9px 16px; }
 .mapbox .maphead { border-radius: 12px; padding: 5px 14px; }
+
+/* 표 밀도: 여유 — 셀 여백·행 높이를 키워 넉넉하고 부드럽게(안전 속성 padding/min-height 만). */
+.obj-table th, .obj-table td { padding: 9px 14px; min-height: 32px; }
+.lv-table td { padding: 10px 15px; }
