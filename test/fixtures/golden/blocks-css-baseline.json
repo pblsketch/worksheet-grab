@@ -1,7 +1,7 @@
 {
   "_comment": "L0 baseline golden — assets/blocks.css 의 P1 토큰(--wg-fs/rule/radius/space-*)을 폴백 리터럴로 언랩한 승인 스냅샷. 의도적 디자인 변경 시 tools/regen-blocks-baseline.mjs 로 재생성(반드시 렌더·편집==인쇄 parity·design-lint·육안 검증 동반). (blockIndex, selector, propIndex, prop) 로 각 선언 식별, value 는 언랩된 리터럴.",
   "sourceFile": "assets/blocks.css",
-  "totalDeclarations": 856,
+  "totalDeclarations": 851,
   "records": [
     {
       "blockIndex": 0,
@@ -861,50 +861,36 @@
       "blockIndex": 39,
       "selector": ".direct",
       "propIndex": 0,
-      "prop": "display",
-      "value": "flex"
-    },
-    {
-      "blockIndex": 39,
-      "selector": ".direct",
-      "propIndex": 1,
-      "prop": "gap",
-      "value": "8px"
-    },
-    {
-      "blockIndex": 39,
-      "selector": ".direct",
-      "propIndex": 2,
-      "prop": "align-items",
-      "value": "flex-start"
-    },
-    {
-      "blockIndex": 39,
-      "selector": ".direct",
-      "propIndex": 3,
       "prop": "margin",
       "value": "7mm 0 3mm"
     },
     {
       "blockIndex": 39,
       "selector": ".direct",
-      "propIndex": 4,
+      "propIndex": 1,
       "prop": "font-weight",
       "value": "700"
     },
     {
       "blockIndex": 39,
       "selector": ".direct",
-      "propIndex": 5,
+      "propIndex": 2,
       "prop": "font-size",
       "value": "11pt"
+    },
+    {
+      "blockIndex": 39,
+      "selector": ".direct",
+      "propIndex": 3,
+      "prop": "line-height",
+      "value": "1.55"
     },
     {
       "blockIndex": 40,
       "selector": ".direct::before",
       "propIndex": 0,
       "prop": "content",
-      "value": "\"◐\""
+      "value": "\"◐ \""
     },
     {
       "blockIndex": 40,
@@ -921,25 +907,11 @@
       "value": "13pt"
     },
     {
-      "blockIndex": 40,
-      "selector": ".direct::before",
-      "propIndex": 3,
-      "prop": "line-height",
-      "value": "1"
-    },
-    {
-      "blockIndex": 40,
-      "selector": ".direct::before",
-      "propIndex": 4,
-      "prop": "margin-top",
-      "value": "1px"
-    },
-    {
       "blockIndex": 41,
       "selector": "body[data-subject=\"science\"] .direct::before,\r\nbody[data-subject=\"sci\"] .direct::before",
       "propIndex": 0,
       "prop": "content",
-      "value": "\"🔬\""
+      "value": "\"🔬 \""
     },
     {
       "blockIndex": 41,
@@ -954,13 +926,6 @@
       "propIndex": 2,
       "prop": "font-size",
       "value": "12pt"
-    },
-    {
-      "blockIndex": 41,
-      "selector": "body[data-subject=\"science\"] .direct::before,\r\nbody[data-subject=\"sci\"] .direct::before",
-      "propIndex": 3,
-      "prop": "margin-top",
-      "value": "0"
     },
     {
       "blockIndex": 42,

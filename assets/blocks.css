@@ -73,10 +73,12 @@ dt { font-weight: 700; color: var(--cink); font-size: var(--wg-fs-body, 9.5pt); 
 dd { margin: 2px 0 0 14px; font-size: var(--wg-fs-body, 9.5pt); color: #333; line-height: 1.55; }
 
 /* ---- directive (활동 지시문) ---- 교과별 글리프는 data-subject 분기 ---- */
-.direct { display: flex; gap: 8px; align-items: flex-start; margin: 7mm 0 3mm; font-weight: 700; font-size: var(--wg-fs-directive, 11pt); }
-.direct::before { content: "◐"; color: var(--c); font-size: 13pt; line-height: 1; margin-top: 1px; }
+/* 지시문: 글리프를 인라인 ::before 로 두어 본문이 정상 흐르게 한다(과거 display:flex 는
+   지시문에 <b> 등 인라인 요소가 오면 각 조각이 flex 아이템이 되어 단이 갈라지는 버그가 있었다). */
+.direct { margin: 7mm 0 3mm; font-weight: 700; font-size: var(--wg-fs-directive, 11pt); line-height: 1.55; }
+.direct::before { content: "◐ "; color: var(--c); font-size: 13pt; }
 body[data-subject="science"] .direct::before,
-body[data-subject="sci"] .direct::before { content: "🔬"; color: initial; font-size: var(--wg-fs-heading, 12pt); margin-top: 0; }
+body[data-subject="sci"] .direct::before { content: "🔬 "; color: initial; font-size: var(--wg-fs-heading, 12pt); }
 .qnum { display: inline-flex; align-items: center; justify-content: center;
   min-width: 17px; height: 17px; background: var(--c); color: #fff; border-radius: 50%;
   font-size: var(--wg-fs-label, 9pt); font-weight: 700; margin-right: 6px; }
