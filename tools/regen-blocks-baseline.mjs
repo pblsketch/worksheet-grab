@@ -25,8 +25,10 @@ const OUT = process.argv[2] ? resolve(process.cwd(), process.argv[2]) : resolve(
 
 // blocks-token-equivalence.test.js L0-1 이 단정하는 정확한 13토큰(이 목록 변경 시 그 테스트도 갱신).
 const P1_TOKENS = [
-  '--wg-fs-body', '--wg-fs-caption', '--wg-fs-heading', '--wg-fs-label', '--wg-fs-pill', '--wg-fs-title',
-  '--wg-radius-lg', '--wg-radius-md', '--wg-radius-sm', '--wg-rule-color', '--wg-rule-w',
+  '--wg-fs-body', '--wg-fs-body-sm', '--wg-fs-caption', '--wg-fs-directive', '--wg-fs-fine',
+  '--wg-fs-heading', '--wg-fs-label', '--wg-fs-pill', '--wg-fs-sub', '--wg-fs-title',
+  '--wg-radius-lg', '--wg-radius-md', '--wg-radius-sm', '--wg-radius-xl',
+  '--wg-rule-color', '--wg-rule-w', '--wg-rule-w-emph',
   '--wg-space-block', '--wg-space-block-sm',
 ];
 

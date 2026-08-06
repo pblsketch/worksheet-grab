@@ -13,12 +13,16 @@
   "designTokens": {
     "note": "무드 무관 기본값(폴백). 값은 assets/blocks.css 의 var() 폴백과 1:1 일치해야 하며(무드 미지정 = 무회귀), 무드는 themes/moods/*.css 에서 이 토큰을 오버라이드한다.",
     "typography": {
-      "--wg-fs-title":   "20pt",
-      "--wg-fs-heading": "12pt",
-      "--wg-fs-pill":    "10.5pt",
-      "--wg-fs-label":   "9pt",
-      "--wg-fs-body":    "9.5pt",
-      "--wg-fs-caption": "8.7pt"
+      "--wg-fs-title":     "20pt",
+      "--wg-fs-directive": "11pt",
+      "--wg-fs-heading":   "12pt",
+      "--wg-fs-pill":      "10.5pt",
+      "--wg-fs-sub":       "10pt",
+      "--wg-fs-body":      "9.5pt",
+      "--wg-fs-body-sm":   "9.3pt",
+      "--wg-fs-label":     "9pt",
+      "--wg-fs-caption":   "8.7pt",
+      "--wg-fs-fine":      "8.5pt"
     },
     "spacing": {
       "--wg-space-block":    "3mm",
@@ -36,7 +40,8 @@
     "radius": {
       "--wg-radius-sm": "4px",
       "--wg-radius-md": "6px",
-      "--wg-radius-lg": "8px"
+      "--wg-radius-lg": "8px",
+      "--wg-radius-xl": "14px"
     },
     "header": {
       "--wg-head-weight": "700",

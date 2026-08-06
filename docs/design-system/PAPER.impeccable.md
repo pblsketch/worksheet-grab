@@ -47,6 +47,13 @@ CSS 조립 순서(`src/usecases/AssembleWorksheet.js` → `buildDocumentHtml`): 
 - 원(`50%`)·알약(`20px`/`12px`)·제목 카드(`14px`)는 "둥근 정도"가 아니라 **형태 자체** — radius 토큰 대상 아님, 무드가 각져도 유지.
 - **금지(paper.css 예외)**: `url()`(외부 자산 인라인) · `.sheet` 셀렉터 수정 · 신규 `float`/`position:absolute|fixed`. 이유는 프린트 안전과 `.sheet` 기하 불변식.
 
+### 6. 헤더밴드 3종 (감사 S5 — 언제 무엇)
+박스/표의 상단 헤더는 아래 3종 중 **의미에 맞게** 고른다(임의 혼용 금지):
+- **옅은 틴트** `background:var(--clite); color:var(--cink)` — **주 섹션 헤더**(학습목표·자료 제시 등 문서의 1차 구획). 차분·저강도.
+- **강채움** `background:var(--cstrip); color:#fff` — **표 머리(thead)**(데이터·루브릭·어휘·메모 등 반복 행의 열 제목). 행과 대비되는 고강도.
+- **라벨** `background:var(--clabel); color:var(--cink)` — **행 라벨/셀 머리**(라벨-값 표·조직자 셀 제목). 중강도.
+- 교사 전용 2차 참조(`.std-ref`)는 어느 것도 아닌 **무채색 헤더**(surface `#f6f6f6` + ink `#555`)로 낮춘다(감사 C1 위계).
+
 ## 새 요소(블록/개체) 추가 절차
 
 1. **닫힌 카탈로그 우선** — 표현하려는 구조가 개체 타입 12종에 맞는지 먼저 본다. 안 맞으면 새 타입을 만들지 말고 `richtext` 탈출구(`sourceType` 기록, 리뷰 대상)로 담는다.

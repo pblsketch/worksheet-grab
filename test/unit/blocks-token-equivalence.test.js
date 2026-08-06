@@ -150,12 +150,15 @@ function collidesWithKnownOverride(token) {
 test('L0-1: blocks.css baseline ↔ 현행 — 선언 개수·순서·값 등가성(리터럴==원본 또는 var(token,원본))', () => {
   const { newTokens } = assertTokenEquivalence(baseline.records, currentRecords);
   // 문서화용 sanity: 지금까지 도입된 토큰은 정확히 이 집합이어야 한다(예기치 않은 신규 토큰 방지).
-  // P1-a 괘선색 + P1-b 모서리 + P1-c 괘선폭 + P1-d 블록 리듬 + P1-e 타이포(--wg-fs-*).
+  // P1-a 괘선색 + P1-b 모서리 + P1-c 괘선폭 + P1-d 블록 리듬 + P1-e 타이포(--wg-fs-*)
+  // + 감사 C2~C6 정제 토큰(강조괘선 --wg-rule-w-emph · radius-xl · fs-sub/body-sm/directive/fine — 전부 fallback=현행 zero-change).
   assert.deepEqual(
     newTokens.slice().sort(),
     [
-      '--wg-fs-body', '--wg-fs-caption', '--wg-fs-heading', '--wg-fs-label', '--wg-fs-pill', '--wg-fs-title',
-      '--wg-radius-lg', '--wg-radius-md', '--wg-radius-sm', '--wg-rule-color', '--wg-rule-w',
+      '--wg-fs-body', '--wg-fs-body-sm', '--wg-fs-caption', '--wg-fs-directive', '--wg-fs-fine',
+      '--wg-fs-heading', '--wg-fs-label', '--wg-fs-pill', '--wg-fs-sub', '--wg-fs-title',
+      '--wg-radius-lg', '--wg-radius-md', '--wg-radius-sm', '--wg-radius-xl',
+      '--wg-rule-color', '--wg-rule-w', '--wg-rule-w-emph',
       '--wg-space-block', '--wg-space-block-sm',
     ],
     `도입 토큰 집합이 예상과 다름(발견: ${JSON.stringify(newTokens.slice().sort())})`
@@ -195,9 +198,9 @@ test('L0-1e: 블록 리듬 토큰(--wg-space-block*)은 정확히 23건, 전부 
   }
 });
 
-test('L0-1f: 타이포 토큰(--wg-fs-*)은 정확히 62건, 전부 font-size 속성', () => {
+test('L0-1f: 타이포 토큰(--wg-fs-*)은 정확히 74건, 전부 font-size 속성', () => {
   const replaced = currentRecords.filter((r) => /var\(\s*--wg-fs-/.test(r.value));
-  assert.equal(replaced.length, 62, `var(--wg-fs-*, ...) 를 포함하는 선언은 62건이어야 함(발견: ${replaced.length})`);
+  assert.equal(replaced.length, 74, `var(--wg-fs-*, ...) 를 포함하는 선언은 74건이어야 함(발견: ${replaced.length})`);
   for (const r of replaced) {
     assert.equal(r.prop, 'font-size', `--wg-fs-* 는 font-size 에만 등장해야 함(발견: prop="${r.prop}" selector="${r.selector}")`);
   }
