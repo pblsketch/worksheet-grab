@@ -15,6 +15,19 @@ model: opus
 - 성취기준 → 활동 → 문항의 **정합성**을 유지한다. 각 활동이 어떤 성취기준을 어떻게 달성하는지 한 줄로 연결한다.
 - 지학사 PBL 자료집의 흐름(도입 지시문 → 활동 표 → 자료/지문 → 문항 → 토의/성찰 → 점검표)을 참고 리듬으로 삼되 교과에 맞게 조정한다.
 - 교과 테마(색)를 아웃라인 메타에 지정한다. `worksheet-plan` 스킬의 블록 카탈로그를 근거로 삼는다.
+- **무드 자동 선택(디자인 축, P4 — 이름만)**: 교사의 자연어 목적(`lessonIntent`·`activityDirection`·
+  주제·차시, brief 가 있으면 그 필드들)에서 **닫힌 5무드 중 하나의 이름만** 고른다. 무드는 교과색
+  (`theme`)과 **직교하는 디자인 축**(타이포·간격·모서리·헤더 모티프)이며, **AI 는 이름만 고른다 —
+  CSS·좌표·디자인 토큰(`--wg-*`)을 절대 저작하지 않는다**(themeName 과 동일한 규율: 렌더러가
+  `themes/moods/{mood}.css` 를 로드한다). 닫힌 목록(단일 진실 원천 = `themes/moods/*.css` / 서버
+  `listMoods()`)과 용도 매핑:
+  - `calm` 차분한 기본 — 일반 수업 · `exam` 시험지형 — 시험·평가 · `wide` 넓은 필기 — 서술·탐구 ·
+    `angular` 각진 실무 — 발표·실무 · `soft` 둥근 파스텔 — 저학년·활동.
+  - 목적이 평범하거나 무드 근거가 약하면 **무드를 비운다**(선택 안 함 = 현행 무드 없음, 무회귀 —
+    억지로 고르지 않는다).
+  - 목록 밖 이름·직접 CSS·색/좌표 저작은 금지다(렌더가 미지 무드를 fail-closed 로 차단 — 400).
+  - 고른 이름과 **선택 근거**(왜 이 목적에 이 무드인가, 한 줄)를 각각 `mood`·`moodRationale` 에 남긴다
+    (검수 대상). 무드는 이후 designer 가 `document.mood` **단일 필드**로만 옮긴다(2차 원천 금지).
 - **학습목표 저작**: 활동지 상단에는 성취기준 원문을 그대로 걸지 않는다
   — 조회된 성취기준을 **해당 차시 수업에 맞게 구체화한 학습목표 2~3개**(`"~을 설명할 수 있다"`류 문장)로
   저작해 `02_outline.json.objectives[]`에 담는다. 성취기준 **원문** 자체는 여전히 조회 전용(창작·변형
@@ -34,10 +47,12 @@ model: opus
 ## 입력 / 출력 프로토콜
 - **입력**: `_workspace/01_curriculum_standards.json` + 주제·차시·학년 + `_workspace/00_brief.json`(**optional** — Phase 1.5 협의 산출물, 읽기 전용. **없으면 오늘과 동일하게 동작**).
 - **출력**: `_workspace/02_outline.json`
-  - `{ subject, theme, standards[], objectives[], blocks: [{type, purpose, questionType?, teacherAnswerPlan}], notes }`
+  - `{ subject, theme, mood?, moodRationale?, standards[], objectives[], blocks: [{type, purpose, questionType?, teacherAnswerPlan}], notes }`
     — `type`은 카탈로그 10종 중 하나, `questionType`은 `type==='question'`일 때만 qtype 7종 중 하나(그
     외 타입은 생략). `objectives[]`는 위 "학습목표 저작" 절에서 만든 문장 배열(2~3개 권장) —
-    `worksheet-designer`가 이를 그대로 `std-box.objectives`에 옮긴다.
+    `worksheet-designer`가 이를 그대로 `std-box.objectives`에 옮긴다. `mood`(선택 — 위 "무드 자동
+    선택" 절의 닫힌 5무드 이름 중 하나, 또는 생략)와 `moodRationale`(선택 근거 한 줄)은 designer 가
+    `document.mood` 단일 필드로 옮긴다.
 
 ## 00_brief.json 소비 규약 (있을 때만, 스키마: worksheet-consult/references/brief-schema.md)
 - **매핑**: `lessonIntent`/`assessmentEvidence`/`misconceptions` → 활동·문항 정합(각 블록 purpose 에 반영), `thinkingRoutine.blockSequence` → 블록 순서 시드, `inquiryLadder`(사실적/개념적/논쟁적) → 문항 사다리 블록, `udlAdjustments` → 대안 표현/참여 블록(쓰기 대신 분류·선택·그리기 답란 등), `activityDirection.chosenArchetype` → 구조 선택, `unresolved` 항목 → 잠정 처리하고 notes 에 표시.

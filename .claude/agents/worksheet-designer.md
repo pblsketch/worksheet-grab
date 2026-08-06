@@ -74,8 +74,13 @@ HTML을 직접 저작하지 않는다 — HTML 문자열 생성·paper-css 조�
 - **출력**:
   - `_workspace/03_worksheet.json` — 개체 트리 문서(`{pagination:'scaffold', pages:[{id,flow,float}]}`,
     개체 트리 스키마 준수). 문서 메타(`docTitle`·`subject`·`dataSubject`·
-    `themeName`·`lang` 등)는 최상위에 함께 싣는다(`themeName`은 `references/themes.md`의 교과 테마
+    `themeName`·`mood`·`lang` 등)는 최상위에 함께 싣는다(`themeName`은 `references/themes.md`의 교과 테마
     이름 — CSS 변수는 디자이너가 작성하지 않고 렌더러가 `themes/${themeName}.css`를 로드한다).
+    - **무드(디자인 축, P4)**: `worksheet-planner`가 아웃라인에 고른 `mood`(닫힌 5무드 이름 —
+      `calm`·`exam`·`wide`·`angular`·`soft` 중 하나)가 있으면 그 **이름만** `document.mood` **단일
+      필드**로 옮긴다(themeName 과 동일 규율 — CSS·좌표·`--wg-*` 토큰 미저작, 렌더러가
+      `themes/moods/{mood}.css` 로드). 아웃라인에 `mood`가 없으면 `document.mood`를 **싣지 않는다**
+      (무드 없음 = 현행 산출, 무회귀). 목록 밖 이름은 절대 만들지 않는다(렌더가 fail-closed 로 차단).
   - `_workspace/03_manifest.json` — 사용한 개체 타입 집계·`richtext` 탈출구 사용 목록(신규 표현 후보,
     리뷰 대상)·KaTeX/웹폰트 필요 플래그.
 

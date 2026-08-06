@@ -54,9 +54,14 @@ worksheet-consult 협의 단계의 산출물. **전 필드 optional** — 파일
   "pblContext":     { "drivingQuestion": "", "sessionFlow": [], "processEvidence": [] },
   "rubric":         { "criteria": [], "note": "태도 중심 기준 금지(성취 기반)" },
   "unresolved":     [ "미확정 항목 — planner 는 잠정 처리하고 표시" ],
-  "designTheme":    { "subjectColorHint": "var(--*) 토큰만", "notes": "" }
+  "designTheme":    { "subjectColorHint": "var(--*) 토큰만", "moodHint": "calm|exam|wide|angular|soft (선택 힌트 — 이름만)", "notes": "" }
 }
 ```
+
+> `designTheme.moodHint`(P4, optional): 협의에서 활동 성격이 뚜렷하면(예: "중간고사 대비" → `exam`,
+> "저학년 컬러링 활동" → `soft`) 닫힌 5무드 **이름 힌트** 하나를 남길 수 있다. **권위는 planner** 에 있다 —
+> planner 가 목적 전체를 보고 최종 `mood`(+`moodRationale`)를 정한다(consult 는 힌트만, brief 는
+> write-once). CSS·토큰은 어디에도 쓰지 않는다(이름만).
 
 ## 소비 규약
 
