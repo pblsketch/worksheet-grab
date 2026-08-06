@@ -6,7 +6,8 @@
 > 최종 검증: unit 966 · L0 11 · 무드게이트(pack/object-tree/editor-lifecycle/route) · browser-purity 4 ·
 > 무드렌더(exam 밑줄헤더 실 Chrome) · 전체 렌더 스위트 fail 0(D14 paste todo 기존·무관) 그린 (2026-08-05).
 > P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`/`cb7ab26` · P2-b3-server `22ca4b0`/`aaec9b5`
-> · P2-b3-client `596996a`/`114307d` · P2-c-1 `a0764be`. **무드 축(값 세트 P2-a~b3 + 레이아웃 변형 P2-c-1) 동작.**
+> · P2-b3-client `596996a`/`114307d` · P2-c-1 `a0764be` · P2-c-2 `622f930`(무드 볼드 재설계) ·
+> `bd640be`(마이그레이션/렌더 회귀 2건 교정 — 무드 밖). **무드 축(값 세트 + 레이아웃 변형 3무드) 동작.**
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
@@ -65,6 +66,8 @@ worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 �
 | `596996a` | P2-b3-client 편집기 무드 UI — `editor.js changeMood`(=changePaper 미러: dirty→save→POST /mood→리플로우+reload) + 인스펙터 무드 드롭다운(insp-mood, '기본(무드 없음)'=해제) + `wgReflowAfterReload` 일반화. browser-purity + 전체 렌더 fail 0. 무드 축 end-to-end 완성 |
 | `114307d` | P2-b3-client 커밋 해시 문서 반영 · 무드 축 완결 |
 | `a0764be` | P2-c-1 무드 레이아웃 변형 — 무드 파일이 `:root{⊆13토큰}` 뒤 레이아웃 오버라이드 규칙 허용(활성 시만 로드=무회귀). fail-closed 가드(`.sheet/.answer/크롬/float`·position·url() 금지)+자기검증. 첫 변형=exam 밑줄 헤더 5종. `mood.render.test.js`(실 Chrome PDF) + 전체 렌더 fail 0. 편집==인쇄는 reflow 가 무드 `<style>` 이식으로 자동 성립 |
+| `622f930` | P2-c-2 세 무드 과감 재설계(피드백 "무드 구분 약함") — 토큰 크게 벌림 + 헤더 변형 무드별 상이(exam=밑줄/soft=큰 둥근 밴드/angular=좌측 강조바). `mood.render.test.js` exam/soft/angular 3종. blocks.css 무변경 |
+| `bd640be` | fix(migrate,render) 무드 밖 렌더 회귀 2건 — ①복합 header(학년/반/이름·단원 줄) title 병합→richtext 무손실 보존(제목에 부가필드 흡수 방지) ②subq/section-heading(level 2) title-box→`<h2 class="sec">` 작은 섹션헤딩. acceptance 페이지수 불변·parity·개체트리 스키마 무변경 |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.
