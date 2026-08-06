@@ -52,6 +52,11 @@
    아니다 — .answer 처럼 학생용에서 물리 제거하지 않고 CSS 표시 제어(data-mode)만으로 숨긴다. */
 .std-ref { display: none; }
 [data-mode="teacher"] .std-ref { display: block; }
+/* 정보 위계(감사 C1/S6): 근거 성취기준(교사 전용·2차 참조)은 학습목표(1차)보다 조용하게 —
+   색 헤더밴드는 학습목표에만 남기고, 근거박스는 무채색 헤더 + 옅은 테두리로 "참조용" 성격을 드러낸다.
+   surface/ink allowlist 색만 사용 · 기하 불변(테두리 색만 교체) → 편집==인쇄·페이지네이션 무영향. */
+.std-ref { border-color: #e2e5ea; }
+.std-ref .std-head { background: #f6f6f6; color: #555; font-weight: 600; }
 
 /* ---- B′ 저작 시맨틱 서식(code/pre/dl·dt·dd) — htmlAllowlist 확장분과 정합 ----
  * AI 가 richtext/callout/지문 본문(자유 HTML 5위치)에 저작하는 깨끗한 시맨틱 태그. 인쇄본도 쓰는

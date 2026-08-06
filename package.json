@@ -30,7 +30,8 @@
     "test:render": "node --test --test-concurrency=1 \"test/render/**/*.test.js\"",
     "extract": "node tools/extract-blocks.js",
     "design:lint": "node tools/design-lint.mjs",
-    "design:baseline": "node tools/design-lint.mjs --update-baseline"
+    "design:baseline": "node tools/design-lint.mjs --update-baseline",
+    "design:baseline-blocks": "node tools/regen-blocks-baseline.mjs"
   },
   "engines": {
     "node": ">=24"
