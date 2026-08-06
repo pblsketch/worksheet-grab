@@ -4,6 +4,31 @@
 > `PLAN.md`(RALPLAN 합의) · `02-mood-pack.md`(무드 축 P2 전 단계) 참조.
 > 대상: `E:/github/worksheet-grab` (K-12 활동지 엔진, Clean Arch, Node≥24, HTML/CSS+Chrome print, 의존성0·빌드0).
 
+## 새 세션 시작 프롬프트 (복붙용)
+```
+worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화" P3·P4를 /ultragoal 로 이어서 한다.
+먼저 docs/design-diversification/03-P3-P4-handoff.md 를 정독하라(PLAN.md·02-mood-pack.md 는 배경).
+
+- 현재: 무드 축(P2-a~P2-c-7) 완료·origin/main 푸시(머지 a0bd13f). 5무드 서랍 + 레이아웃 변형 동작.
+- /ultragoal 목표 2개 등록:
+  · P3 페이지별 방향 혼합(복합 세트): 단일 방향(3a)은 이미 end-to-end 동작(착수 시 재확인만) → 3b가
+    핵심·최고위험. 순서 = 스파이크(측정)→데이터모델(페이지 메타 optional)→렌더(named @page·페이지별
+    .sheet 치수)→페이지네이션. flow 전용 초판(교사 float 개체 페이지 제외). 새 개체 타입 0.
+  · P4 목적→무드 자동선택: worksheet-designer/worksheet-planner 에 "교사 자연어 목적 → 닫힌 5무드
+    (calm/exam/wide/angular/soft) 이름만 선택" 단계. AI 는 이름만 고르고 CSS/좌표/토큰 미저작. 근거 기록.
+- 불변식 절대 준수: 편집==인쇄 · 의존성0·빌드0 · 단일진실원천(applyDocOp/서버 라우트) · fail-closed ·
+  htmlAllowlist·닫힌 개체 카탈로그(14종) 무변경 · AI 좌표(rect) 미생성 · .sheet 기하(float 원점·border 0) 불변.
+- git: add -A/브랜치/reset/clean 금지, 경로 명시 스테이징. 착수 전 git status --porcelain. behind 면
+  머지(리베이스 아님)로 통합 후 테스트. 렌더 --test-concurrency=1, 부하 플래키는 그 파일만 단독 재확인.
+- 무회귀 검증(전부 그린 유지):
+  npm run test:unit
+  node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js
+- 시각 확인(디자인): RenderImage(Chrome --screenshot)→임시 PNG→cokacdir --sendfile 로 사용자 육안 확인
+  (임시 스크립트/이미지 git 스테이징 금지·사용 후 삭제).
+- P3 가 위험·부피 크니 P3 스파이크(측정)부터. 이질 용지 페이지네이션이 편집==인쇄를 깨면 즉시 멈추고
+  사용자와 범위 재협의(PLAN 이 "최고 위험·후속"으로 명시한 지점).
+```
+
 ## 0. 현재 상태 (2026-08-06 기준)
 - **무드 축(P2-a~P2-c-7) 완료·푸시됨.** origin/main 과 동기화(머지 `a0bd13f` = 무드 작업 + 메인테이너 beta 릴리스/CI 정리).
   5무드 서랍(calm/exam/wide/angular/soft) × 레이아웃 변형(헤더·표밀도·섹션헤딩·지시문·callout·표헤더) + 편집기 UI 동작.
