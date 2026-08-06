@@ -1,12 +1,12 @@
-# Handoff — 활동지 디자인 다양화 (P2 무드 축 end-to-end 완성 → 후속)
+# Handoff — 활동지 디자인 다양화 (P2-c-1 무드 레이아웃 변형 완성 → 후속)
 
 > 이 폴더만 읽어도 이어갈 수 있게 자기완결로 정리. 상세는 같은 폴더의 `PLAN.md`,
 > `00-inventory-and-token-spec.md`, `01-baseline-and-regression-gate.md`,
 > `02-mood-pack.md`(P2-a + P2-b 전 단계) 참조.
-> 최종 검증: unit 964 · L0 11 · 무드팩 8 · 개체트리무드 5 · 편집기생명주기 3 · /mood라우트 5 · browser-purity 4 ·
-> L2 렌더 13 · 전체 렌더 스위트 fail 0(D14 paste todo 기존·무관) 그린 (2026-08-05).
+> 최종 검증: unit 966 · L0 11 · 무드게이트(pack/object-tree/editor-lifecycle/route) · browser-purity 4 ·
+> 무드렌더(exam 밑줄헤더 실 Chrome) · 전체 렌더 스위트 fail 0(D14 paste todo 기존·무관) 그린 (2026-08-05).
 > P2-a `4f2b97f`/`2ca275f` · P2-b1 `4ba4de8`/`fd682b3` · P2-b2 `f3f071f`/`cb7ab26` · P2-b3-server `22ca4b0`/`aaec9b5`
-> · P2-b3-client `596996a`. **무드 축(P2-a~P2-b3) 완결.**
+> · P2-b3-client `596996a`/`114307d`. **P2-c-1(레이아웃 변형) 아직 미커밋.**
 
 ## 새 세션 시작 프롬프트 (복붙용)
 ```
@@ -19,12 +19,13 @@ worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 �
   P2-b2: documentRoutes.buildLegacyDocument 가 manifest.mood→document.mood 조건부 carry(비침습) + checkpoint
   왕복 보존(whole-document, JSDoc).
   P2-b3-server: /mood POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→delete) + availableMoods.
-  P2-b3-client: editor.js changeMood(=changePaper 미러: dirty→save→POST /mood→리플로우 플래그+reload) +
-  인스펙터 무드 드롭다운(insp-mood, '기본(무드 없음)'=해제) + wgReflowAfterReload 일반화. 무드 축 end-to-end 완성.
-  게이트: mood-pack(8)·mood-object-tree(5)·mood-editor-lifecycle(3)·mood-route(5) + browser-purity + 전체 렌더 fail 0.
-- 다음(무드 축 밖, 택1): (A) "디자인 방향 서랍" 무드 팩 확장(차분한기본·시험지형·넓은필기·모던) +
-  무드 레이아웃 변형(class 단위·새 개체 타입 없이, PLAN 71행) + (선택)L1 Chrome computed-style 무드 골든 +
-  전용 무드-변경 e2e(테마/용지와 공통). (B) P3 용지 방향 단일화(가로/세로). (C) P5 삽화 무드(별도 PRD).
+  P2-b3-client: editor.js changeMood(=changePaper 미러) + 인스펙터 무드 드롭다운 + wgReflowAfterReload 일반화.
+  P2-c-1(무드 레이아웃 변형): 무드 파일이 :root{13토큰} 뒤 레이아웃 오버라이드 규칙 허용(활성 시만 로드=무회귀),
+  fail-closed 가드(.sheet/.answer/크롬/float·position·url() 금지)+자기검증. 첫 변형=exam 밑줄 헤더 5종.
+  편집==인쇄는 reflow.js 가 teacher <style>(무드 포함) 이식으로 자동 성립. 게이트 mood-pack + mood.render(실 Chrome).
+- 다음(택1): (A) P2-c-2 무드 레이아웃 변형 확장(밑줄헤더를 다른 무드로 / 표 조밀↔여유 / 헤더 밴드 유무.
+  문항 1단↔2단은 paper.columns 충돌로 후순위. 변형마다 무드 렌더 골든). (B) "디자인 방향 서랍" 팩 확장.
+  (C) P3 용지 방향 단일화. (D) P5 삽화 무드(별도 PRD).
 - 불변식 절대 준수: 편집==인쇄 · 의존성0·빌드0 · 단일진실원천(applyDocOp) · fail-closed ·
   htmlAllowlist·닫힌 카탈로그 무변경 · AI 좌표 미생성.
 - git: add -A/브랜치/reset/clean 금지, 경로 명시 스테이징. 착수 전 `git status --porcelain`.
@@ -32,10 +33,11 @@ worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 �
 - 무회귀 검증(전부 그린 유지):
   node --test test/unit/blocks-token-equivalence.test.js test/unit/mood-pack.test.js test/unit/mood-object-tree.test.js test/unit/mood-editor-lifecycle.test.js test/unit/mood-route.test.js
   npm run test:unit
-  node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js
+  node --test --test-concurrency=1 test/render/acceptance.render.test.js test/render/paper.render.test.js test/render/editor-print-parity.render.test.js test/render/mood.render.test.js
   브라우저 배선 변경 시 node --check + browser-purity + 전체 렌더 스위트로 편집기 로드 무결성 확인.
   새 토큰/무드 추가 시 L0-1 sanity 토큰집합 + 축별 카운트 단정 + mood-pack 13토큰 어휘를 갱신할 것.
-다음 단계(A/B/C) 중 하나를 사용자와 정한 뒤 계획을 확인하고 착수하라.
+  무드 레이아웃 변형 추가 시 mood-pack 가드(assertMoodFileSafe) 통과 + 무드 렌더 골든(mood.render) 추가.
+다음 단계(A/B/C/D) 중 하나를 사용자와 정한 뒤 계획을 확인하고 착수하라.
 ```
 
 ## 목표
@@ -61,6 +63,8 @@ worksheet-grab(E:/github/worksheet-grab)의 "활동지 디자인 다양화"를 �
 | `22ca4b0` | P2-b3-server 무드 변경 서버 게이트 — `/mood` POST 라우트(=/theme 동형·listMoods·fail-closed 400·no-op·해제=빈값→delete) + GET /shell.json `availableMoods` 노출 + `test/unit/mood-route.test.js`(5). 클라이언트 리플로우는 b3-client |
 | `aaec9b5` | P2-b3-server 커밋 해시 문서 반영 |
 | `596996a` | P2-b3-client 편집기 무드 UI — `editor.js changeMood`(=changePaper 미러: dirty→save→POST /mood→리플로우+reload) + 인스펙터 무드 드롭다운(insp-mood, '기본(무드 없음)'=해제) + `wgReflowAfterReload` 일반화. browser-purity + 전체 렌더 fail 0. 무드 축 end-to-end 완성 |
+| `114307d` | P2-b3-client 커밋 해시 문서 반영 · 무드 축 완결 |
+| **미커밋** | **P2-c-1 무드 레이아웃 변형 — 무드 파일이 `:root{⊆13토큰}` 뒤 레이아웃 오버라이드 규칙 허용(활성 시만 로드=무회귀). fail-closed 가드(`.sheet/.answer/크롬/float`·position·url() 금지)+자기검증. 첫 변형=exam 밑줄 헤더 5종. `mood.render.test.js`(실 Chrome PDF) + 전체 렌더 fail 0. 편집==인쇄는 reflow 가 무드 `<style>` 이식으로 자동 성립 |
 
 **총 13토큰 · 181곳.** 모든 토큰은 `var(--토큰, 현행리터럴)` 이며 **어디에도 정의하지 않음**
 → 폴백=현행 → 계산값·인쇄 출력 동치(무드 미지정 = 무회귀). 무드 팩(P2)이 이 토큰에 값을 넣는다.

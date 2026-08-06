@@ -1,7 +1,7 @@
 /* 무드: 시험지형(exam) — 격식 있는 시험지 레지스터.
  * 중립 회색 헤어라인 · 거의 각진 모서리 · 조밀한 세로 리듬 · 절제된 타이포.
  * 과목색(--c*)과 직교: 여기서는 blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
- * 이 :root 는 AssembleWorksheet 가 theme 레이어 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+ * 이 파일은 AssembleWorksheet/loadRenderAssets 가 theme 레이어 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
  */
 :root {
   --wg-rule-color: #9aa3ad;
@@ -18,3 +18,14 @@
   --wg-fs-body: 9.5pt;
   --wg-fs-caption: 8.5pt;
 }
+
+/* ── 레이아웃 변형(P2-c): 밑줄형 헤더 ──
+ * 색 채운 헤더 밴드를 밑줄로 대체 — 격식 있는 시험지 톤. 밴드 색은 밑줄 색으로 보존한다.
+ * 대상은 교과색 밴드를 쓰는 "구조 색 헤더" 5종뿐 — 의미색 callout(tip/warning/summary)은 밴드를 유지한다.
+ * 무드 레이아웃 가드: 페이지 기하(.sheet=float 원점)·정답안전(.answer/.plot-ans)·크롬(러닝헤더/모드배지)·
+ * float 은 절대 건드리지 않으며, 위치(position 등) 속성·url() 도 쓰지 않는다(mood-pack.test.js 가 강제). */
+.std-box .std-head { background: none; color: var(--cink); border-bottom: 1.4px solid var(--c2); border-radius: 0; padding: 3px 2px 4px; }
+.dash-box .dh { background: none; color: var(--cink); border-bottom: 1.4px solid var(--c2); border-radius: 0; }
+.qbox .lab { background: none; color: var(--cink); border-bottom: 1.4px solid var(--c2); border-radius: 0; }
+.strip .sh { background: none; color: var(--cink); border-bottom: 1.4px solid var(--cstrip); }
+.mapbox .maphead { background: none; color: var(--cink); border-bottom: 1.4px solid var(--c); border-radius: 0; }

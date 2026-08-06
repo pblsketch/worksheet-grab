@@ -128,9 +128,31 @@ AI 좌표 미생성(무드는 엔진 방출 토큰값 세트일 뿐).
 전 구간 fail-closed·닫힌 카탈로그·무드 미지정 바이트 무회귀. 게이트 5종:
 `mood-pack`(8)·`mood-object-tree`(5)·`mood-editor-lifecycle`(3)·`mood-route`(5) + L0(11)·browser-purity·전체 렌더.
 
+## P2-c — 무드 레이아웃 변형 (PLAN 71행의 "② 렌더계층 레이아웃 변형")
+무드 = ① 토큰 값 세트(P2-a~b3) + **② 소수의 렌더계층 레이아웃 변형**. PLAN/Architect 반론이 "다양성의
+진짜 원천"으로 지목한 축. 새 개체 타입 없이(닫힌 카탈로그 무변경) 무드 파일의 CSS 규칙으로만 실현.
+
+- **P2-c-1 — ✅ 완료(메커니즘 + 첫 변형: exam 밑줄 헤더)**:
+  - 무드 파일이 `:root{⊆13토큰}`(블록1) **뒤에 레이아웃 오버라이드 규칙**을 가질 수 있게 확장. 규칙은
+    전역이지만 **해당 무드가 활성일 때만 로드**되므로 무드 미지정 문서는 무변경(byte무회귀 유지).
+  - **편집==인쇄 자동 성립**: `reflow.js` 가 측정 시 teacher iframe 의 `<style>`(= `loadRenderAssets` 로
+    무드 포함)을 그대로 이식한다 → 편집 측정도 무드 레이아웃을 본다. 무드 변경 시 `changeMood` 의 리플로우가
+    새 무드로 재측정. (토큰 무드도 같은 이유로 parity 성립 — 사후 확인.)
+  - **fail-closed 가드**(`mood-pack.test.js` `assertMoodFileSafe`): 레이아웃 규칙은 `.sheet`(float 원점)·
+    `.answer/.plot-ans`(정답안전)·`.mode-badge/.run-head/.run-foot`(크롬)·`.wg-float`·`@`·`*`·중복 `:root` 를
+    **절대 못 건드리고**, `position/inset/top/right/bottom/left/z-index/float/content` 속성·`url()` 도 금지.
+    자기검증(변이)로 매 실행 검출력 증명.
+  - **첫 변형**: `exam`(시험지형) → **밑줄형 헤더** — 교과색 밴드를 쓰는 구조 색 헤더 5종(`.std-head`,
+    `.dash-box .dh`, `.qbox .lab`, `.strip .sh`, `.mapbox .maphead`)을 밑줄로 대체(밴드 색은 밑줄 색으로 보존).
+    의미색 callout(tip/warning/summary)은 밴드 유지.
+  - 게이트: `mood-pack`(가드 재설계+자기검증+메커니즘 단정) + `test/render/mood.render.test.js`(exam 무드
+    문서가 실 Chrome 에서 유효 PDF 로 렌더 — 레이아웃 변형이 인쇄를 안 깸) + 전체 렌더 스위트 fail 0.
+- **다음(P2-c-2+)**: 밑줄 헤더를 soft/angular 등 다른 무드로 확장하거나 다른 변형(표 조밀↔여유, 헤더 밴드
+  유/무) 추가. 문항 1단↔2단은 `paper.columns` 와 겹쳐 충돌 소지 → 후순위. 변형마다 무드 렌더 골든 추가.
+
 ## 다음 (무드 축 밖)
-- "디자인 방향 서랍" 정식 무드 팩 확장(차분한기본·시험지형·넓은필기·모던) + **무드 레이아웃 변형**(class 단위,
-  새 개체 타입 없이 — PLAN 71행) + (선택) L1 Chrome computed-style 무드 골든 + 전용 무드-변경 e2e(테마/용지와 공통 개선).
+- "디자인 방향 서랍" 정식 무드 팩 확장(차분한기본·시험지형·넓은필기·모던) + (선택) L1 Chrome
+  computed-style 무드 골든 + 전용 무드-변경 e2e(테마/용지와 공통 개선).
 - 무드 삽화 통로(P5, 별도 PRD) · 용지 방향 단일화(P3, PLAN 참조).
 - 이어서 "디자인 방향 서랍" 정식 팩 확장(차분한기본·시험지형·넓은필기·모던) + 무드별 골든(선택적으로 L1
   Chrome computed-style 무드 골든 추가) + **무드 레이아웃 변형**(class 단위, 새 개체 타입 없이 — PLAN 71행).

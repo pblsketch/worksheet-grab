@@ -72,34 +72,81 @@ test('무드팩: themes/moods/ 에 최소 2종 무드 CSS 가 존재하고 exam/
   }
 });
 
-for (const file of MOOD_FILES) {
-  test(`무드팩: ${file} — :root 단일 블록 + 선언은 닫힌 13토큰(--wg-*) 부분집합만`, () => {
-    const css = readFileSync(resolve(MOODS_DIR, file), 'utf8');
-    const { blocks, remainder } = parseCssBlocks(css);
+// 무드 레이아웃 변형(P2-c): 무드 파일은 :root 토큰 블록(블록1) 뒤에 "레이아웃 오버라이드 규칙"을
+// 가질 수 있다(예: 시험지형 밑줄 헤더). 규칙은 전역이지만 해당 무드가 활성일 때만 로드된다.
+// 단 fail-closed 가드로 페이지 기하(.sheet=float 원점)·정답안전(.answer/.plot-ans)·크롬(러닝헤더/모드
+// 배지)·float 은 절대 못 건드리고, 위치(position 등) 속성·url() 도 금지한다(불변식 보호).
+const LAYOUT_FORBIDDEN_SELECTOR = /\.(sheet|answer|plot-ans|mode-badge|run-head|run-foot|wg-float)\b|[@*]|:root/;
+const LAYOUT_FORBIDDEN_PROP = new Set(['position', 'z-index', 'float', 'content', 'inset', 'top', 'right', 'bottom', 'left']);
 
-    // (a) 규칙 블록은 정확히 1개, 셀렉터는 :root, 블록 밖 잔여물 없음(theme-purity 와 같은 형태 계약).
-    assert.equal(blocks.length, 1, `${file}: 규칙 블록은 정확히 1개여야 한다(발견 ${blocks.length})`);
-    assert.equal(blocks[0].selector, ':root', `${file}: 유일 블록 셀렉터는 :root 여야 한다`);
-    assert.equal(remainder, '', `${file}: :root 블록 밖에 다른 규칙이 있으면 안 된다`);
-
-    // (b) 모든 선언은 --변수 이며 닫힌 13토큰 어휘 안에 있다(비-변수 선언·미지 토큰 금지).
-    const props = declProps(blocks[0].body);
-    assert.ok(props.length >= 1, `${file}: 최소 1개 토큰을 정의해야 한다`);
-    for (const p of props) {
-      assert.ok(!p.startsWith('__NONVAR__'), `${file}: 무드는 커스텀 프로퍼티(--*)만 선언한다(발견: ${p})`);
-      assert.ok(MOOD_TOKEN_SET.has(p), `${file}: 무드 토큰 "${p}" 이 닫힌 13토큰 어휘 밖이다(오타/범위이탈)`);
-    }
-
-    // (c) 중복 선언 금지(같은 토큰 두 번).
-    assert.equal(new Set(props).size, props.length, `${file}: 같은 토큰을 두 번 선언하면 안 된다(발견: ${props.join(', ')})`);
-
-    // (d) 직교 보장 — theme 색토큰(--c*)·개체별 오버라이드 토큰을 절대 건드리지 않는다.
-    for (const p of props) {
-      assert.ok(!FORBIDDEN_EXACT.has(p), `${file}: 무드가 금지 토큰 "${p}"(테마색/개체오버라이드)을 건드리면 안 된다(내용/디자인 직교 위반)`);
-      assert.ok(!FORBIDDEN_PREFIXES.some((pre) => p.startsWith(pre)), `${file}: 무드가 개체별 오버라이드 계열 "${p}" 을 건드리면 안 된다`);
-    }
+function splitDecls(body) {
+  return body.split(';').map((d) => d.trim()).filter(Boolean).map((d) => {
+    const i = d.indexOf(':');
+    return { prop: (i === -1 ? d : d.slice(0, i)).trim().toLowerCase(), value: (i === -1 ? '' : d.slice(i + 1)).trim() };
   });
 }
+
+/** 무드 파일 1개의 정합/안전성을 검증한다(위반 시 Error). 퍼-파일 테스트와 자기검증(변이)이 공유. */
+function assertMoodFileSafe(css, file) {
+  const { blocks, remainder } = parseCssBlocks(css);
+  if (remainder !== '') throw new Error(`${file}: 규칙 블록 밖 텍스트가 있으면 안 된다`);
+  if (blocks.length < 1) throw new Error(`${file}: 최소 :root 블록 1개가 있어야 한다`);
+
+  // 블록1 = :root, 선언 ⊆ 닫힌 13토큰(비변수·미지·중복·금지토큰 차단) — 값 세트 축.
+  if (blocks[0].selector !== ':root') throw new Error(`${file}: 첫 블록은 :root(값 세트) 여야 한다`);
+  const props = declProps(blocks[0].body);
+  if (props.length < 1) throw new Error(`${file}: :root 는 최소 1개 토큰을 정의해야 한다`);
+  for (const p of props) {
+    if (p.startsWith('__NONVAR__')) throw new Error(`${file}: :root 는 커스텀 프로퍼티(--*)만 선언한다(발견: ${p})`);
+    if (!MOOD_TOKEN_SET.has(p)) throw new Error(`${file}: 미지 무드 토큰 "${p}" (닫힌 13토큰 밖)`);
+    if (FORBIDDEN_EXACT.has(p) || FORBIDDEN_PREFIXES.some((pre) => p.startsWith(pre))) {
+      throw new Error(`${file}: 무드가 금지 토큰 "${p}"(테마색/개체오버라이드)을 건드림(직교 위반)`);
+    }
+  }
+  if (new Set(props).size !== props.length) throw new Error(`${file}: :root 에 같은 토큰을 두 번 선언`);
+
+  // 블록2+ = 레이아웃 오버라이드(선택). fail-closed 가드: 금지 선택자/속성/url() 차단.
+  for (let i = 1; i < blocks.length; i++) {
+    const b = blocks[i];
+    if (LAYOUT_FORBIDDEN_SELECTOR.test(b.selector)) {
+      throw new Error(`${file}: 레이아웃 규칙이 금지 선택자를 건드림(페이지 기하/정답안전/크롬/float 불가): "${b.selector}"`);
+    }
+    for (const d of splitDecls(b.body)) {
+      if (LAYOUT_FORBIDDEN_PROP.has(d.prop)) {
+        throw new Error(`${file}: 레이아웃 규칙 금지 속성 "${d.prop}"("${b.selector}") — 위치/부동 속성은 페이지 기하를 흔든다`);
+      }
+      if (/url\(/i.test(d.value)) {
+        throw new Error(`${file}: 레이아웃 규칙 값에 url() 금지("${b.selector}" ${d.prop}) — 원격/장식 자산 통로는 별도(P5)`);
+      }
+    }
+  }
+}
+
+for (const file of MOOD_FILES) {
+  test(`무드팩: ${file} — 블록1 :root(⊆13토큰) + (선택)안전한 레이아웃 오버라이드만`, () => {
+    assert.doesNotThrow(() => assertMoodFileSafe(readFileSync(resolve(MOODS_DIR, file), 'utf8'), file));
+  });
+}
+
+test('무드팩 가드 자기검증(변이): 위험한 무드 파일은 반드시 거부된다', () => {
+  const ok = ':root{ --wg-fs-body: 10pt; }\n.std-box .std-head{ background:none; border-bottom:1.4px solid var(--c2); }';
+  assert.doesNotThrow(() => assertMoodFileSafe(ok, 'ok.css'));
+  assert.throws(() => assertMoodFileSafe(':root{--wg-fs-body:10pt;}\n.sheet{border:1px solid red;}', 'x'), /금지 선택자/, '.sheet(float 원점) 차단');
+  assert.throws(() => assertMoodFileSafe(':root{--wg-fs-body:10pt;}\n.answer{display:none;}', 'x'), /금지 선택자/, '.answer(정답안전) 차단');
+  assert.throws(() => assertMoodFileSafe(':root{--wg-fs-body:10pt;}\n.run-head{color:red;}', 'x'), /금지 선택자/, '크롬 차단');
+  assert.throws(() => assertMoodFileSafe(':root{--wg-fs-body:10pt;}\n.std-head{position:absolute;}', 'x'), /금지 속성/, 'position 차단');
+  assert.throws(() => assertMoodFileSafe(':root{--wg-fs-body:10pt;}\n.std-head{background:url(http://x.png);}', 'x'), /url\(\) 금지/, 'url() 차단');
+  assert.throws(() => assertMoodFileSafe(':root{--wg-bogus:1px;}', 'x'), /미지 무드 토큰/, '미지 토큰 차단');
+  assert.throws(() => assertMoodFileSafe(':root{--c:#fff;}', 'x'), /미지 무드 토큰|직교 위반/, '테마색 토큰 차단(13토큰 화이트리스트 밖)');
+});
+
+test('무드팩: exam(시험지형)은 밑줄형 헤더 레이아웃 변형을 포함한다(메커니즘 증명)', () => {
+  const examCss = readFileSync(resolve(MOODS_DIR, 'exam.css'), 'utf8');
+  const { blocks } = parseCssBlocks(examCss);
+  assert.ok(blocks.length > 1, 'exam 은 :root 외 레이아웃 규칙을 가져야 한다(밑줄 헤더)');
+  assert.ok(blocks.some((b) => b.selector.includes('.std-head') && /border-bottom/.test(b.body)),
+    '.std-head 를 밑줄(border-bottom)로 바꾸는 레이아웃 규칙이 있어야 한다');
+});
 
 // ── B. 주입 무회귀(AssembleWorksheet manifest 경로, Chrome 불필요) ──────────
 
