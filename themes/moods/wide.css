@@ -32,3 +32,5 @@ h2.sec { border-bottom: 1.2px solid var(--c2); padding-bottom: 2px; }
 .lv-table td { padding: 8px 12px; }
 .lv-table td.blank { height: 60px; }
 .callout-body { line-height: 1.9; }
+/* 강조상자 헤더: 밑줄 모티프(의미색은 밑줄 색으로 보존)·본문은 넉넉한 행간(위 규칙). */
+.callout .callout-head { background: none; border-bottom: 1.2px solid currentColor; padding: 4px 2px 5px; }

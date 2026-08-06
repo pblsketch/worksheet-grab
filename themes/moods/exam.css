@@ -35,3 +35,7 @@
 
 /* 섹션 헤딩(.sec = 문항 소제목·섹션): 밑줄 모티프로 헤더와 통일. */
 h2.sec { border-bottom: 1.4px solid var(--c2); padding-bottom: 2px; }
+
+/* 강조상자(callout) 헤더도 밑줄 모티프로 — 의미색(tip/warning/summary)은 밑줄 색(currentColor)으로 보존.
+ * .callout .callout-head 로 변형별 규칙(.callout-tip .callout-head 등, 같은 명시도)보다 뒤에서 배경만 덮는다. */
+.callout .callout-head { background: none; border-bottom: 1.4px solid currentColor; padding: 4px 2px 5px; }

@@ -37,3 +37,6 @@
 /* 섹션 헤딩·지시문: 좌측 강조바 모티프로 헤더와 통일. */
 h2.sec { border-left: 4px solid var(--c); padding-left: 10px; }
 .direct { border-left: 4px solid var(--c); padding-left: 12px; }
+
+/* 강조상자(callout) 헤더도 좌측 강조바 모티프로 — 의미색은 강조바 색(currentColor)으로 보존. */
+.callout .callout-head { background: none; border-left: 4px solid currentColor; padding: 4px 0 4px 10px; }
