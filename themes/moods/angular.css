@@ -1,22 +1,31 @@
-/* 무드: 각진 실무형(angular) — 모던하고 또렷한 레지스터(실무·중등 이상).
- * 슬레이트 헤어라인 · 각진 모서리(카드도 0) · 현행 리듬 유지 · 절제된 타이포.
- * "같은 내용, 더 날카로운 틀" — soft/exam 대비 최소 편차로 프레임 성격만 바꾼다.
- * 원형·알약 형태(50%/20px/12px)는 토큰화 대상이 아니므로 무드와 무관하게 형태를 유지한다.
- * 과목색(--c*)과 직교: 여기서는 blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
- * 이 :root 는 AssembleWorksheet 가 theme 레이어 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+/* 무드: 각진 실무형(angular) — 모던하고 또렷한 에디토리얼.
+ * 완전히 각진 0모서리 · 진한 슬레이트 굵은 선 · 절제된 타이포 · 강한 좌측 강조바 헤더.
+ * 원형·알약 형태(50%/20px 등)는 토큰화 대상이 아니라 무드와 무관하게 형태를 유지한다.
+ * 과목색(--c*)과 직교: blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
+ * 이 파일은 loadRenderAssets 가 theme 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
  */
 :root {
-  --wg-rule-color: #7b8794;
-  --wg-rule-w: 1px;
+  --wg-rule-color: #4a5568;
+  --wg-rule-w: 1.5px;
   --wg-radius-sm: 0;
   --wg-radius-md: 0;
-  --wg-radius-lg: 2px;
+  --wg-radius-lg: 0;
   --wg-space-block: 3mm;
   --wg-space-block-sm: 2mm;
-  --wg-fs-title: 19pt;
-  --wg-fs-heading: 12pt;
+  --wg-fs-title: 20pt;
+  --wg-fs-heading: 13pt;
   --wg-fs-pill: 10.5pt;
-  --wg-fs-label: 9pt;
-  --wg-fs-body: 9.5pt;
+  --wg-fs-label: 9.5pt;
+  --wg-fs-body: 10pt;
   --wg-fs-caption: 8.7pt;
 }
+
+/* ── 레이아웃 변형: 좌측 강조바 헤더 ──
+ * 색 채운 밴드를 왼쪽 굵은 강조 막대로 대체 — 모던 에디토리얼 톤(밴드 색은 강조바 색으로 보존).
+ * 대상은 교과색 밴드 구조 색 헤더 5종. 의미색 callout(tip/warning/summary)은 밴드 유지.
+ * 무드 레이아웃 가드: .sheet/.answer/크롬/float·위치 속성·url() 미사용(mood-pack.test.js 강제). */
+.std-box .std-head { background: none; color: var(--cink); border-left: 4px solid var(--c); border-radius: 0; padding: 2px 0 2px 12px; }
+.dash-box .dh { background: none; color: var(--cink); border-left: 4px solid var(--c); border-radius: 0; padding: 2px 0 2px 10px; }
+.qbox .lab { background: none; color: var(--cink); border-left: 4px solid var(--c); border-radius: 0; padding: 2px 0 2px 10px; }
+.strip .sh { background: none; color: var(--cink); border-left: 4px solid var(--cstrip); text-align: left; padding: 6px 0 6px 14px; }
+.mapbox .maphead { background: none; color: var(--cink); border-left: 4px solid var(--c); border-radius: 0; padding: 2px 0 2px 10px; }

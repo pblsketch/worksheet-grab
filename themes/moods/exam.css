@@ -1,30 +1,29 @@
-/* 무드: 시험지형(exam) — 격식 있는 시험지 레지스터.
- * 중립 회색 헤어라인 · 거의 각진 모서리 · 조밀한 세로 리듬 · 절제된 타이포.
- * 과목색(--c*)과 직교: 여기서는 blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
- * 이 파일은 AssembleWorksheet/loadRenderAssets 가 theme 레이어 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+/* 무드: 시험지형(exam) — 조밀하고 격식 있는 진짜 시험지.
+ * 작은 타이포 · 빡빡한 세로 리듬 · 각진 0모서리 · 얇은 중립 회색선 · 채움 없는 밑줄 헤더.
+ * 과목색(--c*)과 직교: blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
+ * 이 파일은 loadRenderAssets 가 theme 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
  */
 :root {
-  --wg-rule-color: #9aa3ad;
+  --wg-rule-color: #8a929b;
   --wg-rule-w: 1px;
-  --wg-radius-sm: 2px;
-  --wg-radius-md: 2px;
-  --wg-radius-lg: 3px;
-  --wg-space-block: 2.4mm;
-  --wg-space-block-sm: 1.6mm;
-  --wg-fs-title: 18pt;
-  --wg-fs-heading: 11.5pt;
-  --wg-fs-pill: 10pt;
-  --wg-fs-label: 9pt;
-  --wg-fs-body: 9.5pt;
-  --wg-fs-caption: 8.5pt;
+  --wg-radius-sm: 0;
+  --wg-radius-md: 0;
+  --wg-radius-lg: 0;
+  --wg-space-block: 2mm;
+  --wg-space-block-sm: 1.2mm;
+  --wg-fs-title: 16pt;
+  --wg-fs-heading: 11pt;
+  --wg-fs-pill: 9.5pt;
+  --wg-fs-label: 8.7pt;
+  --wg-fs-body: 9pt;
+  --wg-fs-caption: 8.3pt;
 }
 
-/* ── 레이아웃 변형(P2-c): 밑줄형 헤더 ──
- * 색 채운 헤더 밴드를 밑줄로 대체 — 격식 있는 시험지 톤. 밴드 색은 밑줄 색으로 보존한다.
- * 대상은 교과색 밴드를 쓰는 "구조 색 헤더" 5종뿐 — 의미색 callout(tip/warning/summary)은 밴드를 유지한다.
- * 무드 레이아웃 가드: 페이지 기하(.sheet=float 원점)·정답안전(.answer/.plot-ans)·크롬(러닝헤더/모드배지)·
- * float 은 절대 건드리지 않으며, 위치(position 등) 속성·url() 도 쓰지 않는다(mood-pack.test.js 가 강제). */
-.std-box .std-head { background: none; color: var(--cink); border-bottom: 1.4px solid var(--c2); border-radius: 0; padding: 3px 2px 4px; }
+/* ── 레이아웃 변형: 밑줄형 헤더 ──
+ * 색 채운 밴드를 제거하고 밑줄로 대체 — 격식 있는 시험지 톤(밴드 색은 밑줄 색으로 보존).
+ * 대상은 교과색 밴드 구조 색 헤더 5종. 의미색 callout(tip/warning/summary)은 밴드 유지.
+ * 무드 레이아웃 가드: .sheet/.answer/크롬/float·위치 속성·url() 미사용(mood-pack.test.js 강제). */
+.std-box .std-head { background: none; color: var(--cink); border-bottom: 1.4px solid var(--c2); border-radius: 0; padding: 2px 1px 3px; }
 .dash-box .dh { background: none; color: var(--cink); border-bottom: 1.4px solid var(--c2); border-radius: 0; }
 .qbox .lab { background: none; color: var(--cink); border-bottom: 1.4px solid var(--c2); border-radius: 0; }
 .strip .sh { background: none; color: var(--cink); border-bottom: 1.4px solid var(--cstrip); }

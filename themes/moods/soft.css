@@ -1,20 +1,29 @@
-/* 무드: 둥근 파스텔(soft) — 부드럽고 여유로운 레지스터(저학년·활동 중심).
- * 따뜻한 헤어라인 · 큰 라운드 모서리 · 넉넉한 세로 리듬 · 큼직한 타이포.
- * 과목색(--c*)과 직교: 여기서는 blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
- * 이 :root 는 AssembleWorksheet 가 theme 레이어 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+/* 무드: 둥근 파스텔(soft) — 크고 여유로운 저학년·활동 중심.
+ * 큰 타이포 · 넉넉한 세로 리듬 · 아주 둥근 모서리 · 부드러운 따뜻한 선 · 큼직한 둥근 밴드 헤더.
+ * 과목색(--c*)과 직교: blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
+ * 이 파일은 loadRenderAssets 가 theme 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
  */
 :root {
-  --wg-rule-color: #d8c9b0;
-  --wg-rule-w: 1.2px;
-  --wg-radius-sm: 8px;
-  --wg-radius-md: 12px;
-  --wg-radius-lg: 16px;
-  --wg-space-block: 4mm;
-  --wg-space-block-sm: 3mm;
-  --wg-fs-title: 22pt;
-  --wg-fs-heading: 13pt;
-  --wg-fs-pill: 11pt;
-  --wg-fs-label: 10pt;
-  --wg-fs-body: 10.5pt;
-  --wg-fs-caption: 9pt;
+  --wg-rule-color: #e0b48f;
+  --wg-rule-w: 1.5px;
+  --wg-radius-sm: 10px;
+  --wg-radius-md: 16px;
+  --wg-radius-lg: 22px;
+  --wg-space-block: 6mm;
+  --wg-space-block-sm: 4mm;
+  --wg-fs-title: 24pt;
+  --wg-fs-heading: 15pt;
+  --wg-fs-pill: 12pt;
+  --wg-fs-label: 11pt;
+  --wg-fs-body: 11.5pt;
+  --wg-fs-caption: 9.5pt;
 }
+
+/* ── 레이아웃 변형: 큼직한 둥근 밴드 헤더 ──
+ * 색 채운 밴드(기본)를 유지하되 크게 둥글리고 여백을 키운다 — 부드럽고 친근한 저학년 톤.
+ * 무드 레이아웃 가드: .sheet/.answer/크롬/float·위치 속성·url() 미사용(mood-pack.test.js 강제). */
+.std-box .std-head { border-radius: 12px; padding: 6px 16px; }
+.dash-box .dh { border-radius: 12px; padding: 5px 14px; }
+.qbox .lab { border-radius: 12px; padding: 5px 16px; }
+.strip .sh { border-radius: 14px 14px 0 0; padding: 9px 16px; }
+.mapbox .maphead { border-radius: 12px; padding: 5px 14px; }

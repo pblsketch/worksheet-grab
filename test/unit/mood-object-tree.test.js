@@ -54,7 +54,7 @@ test('개체트리 무드: mood 지정 시 오직 무드 레이어 한 겹만 �
 
   assert.ok(moody.includes(moodLayer), '무드 지정 산출에 정확한 무드 레이어가 있어야 한다');
   assert.equal(moody.replace(moodLayer, ''), base, '무드 주입이 무드 레이어 외의 바이트를 바꾸면 안 된다(무회귀)');
-  assert.match(moody, /--wg-fs-body:\s*9\.5pt/, 'exam 무드의 --wg-fs-body 값이 주입되어야 한다');
+  assert.match(moody, /\.std-box \.std-head\s*\{[^}]*border-bottom/, 'exam 무드의 밑줄 헤더 레이아웃 규칙이 주입되어야 한다');
 });
 
 test('개체트리 무드: 미지 무드는 loadRenderAssets 에서 fail-closed 로 차단', async () => {

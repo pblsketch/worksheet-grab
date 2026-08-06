@@ -187,7 +187,7 @@ test('무드 주입: mood 지정 시 오직 무드 레이어 한 겹만 더해�
   // 그 레이어를 도로 떼어내면 미지정 산출과 완전히 동일해야 한다(무드는 오직 한 겹만 바꾼다).
   assert.equal(moody.replace(moodLayer, ''), base, '무드 주입이 무드 레이어 외의 바이트를 바꾸면 안 된다(무회귀)');
   // 무드 토큰 실측값이 실제로 실렸는지(대표 1개).
-  assert.match(moody, /--wg-fs-body:\s*9\.5pt/, 'exam 무드의 --wg-fs-body 값이 주입되어야 한다');
+  assert.match(moody, /\.std-box \.std-head\s*\{[^}]*border-bottom/, 'exam 무드의 밑줄 헤더 레이아웃 규칙이 주입되어야 한다(값 세트 + 레이아웃 변형 동봉)');
 });
 
 test('무드 주입: 미지 무드는 fail-closed 로 차단(조용한 무시 금지)', async () => {
