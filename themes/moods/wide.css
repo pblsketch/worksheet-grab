@@ -1,0 +1,34 @@
+/* 무드: 넓은 필기(wide) — 학생이 많이 쓰는 서술·탐구 활동용.
+ * 표·칸 높이를 키워 필기 공간을 넉넉히 확보하고 행간을 늘린다. 장식은 절제(밑줄 헤더).
+ * 과목색(--c*)과 직교: blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
+ * 이 파일은 loadRenderAssets 가 theme 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+ */
+:root {
+  --wg-rule-color: #c2c8d0;
+  --wg-rule-w: 1px;
+  --wg-radius-sm: 4px;
+  --wg-radius-md: 6px;
+  --wg-radius-lg: 8px;
+  --wg-space-block: 5mm;
+  --wg-space-block-sm: 3.5mm;
+  --wg-fs-title: 20pt;
+  --wg-fs-heading: 13pt;
+  --wg-fs-pill: 10.5pt;
+  --wg-fs-label: 10pt;
+  --wg-fs-body: 10.5pt;
+  --wg-fs-caption: 9pt;
+}
+
+/* ── 레이아웃 변형: 넓은 필기 공간 ──
+ * 밑줄형 헤더(공간 절약) + 표/칸 높이·행간 확대(서술 공간 확보). 안전 속성·선택자만.
+ * 무드 레이아웃 가드: .sheet/.answer/크롬/float·위치 속성·url() 미사용(mood-pack.test.js 강제). */
+.std-box .std-head { background: none; color: var(--cink); border-bottom: 1.2px solid var(--c2); border-radius: 0; }
+.dash-box .dh { background: none; color: var(--cink); border-bottom: 1.2px solid var(--c2); border-radius: 0; }
+.qbox .lab { background: none; color: var(--cink); border-bottom: 1.2px solid var(--c2); border-radius: 0; }
+.strip .sh { background: none; color: var(--cink); border-bottom: 1.2px solid var(--cstrip); }
+.mapbox .maphead { background: none; color: var(--cink); border-bottom: 1.2px solid var(--c); border-radius: 0; }
+h2.sec { border-bottom: 1.2px solid var(--c2); padding-bottom: 2px; }
+.obj-table th, .obj-table td { padding: 7px 12px; min-height: 44px; line-height: 1.9; }
+.lv-table td { padding: 8px 12px; }
+.lv-table td.blank { height: 60px; }
+.callout-body { line-height: 1.9; }

@@ -67,7 +67,7 @@ const MOOD_FILES = existsSync(MOODS_DIR)
 
 test('무드팩: themes/moods/ 에 최소 2종 무드 CSS 가 존재하고 exam/soft/angular 를 포함', () => {
   assert.ok(MOOD_FILES.length >= 2, `무드 CSS 2종 이상 필요(발견: ${MOOD_FILES.join(', ') || '없음'})`);
-  for (const expected of ['exam.css', 'soft.css', 'angular.css']) {
+  for (const expected of ['exam.css', 'soft.css', 'angular.css', 'wide.css', 'calm.css']) {
     assert.ok(MOOD_FILES.includes(expected), `${expected} 이 themes/moods/ 에 있어야 함(발견: ${MOOD_FILES.join(', ')})`);
   }
 });

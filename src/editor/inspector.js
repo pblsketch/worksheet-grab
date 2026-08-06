@@ -67,7 +67,7 @@ export function createInspector({ root, onPaperChange, onPatchObject, onToggleFl
   // 교과 테마 → 사용자용 한국어 라벨(색상 힌트 포함). themes/*.css 파일명이 곧 themeName 이다.
   const THEME_LABELS = Object.freeze({ ko: '국어 (초록)', sci: '과학 (청록)', social: '사회 (주황)', english: '영어 (남색)' });
   // 무드(디자인 레지스터) → 사용자용 한국어 라벨. themes/moods/*.css 파일명이 곧 무드 이름이다.
-  const MOOD_LABELS = Object.freeze({ exam: '시험지형', soft: '둥근 파스텔', angular: '각진 실무형' });
+  const MOOD_LABELS = Object.freeze({ exam: '시험지형', soft: '둥근 파스텔', angular: '각진 실무형', wide: '넓은 필기', calm: '차분한 기본' });
 
   // ── 선택 없음: 문서 설정 + 검수 상세 ──
   function renderDocument(paper, findings, themeName, themes, moodName, moods) {

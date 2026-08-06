@@ -1,0 +1,31 @@
+/* 무드: 차분한 기본(calm) — 일반 수업용 차분하고 정돈된 톤.
+ * 은은한 블루그레이 괘선 · 부드럽게 둥근 밴드 · 편안한 리듬 · 절제된 타이포.
+ * 과목색(--c*)과 직교: blocks.css 가 소비하는 디자인 토큰(--wg-*)만 덮는다.
+ * 이 파일은 loadRenderAssets 가 theme 뒤에 한 겹 주입할 때만 로드된다(무드 미지정=미주입).
+ */
+:root {
+  --wg-rule-color: #aab4c2;
+  --wg-rule-w: 1px;
+  --wg-radius-sm: 5px;
+  --wg-radius-md: 7px;
+  --wg-radius-lg: 10px;
+  --wg-space-block: 3.4mm;
+  --wg-space-block-sm: 2.4mm;
+  --wg-fs-title: 19pt;
+  --wg-fs-heading: 12.5pt;
+  --wg-fs-pill: 10.5pt;
+  --wg-fs-label: 9.2pt;
+  --wg-fs-body: 9.8pt;
+  --wg-fs-caption: 8.7pt;
+}
+
+/* ── 레이아웃 변형: 부드러운 밴드(차분) ──
+ * 색 밴드 헤더를 유지하되 은은하게 둥글리고, 섹션 헤딩엔 가는 블루그레이 좌측 accent 로 정돈한다.
+ * 무드 레이아웃 가드: .sheet/.answer/크롬/float·위치 속성·url() 미사용(mood-pack.test.js 강제). */
+.std-box .std-head { border-radius: 6px; }
+.dash-box .dh { border-radius: 6px; }
+.qbox .lab { border-radius: 6px; }
+.strip .sh { border-radius: 6px 6px 0 0; }
+.mapbox .maphead { border-radius: 6px; }
+h2.sec { border-left: 3px solid var(--c2); padding-left: 9px; }
+.obj-table th, .obj-table td { padding: 6px 10px; }

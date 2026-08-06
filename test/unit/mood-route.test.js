@@ -36,7 +36,10 @@ test('P2-b3 서버: GET /shell.json 이 availableMoods(닫힌 카탈로그)를 �
   const { server, url } = await startServer();
   try {
     const shell = await (await fetch(`${url}/shell.json`)).json();
-    assert.deepEqual([...shell.availableMoods].sort(), ['angular', 'exam', 'soft'], 'themes/moods/*.css 단일 원천 노출');
+    // themes/moods/*.css 단일 원천 노출 — 무드 팩 확장에 견고하도록 정확집합이 아니라 포함으로 검사.
+    for (const m of ['exam', 'soft', 'angular', 'wide', 'calm']) {
+      assert.ok(shell.availableMoods.includes(m), `availableMoods 에 '${m}' 노출(발견: ${shell.availableMoods.join(', ')})`);
+    }
     assert.ok(!('mood' in (await getDoc(url))), '초기(무드 미지정) 문서에는 mood 필드가 없다');
   } finally {
     await new Promise((r) => server.close(r));

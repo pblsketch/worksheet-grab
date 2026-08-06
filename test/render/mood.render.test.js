@@ -26,6 +26,8 @@ const VARIANTS = [
   { mood: 'exam', label: '밑줄 헤더', headSig: /\.std-box \.std-head\s*\{[^}]*border-bottom/ },
   { mood: 'soft', label: '둥근 밴드 헤더', headSig: /\.std-box \.std-head\s*\{[^}]*border-radius/ },
   { mood: 'angular', label: '좌측 강조바 헤더', headSig: /\.std-box \.std-head\s*\{[^}]*border-left/ },
+  { mood: 'wide', label: '넓은 필기(밑줄 헤더)', headSig: /\.std-box \.std-head\s*\{[^}]*border-bottom/ },
+  { mood: 'calm', label: '차분한 기본(둥근 밴드)', headSig: /\.std-box \.std-head\s*\{[^}]*border-radius/ },
 ];
 
 /** AssembleWorksheet#resolveStandards 와 동형(호출부 자산 호이스팅 — RenderObjectTree 는 순수 함수). */
