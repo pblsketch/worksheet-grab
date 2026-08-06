@@ -33,3 +33,7 @@
 /* 표 밀도: 크리스프(중간) — 굵은 슬레이트 괘선과 어울리는 또렷한 데이터 표(안전 속성 padding 만). */
 .obj-table th, .obj-table td { padding: 4px 10px; }
 .lv-table td { padding: 5px 10px; }
+
+/* 섹션 헤딩·지시문: 좌측 강조바 모티프로 헤더와 통일. */
+h2.sec { border-left: 4px solid var(--c); padding-left: 10px; }
+.direct { border-left: 4px solid var(--c); padding-left: 12px; }

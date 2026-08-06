@@ -31,3 +31,7 @@
 /* 표 밀도: 여유 — 셀 여백·행 높이를 키워 넉넉하고 부드럽게(안전 속성 padding/min-height 만). */
 .obj-table th, .obj-table td { padding: 9px 14px; min-height: 32px; }
 .lv-table td { padding: 10px 15px; }
+
+/* 섹션 헤딩·지시문: 둥근 밴드 모티프로 헤더와 통일. */
+h2.sec { background: var(--clite); color: var(--cink); border-radius: 10px; padding: 5px 14px; }
+.direct { background: var(--clite); border-radius: 12px; padding: 7px 14px; }
