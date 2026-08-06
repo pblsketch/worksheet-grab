@@ -1,7 +1,7 @@
 {
   "name": "worksheet-grab",
-  "version": "0.6.0-M6",
-  "description": "한국 K-12 교사용 활동지 제작 코어 엔진 (Clean Architecture / Ports & Adapters). 범교과(국어·과학·사회·영어) 생성·대화형 편집·검수 게이트·PDF/PNG 내보내기. API 키 없이 사용자 구독 AI가 콘텐츠를 저작하고, HTML/CSS + Chrome print-to-pdf로 인쇄 진실원천을 만든다.",
+  "version": "0.6.0-beta.1",
+  "description": "한국 초·중·고 교사를 위한 로컬 활동지 생성·편집·검수·내보내기 도구",
   "type": "module",
   "bin": {
     "worksheet-grab": "bin/worksheet-grab.js"
@@ -15,8 +15,14 @@
     "templates/",
     "manifests/",
     "data/",
-    "tools/",
-    "README.md"
+    "schema/",
+    ".claude/skills/",
+    ".claude/agents/",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "README.en.md",
+    "LICENSE"
   ],
   "scripts": {
     "test": "node --test \"test/**/*.test.js\"",
@@ -26,6 +32,14 @@
   },
   "engines": {
     "node": ">=24"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pblsketch/worksheet-grab.git"
+  },
+  "homepage": "https://github.com/pblsketch/worksheet-grab#readme",
+  "bugs": {
+    "url": "https://github.com/pblsketch/worksheet-grab/issues"
   },
   "license": "MIT",
   "private": true

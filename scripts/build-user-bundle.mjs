@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// 제품(교사 배포) 번들 생성 — {엔진(1층) + 제품 하네스(2층)}만 담고 개발(3층)은 제외한다.
+// 제품(교사 배포) 번들 생성 — 엔진과 제품 하네스만 담고 개발 자산은 제외한다.
 // 경계는 아래 INCLUDE 화이트리스트가 강제한다(allowlist = HARD 경계). docs/HARNESS-MAP.md 참조.
 //
 // 사용:  node scripts/build-user-bundle.mjs [출력경로]
@@ -51,19 +51,22 @@ function canonical(p) {
 
 // 1층 엔진 + 2층 제품 하네스
 const INCLUDE = [
-  // 1층 엔진 (package.json 은 아래서 교사용으로 정제 생성; README/tools 는 개발 자산이라 제외)
+  // 실행 엔진 (package.json 은 아래서 교사용으로 정제 생성; README/tools 는 개발 자산이라 제외)
   'bin', 'src', 'assets', 'themes', 'templates', 'data', 'blocks', 'manifests', 'schema',
-  // 2층 제품 하네스
-  '.claude/skills', '.claude/agents', 'AGENTS.md',
+  // 제품 하네스와 라이선스
+  '.claude/skills', '.claude/agents', 'AGENTS.md', 'CLAUDE.md', 'LICENSE',
 ];
 
 // 필수 자산 — 없으면 fail-closed(완성 위장 금지)
-const ESSENTIAL = new Set(['bin', 'src', 'schema', '.claude/skills', '.claude/agents', 'AGENTS.md']);
+const ESSENTIAL = new Set([
+  'bin', 'src', 'schema', '.claude/skills', '.claude/agents',
+  'AGENTS.md', 'CLAUDE.md', 'LICENSE',
+]);
 
 // 선택 포함 — 있으면 담되 없어도 정상(gepai MCP 설정; CSV 폴백이 있어 optional)
 const INCLUDE_OPTIONAL = ['.mcp.json'];
 
-// 3층(개발) — 절대 번들에 들어가면 안 되는 것들. 화이트리스트 밖이라 애초에 안 들어오지만,
+  // 개발 자산 — 절대 번들에 들어가면 안 되는 것들. 화이트리스트 밖이라 애초에 안 들어오지만,
 // 조립 후 자기점검(assertNoDevLayer)으로 이중 방어한다.
 const FORBID_TOP = [
   'docs', 'test', 'scripts', 'README.md', 'tools', 'poc', 'node_modules',
@@ -103,9 +106,6 @@ console.log(`[build-user-bundle] 출력: ${OUT}`);
 for (const rel of ESSENTIAL) {
   if (!existsSync(join(ROOT, rel))) throw new Error(`필수 자산 누락(preflight, fail-closed): ${rel}`);
 }
-const productClaude = join(ROOT, '.claude', 'PRODUCT-CLAUDE.md');
-if (!existsSync(productClaude)) throw new Error('필수 자산 누락(preflight, fail-closed): .claude/PRODUCT-CLAUDE.md');
-
 // 스테이징에 조립·검증한 뒤 성공했을 때만 최종 출력과 교체한다(원자적 — 실패 시 기존 번들 무손상).
 const STAGING = resolve(OUT) + '.staging';
 rmSync(STAGING, { recursive: true, force: true });
@@ -113,7 +113,7 @@ try {
   mkdirSync(STAGING, { recursive: true });
   writeFileSync(join(STAGING, '.wsg-user-bundle'), '이 폴더는 build-user-bundle.mjs 가 생성·관리합니다. 직접 편집 금지.\n');
 
-  console.log('[1층 엔진 + 2층 제품 하네스]');
+  console.log('[실행 엔진 + 제품 하네스]');
   for (const rel of INCLUDE) copy(STAGING, rel);
   for (const rel of INCLUDE_OPTIONAL) copy(STAGING, rel);
 
@@ -125,10 +125,6 @@ try {
   }, null, 2) + '\n');
   console.log('  [+] package.json  (교사용 — 개발 scripts/files/description 제거)');
 
-  // 제품 루트 CLAUDE.md = 교사용 조각(개발 CLAUDE.md 대신)
-  cpSync(productClaude, join(STAGING, 'CLAUDE.md'));
-  console.log('  [+] CLAUDE.md  (<- .claude/PRODUCT-CLAUDE.md)');
-
   assertNoDevLayer(STAGING);
 
   // 검증 통과 — 이제서야 기존 출력을 교체한다(여기 도달 전 실패했으면 기존 번들은 그대로).
@@ -139,4 +135,4 @@ try {
   rmSync(STAGING, { recursive: true, force: true }); // 실패 시 스테이징만 청소(기존 번들 무손상)
   throw e;
 }
-console.log('[done] 개발(3층) 자산 유입 없음 확인 · 사용자 번들 완성');
+console.log('[done] 개발 자산 유입 없음 확인 · 사용자 번들 완성');

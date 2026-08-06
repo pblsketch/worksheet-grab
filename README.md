@@ -16,19 +16,33 @@ Claude Code, Codex CLI 같은 AI 하네스가 교사의 요청을 해석하고, 
 
 > 이 README는 GitHub에서 설치하고 기능을 파악하기 위한 문서입니다. 교사용 배포 번들에서는 `CLAUDE.md`와 `AGENTS.md`가 AI 하네스의 실제 진입 문서입니다.
 
-## 먼저 저장소를 클론하고 교사용 폴더를 만드세요
+## 가장 쉬운 설치: 교사용 베타 ZIP
 
-GitHub 웹페이지만 열어 둔 상태에서는 엔진·스킬·성취기준 데이터를 실행할 수 없습니다. 먼저 저장소를 클론한 뒤, 개발 파일이 빠진 교사용 폴더를 한 번 만드세요.
+1. [Releases](https://github.com/pblsketch/worksheet-grab/releases)에서 최신 **Beta** 릴리스를 엽니다.
+2. 자산 목록에서 `worksheet-grab-user-v0.6.0-beta.1.zip`을 내려받아 압축을 풉니다.
+3. 압축을 푼 폴더를 AI 하네스에서 열거나, 그 폴더에서 다음 명령으로 설치를 확인합니다.
+
+```bash
+node bin/worksheet-grab.js help
+```
+
+이 ZIP에는 실행 엔진, 성취기준 자료, 교사용 AI 스킬만 들어 있으며 테스트와 개발 기록은 포함하지 않습니다.
+
+### 저장소를 클론하는 방법
+
+소스 코드를 확인하거나 수정하려면 저장소를 클론하세요. 현재 저장소 루트의 `CLAUDE.md`와 `AGENTS.md`도 교사용 진입 문서이므로 클론한 상태에서 바로 사용할 수 있습니다.
 
 ```bash
 git clone https://github.com/pblsketch/worksheet-grab worksheet-grab
 cd worksheet-grab
-node scripts/build-user-bundle.mjs dist/worksheet-grab-user
-cd dist/worksheet-grab-user
 node bin/worksheet-grab.js help
 ```
 
-클론한 저장소 루트는 소스 개발 공간이라 `test/`, 개발 문서, 개발용 AI 설정을 포함합니다. 교사는 `dist/worksheet-grab-user`만 AI 하네스에서 여세요. 이 폴더에는 실행 엔진과 교사용 스킬만 들어갑니다. 소스 코드를 고치려는 개발자는 저장소 루트를 그대로 사용하면 됩니다.
+개발 파일이 빠진 폴더가 필요하면 다음 명령으로 교사용 번들을 만들 수 있습니다.
+
+```bash
+node scripts/build-user-bundle.mjs dist/worksheet-grab-user
+```
 
 ## 준비물
 
@@ -38,20 +52,18 @@ node bin/worksheet-grab.js help
    - Antigravity
 2. **Node.js 24 이상**
 3. **Google Chrome** — PDF·PNG 출력 때만 필요
-4. Git
 
 확인:
 
 ```bash
 node --version
-git --version
 ```
 
 별도의 `npm install`이나 빌드 과정은 필요하지 않습니다.
 
 ## 교사용 3분 시작
 
-### 1. 생성한 교사용 폴더를 AI 하네스에서 열기
+### 1. 내려받거나 클론한 폴더를 AI 하네스에서 열기
 
 - Claude Code는 `CLAUDE.md`와 `.claude/skills/`를 읽습니다.
 - Codex CLI와 Antigravity는 `AGENTS.md`를 시작점으로 사용합니다.
@@ -194,6 +206,6 @@ node scripts/build-user-bundle.mjs dist/worksheet-grab-user
 
 ## 라이선스와 영감
 
-MIT License.
+[MIT License](LICENSE).
 
 이 프로젝트는 [slides-grab](https://github.com/NomaDamas/slides-grab)의 계획→디자인→편집→내보내기 흐름과 무API 철학에서 영감을 받았습니다. 활동지는 고정 슬라이드가 아니라 인쇄용 다중 페이지 리플로우 문서이므로 코드를 포크하지 않고 별도 엔진으로 구현했습니다.
