@@ -223,6 +223,11 @@ function buildObjectForEntry(id, srcType, html, entry = {}) {
   }
   switch (srcType) {
     case 'header':
+      // 제목 외 부가 구조(학년·반·이름 필드, 단원 줄)가 있으면 title 로 납작하게 병합하면 그 텍스트가
+      // 전부 title-box h1 로 흡수된다(회귀: "제목 안에 학년 반 이름"). 그런 header 는 title 로 만들지
+      // 않고 null 을 돌려 원본 구조를 richtext 로 무손실 보존한다(2026-08-06). 단순 header(pill+제목만)는
+      // 그대로 title 개체로 승격(buildTitle) — 부가 구조가 없으면 병합 문제가 없다.
+      if (/class="(?:unit-line|namefield)"/.test(html)) return null;
       return buildTitle(id, html, 1);
     case 'section-heading':
     case 'subq':

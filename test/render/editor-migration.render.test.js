@@ -96,7 +96,13 @@ test('마이그레이션 UX 종단: 구 HTML manifest 열기(지연 마이그레
       assert.equal(shellAfter.migrated, false, '이미 개체 트리로 커밋된 문서는 재열기 시 마이그레이션 재실행 없음');
       assert.equal(shellAfter.document.pagination, 'paginated', 'paginated 경계 유지');
       const editedTitle = shellAfter.document.pages[0].flow.find((o) => o.id === 'mig-0-0');
-      assert.equal(editedTitle.text, '편집된 제목(마이그레이션 후)', '편집한 텍스트가 저장·재조회에 왕복');
+      // 편집한 제목 텍스트가 저장·재조회에 왕복. 단순 header(pill+제목만)는 title 개체로 승격되어
+      // .text 에, 학년·반·이름/단원 줄 등 부가 구조가 있는 복합 header 는 원본 구조를 무손실 보존하려
+      // richtext 로 남으므로 .html 에 실린다(2026-08-06: 제목 박스에 부가 필드가 흡수되던 회귀 수정).
+      assert.ok(
+        String(editedTitle.text ?? editedTitle.html ?? '').includes('편집된 제목(마이그레이션 후)'),
+        '편집한 텍스트가 저장·재조회에 왕복(title.text 또는 복합 header→richtext.html)',
+      );
 
       // 무손실 검증: 성취기준 원문(std-box)·나머지 원본 개체들의 텍스트가 전부 살아있다(A1 무손실).
       assert.ok(shellAfter.teacherHtml.includes(standardText), '성취기준 원문이 마이그레이션·편집 후에도 보존');

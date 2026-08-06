@@ -278,18 +278,23 @@ function renderByType(obj, ctx) {
 
 function renderTitle(obj, ctx = {}) {
   const level = obj.level === 2 ? 2 : 1;
-  const tag = level === 1 ? 'h1' : 'h2';
+  // textHtml(인라인 서식 살균 HTML)이 있으면 그대로 방출(richtext.html 관례 — 이스케이프 없음),
+  // 없으면 평문 text 를 이스케이프(하위호환).
+  const titleInner = typeof obj.textHtml === 'string' && obj.textHtml !== '' ? obj.textHtml : escapeHtml(obj.text);
+  // level 2(문항 소제목·섹션 헤딩)는 메인 제목과 같은 title-box 로 그리면 "문항이 제목 양식"으로 보인다
+  // (2026-08-06 회귀 수정). 큰 제목(title-box)과 구분되도록 작은 섹션 헤딩(.sec)으로 방출한다.
+  // subq/section-heading 은 pill/page/source 메타가 없으므로 title-box 크롬은 필요 없다.
+  if (level === 2) {
+    return `<h2 class="sec">${titleInner}</h2>`;
+  }
   const meta = obj.meta || {};
   // 배지·모서리 표기·출처는 인스펙터에서만 고칠 수 있었다(#1b) — 값이 있으면 본문에서도
   // 더블클릭으로 바로 고치도록 편집 좌표(meta.*)를 싣는다. 새로 다는 것은 여전히 인스펙터 몫.
   const pill = meta.pill ? `<span class="pill wg-part"${partAttr(ctx, 'meta.pill')}>${escapeHtml(meta.pill)}</span>\n    ` : '';
   const page = meta.page ? `<span class="corner-ref wg-part"${partAttr(ctx, 'meta.page')}>${escapeHtml(meta.page)}</span>\n    ` : '';
   const source = meta.source ? `\n    <div class="title-src wg-part"${partAttr(ctx, 'meta.source')}>${escapeHtml(meta.source)}</div>` : '';
-  // textHtml(인라인 서식 살균 HTML)이 있으면 그대로 방출(richtext.html 관례 — 이스케이프 없음),
-  // 없으면 평문 text 를 이스케이프(하위호환).
-  const titleInner = typeof obj.textHtml === 'string' && obj.textHtml !== '' ? obj.textHtml : escapeHtml(obj.text);
   return `<div class="title-wrap">
-    ${pill}${page}<div class="title-box"><${tag}>${titleInner}</${tag}></div>${source}
+    ${pill}${page}<div class="title-box"><h1>${titleInner}</h1></div>${source}
   </div>`;
 }
 
