@@ -153,10 +153,11 @@ function buildOrganizerItems() {
   ];
 }
 
-/** ②PaginateObjectTree(Chrome 어댑터 측정) 경로 — 순수 scaffold→paginated. */
-async function computeChromePagination(items, assets, meta) {
+/** ②PaginateObjectTree(Chrome 어댑터 측정) 경로 — 순수 scaffold→paginated.
+ *  scaffoldPages 를 주면 멀티 페이지 scaffold(P3-b 복합 세트 — 페이지별 paper override)를 그대로 쓴다. */
+async function computeChromePagination(items, assets, meta, scaffoldPages = null) {
   const measurer = new ChromePaginationMeasurer({});
-  const scaffold = { pagination: 'scaffold', pages: [{ flow: items, float: [] }] };
+  const scaffold = { pagination: 'scaffold', pages: scaffoldPages ?? [{ flow: items, float: [] }] };
   const { document, pageOfId } = await new PaginateObjectTree({ measurer }).execute(scaffold, assets, meta);
   return { pageOfId, pageCount: document.pages.length, document };
 }
@@ -166,7 +167,7 @@ async function computeChromePagination(items, assets, meta) {
  * (마이그레이션 직후처럼) EditorHttpServer 를 띄워 ?seed=reflow-once 로 편집기 자신의 브라우저
  * paginator(reflow.js) 를 1회 실행·저장하고, /shell.json 재조회로 실제 귀속을 읽어낸다.
  */
-async function computeEditorPagination(items, docName, meta) {
+async function computeEditorPagination(items, docName, meta, scaffoldPages = null) {
   const base = await autoTmpDir('wsg-parity-ws-');
   const workspace = new FsWorkspaceRepository({ baseDir: base });
   const blockRepository = new FsBlockRepository({ root: ROOT });
@@ -180,7 +181,8 @@ async function computeEditorPagination(items, docName, meta) {
     lang: meta.lang || 'ko',
     paper: meta.paper ?? null,
     standards: [],
-    pages: [{ flow: items, float: [] }],
+    // scaffoldPages 를 주면 멀티 페이지(P3-b 복합 세트 — 페이지별 paper override) 그대로 저장한다.
+    pages: scaffoldPages ?? [{ flow: items, float: [] }],
   };
   await saver.checkpoint({ name: docName, document: singlePageDoc, now: new Date('2026-07-23T00:00:00.000Z') });
   const server = createEditorServer({ root: ROOT, docName, workspace, blockRepository, curriculum: null, testSeed: true });
@@ -378,4 +380,40 @@ test('3자 하드 동치 — 그림형 조직자(organizer) 픽스처: 편집기
   const printedPages = await countPrintedPages(editorResult.document, assets, meta, 'parity-organizer');
   assert.equal(printedPages, editorResult.pageCount, '조직자 인쇄 PDF 쪽수 == 편집기 리플로우 쪽수');
   assert.equal(printedPages, chromeResult.pageCount, '조직자 인쇄 PDF 쪽수 == Chrome 페이지네이션 쪽수');
+});
+
+/** P3-b 복합 세트 scaffold pages — 1쪽 세로(문서 기본) + 2쪽 가로(page.paper override, page-break 로 시작). */
+function buildCompositeScaffoldPages() {
+  const p = (id, i) => ({ id, type: 'richtext', placement: 'flow',
+    html: `<p>복합 세트 3자 하드 동치 문단 ${i} — 세로/가로 페이지의 가용 높이가 달라 페이지별 용량이 ` +
+      `편집기 리플로우와 엔진에서 동일하게 반영되는지, 실제 인쇄와도 어긋나지 않는지 검증하는 본문입니다.</p>` });
+  const p0 = [{ id: 'cc-title', type: 'title', placement: 'flow', text: '복합 세트 — 1쪽 세로 / 2쪽 가로' }];
+  for (let i = 0; i < 8; i++) p0.push(p(`cc0-${i}`, i));
+  const p1 = [{ id: 'cc-pb', type: 'page-break', placement: 'flow' }];
+  for (let i = 0; i < 14; i++) p1.push(p(`cc1-${i}`, i));
+  return [{ flow: p0, float: [] }, { paper: { orientation: 'landscape' }, flow: p1, float: [] }];
+}
+
+// P3-b AC-P3-3: 이질 용지에서도 3자 하드 동치. 편집기 리플로우가 page.paper 를 보존하고 페이지별 가용
+// 높이를 써야 Chrome 귀속과 같아진다 — 편집기가 방향을 드롭하면 가로 페이지에 세로 용량을 써서 pageOfId
+// 가 즉시 어긋난다(가용 높이가 방향에 민감하므로 이 대조가 방향 보존까지 함께 검증한다).
+test('3자 하드 동치 — 복합 세트(세로+가로 혼합): 편집기 리플로우 == PaginateObjectTree(Chrome) == 인쇄 PDF', { skip: !HAS_CHROME, timeout: TIMEOUT }, async () => {
+  const repo = new FsBlockRepository({ root: ROOT });
+  const assets = await loadAssets(repo);
+  const meta = { docTitle: '3자 하드동치 — 복합 세트', dataSubject: 'korean', themeName: 'ko', lang: 'ko', paper: { size: 'A4', orientation: 'portrait' } };
+  const scaffoldPages = buildCompositeScaffoldPages();
+
+  const chromeResult = await computeChromePagination(null, assets, meta, scaffoldPages);
+  assert.ok(chromeResult.pageCount >= 2, `복합 세트가 여러 페이지를 만들어야 검증 의미가 있음(실측 ${chromeResult.pageCount})`);
+
+  const editorResult = await computeEditorPagination(null, '3자동치-복합세트', meta, scaffoldPages);
+  assertEditPrintDeclarationParity(editorResult.document, assets, meta, '리플로우 저장본(복합 세트)');
+
+  assert.deepEqual(editorResult.pageOfId, chromeResult.pageOfId,
+    '이질 용지에서도 편집기 리플로우 귀속 == Chrome 귀속(하드 동치, R2-1) — 편집기가 방향을 보존해야 성립');
+  assert.equal(editorResult.pageCount, chromeResult.pageCount, '복합 세트 페이지 수 동일');
+
+  const printedPages = await countPrintedPages(editorResult.document, assets, meta, 'parity-composite');
+  assert.equal(printedPages, editorResult.pageCount, '복합 세트 인쇄 PDF 쪽수 == 편집기 리플로우 쪽수(넘침 없음)');
+  assert.equal(printedPages, chromeResult.pageCount, '복합 세트 인쇄 PDF 쪽수 == Chrome 페이지네이션 쪽수');
 });

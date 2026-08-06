@@ -48,6 +48,33 @@ export function resolvePaper(paper) {
   return { size, orientation, margins, columns };
 }
 
+/**
+ * resolvePagePaper — 페이지별 용지 override(P3-b) 의 단일 해석점. 문서 전체 documentPaper(기존
+ * manifest.paper/document.paper) 위에 페이지 메타 pagePaper 를 **필드 단위로 덮어** 얹은 뒤
+ * resolvePaper 로 해석한다. 방향만 바꾼 페이지(pagePaper={orientation:'landscape'})는 문서 용지
+ * 크기·여백을 그대로 물려받고 방향만 뒤집힌다 — 즉 "1쪽 세로 + 2쪽 가로" 복합 세트가 페이지 메타
+ * 한 필드로 표현된다.
+ *
+ * 이 함수 하나가 페이지별 유효 용지의 유일한 진실원천이다(computeAvailableHeightPx·렌더·검증이
+ * 전부 이걸 호출). resolvePaper 재사용이라 지원 용지·방향·여백 검증 규칙이 문서/페이지에서 갈리지
+ * 않는다(fail-closed: 병합 결과가 유효하지 않으면 resolvePaper 가 그대로 던진다).
+ *
+ * @param {object|null|undefined} documentPaper 문서 전체 용지(미해석 원본)
+ * @param {object|null|undefined} pagePaper 페이지별 override(미해석 원본). null/미지정이면 페이지는
+ *   문서 용지를 그대로 상속한다(= resolvePaper(documentPaper), 둘 다 미지정이면 null = 현행 A4 기본).
+ * @returns {{size:string, orientation:'portrait'|'landscape', margins:string, columns:number}|null}
+ */
+export function resolvePagePaper(documentPaper, pagePaper) {
+  if (pagePaper == null) return resolvePaper(documentPaper ?? null);
+  if (typeof pagePaper !== 'object' || Array.isArray(pagePaper)) {
+    throw new TypeError('page.paper 는 객체여야 합니다.');
+  }
+  const base = documentPaper != null && typeof documentPaper === 'object' && !Array.isArray(documentPaper)
+    ? documentPaper
+    : {};
+  return resolvePaper({ ...base, ...pagePaper });
+}
+
 /** orientation 반영 실제 치수(mm). landscape 면 장·단변 swap. @page·.sheet 공통 파생점. */
 export function paperDims(resolved) {
   const { w, h } = PAPER_SIZES[resolved.size];

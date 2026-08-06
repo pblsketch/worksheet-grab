@@ -33,7 +33,7 @@
 // 이 오차가 실제로 경계를 바꾸는 사례를 만나면 그때 접는 방식을 넣을 것.
 
 import { RenderObjectTree, deriveRenderMeta } from '/src/usecases/RenderObjectTree.js';
-import { assignFlowToPages, computeAvailableHeightPx, paperColumns, rebuildPaginatedPages } from '/src/usecases/PaginateObjectTree.js';
+import { assignFlowToPages, pageCapacityFns, rebuildPaginatedPages } from '/src/usecases/PaginateObjectTree.js';
 
 const renderer = new RenderObjectTree();
 const STYLE_RE = /<style>[\s\S]*?<\/style>/;
@@ -161,10 +161,12 @@ export function applyReflow(document, heights, opts = {}) {
   const srcPages = Array.isArray(document?.pages) ? document.pages : [];
   const flatFlow = flattenFlow(document);
   const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0, breakBefore: obj.type === 'page-break' }));
-  const availableHeightPx = computeAvailableHeightPx(document?.paper ?? null);
-  const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, {
+  // 페이지별 가용높이·열수(P3-b) — 엔진(PaginateObjectTree.execute)과 같은 pageCapacityFns 를 써서
+  // 이질 용지에서도 편집기 리플로우와 인쇄 페이지네이션이 동일한 페이지 경계를 낸다(하드 동치).
+  const { capacityForPage, columnsForPage } = pageCapacityFns(srcPages, document?.paper ?? null);
+  const { pageOfId, pageCount } = assignFlowToPages(items, capacityForPage, {
     tolerancePx: opts.tolerancePx,
-    columns: paperColumns(document?.paper ?? null),
+    columns: columnsForPage,
   });
   const pages = rebuildPaginatedPages(
     srcPages,

@@ -1,5 +1,5 @@
 import { RenderObjectTree } from './RenderObjectTree.js';
-import { resolvePaper, paperDims, paperMargins, COLUMN_GAP_MM } from './paper.js';
+import { resolvePaper, paperDims, paperMargins, COLUMN_GAP_MM, resolvePagePaper } from './paper.js';
 import { normalizePageIdentity } from '../domain/schema/PageIdentity.js';
 
 // PaginateObjectTree — S2.5(M2) 페이지네이션 패스 모듈(06_plan_final.md 167~172행, D-A/R2-1).
@@ -49,11 +49,18 @@ export function assignFlowToPages(items, availableHeightPx, opts = {}) {
   if (!Array.isArray(items)) {
     throw new TypeError('assignFlowToPages 는 items(array) 가 필요합니다.');
   }
-  if (!(Number(availableHeightPx) > 0)) {
+  // availableHeightPx·opts.columns 는 **숫자(균일)** 또는 **(pageIndex)=>값 함수** 둘 다 받는다(P3-b
+  // 이질 용지). 함수형은 페이지별 가용높이·열수를 positional 로 조회한다 — 가로 페이지는 가용높이가
+  // 작아 세로 값으로 채우면 넘쳐 편집==인쇄가 깨지므로 페이지별 용량이 필수다. 편집기 reflow 와 엔진이
+  // 같은 함수(pageCapacityFns)를 넘겨 하드 동치를 유지한다. 숫자형은 상수 함수로 감싸 종전과 완전히
+  // 동일(모든 기존 호출부·단위 테스트 무변경).
+  const capOf = typeof availableHeightPx === 'function' ? availableHeightPx : () => availableHeightPx;
+  if (!(Number(capOf(0)) > 0)) {
     throw new TypeError('assignFlowToPages 는 availableHeightPx(양수) 가 필요합니다.');
   }
   const tolerancePx = opts.tolerancePx ?? DEFAULT_TOLERANCE_PX;
-  const columns = normalizeColumns(opts.columns);
+  const colsOfRaw = typeof opts.columns === 'function' ? opts.columns : () => opts.columns;
+  const colsOf = (i) => normalizeColumns(colsOfRaw(i));
 
   const pageOfIndex = [];
   const pageOfId = {};
@@ -72,11 +79,16 @@ export function assignFlowToPages(items, availableHeightPx, opts = {}) {
       continue;
     }
     const h = Math.max(0, Number(item?.heightPx) || 0);
+    // 현재 페이지의 가용높이·열수로 판정한다 — page 가 바뀌면 다음 반복에서 새 페이지 값으로
+    // 재조회되므로, positional 방향(page k = srcPages[k].paper)이 그대로 반영된다.
+    const availablePage = Number(capOf(page));
+    const available = availablePage > 0 ? availablePage : Number(capOf(0));
+    const columns = colsOf(page);
     // cursor>0(현재 열에 이미 개체가 있음) 이고, 더하면 허용오차를 넘어 넘치면 -> 통째로 다음
     // 열로(열이 남아 있으면), 없으면 다음 페이지 첫 열로. cursor===0(열의 첫 개체)이면 그 개체
     // 혼자 용량을 넘겨도 분할 없이 그대로 싣는다(표 등 분할불가 개체가 "통째 이동"으로 최종
     // 착지하는 지점, R7).
-    if (cursor > 0 && cursor + h > availableHeightPx + tolerancePx) {
+    if (cursor > 0 && cursor + h > available + tolerancePx) {
       if (column + 1 < columns) column += 1;
       else { page += 1; column = 0; }
       cursor = 0;
@@ -124,6 +136,29 @@ export function computeAvailableHeightPx(paper) {
 export function paperColumns(paper) {
   const resolved = resolvePaper(paper) ?? resolvePaper({});
   return normalizeColumns(resolved?.columns);
+}
+
+/**
+ * pageCapacityFns — srcPages[] + 문서 paper 로부터 **페이지별** 가용높이·열수 함수를 만든다(P3-b
+ * 이질 용지). 방향은 positional: 출력 페이지 k = srcPages[k].paper override(없으면 문서 paper 상속,
+ * resolvePagePaper 가 병합). srcPages 범위를 넘는 페이지(흐름이 길어져 새로 생긴 페이지)는
+ * srcPages[k]===undefined → resolvePagePaper 가 문서 paper 로 폴백하는데, 이는 rebuildPaginatedPages
+ * 가 그 페이지에 srcPages[k] 스프레드 없이 문서 기본을 물리는 것과 정확히 일치한다(렌더·페이지네이션
+ * 이 같은 방향을 본다). 편집기 reflow(applyReflow)와 엔진(PaginateObjectTree.execute)이 이 함수 하나를
+ * 공유해 assignFlowToPages 에 동일한 페이지별 용량을 넘긴다 → "편집 == 인쇄" 하드 동치가 이질 용지에서도
+ * 성립한다(단일 값을 각자 계산하던 종전 구조가 발산하지 않도록 한 곳에 둔다).
+ *
+ * @param {Array<{paper?:object}>} srcPages 스캐폴드 문서의 pages[](방향 override 원본)
+ * @param {object|null|undefined} documentPaper 문서 전체 paper
+ * @returns {{capacityForPage:(i:number)=>number, columnsForPage:(i:number)=>number}}
+ */
+export function pageCapacityFns(srcPages, documentPaper) {
+  const pages = Array.isArray(srcPages) ? srcPages : [];
+  const paperAt = (i) => resolvePagePaper(documentPaper ?? null, pages[i]?.paper);
+  return {
+    capacityForPage: (i) => computeAvailableHeightPx(paperAt(i)),
+    columnsForPage: (i) => paperColumns(paperAt(i)),
+  };
 }
 
 
@@ -218,10 +253,12 @@ export class PaginateObjectTree {
     const { heights, gating } = await this.measurer.measure({ html, timeoutMs: opts.timeoutMs });
 
     const items = flatFlow.map((obj) => ({ id: obj.id, heightPx: heights?.[obj.id] ?? 0, breakBefore: obj.type === 'page-break' }));
-    const availableHeightPx = computeAvailableHeightPx(meta.paper);
-    const { pageOfId, pageCount } = assignFlowToPages(items, availableHeightPx, {
+    // 페이지별 가용높이·열수(P3-b) — 방향은 positional(출력 페이지 k = srcPages[k].paper override).
+    // 편집기 reflow 와 같은 pageCapacityFns 를 써서 하드 동치를 유지한다.
+    const { capacityForPage, columnsForPage } = pageCapacityFns(srcPages, meta.paper);
+    const { pageOfId, pageCount } = assignFlowToPages(items, capacityForPage, {
       tolerancePx: opts.tolerancePx,
-      columns: paperColumns(meta.paper),
+      columns: columnsForPage,
     });
 
     // float 재배치를 포함한 pages[] 재구성은 rebuildPaginatedPages(순수) 로 위임 — 브라우저

@@ -269,12 +269,15 @@ export function wrapSheetBody(bodyHtml, columns) {
   return columns > 1 ? `<div class="sheet-body">\n  ${bodyHtml}\n  </div>` : bodyHtml;
 }
 
-/** 페이지 1장(`<section class="sheet">`) — run-head/run-foot/mode-badge 크롬 + bodyOut. */
-export function buildSheetSection({ pageNo, pageId = null, runHead, bodyOut, footLeft, footRightPrefix }) {
+/** 페이지 1장(`<section class="sheet">`) — run-head/run-foot/mode-badge 크롬 + bodyOut.
+ *  sheetStyle: 페이지별 용지 override(P3-b) 인라인 스타일. 빈 문자열(기본)이면 style 속성을 아예
+ *  달지 않아 종전 산출과 **바이트 동일**하다(미지정 페이지 무회귀). */
+export function buildSheetSection({ pageNo, pageId = null, runHead, bodyOut, footLeft, footRightPrefix, sheetStyle = '' }) {
   const pageIdAttr = typeof pageId === 'string' && pageId
     ? ` data-page-id="${escapeHtml(pageId).replaceAll('"', '&quot;').replaceAll("'", '&#39;')}"`
     : '';
-  return `<section class="sheet"${pageIdAttr}>
+  const styleAttr = sheetStyle ? ` style="${sheetStyle}"` : '';
+  return `<section class="sheet"${pageIdAttr}${styleAttr}>
   <span class="mode-badge"></span>
   <div class="run-head">${escapeHtml(runHead)}</div>
 

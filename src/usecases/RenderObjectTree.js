@@ -1,5 +1,5 @@
 import { escapeHtml, wrapSheetBody, buildSheetSection, buildDocumentHtml } from './AssembleWorksheet.js';
-import { resolvePaper, paperCss as paperCssOverride } from './paper.js';
+import { resolvePaper, paperCss as paperCssOverride, resolvePagePaper, paperDims, paperMargins } from './paper.js';
 // 크기 필드 범위(2026-07-28) — 렌더가 방어적으로 재확인한다(아래 flowBoxStyle 주석). ObjectCatalog 는
 // browserGraph 화이트리스트에 이미 있으므로 편집기 ESM 그래프에서도 404 나지 않는다(실측 확인).
 import { WIDTH_PCT_MIN, WIDTH_PCT_MAX, CALLOUT_VARIANTS, ORGANIZER_KINDS } from '../domain/schema/ObjectCatalog.js';
@@ -77,8 +77,17 @@ export class RenderObjectTree {
     // manifest.paper 와 동형 오버라이드(paper.js 는 이미 순수 함수 — AssembleWorksheet 와 같은 경로 재사용).
     const resolvedPaper = resolvePaper(meta.paper ?? null);
     const paperOverride = paperCssOverride(resolvedPaper);
-    const paper = paperOverride ? `${assets.paperCss}\n${paperOverride}` : assets.paperCss;
+    const paperBase = paperOverride ? `${assets.paperCss}\n${paperOverride}` : assets.paperCss;
     const columns = resolvedPaper?.columns ?? 1;
+    // 문서 기준 치수(mm) — 페이지별 override 가 "문서와 다른가"를 판정하는 비교 기준.
+    // resolvedPaper==null(현행 A4 기본, 주입 0)이면 A4 세로 치수로 구체화한다.
+    const docDims = resolvedPaper ? paperDims(resolvedPaper) : { w: 210, h: 297 };
+    // 페이지별 방향/크기 override(P3-b, flow 전용 초판) — override 있는 페이지만 named @page 규칙 +
+    // .sheet 인라인 치수를 방출한다. 미지정 페이지는 아래 sheetStyle='' 이라 buildSheetSection 이
+    // 종전과 바이트 동일한 <section class="sheet"> 를 낸다(무회귀). named @page 는 @page 가 var() 를
+    // 못 받으므로(paper.js 주석) 숫자 mm 리터럴로 방출하고, .sheet 는 인라인 width/min-height/padding
+    // 으로 :root 변수 기반 규칙을 덮는다. ⚠ border 는 절대 추가하지 않는다(float 원점·.sheet 기하 불변).
+    const namedPageRules = [];
 
     const runHead = meta.runHead || '';
     const runFoot = meta.runFoot || {};
@@ -104,6 +113,9 @@ export class RenderObjectTree {
       const floatHtml = float.map((obj) => renderFloatObject(obj, ctx)).join('\n');
       const bodyWithFloat = floatHtml ? `${bodyOut}\n\n  ${floatHtml}` : bodyOut;
 
+      // 페이지별 용지 override(P3-b) — page.paper 가 있고 문서 치수와 실제로 다를 때만 방출한다.
+      const sheetStyle = buildPageSheetStyle(page, pageNo, meta.paper ?? null, docDims, namedPageRules);
+
       return buildSheetSection({
         pageNo,
         pageId: page?.id,
@@ -111,8 +123,12 @@ export class RenderObjectTree {
         bodyOut: bodyWithFloat,
         footLeft,
         footRightPrefix,
+        sheetStyle,
       });
     }).join('\n\n');
+
+    // named @page 규칙(override 페이지)이 있으면 paper CSS 끝에 덧붙인다 — 없으면 paperBase 그대로(무회귀).
+    const paper = namedPageRules.length ? `${paperBase}\n${namedPageRules.join('\n')}` : paperBase;
 
     const html = buildDocumentHtml({
       lang: meta.lang || 'ko',
@@ -133,6 +149,37 @@ export class RenderObjectTree {
 
     return { html };
   }
+}
+
+/**
+ * buildPageSheetStyle — 페이지별 용지 override(P3-b, flow 전용 초판) 를 .sheet 인라인 스타일 +
+ * named @page 규칙으로 변환한다. 반환 규약:
+ *  - page.paper 미지정 → '' (buildSheetSection 이 종전과 바이트 동일한 .sheet 를 방출: 무회귀).
+ *  - 문서와 **크기가 같으면** '' (초판은 크기/방향 혼합만 다룬다 — 여백만 다른 override 는 미지원).
+ *  - 크기가 다르면 namedPageRules 에 `@page wg-page-N {size…}` push + .sheet 가 그 named page 를
+ *    쓰도록 `page:` + 인라인 width/min-height/padding(+ run-head/foot 정렬용 --sheet-pad-l/r) 반환.
+ * @page 가 var() 를 못 받으므로 크기는 숫자 mm 리터럴(paper.js paperCss 와 동일 제약). columns 는
+ * 문서 수준 유지(페이지별 다단은 범위 밖). resolvePagePaper 는 fail-closed(유효하지 않으면 던진다 —
+ * ValidateObjectTree 와 같은 규칙). ⚠ border 는 절대 넣지 않는다(float 원점·.sheet 기하 불변).
+ */
+function buildPageSheetStyle(page, pageNo, documentPaper, docDims, namedPageRules) {
+  const raw = page?.paper;
+  if (raw == null) return '';
+  const resolved = resolvePagePaper(documentPaper, raw);
+  if (!resolved) return '';
+  const d = paperDims(resolved);
+  if (d.w === docDims.w && d.h === docDims.h) return '';
+  const m = paperMargins(resolved);
+  const pageName = `wg-page-${pageNo}`;
+  namedPageRules.push(`@page ${pageName} { size: ${mmv(d.w)} ${mmv(d.h)}; margin: 0; }`);
+  return `page:${pageName}; width:${mmv(d.w)}; min-height:${mmv(d.h)};`
+    + ` padding:${mmv(m.top)} ${mmv(m.right)} ${mmv(m.bottom)} ${mmv(m.left)};`
+    + ` --sheet-pad-l:${mmv(m.left)}; --sheet-pad-r:${mmv(m.right)};`;
+}
+
+/** mm 리터럴(정수는 그대로, 소수는 3자리) — paper.js paperCss 의 mm 와 동형. */
+function mmv(n) {
+  return `${Number.isInteger(n) ? n : parseFloat(Number(n).toFixed(3))}mm`;
 }
 
 // ── 개체 1개 → HTML(flow/float 공통 래핑) ──

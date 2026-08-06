@@ -1,4 +1,5 @@
 import { validateObjectShape, PAGINATION_STATES } from '../domain/schema/index.js';
+import { resolvePagePaper, resolvePaper } from './paper.js';
 
 // ValidateObjectTree — 개체 트리(문서) 구조 유효성을 순수 검사한다(S1.2). Chrome/FS/DOM 무접촉.
 // ValidateWorksheet(HTML 정적 검사, src/usecases/ValidateWorksheet.js)의 개체 트리 버전 — 같은
@@ -72,6 +73,49 @@ export class ValidateObjectTree {
           message: `pages[${pageIndex}].role 은 지정할 경우 비어 있지 않은 문자열이어야 합니다.`,
           page: pageIndex,
         });
+      }
+      // 페이지별 용지 override(P3-b, optional) — 지정되면 문서 용지 위에 병합해 해석 가능해야 한다
+      // (fail-closed: 지원 밖 용지·방향·여백은 resolvePagePaper 가 던지고, 여기서 error finding 으로
+      //  승격해 게이트가 산출을 막는다). 미지정 페이지는 검사하지 않는다(문서 용지 상속 = 무회귀).
+      if (Object.hasOwn(page || {}, 'paper')) {
+        const p = page.paper;
+        if (p !== null && (typeof p !== 'object' || Array.isArray(p))) {
+          findings.push({
+            rule: 'invalid-page-paper',
+            message: `pages[${pageIndex}].paper 는 지정할 경우 객체(또는 null)여야 합니다.`,
+            page: pageIndex,
+          });
+        } else if (p !== null) {
+          let resolved = null;
+          try {
+            resolved = resolvePagePaper(document.paper ?? null, p);
+          } catch (err) {
+            findings.push({
+              rule: 'invalid-page-paper',
+              message: `pages[${pageIndex}].paper 해석 실패: ${err.message}`,
+              page: pageIndex,
+            });
+          }
+          // flow 전용 초판(AC-P3-4): 방향/크기가 문서와 **다른** 페이지에 float(자유배치) 개체가 있으면
+          // 차단한다. float 원점은 .sheet padding edge 전제인데, 이질 용지에서 그 전제가 별도 검증되기
+          // 전까지 방향 혼합을 flow 전용으로 한정한다(fail-closed — 명시적 차단). 문서와 같은 용지 override
+          // 나 flow 전용 페이지는 통과.
+          if (resolved) {
+            let docResolved = null;
+            try { docResolved = resolvePaper(document.paper ?? null); } catch { docResolved = null; }
+            const differs = !docResolved
+              || resolved.size !== docResolved.size
+              || resolved.orientation !== docResolved.orientation;
+            const hasFloat = Array.isArray(page.float) && page.float.length > 0;
+            if (differs && hasFloat) {
+              findings.push({
+                rule: 'page-orientation-float-unsupported',
+                message: `pages[${pageIndex}]: 방향/크기가 문서와 다른 페이지에는 float(자유배치) 개체를 둘 수 없습니다(flow 전용 초판 — AC-P3-4).`,
+                page: pageIndex,
+              });
+            }
+          }
+        }
       }
     });
   }
