@@ -116,6 +116,8 @@
 
 ## C. 개선 카탈로그 (전수·비우선순위) — 반영 대상
 
+> **반영 상태(최종)**: C1·C2·C3·C4·C6·C7·C8 반영 완료(커밋 7d73158·ce0a334·후속). C5 **부분 반영** — subq·sec 는 기존 토큰(`--wg-space-block-sm`/`--wg-space-block`)으로 zero-change 토큰화, 나머지(std-box 4mm·direct 7mm·q 2.5mm·unit-line 5mm)는 **의도적 per-element 튜닝**(예: 지시문은 문항보다 넓은 진입 여백)이라 유지 — 균일 소비는 pagination 위험 + 토큰 남발(restraint 원칙 위배)이라 반영하지 않음.
+
 | # | 항목 | 성격 | 반영 방식 | L0 영향 |
 |---|---|---|---|---|
 | C1 | S6 정보 위계(.std-ref 무채색화) | 🟥 polish | blocks.css + surface/ink allowlist | baseline 재생성 |

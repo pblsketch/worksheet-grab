@@ -1,7 +1,7 @@
 {
   "_comment": "L0 baseline golden — assets/blocks.css 의 P1 토큰(--wg-fs/rule/radius/space-*)을 폴백 리터럴로 언랩한 승인 스냅샷. 의도적 디자인 변경 시 tools/regen-blocks-baseline.mjs 로 재생성(반드시 렌더·편집==인쇄 parity·design-lint·육안 검증 동반). (blockIndex, selector, propIndex, prop) 로 각 선언 식별, value 는 언랩된 리터럴.",
   "sourceFile": "assets/blocks.css",
-  "totalDeclarations": 854,
+  "totalDeclarations": 856,
   "records": [
     {
       "blockIndex": 0,
@@ -1043,13 +1043,20 @@
       "blockIndex": 43,
       "selector": ".subq",
       "propIndex": 0,
-      "prop": "margin",
-      "value": "2mm 0 1mm"
+      "prop": "margin-top",
+      "value": "2mm"
     },
     {
       "blockIndex": 43,
       "selector": ".subq",
       "propIndex": 1,
+      "prop": "margin-bottom",
+      "value": "1mm"
+    },
+    {
+      "blockIndex": 43,
+      "selector": ".subq",
+      "propIndex": 2,
       "prop": "font-weight",
       "value": "600"
     },
@@ -1667,7 +1674,7 @@
       "selector": ".passage .src",
       "propIndex": 2,
       "prop": "color",
-      "value": "#555"
+      "value": "#666"
     },
     {
       "blockIndex": 68,
@@ -1709,7 +1716,7 @@
       "selector": ".passage .fn",
       "propIndex": 4,
       "prop": "color",
-      "value": "#555"
+      "value": "#666"
     },
     {
       "blockIndex": 70,
@@ -1814,7 +1821,7 @@
       "selector": ".obj-table caption",
       "propIndex": 1,
       "prop": "color",
-      "value": "#555"
+      "value": "#666"
     },
     {
       "blockIndex": 74,
@@ -1884,7 +1891,7 @@
       "selector": ".image-slot figcaption",
       "propIndex": 2,
       "prop": "color",
-      "value": "#555"
+      "value": "#666"
     },
     {
       "blockIndex": 78,
@@ -3060,7 +3067,7 @@
       "selector": ".pc td .rc",
       "propIndex": 0,
       "prop": "color",
-      "value": "#777"
+      "value": "#666"
     },
     {
       "blockIndex": 122,
@@ -3584,8 +3591,15 @@
       "blockIndex": 143,
       "selector": "h2.sec",
       "propIndex": 4,
-      "prop": "margin",
-      "value": "3mm 0 1.5mm"
+      "prop": "margin-top",
+      "value": "3mm"
+    },
+    {
+      "blockIndex": 143,
+      "selector": "h2.sec",
+      "propIndex": 5,
+      "prop": "margin-bottom",
+      "value": "1.5mm"
     },
     {
       "blockIndex": 144,
@@ -4019,7 +4033,7 @@
       "selector": ".gcap",
       "propIndex": 1,
       "prop": "color",
-      "value": "#555"
+      "value": "#666"
     },
     {
       "blockIndex": 158,
@@ -4285,7 +4299,7 @@
       "selector": ".mapbox .mapcap",
       "propIndex": 1,
       "prop": "color",
-      "value": "#555"
+      "value": "#666"
     },
     {
       "blockIndex": 168,
@@ -4306,7 +4320,7 @@
       "selector": ".mapbox .map-source",
       "propIndex": 1,
       "prop": "color",
-      "value": "#777"
+      "value": "#666"
     },
     {
       "blockIndex": 169,

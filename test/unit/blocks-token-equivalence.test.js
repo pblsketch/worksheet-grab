@@ -190,9 +190,9 @@ test('L0-1d: 괘선폭 토큰(--wg-rule-w)은 정확히 43건, 전부 border 계
   }
 });
 
-test('L0-1e: 블록 리듬 토큰(--wg-space-block*)은 정확히 23건, 전부 margin-top 속성', () => {
+test('L0-1e: 블록 리듬 토큰(--wg-space-block*)은 정확히 25건, 전부 margin-top 속성', () => {
   const replaced = currentRecords.filter((r) => /var\(\s*--wg-space-block/.test(r.value));
-  assert.equal(replaced.length, 23, `var(--wg-space-block*, ...) 를 포함하는 선언은 23건이어야 함(발견: ${replaced.length})`);
+  assert.equal(replaced.length, 25, `var(--wg-space-block*, ...) 를 포함하는 선언은 25건이어야 함(발견: ${replaced.length})`);
   for (const r of replaced) {
     assert.equal(r.prop, 'margin-top', `--wg-space-block* 는 margin-top 에만 등장해야 함(발견: prop="${r.prop}" selector="${r.selector}")`);
   }
