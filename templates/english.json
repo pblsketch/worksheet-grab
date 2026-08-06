@@ -2,7 +2,7 @@
   "id": "english-template",
   "subject": "english",
   "dataSubject": "english",
-  "theme": "english",
+  "theme": "neutral",
   "lang": "ko",
   "head": { "katex": false },
   "pillDefault": "어휘·의사소통",

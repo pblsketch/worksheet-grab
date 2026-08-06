@@ -2,7 +2,7 @@
   "id": "social-template",
   "subject": "social",
   "dataSubject": "social",
-  "theme": "social",
+  "theme": "neutral",
   "lang": "ko",
   "head": { "katex": false },
   "pillDefault": "탐구·자료 분석",

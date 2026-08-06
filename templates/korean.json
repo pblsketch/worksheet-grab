@@ -2,7 +2,7 @@
   "id": "korean-template",
   "subject": "korean",
   "dataSubject": "ko",
-  "theme": "ko",
+  "theme": "neutral",
   "lang": "ko",
   "head": { "katex": false },
   "pillDefault": "독서·토론",

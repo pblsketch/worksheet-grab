@@ -45,7 +45,7 @@ test('US-M4-1: manifest 는 재편집에 필요한 필드(pages/standards/theme/
   assert.ok(Array.isArray(manifest.pages) && manifest.pages.length === 3, '3쪽 페이지 배열');
   assert.ok(manifest.pages.every((p) => Array.isArray(p)), '각 페이지는 블록 배열');
   assert.deepEqual(manifest.standards, ['[9과12-01]']);
-  assert.equal(manifest.theme, 'sci');
+  assert.equal(manifest.theme, 'neutral'); // 색-교과 디커플: templates 기본 theme = neutral(교과 팔레트는 선택형 프리셋)
   assert.equal(manifest.docTitle, '광합성');
   // 인라인 블록은 재조립을 위해 html 문자열을 보존(외부 파일 의존 없이 왕복).
   const flat = manifest.pages.flat();

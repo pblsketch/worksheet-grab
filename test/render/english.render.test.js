@@ -22,7 +22,7 @@ async function knownSubjectHexes() {
 }
 
 // US-M5-2 수용: 영어 교과가 자체 블록(어휘·대화문)·테마로 student/teacher A4 PDF 로 렌더된다.
-test('US-M5-2: generate 중2영어 → 어휘·대화문 블록 + english 테마, A4 PDF 렌더', { skip: !READY, timeout: 180000 }, async () => {
+test('US-M5-2: generate 중2영어 → 어휘·대화문 블록 + neutral 기본 테마(색-교과 디커플), A4 PDF 렌더', { skip: !READY, timeout: 180000 }, async () => {
   const dir = await autoTmpDir('wsg-english-');
   const code = await run(['generate', '중2영어', '감정', '--out', dir, '--pdf'], { root: ROOT, log: quiet, err: quiet });
   assert.equal(code, 0, 'generate 영어 성공');
@@ -31,7 +31,7 @@ test('US-M5-2: generate 중2영어 → 어휘·대화문 블록 + english 테마
   assert.match(student, /data-subject="english"/, 'english data-subject');
   assert.match(student, /class="vocab"/, '어휘 블록');
   assert.match(student, /class="dialogue"/, '대화문 블록');
-  assert.match(student, /--c:\s*#3949ab/, 'english 테마 토큰 주입');
+  assert.match(student, /--c:\s*#475569/, '기본 neutral 팔레트 주입(교과가 색을 강제하지 않음)');
 
   const hexes = await knownSubjectHexes();
   const v = new ValidateWorksheet({ knownSubjectHexes: hexes }).execute(student);

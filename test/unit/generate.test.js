@@ -50,7 +50,7 @@ test('G3: generate 과학 → 3쪽, 헤더에 성취기준 원문 주입, data-s
   assert.match(html, /katex/, '과학은 KaTeX 로더');
 });
 
-test('범교과: generate 국어 → green 테마(data-subject=ko), 과학 특수 CSS 아님', async () => {
+test('범교과: generate 국어 → neutral 기본 테마(색-교과 디커플) · data-subject=ko · 과학 특수 CSS 아님', async () => {
   const repo = new FsBlockRepository({ root: ROOT });
   const standards = [{ code: '[9국06-01]', text: '대중매체와 개인 방송의 특성을 비교한다.', subject: '국어' }];
   const gen = new GenerateWorksheet({ blockRepository: repo, curriculum: mockCurriculum(standards) });
@@ -58,8 +58,8 @@ test('범교과: generate 국어 → green 테마(data-subject=ko), 과학 특�
 
   assert.equal(worksheet.pageCount(), 2);
   assert.match(html, /<body[^>]*data-subject="ko"/);
-  assert.match(html, /--c:\s*#7cb342/, '국어 green 테마 토큰');
-  assert.match(html, /class="[^"]*\bpc\b/, '국어 pro-con 컴포넌트');
+  assert.match(html, /--c:\s*#475569/, '기본 neutral 팔레트 토큰(교과가 색을 강제하지 않음)');
+  assert.match(html, /class="[^"]*\bpc\b/, '국어 pro-con 컴포넌트(콘텐츠는 교과 맥락 유지)');
 });
 
 test('성취기준 미발견 시 창작하지 않고 오류', async () => {

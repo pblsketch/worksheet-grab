@@ -22,7 +22,7 @@ const READY = chromeAvailable() && existsSync(DEFAULT_CSV_PATH);
 const quiet = () => {};
 
 // US-M5-1 수용: 사회 교과가 자체 블록(지도·연표)·테마로 student/teacher A4 PDF 로 렌더된다.
-test('US-M5-1: generate 중2사회 → 지도·연표 블록 + social 테마, A4 PDF 렌더', { skip: !READY, timeout: 180000 }, async () => {
+test('US-M5-1: generate 중2사회 → 지도·연표 블록 + neutral 기본 테마(색-교과 디커플), A4 PDF 렌더', { skip: !READY, timeout: 180000 }, async () => {
   const dir = await autoTmpDir('wsg-social-');
   const code = await run(['generate', '중2사회', '인구', '--out', dir, '--pdf'], { root: ROOT, log: quiet, err: quiet });
   assert.equal(code, 0, 'generate 사회 성공');
@@ -31,7 +31,7 @@ test('US-M5-1: generate 중2사회 → 지도·연표 블록 + social 테마, A4
   assert.match(student, /data-subject="social"/, 'social data-subject');
   assert.match(student, /class="mapbox"/, '지도 블록');
   assert.match(student, /class="timeline"/, '연표 블록');
-  assert.match(student, /--c:\s*#b26a00/, 'social 테마 토큰 주입');
+  assert.match(student, /--c:\s*#475569/, '기본 neutral 팔레트 주입(교과가 색을 강제하지 않음)');
   // 범교과: 사회 색을 :root 밖에서 하드코딩하지 않았는지 — 검증기로 확인(권위 있는 체크).
   const hexes = await knownSubjectHexes();
   const v = new ValidateWorksheet({ knownSubjectHexes: hexes }).execute(student);

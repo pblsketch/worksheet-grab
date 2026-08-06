@@ -2,7 +2,7 @@
   "id": "science-template",
   "subject": "science",
   "dataSubject": "science",
-  "theme": "sci",
+  "theme": "neutral",
   "lang": "ko",
   "head": {
     "katex": true
