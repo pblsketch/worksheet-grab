@@ -11,16 +11,16 @@
 
 ## 2. 반드시 먼저 정할 결정 2가지
 
-### 결정 A — 무의존 vs 라이브러리
+### 결정 A. 무의존 vs 라이브러리
 - 이 저장소는 **완전 무의존**이다: `package.json` 의 `dependencies`/`devDependencies` 모두 `{}`. 테스트는 `node:test`.
 - PPTX는 XML 여러 개를 담은 ZIP(OOXML)이다. 두 갈래:
   - **(a) 무의존 하드롤**: node 내장 `zlib`로 ZIP을 직접 쓰고 슬라이드 XML을 문자열로 생성. 저장소 철학 유지. 대신 OOXML 스펙(슬라이드·표·도형·텍스트·관계 파일) 학습 비용.
   - **(b) `pptxgenjs` 추가**: 개발 속도 빠름. 대신 무의존 철학 깨짐(첫 런타임 의존성). 유지보수·번들 영향 검토 필요.
 - **권장**: Phase 0 스파이크에서 (a) 최소 하드롤 PPTX writer가 현실적인지 먼저 측정. 표·텍스트·도형·이미지 4종만 필요하므로 OOXML 표면적이 작다. 감당 안 되면 (b)로 결정하고 사용자에게 무의존 예외를 명시적으로 승인받는다.
 
-### 결정 B — PPTX가 소비할 소스 (개체트리 vs {type,html})
+### 결정 B. PPTX가 소비할 소스 (개체트리 vs {type,html})
 - 렌더 소스가 두 가지다:
-  - **개체트리(권장 소스)**: 닫힌 14개 타입(아래) + 필드. `schema/worksheet-object.schema.json`. `src/usecases/RenderObjectTree.js` 가 이걸 HTML로 렌더한다 — **PPTX 렌더러가 그대로 병렬할 모델**.
+  - **개체트리(권장 소스)**: 닫힌 14개 타입(아래) + 필드. `schema/worksheet-object.schema.json`. `src/usecases/RenderObjectTree.js` 가 이걸 HTML로 렌더한다. **PPTX 렌더러가 그대로 병렬할 모델**.
   - **`{type, html}` 레거시 블록**: `manifests/*.json`·`generate`·손저작 매니페스트가 쓰는 형태. `AssembleWorksheet.js` 가 html 을 concat. HTML을 파싱해 PPTX로 가는 건 지저분하다.
 - **권장**: PPTX는 **개체트리를 소비**한다(RenderObjectTree 와 대칭인 `RenderObjectTreePptx`). 첫 과제로 "실제 doc/편집기가 개체트리를 저장하는지, `{type,html}`인지" 확인하고, 개체트리 경로를 1급으로 삼는다. `{type,html}` 전용/`richtext` 탈출구 블록은 텍스트 추출 또는 이미지 폴백.
 
@@ -40,17 +40,17 @@
 | answer-area | 빈 텍스트 상자 또는 테두리 도형(밑줄/박스) | ✅ |
 | image-slot | 그림 자리(placeholder 도형 + 캡션 텍스트) | ✅ |
 | divider | 선 도형 | ✅ |
-| spacer / page-break | 레이아웃(간격/슬라이드 분리). 개체 아님 | — |
+| spacer / page-break | 레이아웃(간격/슬라이드 분리). 개체 아님 | 해당 없음 |
 
 - SVG 도해·모눈 그래프(svg-graph): Phase 1은 **기존 Chrome 렌더러로 PNG를 떠서 그림으로 삽입**(위치·크기는 편집되나 내부는 고정). `src/adapters` 의 Chrome 렌더 재사용.
 - 색: 디자인 시스템 색을 재사용(중립 팔레트 `--c*`/의미색). 팔레트 값은 `themes/*.css`·`docs/design-system/design-tokens.json`.
 
 ## 5. 슬라이드/페이지
 - `.sheet` 한 쪽 = 슬라이드 한 장. **A4 비율**(치수는 `src/domain/paper.js` `resolvePaper`/`paperDims`, 세로 210×297mm). 가로/복합 방향도 있으니 페이지 메타(paper) 존중.
-- 좌표는 mm→EMU 변환(1mm = 36000 EMU). blocks 는 flow 라 절대좌표가 없다 — PPTX는 **위에서 아래로 흐르며 y를 누적 배치**(개체 높이 측정 필요; 텍스트는 대략 추정 또는 Chrome 측정 재사용 검토).
+- 좌표는 mm→EMU 변환(1mm = 36000 EMU). blocks 는 flow 라 절대좌표가 없다. PPTX는 **위에서 아래로 흐르며 y를 누적 배치**(개체 높이 측정 필요; 텍스트는 대략 추정 또는 Chrome 측정 재사용 검토).
 
 ## 6. 학생용/교사용 (불변식)
-- 교사용은 정답 포함, 학생용은 **정답 물리 제거 + 누출 게이트(fail-closed)**. HTML 내보내기의 answer 스트립/누출검증 로직을 재사용해야 한다: `ExportDocument`·`html-scan`(누출 탐지)·`.answer` 처리. PPTX에서도 정답 개체는 학생용에서 물리 제거하고, 누출 감지 시 학생 PPTX 미생성(스테일 제거)한다 — HTML `--canva` 대칭(`src/cli/index.js:989~` 참조).
+- 교사용은 정답 포함, 학생용은 **정답 물리 제거 + 누출 게이트(fail-closed)**. HTML 내보내기의 answer 스트립/누출검증 로직을 재사용해야 한다: `ExportDocument`·`html-scan`(누출 탐지)·`.answer` 처리. PPTX에서도 정답 개체는 학생용에서 물리 제거하고, 누출 감지 시 학생 PPTX 미생성(스테일 제거)한다. HTML `--canva` 대칭(`src/cli/index.js:989~` 참조).
 
 ## 7. 단계 계획
 - **Phase 0 · 스파이크(가장 먼저)**: 무의존 하드롤로 **슬라이드 1장 + 텍스트 상자 1 + 네이티브 표 1 + 도형 1**을 담은 최소 PPTX를 만든다. → PowerPoint/LibreOffice/구글 슬라이드로 열려 편집되는지 + **Canva에 업로드해 표·도형이 편집 가능한지 실측**. 이게 전체 feature 최대 위험 해소. (하드롤이 과하면 결정 A를 (b)로.)
@@ -70,7 +70,7 @@
 - PPTX 유효성: 산출물을 unzip 해 `[Content_Types].xml`·`ppt/slides/slideN.xml` 존재·XML well-formed 확인(무의존 테스트).
 - 편집성 실측: PowerPoint/LibreOffice/구글 슬라이드로 열어 표·도형이 개체로 잡히는지. **Canva 반입 확인**은 MCP `import-design-from-url`(공개 HTTPS URL 필요) 또는 Canva UI 직접 업로드. (공개 호스팅 없이 로컬 파일 검증이 1차.)
 - 회귀: 기존 유닛/렌더/`design:lint`/편집==인쇄 parity 무붕괴(PPTX는 별도 트랙이라 HTML 경로 불변).
-- 테스트 입력 예시: 이 세션에서 만든 30쪽 프로젝트 `worksheets/dw-project15/`(gitignore됨, `scratchpad/dw/build.mjs`로 재생성) — 표·조직자·도형·이미지 슬롯이 골고루 있어 좋은 픽스처.
+- 테스트 입력 예시: 이 세션에서 만든 30쪽 프로젝트 `worksheets/dw-project15/`(gitignore됨, `scratchpad/dw/build.mjs`로 재생성). 표·조직자·도형·이미지 슬롯이 골고루 있어 좋은 픽스처.
 
 ## 10. 저장소 규약 (필수)
 - 착수 전 `git status --porcelain`. **경로 명시 스테이징(add -A 금지).** 커밋은 사용자 요청 시에만. 렌더 테스트는 `--test-concurrency=1`.
