@@ -85,7 +85,7 @@ If subject, grade, or topic is missing, the harness asks only for the missing in
 
 - Separate **student and teacher worksheet versions**
 - **HTML, PDF, and first-page PNG previews**
-- Built-in themes for Korean language arts, science, social studies, and English
+- A **calm neutral default palette** plus optional subject palettes (Korean language arts, science, social studies, English)
 - **13 worksheet structures**, including inquiry, data interpretation, reading, discussion, concept mapping, projects, and writing
 - **23 graphic organizers**, including KWL, Frayer models, 5W1H, Venn diagrams, concept maps, fishbones, and flowcharts
 - A **browser editor** for questions, tables, images, response areas, answer marking, undo/redo, and automatic page reflow
@@ -175,7 +175,7 @@ node bin/worksheet-grab.js list-vocab
 - Student-facing worksheets show accessible **learning objectives** by default.
 - Use `--show-standards` to include the supporting standards in the teacher copy.
 
-The current subject-specific themes and bindings focus on Korean language arts, science, social studies, and English. Cross-curricular structures and organizers can be reused elsewhere, but teachers should adapt and review them for the target subject.
+Color (palette) is not tied to a subject. The default is a **calm neutral palette** that suits any subject, and you can optionally pick a subject palette (Korean language arts, science, social studies, English). Blocks and organizers are not subject-exclusive either — they are chosen by the **activity** rather than the subject, which mainly sets content and standards context. They can be reused for other subjects, but teachers should adapt and review them for the target subject.
 
 ## Answer and privacy safeguards
 
@@ -196,14 +196,16 @@ The current subject-specific themes and bindings focus on Korean language arts, 
 ```bash
 npm run test:unit
 npm run test:render
+npm run design:lint
 node scripts/build-user-bundle.mjs dist/worksheet-grab-user
 ```
 
 - `npm run test:unit`: engine and document-contract tests that do not require Chrome
 - `npm run test:render`: print and editor parity tests using a real Chrome instance
+- `npm run design:lint`: paper-output design-contract detector (tokens, color allowlist, print safety) — keeps new blocks from drifting off the design system
 - User bundle: includes the engine and teacher harness while excluding tests and development documentation
 
-See [`docs/HARNESS-MAP.md`](docs/HARNESS-MAP.md) for harness boundaries and [`docs/CROSS-PROVIDER-SMOKE.md`](docs/CROSS-PROVIDER-SMOKE.md) for cross-provider verification.
+See [`docs/HARNESS-MAP.md`](docs/HARNESS-MAP.md) for harness boundaries and [`docs/CROSS-PROVIDER-SMOKE.md`](docs/CROSS-PROVIDER-SMOKE.md) for cross-provider verification. The paper-output design system (contract `PAPER.impeccable.md`, tokens `design-tokens.json`, detector, and full audit) lives in [`docs/design-system/`](docs/design-system/).
 
 ## License and inspiration
 

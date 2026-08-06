@@ -86,7 +86,7 @@ node --version
 
 - **학생용·교사용 활동지 2벌**
 - **HTML, PDF, 첫 페이지 PNG 미리보기**
-- **국어·과학·사회·영어 기본 테마**
+- **차분한 중립 기본 팔레트** + 선택형 교과 팔레트(국어·과학·사회·영어)
 - **13개 활동 구조**: 실험 탐구, 자료 해석, 읽기·독해, 토론, 개념 구조화, 프로젝트, 글쓰기·성찰 등
 - **23개 시각 조직자**: KWL, 프레이어, 5W1H, 벤다이어그램, 개념지도, 피시본, 흐름도 등
 - **브라우저 편집기**: 문항·표·이미지·답란·정답 표시, 실행 취소/다시 실행, 자동 페이지 리플로우
@@ -174,7 +174,7 @@ node bin/worksheet-grab.js list-vocab
 - 활동지에는 기본적으로 학생 친화적인 **학습 목표**를 표시합니다.
 - 근거 성취기준을 교사용에 함께 표시하려면 `--show-standards`를 사용합니다.
 
-현재 교과별 기본 테마와 바인딩은 국어·과학·사회·영어에 집중되어 있습니다. 범교과 구조와 시각 조직자는 다른 교과에도 쓸 수 있지만, 해당 교과 맥락에 맞는 교사 검토와 조정이 필요합니다.
+색(팔레트)은 교과에 묶이지 않습니다. 기본은 어느 교과에도 어울리는 **차분한 중립 팔레트**이며, 원하면 교과 팔레트(국어·과학·사회·영어)를 선택할 수 있습니다. 블록과 시각 조직자도 특정 교과 전용이 아니라 **활동(무엇을 하게 할지)에 맞춰** 고르며, 교과는 주로 콘텐츠와 성취기준 맥락을 정합니다. 다른 교과에도 쓸 수 있지만 해당 맥락에 맞는 교사 검토와 조정이 필요합니다.
 
 ## 정답과 개인정보 안전
 
@@ -195,14 +195,16 @@ node bin/worksheet-grab.js list-vocab
 ```bash
 npm run test:unit
 npm run test:render
+npm run design:lint
 node scripts/build-user-bundle.mjs dist/worksheet-grab-user
 ```
 
 - `npm run test:unit`: Chrome이 필요 없는 엔진·문서 계약 테스트
 - `npm run test:render`: 실제 Chrome을 사용하는 인쇄·편집 일치 테스트
+- `npm run design:lint`: 종이 출력 디자인 계약(토큰·색 allowlist·프린트 안전) 검출기 — 새 블록이 디자인 시스템을 벗어나지 않게 강제
 - 사용자 번들: 엔진과 교사용 하네스만 포함하고 테스트·개발 문서는 제외
 
-하네스 경계는 [`docs/HARNESS-MAP.md`](docs/HARNESS-MAP.md), 크로스프로바이더 확인 절차는 [`docs/CROSS-PROVIDER-SMOKE.md`](docs/CROSS-PROVIDER-SMOKE.md)를 참고하세요.
+하네스 경계는 [`docs/HARNESS-MAP.md`](docs/HARNESS-MAP.md), 크로스프로바이더 확인 절차는 [`docs/CROSS-PROVIDER-SMOKE.md`](docs/CROSS-PROVIDER-SMOKE.md)를 참고하세요. 종이 출력 디자인 시스템(계약 `PAPER.impeccable.md`·토큰 `design-tokens.json`·검출기·전수 감사)은 [`docs/design-system/`](docs/design-system/)에 정리돼 있습니다.
 
 ## 라이선스와 영감
 
