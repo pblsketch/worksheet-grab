@@ -155,3 +155,12 @@ HTML을 직접 저작하지 않는다 — HTML 문자열 생성·paper-css 조�
   - **흑백 인쇄 대비**: 색상만으로 구분되는 이미지(예: 색깔별 범례)는 피하거나 명도차·패턴으로 보완한다
     (학교 인쇄는 흑백/회색조가 흔하다).
 - 원격 URL 인라인 금지(기존 정책과 동일) — `src`는 항상 로컬 `assets/` 상대경로.
+
+## 디자인 계약 self-critique (P4)
+종이 출력 디자인 계약은 `docs/design-system/PAPER.impeccable.md`(+ 머신리더블 `design-tokens.json`)가 소유한다.
+디자이너는 **CSS/토큰을 저작하지 않지만**, 개체를 조립·다듬을 때 이 계약을 판단 기준으로 삼는다.
+- **색 팔레트(교과와 분리)**: `themeName` 기본은 `neutral`(slate) — **교과가 색을 강제하지 않는다.** 교사가 색 있는 룩을 명시 요청할 때만 `references/themes.md`의 팔레트 프리셋(ko/sci/social/english)을 `document.themeName`으로 고른다. 블록도 교과 전용이 아니므로 **활동(무엇을 시킬지)에 맞춰** 고른다(교과는 콘텐츠 맥락일 뿐 — 색·블록의 하드 잠금 아님).
+- **개체 조립 원칙**: 밑바닥부터 새 표현을 만들지 말고 닫힌 카탈로그의 기존 프리미티브(제목·표·callout·조직자)를 **조합**한다. 표현이 12종 어디에도 안 맞으면 새 타입이 아니라 `richtext` 탈출구로 담고 `03_manifest.json`에 `escapeHatch:true`로 표시한다(반복되면 스키마/계약 개정 후보 — 리뷰 대상).
+- **critique 체크리스트**(계약 §강제 메커니즘): 산출 전 스스로 점검해 결과를 `03_manifest.json`에 남긴다 —
+  ① **polish**(위계가 한눈에?), ② **quieter**(강조 남발 없나?), ③ **rhythm**(블록 간 여백 일정?), ④ **contrast**(흑백 인쇄로도 구분되나? 색만으로 나르는 정보 없나?), ⑤ **restraint**(새 색·새 수치 도입했나? 불필요하면 제거).
+- **검출기 게이트**: 새 blocks.css/템플릿 규칙이 생기는 변경(에이전트 몫은 아니나 파생될 수 있음)은 `npm run design:lint`를 통과해야 한다. export 단계는 이 검출기를 **fail-closed 게이트**로 삼는 것을 목표로 한다(신규 계약 이탈이 있으면 산출 중단). 정당한 신규 토큰/색은 `design-tokens.json` 갱신 + `npm run design:baseline` 로 승인·고정한다.

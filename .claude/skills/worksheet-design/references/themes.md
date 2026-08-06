@@ -19,18 +19,22 @@
 }
 ```
 
-## 교과별 팔레트 (`themeName` 값 — 기본값, 조정은 렌더러/테마 CSS 쪽에서)
+## 팔레트 (색 축 — `themeName`, 교과와 **분리**)
 
-| 교과 | theme | --c | --c2 | --clite | --cstrip | --clabel | --cink |
+색은 교과에 묶이지 않는다. **기본 팔레트는 `neutral`(차분한 slate)** 이며, 아래 교과 팔레트는 **선택형 프리셋**이다 — 교사/AI가 "색 있는 룩"을 원할 때만 `themeName` 으로 고른다(지정 안 하면 neutral). 아래 대괄호 교과 표기는 "이 색을 흔히 쓰는 맥락" 힌트일 뿐 강제가 아니다. `themeName` 값 = `themes/{name}.css` 파일명.
+
+| 맥락 | theme | --c | --c2 | --clite | --cstrip | --clabel | --cink |
 |---|---|---|---|---|---|---|---|
+| (기본) | **neutral** | #475569 | #64748b | #f8fafc | #64748b | #e8edf3 | #334155 |
 | 국어 | green | #7cb342 | #8bc34a | #f6faf0 | #9ccc65 | #dcedc8 | #558b2e |
 | 과학 | teal | #00838f | #26a69a | #e0f2f1 | #4db6ac | #b2dfdb | #00695c |
-| 사회 | amber | #b8860b | #d4a017 | #fbf6e9 | #e0b84c | #f2e4bf | #8a6d0b |
-| 영어 | indigo | #3949ab | #5c6bc0 | #eef0fb | #7986cb | #c5cae9 | #283593 |
+| 사회 | amber | #b26a00 | #cc7a1a | #fbf1e2 | #dd9a4a | #f0d9b5 | #8a5200 |
+| 영어 | indigo | #3949ab | #5c6bc0 | #e8eaf6 | #7986cb | #c5cae9 | #283593 |
 | 수학 | blue | #1565c0 | #1e88e5 | #e8f1fb | #64b5f6 | #bbdefb | #0d47a1 |
 
 - 정답 하이라이트 색(#1a5fb4)은 교과와 무관하게 고정(교사용 정답 일관성).
-- 새 교과는 이 표에 행을 추가한다. 채도·명도는 흑백 인쇄에서도 대비가 남도록 중간 톤 유지.
+- ⚠ 위 팔레트 값은 `themes/{neutral,ko,sci,social,english}.css` 의 `:root` 가 **단일 진실원천**이다. 이 표는 그 값을 복제한 참조본이므로 CSS 변경 시 함께 갱신한다 — `test/design/design-contract.test.js` 의 드리프트 가드가 불일치를 실패로 강제한다. 수학(math) 행은 아직 `themes/math.css` 미구현(문서상 예약).
+- 새 팔레트는 `themes/<name>.css` 를 추가하고 이 표에 행을 넣는다(교과와 무관한 이름 권장). 채도·명도는 흑백 인쇄에서도 대비가 남도록 중간 톤 유지. **교과는 색을 강제하지 않는다** — 색이 필요하면 팔레트를 명시 선택, 아니면 neutral.
 
 ## 무드 (디자인 축 — `mood`, P4)
 
